@@ -96,7 +96,8 @@ def cmd_scan(args):
                 "position": pos,
                 "image_file": filename,
                 "ocr": ocr_res,
-                "price_info": price_info
+                "price_info": price_info,
+                "condition": getattr(args, "condition", "NM/EX")
             })
 
     # 5. Build and export report
@@ -195,6 +196,11 @@ def main():
         type=float,
         default=0.02,
         help="Marge intérieure de découpe (0.02 = 2%%) pour éviter les coutures plastiques"
+    )
+    scan_p.add_argument(
+        "--condition",
+        default="NM/EX",
+        help="État de conservation des cartes pour le rapport (défaut: NM/EX)"
     )
     scan_p.set_defaults(func=cmd_scan)
 

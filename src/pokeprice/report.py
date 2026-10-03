@@ -24,6 +24,7 @@ def build_dataframe(records: List[Dict[str, Any]]) -> pd.DataFrame:
             "Extension": price_info.set_name if price_info else "",
             "Numero_Officiel": price_info.card_number if price_info else "",
             "Rarete": price_info.rarity if price_info else "",
+            "Etat": r.get("condition", "NM/EX"),
             "Prix_Estime_EUR": price_info.cm_recommended_eur if price_info else 0.0,
             "Tendance_EUR": price_info.cm_trend_eur if price_info else 0.0,
             "Tendance_Holo_EUR": price_info.cm_trend_holo_eur if price_info else None,
@@ -81,9 +82,9 @@ def print_summary(df: pd.DataFrame) -> None:
     # Top valuable cards
     top = df.sort_values(by="Prix_Estime_EUR", ascending=False).head(10)
     top_display = top[[
-        "Position", "Identified_Name", "Extension", "Numero_Officiel", "Rarete", "Is_Foil", "Prix_Estime_EUR"
+        "Position", "Identified_Name", "Extension", "Numero_Officiel", "Rarete", "Is_Foil", "Etat", "Prix_Estime_EUR"
     ]].copy()
-    top_display.columns = ["Pos", "Nom", "Extension", "Réf", "Rareté", "Foil", "Prix (€)"]
+    top_display.columns = ["Pos", "Nom", "Extension", "Réf", "Rareté", "Foil", "État", "Prix (€)"]
 
     print("\n🏆 TOP CARTES LES PLUS VALORISÉES :")
     print(tabulate(top_display, headers="keys", tablefmt="rounded_grid", showindex=False))
