@@ -45,9 +45,9 @@ class OllamaVisionProvider:
     def extract_card(self, image: Image.Image) -> CardOCRResult:
         import urllib.request
 
-        # Convert PIL image to base64 JPEG
+        # Convert PIL image to base64 PNG (lossless to avoid DCT compression artifacts on small fonts)
         buf = io.BytesIO()
-        image.save(buf, format="JPEG", quality=92)
+        image.save(buf, format="PNG")
         b64_img = base64.b64encode(buf.getvalue()).decode("utf-8")
 
         payload = {
@@ -57,7 +57,11 @@ class OllamaVisionProvider:
             "stream": False,
             "format": "json",
             "options": {
-                "temperature": 0.1
+                "num_ctx": 4096,
+                "num_predict": 128,
+                "temperature": 0.1,
+                "presence_penalty": 0.1,
+                "frequency_penalty": 0.1
             }
         }
 
