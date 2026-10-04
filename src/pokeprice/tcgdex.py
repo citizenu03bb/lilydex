@@ -216,7 +216,15 @@ class TCGdexClient:
                 if not selected_card_id:
                     selected_card_id = matched_num_cands[0]["id"]
 
-        # 2. Denominator match (snap OCR errors like 12/114 -> 15/114)
+        # 2. Level match (for Diamond & Pearl / Platinum era cards like "Jirachi NIV.39", "Givrali NIV.42")
+        if not selected_card_id and query_level:
+            for c in prioritized_candidates:
+                cand_level = self.extract_level(c.get("name", ""))
+                if cand_level == query_level:
+                    selected_card_id = c["id"]
+                    break
+
+        # 3. Denominator match (snap OCR errors like 12/114 -> 15/114)
         if not selected_card_id and denom:
             denom_cands = []
             for c in prioritized_candidates:
@@ -225,24 +233,13 @@ class TCGdexClient:
                 if detail and detail.get("set", {}).get("cardCount", {}).get("official") == denom:
                     denom_cands.append((c, detail))
             if denom_cands:
-                # If HP or level matches, pick that one
+                # If HP matches, pick that one
                 for c, det in denom_cands:
                     if hp > 0 and det.get("hp") == hp:
                         selected_card_id = c["id"]
                         break
-                    if query_level and self.extract_level(det.get("name", "")) == query_level:
-                        selected_card_id = c["id"]
-                        break
                 if not selected_card_id:
                     selected_card_id = denom_cands[0][0]["id"]
-
-        # 3. Level match (for Diamond & Pearl / Platinum era cards like "Jirachi NIV.39")
-        if not selected_card_id and query_level:
-            for c in prioritized_candidates:
-                cand_level = self.extract_level(c.get("name", ""))
-                if cand_level == query_level:
-                    selected_card_id = c["id"]
-                    break
 
         # 4. HP match (disambiguate when card number is missing)
         if not selected_card_id and hp > 0:
