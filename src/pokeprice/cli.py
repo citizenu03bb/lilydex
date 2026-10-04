@@ -180,8 +180,8 @@ def main():
     scan_p.add_argument(
         "--grid",
         choices=["auto", "3x3", "2x2", "single"],
-        default="auto",
-        help="Disposition des pochettes (défaut: auto)"
+        default="2x2",
+        help="Disposition des pochettes (défaut: 2x2)"
     )
     scan_p.add_argument(
         "--rotate",
