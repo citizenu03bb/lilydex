@@ -724,13 +724,7 @@ def _build_html_template(
     <header>
       <div class="header-top">
         <div>
-          <h1>
-            <span>🎴 {title}</span>
-            <span class="badge-live">IA Gemini 3.8 Flash + TCGdex</span>
-          </h1>
-          <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 4px;">
-            Validation visuelle côte-à-côte (Photo réelle du classeur vs Visuel officiel HD Cardmarket)
-          </p>
+          <h1>🎴 {title}</h1>
         </div>
       </div>
 
