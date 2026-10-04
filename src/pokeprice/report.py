@@ -25,7 +25,8 @@ def build_dataframe(records: List[Dict[str, Any]]) -> pd.DataFrame:
             "Extension": price_info.set_name if price_info else "",
             "Numero_Officiel": price_info.card_number if price_info else "",
             "Rarete": price_info.rarity if price_info else "",
-            "Etat": r.get("condition", "NM/EX"),
+            "Etat": (ocr.condition if (ocr and ocr.condition) else r.get("condition", "NM/EX")),
+            "Defauts": (ocr.flaws if (ocr and ocr.flaws) else r.get("flaws", "")),
             "Prix_Estime_EUR": price_info.cm_recommended_eur if price_info else 0.0,
             "Tendance_EUR": price_info.cm_trend_eur if price_info else 0.0,
             "Tendance_Holo_EUR": price_info.cm_trend_holo_eur if price_info else None,
@@ -35,7 +36,8 @@ def build_dataframe(records: List[Dict[str, Any]]) -> pd.DataFrame:
                 f"https://www.cardmarket.com/fr/Pokemon/Products/Singles/{price_info.cardmarket_id}"
                 if (price_info and price_info.cardmarket_id)
                 else ""
-            )
+            ),
+            "Image_Officielle": (f"{price_info.image_url}/high.webp" if (price_info and price_info.image_url) else "")
         }
         rows.append(row)
         
@@ -78,15 +80,28 @@ def print_summary(df: pd.DataFrame) -> None:
     print(f" • Nombre total de cartes scannées : {total_cards}")
     print(f" • Cartes brillantes / Reverse     : {foils_count}")
     print(f" • VALEUR TOTALE ESTIMÉE           : {total_val:.2f} €")
+    if "Etat" in df.columns and not df["Etat"].isna().all():
+        counts = df["Etat"].value_counts().to_dict()
+        dist_str = " | ".join(f"{k}: {v}" for k, v in counts.items() if k)
+        print(f" • États de conservation constatés : {dist_str}")
     print("=" * 70)
 
     # Top valuable cards
     top = df.sort_values(by="Prix_Estime_EUR", ascending=False).head(10)
-    top_display = top[[
-        "Position", "Identified_Name", "Extension", "Numero_Officiel", "Rarete", "Is_Foil", "Etat", "Prix_Estime_EUR"
-    ]].copy()
-    top_display.columns = ["Pos", "Nom", "Extension", "Réf", "Rareté", "Foil", "État", "Prix (€)"]
+    top_cols = ["Page", "Position", "Identified_Name", "Extension", "Numero_Officiel", "Rarete", "Is_Foil", "Etat", "Prix_Estime_EUR"]
+    top_display = top[[c for c in top_cols if c in top.columns]].copy()
+    top_display.columns = ["P.", "Pos", "Nom", "Extension", "Réf", "Rareté", "Foil", "État", "Prix (€)"]
 
     print("\n🏆 TOP CARTES LES PLUS VALORISÉES :")
     print(tabulate(top_display, headers="keys", tablefmt="rounded_grid", showindex=False))
+
+    # Cards not NM/EX
+    if "Etat" in df.columns:
+        worn = df[~df["Etat"].isin(["NM", "EX", "NM/EX", ""]) & df["Etat"].notna()]
+        if not worn.empty:
+            print("\n⚠️ CARTES AVEC DÉFAUTS OU USURE (Non NM/EX) :")
+            worn_cols = ["Page", "Position", "Identified_Name", "Extension", "Numero_Officiel", "Etat", "Defauts", "Prix_Estime_EUR"]
+            worn_display = worn[[c for c in worn_cols if c in worn.columns]].copy()
+            worn_display.columns = ["P.", "Pos", "Nom", "Extension", "Réf", "État", "Défauts constatés", "Prix (€)"]
+            print(tabulate(worn_display, headers="keys", tablefmt="rounded_grid", showindex=False))
     print("\n")

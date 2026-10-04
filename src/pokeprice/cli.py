@@ -6,7 +6,17 @@ import argparse
 import glob
 import os
 import sys
+from pathlib import Path
 from PIL import Image
+
+try:
+    from dotenv import load_dotenv
+    home_env = Path.home() / ".env"
+    if home_env.exists():
+        load_dotenv(home_env)
+    load_dotenv()
+except ImportError:
+    pass
 
 from pokeprice.slicer import normalize_orientation, detect_grid_layout, slice_grid
 from pokeprice.ocr import get_ocr_provider
@@ -39,12 +49,13 @@ def cmd_scan(args):
     if args.limit and args.limit > 0:
         image_files = image_files[:args.limit]
 
+    ocr_provider = get_ocr_provider(backend=args.backend, model=args.model)
+    actual_model = getattr(ocr_provider, "model", args.model)
     print(f"🔍 Initialisation du pipeline pokeprice...")
-    print(f" • Modèle OCR : {args.backend} ({args.model})")
+    print(f" • Modèle OCR : {args.backend} ({actual_model})")
     print(f" • Images à analyser : {len(image_files)}")
     print(f" • Grille : {args.grid} | Rotation : {args.rotate}")
 
-    ocr_provider = get_ocr_provider(backend=args.backend, model=args.model)
     tcgdex_client = TCGdexClient(language="fr")
 
     if args.save_crops:
@@ -98,6 +109,10 @@ def cmd_scan(args):
             # OCR extraction
             ocr_res = ocr_provider.extract_card(crop_img)
 
+            if not ocr_res.name or ocr_res.name.lower() in ("vide", "empty", "none", "aucun", "aucune"):
+                print(" [Emplacement vide]")
+                continue
+
             # TCGdex Lookup
             price_info = None
             if ocr_res.name:
@@ -109,9 +124,11 @@ def cmd_scan(args):
                 )
 
             val_str = f"{price_info.cm_recommended_eur:.2f} €" if (price_info and price_info.cm_recommended_eur) else "N/A"
-            identified = price_info.name if price_info else (ocr_res.name or "Inconnue")
+            identified = price_info.name if price_info else ocr_res.name
             holo_tag = " ✨ [Holo]" if ocr_res.is_holo else ""
-            print(f" {identified} ({ocr_res.card_number}){holo_tag} => {val_str}")
+            cond_tag = f" [{ocr_res.condition}]" if ocr_res.condition else ""
+            flaws_tag = f" ⚠️ ({ocr_res.flaws})" if (ocr_res.flaws and ocr_res.flaws.lower() not in ("none", "none visible", "aucun", "aucune", "aucun défaut")) else ""
+            print(f" {identified} ({ocr_res.card_number}){holo_tag}{cond_tag}{flaws_tag} => {val_str}")
 
             records.append({
                 "page_num": page_idx,
@@ -119,7 +136,8 @@ def cmd_scan(args):
                 "image_file": filename,
                 "ocr": ocr_res,
                 "price_info": price_info,
-                "condition": getattr(args, "condition", "NM/EX")
+                "condition": ocr_res.condition or getattr(args, "condition", "NM/EX"),
+                "flaws": ocr_res.flaws or ""
             })
 
     # 5. Build and export report
@@ -128,9 +146,11 @@ def cmd_scan(args):
     if out_file.endswith(".xlsx"):
         xlsx_file = out_file
         csv_file = out_file.replace(".xlsx", ".csv")
+        html_file = out_file.replace(".xlsx", ".html")
     else:
         csv_file = out_file
         xlsx_file = out_file.replace(".csv", ".xlsx")
+        html_file = out_file.replace(".csv", ".html")
 
     export_excel(df, xlsx_file)
     export_csv(df, csv_file)
@@ -138,8 +158,38 @@ def cmd_scan(args):
     print(f" • Excel : {xlsx_file}")
     print(f" • CSV   : {csv_file}")
 
+    if os.path.isdir(target_path):
+        try:
+            from pokeprice.html_report import generate_html_report
+            title = f"Album Pokémon - {os.path.basename(target_path)}"
+            generate_html_report(df, album_dir=target_path, output_html_path=html_file, title=title)
+            print(f" • Web HTML interactif : {html_file}")
+        except Exception as e:
+            print(f"  (Note: Génération HTML non effectuée : {e})")
+
     # 6. Terminal Summary
     print_summary(df)
+
+
+def cmd_html(args):
+    """Generates an interactive HTML visual report from a CSV/Excel file and album folder."""
+    import pandas as pd
+    report_file = args.report_file
+    album_dir = args.album_dir
+    out_html = args.output or (
+        report_file.replace(".xlsx", ".html").replace(".csv", ".html")
+        if (report_file.endswith(".xlsx") or report_file.endswith(".csv"))
+        else "report.html"
+    )
+    if report_file.endswith(".xlsx"):
+        df = pd.read_excel(report_file)
+    else:
+        df = pd.read_csv(report_file)
+
+    title = args.title or f"Album Pokémon - {os.path.basename(album_dir)}"
+    from pokeprice.html_report import generate_html_report
+    generate_html_report(df, album_dir=album_dir, output_html_path=out_html, title=title)
+    print(f"\n🌐 Rapport web ouvert : file://{os.path.abspath(out_html)}")
 
 
 def cmd_lookup(args):
@@ -207,13 +257,13 @@ def main():
     scan_p.add_argument(
         "--backend",
         choices=["ollama", "gemini"],
-        default="ollama",
-        help="Moteur de vision (défaut: ollama)"
+        default="gemini" if os.getenv("GEMINI_API_KEY") else "ollama",
+        help="Moteur de vision (défaut: gemini si GEMINI_API_KEY présent, sinon ollama)"
     )
     scan_p.add_argument(
         "--model",
-        default="gemma4:e4b-it-q4_K_M",
-        help="Modèle Ollama (défaut: gemma4:e4b-it-q4_K_M)"
+        default=None,
+        help="Nom du modèle (défaut: gemini-3.8-flash pour gemini, gemma4:e4b-it-q4_K_M pour ollama)"
     )
     scan_p.add_argument(
         "--output", "-o",
@@ -262,6 +312,14 @@ def main():
     report_p = subparsers.add_parser("report", help="Affiche le résumé d'un rapport CSV existant")
     report_p.add_argument("csv_file", help="Chemin vers le fichier CSV généré")
     report_p.set_defaults(func=cmd_report)
+
+    # Subcommand: html
+    html_p = subparsers.add_parser("html", help="Génère un rapport web interactif (photos réelles + officielles côte à côte)")
+    html_p.add_argument("report_file", help="Fichier CSV ou Excel généré par scan")
+    html_p.add_argument("album_dir", help="Dossier contenant les photos du classeur")
+    html_p.add_argument("-o", "--output", default=None, help="Chemin du fichier HTML de sortie")
+    html_p.add_argument("--title", default=None, help="Titre de la page web")
+    html_p.set_defaults(func=cmd_html)
 
     args = parser.parse_args()
     args.func(args)

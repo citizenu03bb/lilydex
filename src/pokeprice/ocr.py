@@ -19,21 +19,34 @@ class CardOCRResult:
     card_number: str
     is_holo: bool
     raw_response: str
+    condition: str = "NM/EX"
+    flaws: str = ""
 
 
-SYSTEM_OCR_PROMPT = """You are an expert OCR engine for Pokemon trading cards (specifically French language editions).
+SYSTEM_OCR_PROMPT = """You are an expert OCR and condition grading engine for Pokemon trading cards (specifically French language editions).
 Carefully examine this cropped Pokemon card image:
-1. 'name': Card name printed at the top (include Level / NIV. if present, e.g. "Arbok NIV.31", "Givrali NIV.42", "Kapoera NIV.25", "Salle de Maître").
+1. 'name': Card name printed at the top (include Level / NIV. if present, e.g. "Arbok NIV.31", "Givrali NIV.42", "Kapoera NIV.25", "Salle de Maître"). If in Japanese, provide the Romanized or French name (e.g. "Meganium LV.54").
 2. 'hp': PV / Points de Vie (HP) number printed at top right (integer, e.g. '80 PV' -> 80. Return 0 for Trainers, Stadiums, or Energy cards).
-3. 'card_number': Look very closely at the bottom-right and bottom-left margins/corners for the collector number fraction (e.g. "33/106", "4/102", "15/114"). Read the tiny digits carefully. Return empty string only if genuinely absent.
-4. 'is_holo': true if the card has holographic foil, glitter, shiny border, or rainbow sheen, else false.
+3. 'card_number': Look very closely at the bottom-right and bottom-left margins/corners for the collector number fraction (e.g. "33/106", "4/102", "86/132"). Read the tiny digits and set symbol carefully. You may also cross-check attacks or the illustrator name at bottom right to confirm the exact expansion if digits are dark or faint. Return empty string only if genuinely absent.
+4. 'is_holo': true ONLY if the card has real holographic foil / shiny artwork or foil border. Return false if flat non-holo ink or if gloss is just plastic sleeve reflection.
+5. 'condition': Grade the physical condition:
+   - 'NM' (Near Mint: clean borders, sharp corners, no scratches)
+   - 'EX' (Excellent: very minor edge whitening or tiny flaw)
+   - 'GD' (Good: noticeable white spots on borders/corners, light scratches)
+   - 'LP' (Light Played: clear whitening along edges, minor bends/dings)
+   - 'PL' (Played: heavy whitening, creases, dents, heavy surface wear)
+   - 'PO' (Poor: major damage, tears, peeling corners)
+6. 'flaws': Brief description of visible defects (e.g. 'edge whitening on top-right', 'scratched holo window', 'rounded peeling corners', or 'none visible').
+If this image shows an empty binder pocket or no card, return empty string for 'name' and 'condition': '' and 'flaws': 'empty pocket'.
 
 Respond ONLY with a valid JSON object matching this schema:
 {
   "name": "<exact French card name>",
   "hp": <HP integer>,
-  "card_number": "<collector fraction like 33/106>",
-  "is_holo": <boolean>
+  "card_number": "<collector fraction>",
+  "is_holo": <boolean>,
+  "condition": "<NM | EX | GD | LP | PL | PO>",
+  "flaws": "<description of defects or 'none visible'>"
 }
 Do not write markdown explanations or introductory text outside the JSON."""
 
@@ -126,11 +139,16 @@ class OllamaVisionProvider:
             except Exception:
                 pass
 
+        condition = parsed.get("condition", "NM/EX").strip()
+        flaws = parsed.get("flaws", "").strip()
+
         return CardOCRResult(
             name=name,
             hp=hp,
             card_number=card_num,
             is_holo=is_holo,
+            condition=condition,
+            flaws=flaws,
             raw_response=raw_text
         )
 
@@ -174,22 +192,35 @@ class OllamaVisionProvider:
 
 
 class GeminiVisionProvider:
-    """Optional cloud provider using google-genai SDK if GEMINI_API_KEY is configured."""
-    def __init__(self, model: str = "gemini-2.5-flash"):
+    """Cloud provider using google-genai SDK with Gemini 3.8 Flash by default."""
+    def __init__(self, model: str = "gemini-3.8-flash"):
         self.model = model
+        # Automatically load environment variables from ~/.env and local .env
+        from pathlib import Path
         try:
+            from dotenv import load_dotenv
+            home_env = Path.home() / ".env"
+            if home_env.exists():
+                load_dotenv(home_env)
+            load_dotenv()
+        except ImportError:
+            pass
+
+        try:
+            import logging
+            logging.getLogger("google_genai").setLevel(logging.ERROR)
             from google import genai
             self.client = genai.Client()
         except ImportError:
             raise ImportError(
-                "google-genai is not installed. Run 'uv pip install google-genai' to use cloud backend."
+                "google-genai is not installed. Run 'uv pip install google-genai python-dotenv' to use cloud backend."
             )
 
     def extract_card(self, image: Image.Image) -> CardOCRResult:
         from google.genai import types
         
         buf = io.BytesIO()
-        image.save(buf, format="JPEG", quality=92)
+        image.save(buf, format="JPEG", quality=95)
         
         response = self.client.models.generate_content(
             model=self.model,
@@ -214,6 +245,8 @@ class GeminiVisionProvider:
             hp=int(parsed.get("hp", 0) or 0),
             card_number=parsed.get("card_number", "").strip(),
             is_holo=bool(parsed.get("is_holo", False)),
+            condition=parsed.get("condition", "NM/EX").strip(),
+            flaws=parsed.get("flaws", "").strip(),
             raw_response=raw_text
         )
 
@@ -250,7 +283,7 @@ def get_ocr_provider(backend: str = "ollama", model: Optional[str] = None):
         target_model = model or "gemma4:e4b-it-q4_K_M"
         return OllamaVisionProvider(model=target_model)
     elif backend == "gemini":
-        target_model = model or "gemini-2.5-flash"
+        target_model = model or "gemini-3.8-flash"
         return GeminiVisionProvider(model=target_model)
     else:
         raise ValueError(f"Unknown OCR backend: {backend}. Choose 'ollama' or 'gemini'.")

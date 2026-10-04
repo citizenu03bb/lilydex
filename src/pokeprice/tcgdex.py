@@ -56,19 +56,29 @@ class TCGdexClient:
         cached_map = self.cache.get("__name_map__")
         if cached_map:
             self.name_map = cached_map
-            return
-        
-        cards_list = self._get_json(f"{self.base_url}/cards")
-        if cards_list and isinstance(cards_list, list):
-            for c in cards_list:
-                official = c.get("name", "")
-                if official:
-                    norm = strip_accents(official)
-                    if norm not in self.name_map:
-                        self.name_map[norm] = official
-            if self.use_cache:
-                self.cache["__name_map__"] = self.name_map
-                self._save_cache()
+        else:
+            cards_list = self._get_json(f"{self.base_url}/cards")
+            if cards_list and isinstance(cards_list, list):
+                for c in cards_list:
+                    official = c.get("name", "")
+                    if official:
+                        norm = strip_accents(official)
+                        if norm not in self.name_map:
+                            self.name_map[norm] = official
+                if self.use_cache:
+                    self.cache["__name_map__"] = self.name_map
+                    self._save_cache()
+
+        jp_aliases = {
+            "メガニウム": "Méganium",
+            "リザードン": "Dracaufeu",
+            "ピカチュウ": "Pikachu",
+            "ミュウツー": "Mewtwo",
+            "フシギバナ": "Florizarre",
+            "カメックス": "Tortank",
+        }
+        for k, v in jp_aliases.items():
+            self.name_map[k] = v
 
     def _load_cache(self):
         try:
@@ -174,7 +184,15 @@ class TCGdexClient:
                 candidates = en_candidates
                 query_base = "https://api.tcgdex.net/v2/en"
             else:
-                return None
+                first_word = clean.split()[0] if len(clean.split()) > 1 else ""
+                if first_word:
+                    en_url = f"https://api.tcgdex.net/v2/en/cards?name={urllib.parse.quote(first_word)}"
+                    en_candidates = self._get_json(en_url)
+                    if en_candidates and isinstance(en_candidates, list):
+                        candidates = en_candidates
+                        query_base = "https://api.tcgdex.net/v2/en"
+                if not candidates or not isinstance(candidates, list):
+                    return None
 
         # Filter candidates whose clean base name matches
         name_matches = [
