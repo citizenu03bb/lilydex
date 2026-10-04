@@ -37,3 +37,4 @@ ENV/
 *.csv
 *.xlsx
 !tests/fixtures/*.csv
+.~lock.*
