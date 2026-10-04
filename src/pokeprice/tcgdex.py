@@ -8,11 +8,17 @@ import os
 import re
 import urllib.parse
 import urllib.request
+import unicodedata
 from dataclasses import dataclass, asdict
 from typing import Optional, Dict, Any, List
 
 CACHE_DIR = os.path.expanduser("~/.cache/pokeprice")
 CACHE_FILE = os.path.join(CACHE_DIR, "tcgdex_cache.json")
+
+
+def strip_accents(s: str) -> str:
+    """Removes accents and lowercases string for robust matching."""
+    return "".join(c for c in unicodedata.normalize("NFD", s) if unicodedata.category(c) != "Mn").lower().strip()
 
 
 @dataclass
@@ -40,8 +46,29 @@ class TCGdexClient:
         self.base_url = f"https://api.tcgdex.net/v2/{language}"
         self.use_cache = use_cache
         self.cache: Dict[str, Any] = {}
+        self.name_map: Dict[str, str] = {}
         if self.use_cache:
             self._load_cache()
+        self._init_name_map()
+
+    def _init_name_map(self):
+        """Builds accent-insensitive mapping to official French card names."""
+        cached_map = self.cache.get("__name_map__")
+        if cached_map:
+            self.name_map = cached_map
+            return
+        
+        cards_list = self._get_json(f"{self.base_url}/cards")
+        if cards_list and isinstance(cards_list, list):
+            for c in cards_list:
+                official = c.get("name", "")
+                if official:
+                    norm = strip_accents(official)
+                    if norm not in self.name_map:
+                        self.name_map[norm] = official
+            if self.use_cache:
+                self.cache["__name_map__"] = self.name_map
+                self._save_cache()
 
     def _load_cache(self):
         try:
@@ -114,6 +141,10 @@ class TCGdexClient:
         if not clean:
             return None
 
+        # Resolve unaccented or alternate spellings via name_map
+        norm = strip_accents(clean)
+        clean = self.name_map.get(norm, clean)
+
         # Query candidates by name
         search_url = f"{self.base_url}/cards?name={urllib.parse.quote(clean)}"
         candidates = self._get_json(search_url)
@@ -121,12 +152,16 @@ class TCGdexClient:
         if not candidates or not isinstance(candidates, list):
             return None
 
+        # Filter/sort candidates: exact name matches first
+        exact_matches = [c for c in candidates if c.get("name", "").lower() == clean.lower()]
+        prioritized_candidates = exact_matches if exact_matches else candidates
+
         num, denom = self.parse_card_number(raw_number)
         selected_card_id = None
 
-        # 1. Try exact localId match
+        # 1. Try exact localId match (prioritizing exact name matches first)
         if num:
-            for c in candidates:
+            for c in prioritized_candidates:
                 cand_local = str(c.get("localId", "")).lstrip("0") or "0"
                 if cand_local.lower() == num.lower():
                     selected_card_id = c["id"]
@@ -135,7 +170,7 @@ class TCGdexClient:
         # 2. If no exact localId, but denominator (set total) is present,
         # inspect candidates to find one in the matching set (auto-snap OCR errors like 12/114 -> 15/114)
         if not selected_card_id and denom:
-            for c in candidates:
+            for c in prioritized_candidates:
                 cid = c["id"]
                 # Fetch details to inspect set cardCount
                 detail = self._get_json(f"{self.base_url}/cards/{cid}")
@@ -147,13 +182,12 @@ class TCGdexClient:
 
         # 3. Fallback: Take first candidate if only one exists or best effort
         if not selected_card_id:
-            # Prefer candidates that have an image available
-            for c in candidates:
+            for c in prioritized_candidates:
                 if c.get("image"):
                     selected_card_id = c["id"]
                     break
             if not selected_card_id:
-                selected_card_id = candidates[0]["id"]
+                selected_card_id = prioritized_candidates[0]["id"]
 
         # Fetch detailed card information
         card_detail = self._get_json(f"{self.base_url}/cards/{selected_card_id}")

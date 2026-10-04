@@ -33,6 +33,12 @@ def cmd_scan(args):
         print(f"Aucune image trouvée dans : {target_path}", file=sys.stderr)
         sys.exit(1)
 
+    if args.exclude:
+        image_files = [f for f in image_files if os.path.basename(f) not in args.exclude and f not in args.exclude]
+
+    if args.limit and args.limit > 0:
+        image_files = image_files[:args.limit]
+
     print(f"🔍 Initialisation du pipeline pokeprice...")
     print(f" • Modèle OCR : {args.backend} ({args.model})")
     print(f" • Images à analyser : {len(image_files)}")
@@ -201,6 +207,18 @@ def main():
         "--condition",
         default="NM/EX",
         help="État de conservation des cartes pour le rapport (défaut: NM/EX)"
+    )
+    scan_p.add_argument(
+        "--exclude",
+        nargs="*",
+        default=[],
+        help="Noms de fichiers à exclure (ex: PXL_20261004_074746593.jpg)"
+    )
+    scan_p.add_argument(
+        "--limit",
+        type=int,
+        default=0,
+        help="Nombre maximum d'images à traiter (0 = toutes)"
     )
     scan_p.set_defaults(func=cmd_scan)
 
