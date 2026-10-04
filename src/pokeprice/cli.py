@@ -110,10 +110,17 @@ def cmd_scan(args):
     df = build_dataframe(records)
     out_file = args.output
     if out_file.endswith(".xlsx"):
-        export_excel(df, out_file)
+        xlsx_file = out_file
+        csv_file = out_file.replace(".xlsx", ".csv")
     else:
-        export_csv(df, out_file)
-    print(f"\n💾 Données exportées avec succès vers : {out_file}")
+        csv_file = out_file
+        xlsx_file = out_file.replace(".csv", ".xlsx")
+
+    export_excel(df, xlsx_file)
+    export_csv(df, csv_file)
+    print(f"\n💾 Données exportées avec succès vers :")
+    print(f" • Excel : {xlsx_file}")
+    print(f" • CSV   : {csv_file}")
 
     # 6. Terminal Summary
     print_summary(df)

@@ -107,8 +107,8 @@ class TCGdexClient:
     @staticmethod
     def clean_name(name: str) -> str:
         """Strips levels, numbers, and extra symbols for database search."""
-        # e.g., 'Kapoera NIV.25' -> 'Kapoera', 'Ortide Niv. 24' -> 'Ortide'
-        cleaned = re.sub(r"\s+[nN][iI][vV]\.?\s*\d+", "", name)
+        # e.g., 'Kapoera NIV.25' -> 'Kapoera', 'Lucario NIV.X' -> 'Lucario', 'Etouraptor NIV.64' -> 'Etouraptor'
+        cleaned = re.sub(r"\s+([nN][iI][vV]|[lL][vV])\.?\s*([xX]|\d+)", "", name)
         # Strip trailing punctuation, extra spaces
         cleaned = cleaned.strip(" -_#")
         return cleaned
@@ -137,20 +137,35 @@ class TCGdexClient:
         Searches for a card in the TCGdex database, applying fuzzy snapping
         to resolve OCR typos on card fractions.
         """
+        import difflib
+
         clean = self.clean_name(name)
         if not clean:
             return None
 
-        # Resolve unaccented or alternate spellings via name_map
+        # Resolve unaccented or alternate spellings via name_map & difflib
         norm = strip_accents(clean)
-        clean = self.name_map.get(norm, clean)
+        if norm in self.name_map:
+            clean = self.name_map[norm]
+        else:
+            close = difflib.get_close_matches(norm, self.name_map.keys(), n=1, cutoff=0.7)
+            if close:
+                clean = self.name_map[close[0]]
 
-        # Query candidates by name
+        # Query candidates by name in French
         search_url = f"{self.base_url}/cards?name={urllib.parse.quote(clean)}"
         candidates = self._get_json(search_url)
 
+        # Fallback to English endpoint if French yields no results (e.g. English cards in album like Charizard)
+        query_base = self.base_url
         if not candidates or not isinstance(candidates, list):
-            return None
+            en_url = f"https://api.tcgdex.net/v2/en/cards?name={urllib.parse.quote(clean)}"
+            en_candidates = self._get_json(en_url)
+            if en_candidates and isinstance(en_candidates, list):
+                candidates = en_candidates
+                query_base = "https://api.tcgdex.net/v2/en"
+            else:
+                return None
 
         # Filter/sort candidates: exact name matches first
         exact_matches = [c for c in candidates if c.get("name", "").lower() == clean.lower()]
@@ -173,7 +188,7 @@ class TCGdexClient:
             for c in prioritized_candidates:
                 cid = c["id"]
                 # Fetch details to inspect set cardCount
-                detail = self._get_json(f"{self.base_url}/cards/{cid}")
+                detail = self._get_json(f"{query_base}/cards/{cid}")
                 if detail:
                     official = detail.get("set", {}).get("cardCount", {}).get("official")
                     if official == denom:
@@ -190,7 +205,7 @@ class TCGdexClient:
                 selected_card_id = prioritized_candidates[0]["id"]
 
         # Fetch detailed card information
-        card_detail = self._get_json(f"{self.base_url}/cards/{selected_card_id}")
+        card_detail = self._get_json(f"{query_base}/cards/{selected_card_id}")
         if not card_detail:
             return None
 
