@@ -107,11 +107,19 @@ class TCGdexClient:
     @staticmethod
     def clean_name(name: str) -> str:
         """Strips levels, numbers, and extra symbols for database search."""
-        # e.g., 'Kapoera NIV.25' -> 'Kapoera', 'Lucario NIV.X' -> 'Lucario', 'Etouraptor NIV.64' -> 'Etouraptor'
-        cleaned = re.sub(r"\s+([nN][iI][vV]|[lL][vV])\.?\s*([xX]|\d+)", "", name)
-        # Strip trailing punctuation, extra spaces
-        cleaned = cleaned.strip(" -_#")
+        # Strip evolution reminder clauses, e.g. "Mackogneur, Placez Mackogneur sur..."
+        cleaned = re.sub(r",.*$", "", name)
+        # Strip levels: 'NIV. 25', '(NIV. 24)', 'NIV.X', 'LV. 50'
+        cleaned = re.sub(r"[\(\[\s]*(?:niv|lv)\.?\s*([xX]|\d+)[\)\]\s]*", "", cleaned, flags=re.IGNORECASE)
+        # Strip trailing punctuation, extra spaces, brackets
+        cleaned = cleaned.strip(" -_#(),.[]")
         return cleaned
+
+    @staticmethod
+    def extract_level(name: str) -> Optional[str]:
+        """Extracts level identifier like '31', '42', 'X' from card name."""
+        match = re.search(r"(?:niv|lv)\.?\s*([xX]|\d+)", name, flags=re.IGNORECASE)
+        return match.group(1).upper() if match else None
 
     @staticmethod
     def parse_card_number(card_num_str: str) -> tuple[Optional[str], Optional[int]]:
@@ -131,11 +139,12 @@ class TCGdexClient:
         self,
         name: str,
         raw_number: str = "",
-        is_holo: bool = False
+        is_holo: bool = False,
+        hp: int = 0
     ) -> Optional[CardPriceInfo]:
         """
-        Searches for a card in the TCGdex database, applying fuzzy snapping
-        to resolve OCR typos on card fractions.
+        Searches for a card in the TCGdex database, applying fuzzy snapping,
+        level matching, and HP verification.
         """
         import difflib
 
@@ -156,7 +165,7 @@ class TCGdexClient:
         search_url = f"{self.base_url}/cards?name={urllib.parse.quote(clean)}"
         candidates = self._get_json(search_url)
 
-        # Fallback to English endpoint if French yields no results (e.g. English cards in album like Charizard)
+        # Fallback to English endpoint if French yields no results
         query_base = self.base_url
         if not candidates or not isinstance(candidates, list):
             en_url = f"https://api.tcgdex.net/v2/en/cards?name={urllib.parse.quote(clean)}"
@@ -167,35 +176,93 @@ class TCGdexClient:
             else:
                 return None
 
-        # Filter/sort candidates: exact name matches first
-        exact_matches = [c for c in candidates if c.get("name", "").lower() == clean.lower()]
-        prioritized_candidates = exact_matches if exact_matches else candidates
+        # Filter candidates whose clean base name matches
+        name_matches = [
+            c for c in candidates 
+            if self.clean_name(c.get("name", "")).lower() == clean.lower()
+        ]
+        prioritized_candidates = name_matches if name_matches else candidates
 
+        query_level = self.extract_level(name)
         num, denom = self.parse_card_number(raw_number)
         selected_card_id = None
 
-        # 1. Try exact localId match (prioritizing exact name matches first)
+        # 1. Try exact localId match
         if num:
+            matched_num_cands = []
             for c in prioritized_candidates:
                 cand_local = str(c.get("localId", "")).lstrip("0") or "0"
                 if cand_local.lower() == num.lower():
+                    matched_num_cands.append(c)
+
+            if len(matched_num_cands) == 1:
+                selected_card_id = matched_num_cands[0]["id"]
+            elif len(matched_num_cands) > 1:
+                # Disambiguate among cards with the same number using denom, HP, or level
+                for c in matched_num_cands:
+                    cid = c["id"]
+                    detail = self._get_json(f"{query_base}/cards/{cid}")
+                    if not detail:
+                        continue
+                    if denom and detail.get("set", {}).get("cardCount", {}).get("official") == denom:
+                        selected_card_id = cid
+                        break
+                    if hp > 0 and detail.get("hp") == hp:
+                        selected_card_id = cid
+                        break
+                    if query_level and self.extract_level(detail.get("name", "")) == query_level:
+                        selected_card_id = cid
+                        break
+                if not selected_card_id:
+                    selected_card_id = matched_num_cands[0]["id"]
+
+        # 2. Denominator match (snap OCR errors like 12/114 -> 15/114)
+        if not selected_card_id and denom:
+            denom_cands = []
+            for c in prioritized_candidates:
+                cid = c["id"]
+                detail = self._get_json(f"{query_base}/cards/{cid}")
+                if detail and detail.get("set", {}).get("cardCount", {}).get("official") == denom:
+                    denom_cands.append((c, detail))
+            if denom_cands:
+                # If HP or level matches, pick that one
+                for c, det in denom_cands:
+                    if hp > 0 and det.get("hp") == hp:
+                        selected_card_id = c["id"]
+                        break
+                    if query_level and self.extract_level(det.get("name", "")) == query_level:
+                        selected_card_id = c["id"]
+                        break
+                if not selected_card_id:
+                    selected_card_id = denom_cands[0][0]["id"]
+
+        # 3. Level match (for Diamond & Pearl / Platinum era cards like "Jirachi NIV.39")
+        if not selected_card_id and query_level:
+            for c in prioritized_candidates:
+                cand_level = self.extract_level(c.get("name", ""))
+                if cand_level == query_level:
                     selected_card_id = c["id"]
                     break
 
-        # 2. If no exact localId, but denominator (set total) is present,
-        # inspect candidates to find one in the matching set (auto-snap OCR errors like 12/114 -> 15/114)
-        if not selected_card_id and denom:
+        # 4. HP match (disambiguate when card number is missing)
+        if not selected_card_id and hp > 0:
+            hp_cands = []
             for c in prioritized_candidates:
                 cid = c["id"]
-                # Fetch details to inspect set cardCount
                 detail = self._get_json(f"{query_base}/cards/{cid}")
-                if detail:
-                    official = detail.get("set", {}).get("cardCount", {}).get("official")
-                    if official == denom:
-                        selected_card_id = cid
-                        break
+                if detail and detail.get("hp") == hp:
+                    hp_cands.append(c)
+            if hp_cands:
+                # If query has level, prefer DP/Pt era (set ID starting with 'dp' or 'pl')
+                if query_level:
+                    for c in hp_cands:
+                        if c["id"].startswith("dp") or c["id"].startswith("pl"):
+                            selected_card_id = c["id"]
+                            break
+                if not selected_card_id:
+                    selected_card_id = hp_cands[0]["id"]
 
-        # 3. Fallback: Take first candidate if only one exists or best effort
+        # 5. Fallback: First candidate with an image or candidate 0
         if not selected_card_id:
             for c in prioritized_candidates:
                 if c.get("image"):

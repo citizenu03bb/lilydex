@@ -19,6 +19,7 @@ def build_dataframe(records: List[Dict[str, Any]]) -> pd.DataFrame:
             "Position": r.get("position", 1),
             "OCR_Name": ocr.name if ocr else "",
             "OCR_Number": ocr.card_number if ocr else "",
+            "PV": ocr.hp if (ocr and ocr.hp > 0) else None,
             "Is_Foil": "Oui" if (ocr and ocr.is_holo) else "Non",
             "Identified_Name": price_info.name if price_info else "Non trouvée",
             "Extension": price_info.set_name if price_info else "",

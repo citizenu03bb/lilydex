@@ -22,15 +22,25 @@ class CardOCRResult:
 
 
 SYSTEM_OCR_PROMPT = """You are an expert OCR engine for Pokemon trading cards (specifically French language editions).
-Inspect this cropped Pokemon card image very carefully.
-Extract the card's information and respond ONLY with a valid JSON object matching this schema:
+Carefully examine this cropped Pokemon card image:
+1. 'name': Card name printed at the top (include Level / NIV. if present, e.g. "Arbok NIV.31", "Givrali NIV.42", "Kapoera NIV.25", "Salle de Maître").
+2. 'hp': PV / Points de Vie (HP) number printed at top right (integer, e.g. '80 PV' -> 80. Return 0 for Trainers, Stadiums, or Energy cards).
+3. 'card_number': Look very closely at the bottom-right and bottom-left margins/corners for the collector number fraction (e.g. "33/106", "4/102", "15/114"). Read the tiny digits carefully. Return empty string only if genuinely absent.
+4. 'is_holo': true if the card has holographic foil, glitter, shiny border, or rainbow sheen, else false.
+
+Respond ONLY with a valid JSON object matching this schema:
 {
-  "name": "<exact French card name printed at top, e.g. Gruikui, Kapoera NIV.25, Ortide, Salle de Maître>",
-  "hp": <HP number printed at top right, e.g. 60, or 0 if it is a Trainer, Stadium, or Energy card>,
-  "card_number": "<the fraction at the bottom corner, e.g. 15/114 or 4/106. Return empty string if no fraction>",
-  "is_holo": <true if the card has holographic foil, glitter, shiny border, or rainbow sheen, else false>
+  "name": "<exact French card name>",
+  "hp": <HP integer>,
+  "card_number": "<collector fraction like 33/106>",
+  "is_holo": <boolean>
 }
 Do not write markdown explanations or introductory text outside the JSON."""
+
+CORNER_OCR_PROMPT = """You are an expert Pokemon card reader.
+Read the Pokemon card collector number fraction in this bottom margin (e.g. "33/106", "4/102", "15/114").
+Respond ONLY with a valid JSON object:
+{"card_number": "<fraction>"}"""
 
 
 class OllamaVisionProvider:
@@ -42,23 +52,21 @@ class OllamaVisionProvider:
         self.endpoint = endpoint
         self.model = model
 
-    def extract_card(self, image: Image.Image) -> CardOCRResult:
+    def _query_ollama(self, image: Image.Image, prompt: str, num_predict: int = 128) -> str:
         import urllib.request
-
-        # Convert PIL image to base64 PNG (lossless to avoid DCT compression artifacts on small fonts)
         buf = io.BytesIO()
         image.save(buf, format="PNG")
         b64_img = base64.b64encode(buf.getvalue()).decode("utf-8")
 
         payload = {
             "model": self.model,
-            "prompt": SYSTEM_OCR_PROMPT,
+            "prompt": prompt,
             "images": [b64_img],
             "stream": False,
             "format": "json",
             "options": {
                 "num_ctx": 4096,
-                "num_predict": 128,
+                "num_predict": num_predict,
                 "temperature": 0.1,
                 "presence_penalty": 0.1,
                 "frequency_penalty": 0.1
@@ -71,10 +79,13 @@ class OllamaVisionProvider:
             headers={"Content-Type": "application/json"}
         )
 
+        with urllib.request.urlopen(req, timeout=45) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            return data.get("response", "{}")
+
+    def extract_card(self, image: Image.Image) -> CardOCRResult:
         try:
-            with urllib.request.urlopen(req, timeout=45) as resp:
-                data = json.loads(resp.read().decode("utf-8"))
-                raw_text = data.get("response", "{}")
+            raw_text = self._query_ollama(image, SYSTEM_OCR_PROMPT, num_predict=128)
         except Exception as e:
             return CardOCRResult(
                 name="Error",
@@ -86,11 +97,29 @@ class OllamaVisionProvider:
 
         # Parse JSON from response
         parsed = self._parse_json(raw_text)
+        name = parsed.get("name", "").strip()
+        hp = int(parsed.get("hp", 0) or 0)
+        card_num = parsed.get("card_number", "").strip()
+        is_holo = bool(parsed.get("is_holo", False))
+
+        # Targeted fallback crop if card_number is missing or incomplete (no slash)
+        if not card_num or "/" not in card_num:
+            try:
+                w, h = image.size
+                bottom_crop = image.crop((0, int(h * 0.82), w, h))
+                corner_raw = self._query_ollama(bottom_crop, CORNER_OCR_PROMPT, num_predict=48)
+                corner_parsed = self._parse_json(corner_raw)
+                detected_corner_num = corner_parsed.get("card_number", "").strip()
+                if detected_corner_num and ("/" in detected_corner_num or not card_num):
+                    card_num = detected_corner_num
+            except Exception:
+                pass
+
         return CardOCRResult(
-            name=parsed.get("name", "").strip(),
-            hp=int(parsed.get("hp", 0) or 0),
-            card_number=parsed.get("card_number", "").strip(),
-            is_holo=bool(parsed.get("is_holo", False)),
+            name=name,
+            hp=hp,
+            card_number=card_num,
+            is_holo=is_holo,
             raw_response=raw_text
         )
 

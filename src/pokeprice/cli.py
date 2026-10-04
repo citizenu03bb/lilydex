@@ -89,7 +89,8 @@ def cmd_scan(args):
                 price_info = tcgdex_client.search_card(
                     name=ocr_res.name,
                     raw_number=ocr_res.card_number,
-                    is_holo=ocr_res.is_holo
+                    is_holo=ocr_res.is_holo,
+                    hp=ocr_res.hp
                 )
 
             val_str = f"{price_info.cm_recommended_eur:.2f} €" if (price_info and price_info.cm_recommended_eur) else "N/A"
@@ -132,7 +133,12 @@ def cmd_lookup(args):
     num = args.number or ""
     print(f"🔎 Recherche de : '{name}' (réf: '{num}')...")
     client = TCGdexClient(language="fr")
-    info = client.search_card(name=name, raw_number=num, is_holo=args.holo)
+    info = client.search_card(
+        name=name,
+        raw_number=num,
+        is_holo=args.holo,
+        hp=getattr(args, "pv", 0)
+    )
     if not info:
         print("❌ Carte non trouvée.")
         return
@@ -233,6 +239,7 @@ def main():
     lookup_p = subparsers.add_parser("lookup", help="Recherche directe du prix d'une carte par nom")
     lookup_p.add_argument("name", help="Nom français de la carte (ex: Darkrai)")
     lookup_p.add_argument("number", nargs="?", default=None, help="Numéro ou fraction (ex: 4/106)")
+    lookup_p.add_argument("--pv", "--hp", dest="pv", type=int, default=0, help="Points de vie (PV / HP) imprimés sur la carte (ex: 80)")
     lookup_p.add_argument("--holo", action="store_true", help="Chercher la version holographique / reverse")
     lookup_p.set_defaults(func=cmd_lookup)
 
