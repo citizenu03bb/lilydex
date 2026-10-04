@@ -334,6 +334,14 @@ class TCGdexClient:
         set_count = set_info.get("cardCount", {}) or {}
         official_num = f"{data.get('localId')}/{set_count.get('official', '?')}"
 
+        img_url = data.get("image")
+        if not img_url:
+            cid = data.get("id")
+            if cid:
+                en_card = self._get_json(f"https://api.tcgdex.net/v2/en/cards/{cid}")
+                if en_card and isinstance(en_card, dict) and en_card.get("image"):
+                    img_url = en_card.get("image")
+
         return CardPriceInfo(
             card_id=data.get("id", ""),
             name=data.get("name", ""),
@@ -348,6 +356,6 @@ class TCGdexClient:
             cm_recommended_eur=recommended,
             tcg_market_usd=tcg_market,
             tcg_reverse_usd=tcg_reverse,
-            image_url=data.get("image"),
+            image_url=img_url,
             cardmarket_id=data.get("thirdParty", {}).get("cardmarket")
         )

@@ -174,6 +174,9 @@ def cmd_scan(args):
 def cmd_html(args):
     """Generates an interactive HTML visual report from a CSV/Excel file and album folder."""
     import pandas as pd
+    from pokeprice.report import apply_pricing_and_anomalies
+    from pokeprice.html_report import generate_html_report
+
     report_file = args.report_file
     album_dir = args.album_dir
     out_html = args.output or (
@@ -186,8 +189,9 @@ def cmd_html(args):
     else:
         df = pd.read_csv(report_file)
 
+    df = apply_pricing_and_anomalies(df)
+
     title = args.title or f"Album Pokémon - {os.path.basename(album_dir)}"
-    from pokeprice.html_report import generate_html_report
     generate_html_report(df, album_dir=album_dir, output_html_path=out_html, title=title)
     print(f"\n🌐 Rapport web ouvert : file://{os.path.abspath(out_html)}")
 
