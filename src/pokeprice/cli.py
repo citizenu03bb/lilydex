@@ -66,8 +66,23 @@ def cmd_scan(args):
         oriented = normalize_orientation(raw_img, rotation=args.rotate)
 
         # 2. Grid determination
-        rows, cols = detect_grid_layout(oriented, requested_layout=args.grid)
-        print(f"  Grille détectée : {rows}×{cols} ({rows * cols} cartes)")
+        if args.grid == "auto":
+            detected_layout = ocr_provider.detect_layout(oriented)
+            if detected_layout == "cover":
+                print(f"  ℹ️ Image identifiée comme couverture d'album ou sans cartes : ignorée automatiquement.")
+                continue
+            elif detected_layout == "3x3":
+                rows, cols = 3, 3
+            elif detected_layout == "4x3":
+                rows, cols = (4, 3) if oriented.height >= oriented.width else (3, 4)
+            elif detected_layout == "single":
+                rows, cols = 1, 1
+            else:
+                rows, cols = 2, 2
+            print(f"  Grille auto-détectée par l'IA : {detected_layout} ({rows}×{cols} = {rows * cols} cartes)")
+        else:
+            rows, cols = detect_grid_layout(oriented, requested_layout=args.grid)
+            print(f"  Grille configurée manuellement : {rows}×{cols} ({rows * cols} cartes)")
 
         # 3. Slicing
         crops = slice_grid(oriented, rows=rows, cols=cols, inset_pct=args.inset)
@@ -179,9 +194,9 @@ def main():
     scan_p.add_argument("path", help="Chemin vers une image ou un dossier d'images")
     scan_p.add_argument(
         "--grid",
-        choices=["auto", "3x3", "2x2", "single"],
-        default="2x2",
-        help="Disposition des pochettes (défaut: 2x2)"
+        choices=["auto", "3x3", "2x2", "4x3", "single"],
+        default="auto",
+        help="Disposition des pochettes (défaut: auto - détection visuelle IA)"
     )
     scan_p.add_argument(
         "--rotate",

@@ -42,6 +42,17 @@ Read the Pokemon card collector number fraction in this bottom margin (e.g. "33/
 Respond ONLY with a valid JSON object:
 {"card_number": "<fraction>"}"""
 
+LAYOUT_PROMPT = """Look at this photo:
+What is the layout of Pokemon cards in this image?
+- '2x2' (4 cards arranged in 2 rows of 2 pockets)
+- '3x3' (9 cards arranged in 3 rows of 3 pockets)
+- '4x3' (12 cards arranged in 3 rows of 4 pockets)
+- 'single' (1 single card alone, slab, or toploader)
+- 'cover' (an album binder cover, back cover, or non-card photo)
+
+Respond ONLY with a valid JSON object:
+{"layout": "2x2" | "3x3" | "4x3" | "single" | "cover"}"""
+
 
 class OllamaVisionProvider:
     def __init__(
@@ -123,6 +134,23 @@ class OllamaVisionProvider:
             raw_response=raw_text
         )
 
+    def detect_layout(self, image: Image.Image) -> str:
+        """
+        Fast zero-shot classification of card pocket layout on a 512px thumbnail.
+        Returns: '2x2', '3x3', '4x3', 'single', or 'cover'.
+        """
+        thumb = image.copy()
+        thumb.thumbnail((512, 512))
+        try:
+            raw = self._query_ollama(thumb, LAYOUT_PROMPT, num_predict=32)
+            parsed = self._parse_json(raw)
+            layout = parsed.get("layout", "2x2").lower().strip()
+            if layout in ("2x2", "3x3", "4x3", "single", "cover"):
+                return layout
+        except Exception:
+            pass
+        return "2x2"
+
     @staticmethod
     def _parse_json(text: str) -> dict:
         text = text.strip()
@@ -188,6 +216,33 @@ class GeminiVisionProvider:
             is_holo=bool(parsed.get("is_holo", False)),
             raw_response=raw_text
         )
+
+    def detect_layout(self, image: Image.Image) -> str:
+        """Fast grid layout classification using Gemini API."""
+        from google.genai import types
+        thumb = image.copy()
+        thumb.thumbnail((512, 512))
+        buf = io.BytesIO()
+        thumb.save(buf, format="JPEG", quality=80)
+        try:
+            resp = self.client.models.generate_content(
+                model=self.model,
+                contents=[
+                    types.Part.from_bytes(data=buf.getvalue(), mime_type="image/jpeg"),
+                    LAYOUT_PROMPT
+                ],
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    temperature=0.1
+                )
+            )
+            parsed = json.loads(resp.text or "{}")
+            layout = parsed.get("layout", "2x2").lower().strip()
+            if layout in ("2x2", "3x3", "4x3", "single", "cover"):
+                return layout
+        except Exception:
+            pass
+        return "2x2"
 
 
 def get_ocr_provider(backend: str = "ollama", model: Optional[str] = None):
