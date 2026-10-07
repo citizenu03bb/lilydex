@@ -108,10 +108,12 @@ dans **Estimer le prix de vente depuis Cardmarket**. Le serveur repère chaque
 offre (état, commentaire, prix) et ignore les prix d'en-tête (tendance,
 moyennes). Règle fixe :
 
-- au moins une offre au même état : médiane des trois moins chères, fourchette
-  de la moins chère à la troisième ; confiance bonne à partir de trois offres ;
-- sinon : offre la moins chère de l'état le plus proche, décote de 0,75 par cran
-  d'état (hypothèse par défaut, à calibrer sur les ventes), confiance faible ;
+- au moins une offre au même état : prix de marché = médiane de toutes ces
+  offres, fourchette du premier au troisième quartile dès quatre offres ;
+  confiance bonne à partir de cinq offres, moyenne de deux à quatre. Les offres
+  les moins chères (exemplaires abîmés, déstockage) ne fixent pas le prix ;
+- sinon : médiane de l'état le plus proche, décote de 0,75 par cran d'état
+  (hypothèse par défaut, à calibrer sur les ventes), confiance faible ;
 - carte tamponnée : seules les offres dont le commentaire mentionne un tampon
   (« stamp », « tampon », « logo ») sont retenues ;
 - alerte si moins de trois offres comparables, ou si le texte collé ne nomme

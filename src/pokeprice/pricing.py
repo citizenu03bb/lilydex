@@ -191,7 +191,7 @@ def parse_offers(text):
 
 
 def estimate_sale(offers, condition, *, stamp=""):
-    """Competitive asking price for this condition, with its method and confidence."""
+    """Market asking price for this condition, with its range, method and confidence."""
     warnings = []
     used = offers
     if stamp:
@@ -217,23 +217,30 @@ def estimate_sale(offers, condition, *, stamp=""):
         prices.sort()
     same = by_grade.get(target, [])
     if same:
-        cheapest = same[:3]
-        estimate = statistics.median(cheapest)
-        low, high = cheapest[0], cheapest[-1]
-        method = f"Médiane des {len(cheapest)} offres les moins chères en {grade}."
-        confidence = "bonne" if len(same) >= 3 else "moyenne"
+        # Market price: median of every comparable asking price, not the cheapest
+        # few, which are often damaged copies or clearance sales.
+        estimate = statistics.median(same)
+        if len(same) >= 4:
+            low, _, high = statistics.quantiles(same, n=4, method="inclusive")
+            spread = "premier au troisième quartile"
+        else:
+            low, high = same[0], same[-1]
+            spread = "offre la moins chère à la plus chère"
+        method = f"Médiane des {len(same)} offres en {grade} ; fourchette : {spread}."
+        confidence = (
+            "bonne" if len(same) >= 5 else "moyenne" if len(same) >= 2 else "faible"
+        )
     else:
         # Nearest condition with offers, preferring better ones (listed first).
         nearest = min(by_grade, key=lambda g: (abs(g - target), g > target))
         steps = target - nearest
-        base = by_grade[nearest][0]
+        base = statistics.median(by_grade[nearest])
         estimate = base * STEP_DISCOUNT**steps
         low, high = estimate * 0.8, estimate * 1.25
         method = (
-            f"Aucune offre en {grade} : offre la moins chère en {GRADES[nearest]} "
+            f"Aucune offre en {grade} : médiane en {GRADES[nearest]} "
             f"({euros(base)}) × {str(STEP_DISCOUNT).replace('.', ',')} par cran d’état "
-            f"({steps:+d}). "
-            "Décote par défaut, à calibrer sur vos ventes."
+            f"({steps:+d}). Décote par défaut, à calibrer sur vos ventes."
         )
         confidence = "faible"
     if len(used) < 3:

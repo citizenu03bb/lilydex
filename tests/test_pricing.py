@@ -304,8 +304,14 @@ def test_estimate_uses_same_condition_else_a_documented_discount():
     lp = estimate_sale(offers, "LP")
     assert lp["estimate_eur"] == 59.5 and (lp["low_eur"], lp["high_eur"]) == (59, 60)
     assert lp["confidence"] == "moyenne"
-    many = offers + [{"condition": "LP", "price_eur": 70.0, "comment": ""}]
-    assert estimate_sale(many, "LP")["confidence"] == "bonne"
+    # Real Scraggy PO offers: the median, not the cheapest few (damaged, clearance).
+    po = [
+        {"condition": "PO", "price_eur": v, "comment": ""}
+        for v in (0.15, 0.4, 0.8, 1, 1, 1)
+    ]
+    market = estimate_sale(po, "PO")
+    assert market["estimate_eur"] == 0.9 and market["confidence"] == "bonne"
+    assert market["low_eur"] == 0.5 and market["high_eur"] == 1.0
     # Stamped variant: only stamped offers count; PO is three steps below GD.
     stamped = estimate_sale(offers, "PO", stamp="EX Fantômes Holon")
     assert stamped["offers_used"] == 2 and stamped["confidence"] == "faible"
