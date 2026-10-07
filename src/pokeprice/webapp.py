@@ -48,6 +48,10 @@ class ConditionRequest(Model):
     expected_version: int = Field(ge=1)
 
 
+class OffersPaste(Model):
+    text: str = Field(min_length=1, max_length=200_000)
+
+
 class ConditionConfirmation(ConditionRequest):
     condition: Literal["NM", "EX", "GD", "LP", "PL", "PO", "NM/EX"]
     human_confirmed: Literal[True]
@@ -612,6 +616,7 @@ def create_app(
             card["condition_assessments"] = assessment_rows(store, db, card)
             snapshot = pricing.latest(db, copy_id)
             card["price_snapshot"] = snapshot
+            card["sale_estimate"] = pricing.latest(db, copy_id, "sale-estimate")
             card["cardmarket_url"] = cardmarket_url(
                 (snapshot or {}).get("id_product"),
                 card["language"],
@@ -619,6 +624,10 @@ def create_app(
                 card["foil"],
             )
             return card
+
+    @app.post("/api/copies/{copy_id}/sale-estimate", status_code=201)
+    def sale_estimate(copy_id: str, values: OffersPaste, user=Depends(editor)):
+        return pricing.estimate(copy_id, values.text, user["username"])
 
     @app.post("/api/copies/{copy_id}/price-refresh")
     def price_refresh(copy_id: str, values: ConditionRequest, user=Depends(editor)):

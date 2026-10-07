@@ -245,3 +245,95 @@ def test_stamp_is_a_searchable_variant_that_resets_the_reference(client):
         }
     )
     assert observation.stamp_text == ""
+
+
+# Text copied from a real Cardmarket page (Pikachu EX Holon Phantoms, Foil, FR).
+PASTED = """Pikachu (HP 78)
+Articles disponibles
+56
+De
+30,00 €
+Tendance des prix
+429,97 €
+Prix moyen 1 jour
+1.450,00 €
+Vendeur
+Offre
+786
+Fabercollecter
+LP
+59,00 €
+1
+22
+K
+DateACard
+LP
+VI
+60,00 €
+1
+Nsurr
+GD
+STAMP
+85,50 €
+1
+MarcoSan77
+EX
+Stamp, ask photos
+1.150,00 €
+1
+"""
+
+
+def test_pasted_offers_skip_header_prices_and_keep_comments():
+    from pokeprice.pricing import parse_offers
+
+    offers = parse_offers(PASTED)
+    assert [(o["condition"], o["price_eur"]) for o in offers] == [
+        ("LP", 59.0),
+        ("LP", 60.0),
+        ("GD", 85.5),
+        ("EX", 1150.0),
+    ]
+    assert offers[1]["comment"] == "VI" and offers[2]["comment"] == "STAMP"
+
+
+def test_estimate_uses_same_condition_else_a_documented_discount():
+    from pokeprice.pricing import estimate_sale, parse_offers
+
+    offers = parse_offers(PASTED)
+    lp = estimate_sale(offers, "LP")
+    assert lp["estimate_eur"] == 59.5 and (lp["low_eur"], lp["high_eur"]) == (59, 60)
+    assert lp["confidence"] == "moyenne"
+    many = offers + [{"condition": "LP", "price_eur": 70.0, "comment": ""}]
+    assert estimate_sale(many, "LP")["confidence"] == "bonne"
+    # Stamped variant: only stamped offers count; PO is three steps below GD.
+    stamped = estimate_sale(offers, "PO", stamp="EX Fantômes Holon")
+    assert stamped["offers_used"] == 2 and stamped["confidence"] == "faible"
+    assert stamped["estimate_eur"] == round(85.5 * 0.75**3, 2)
+    assert "85,50 €" in stamped["method"]
+    with pytest.raises(ValueError):
+        estimate_sale(offers, "")
+
+
+def test_sale_estimate_is_recorded_without_touching_the_card(client):
+    card = confirmed(
+        client, foil=True, position=7, stamp="EX Fantômes Holon", condition="PO"
+    )
+    response = client.post(
+        f"/api/copies/{card['id']}/sale-estimate", json={"text": PASTED}
+    )
+    assert response.status_code == 201, response.text
+    assert response.json()["estimate_eur"] == round(85.5 * 0.75**3, 2)
+    detail = client.get(f"/api/copies/{card['id']}").json()
+    assert detail["sale_estimate"]["offers_used"] == 2
+    assert detail["version"] == card["version"] and detail["reference_cents"] is None
+    # The pasted page does not name this card: the estimate says so.
+    other = confirmed(client, position=8, condition="LP", name="Gourgeist")
+    warned = client.post(
+        f"/api/copies/{other['id']}/sale-estimate", json={"text": PASTED}
+    ).json()
+    assert any("Gourgeist" in w for w in warned["warnings"])
+    empty = client.post(
+        f"/api/copies/{card['id']}/sale-estimate", json={"text": "rien à lire"}
+    )
+    assert empty.status_code == 422

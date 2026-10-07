@@ -628,7 +628,68 @@ function renderPriceSnapshot(parent, card) {
     );
   }
   if (actions.children.length) section.append(actions);
+  renderSaleEstimate(section, card);
   parent.append(section);
+}
+// Asking prices pasted from Cardmarket: the server parses them and applies a
+// fixed rule (same condition first, else a documented per-step discount).
+function renderSaleEstimate(parent, card) {
+  const box = el("div", undefined, "sale-estimate");
+  const estimate = card.sale_estimate;
+  if (estimate) {
+    box.append(
+      el(
+        "p",
+        `Estimation de vente : ${money(Math.round(estimate.estimate_eur * 100))} (${money(Math.round(estimate.low_eur * 100))} – ${money(Math.round(estimate.high_eur * 100))}) · confiance ${estimate.confidence} · ${estimate.offers_used} offre(s) retenue(s) sur ${estimate.offers_total} · le ${new Date(estimate.observed_at).toLocaleDateString("fr-FR")}`,
+        "sale-estimate-value",
+      ),
+      el("p", estimate.method, "help"),
+    );
+    if (estimate.warnings.length) {
+      const list = el("ul", undefined, "price-warnings");
+      for (const warning of estimate.warnings) list.append(el("li", warning));
+      box.append(list);
+    }
+  }
+  if (editAllowed() && !card.deleted_at) {
+    const details = el("details");
+    details.append(
+      el(
+        "summary",
+        estimate ? "Refaire l’estimation avec de nouvelles offres" : "Estimer le prix de vente depuis Cardmarket",
+      ),
+      el(
+        "p",
+        "Ouvrez « Voir les offres Cardmarket », sélectionnez toute la page (Ctrl+A), copiez (Ctrl+C) et collez ici. Ce sont des prix demandés, pas des ventes : comptez aussi les frais et le port.",
+        "help",
+      ),
+    );
+    const text = el("textarea");
+    text.rows = 4;
+    text.setAttribute("aria-label", "Offres copiées depuis Cardmarket");
+    const run = el("button", "Estimer");
+    run.type = "button";
+    const error = el("p", "", "error");
+    error.setAttribute("role", "alert");
+    run.addEventListener("click", async () => {
+      if (!text.value.trim()) return;
+      run.disabled = true;
+      error.textContent = "";
+      try {
+        await api(`/copies/${card.id}/sale-estimate`, {
+          method: "POST",
+          body: JSON.stringify({ text: text.value }),
+        });
+        await openDetail(card.id);
+      } catch (e) {
+        error.textContent = e.message;
+        run.disabled = false;
+      }
+    });
+    details.append(text, run, error);
+    box.append(details);
+  }
+  if (box.children.length) parent.append(box);
 }
 function renderCopyRemoval(parent, card) {
   if (state.user?.role !== "admin") return;

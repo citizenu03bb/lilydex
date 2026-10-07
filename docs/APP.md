@@ -99,6 +99,28 @@ Cardmarket range ces promos avec les Foil, mélangées aux reverses : le lien de
 offres le rappelle, et seules les offres dont le commentaire mentionne le tampon
 sont comparables.
 
+### Estimer le prix de vente depuis Cardmarket
+
+L'API Cardmarket n'accepte plus de nouvelles inscriptions et la collecte
+automatique des pages n'est pas utilisée. Dans la fiche, ouvrir **Voir les
+offres Cardmarket**, sélectionner toute la page (Ctrl+A), copier, puis coller
+dans **Estimer le prix de vente depuis Cardmarket**. Le serveur repère chaque
+offre (état, commentaire, prix) et ignore les prix d'en-tête (tendance,
+moyennes). Règle fixe :
+
+- au moins une offre au même état : médiane des trois moins chères, fourchette
+  de la moins chère à la troisième ; confiance bonne à partir de trois offres ;
+- sinon : offre la moins chère de l'état le plus proche, décote de 0,75 par cran
+  d'état (hypothèse par défaut, à calibrer sur les ventes), confiance faible ;
+- carte tamponnée : seules les offres dont le commentaire mentionne un tampon
+  (« stamp », « tampon », « logo ») sont retenues ;
+- alerte si moins de trois offres comparables, ou si le texte collé ne nomme
+  pas la carte.
+
+Il s'agit de prix demandés, pas de ventes ; les frais et le port restent à
+déduire. L'estimation est enregistrée dans l'historique avec les offres, sans
+modifier la carte ni son prix de référence ; la plus récente s'affiche.
+
 ### Vérifier les variantes
 
 Le filtre **Variante** de la barre de recherche propose Standard, Foil et

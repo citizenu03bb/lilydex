@@ -2,6 +2,7 @@
 
 import json
 import re
+import statistics
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
@@ -144,16 +145,159 @@ def cardmarket_url(id_product, language="", condition="", foil=False):
     return "https://www.cardmarket.com/fr/Pokemon/Products?" + urlencode(query)
 
 
+# --- Sale estimate from offers pasted from a Cardmarket product page ---------
+
+# Cardmarket condition codes, best first.
+GRADES = ["MT", "NM", "EX", "GD", "LP", "PL", "PO"]
+# Default discount for each condition step below, until own sales calibrate it.
+STEP_DISCOUNT = 0.75
+PRICE = re.compile(r"^(\d{1,3}(?:[.\u202f ]\d{3})*,\d{2}) ?€$")
+STAMP_WORDS = re.compile(r"stamp|tampon|tamponn|logo", re.IGNORECASE)
+
+
+def euros(value):
+    return f"{value:.2f}".replace(".", ",") + " €"
+
+
+def parse_offers(text):
+    """Offers as (condition, price, comment) from text copied off a Cardmarket page.
+
+    Each offer reads: seller lines, a condition code, optional comment lines,
+    then a price such as "59,00 €". Header prices (trend, averages) have no
+    condition code before them and are skipped.
+    """
+    offers, current = [], None
+    for raw in (text or "").splitlines():
+        line = raw.strip()
+        if not line:
+            continue
+        if line in GRADES:
+            current = {"condition": line, "comment": []}
+            continue
+        match = PRICE.match(line)
+        if match and current:
+            amount = float(re.sub(r"[.\u202f ]", "", match.group(1)).replace(",", "."))
+            offers.append(
+                {
+                    "condition": current["condition"],
+                    "price_eur": amount,
+                    "comment": " ".join(current["comment"])[:300],
+                }
+            )
+            current = None
+        elif current:
+            current["comment"].append(line)
+    return offers
+
+
+def estimate_sale(offers, condition, *, stamp=""):
+    """Competitive asking price for this condition, with its method and confidence."""
+    warnings = []
+    used = offers
+    if stamp:
+        used = [o for o in offers if STAMP_WORDS.search(o["comment"])]
+        warnings.append(
+            f"Variante tamponnée : {len(used)} offre(s) sur {len(offers)} mentionnent "
+            "un tampon dans leur commentaire ; les autres sont écartées."
+        )
+    grade = "EX" if condition == "NM/EX" else condition
+    if not used:
+        raise ValueError("Aucune offre comparable dans le texte collé.")
+    if grade not in GRADES:
+        raise ValueError(
+            "Renseignez l’état de la carte avant d’estimer son prix de vente."
+        )
+    target = GRADES.index(grade)
+    by_grade = {}
+    for offer in used:
+        by_grade.setdefault(GRADES.index(offer["condition"]), []).append(
+            offer["price_eur"]
+        )
+    for prices in by_grade.values():
+        prices.sort()
+    same = by_grade.get(target, [])
+    if same:
+        cheapest = same[:3]
+        estimate = statistics.median(cheapest)
+        low, high = cheapest[0], cheapest[-1]
+        method = f"Médiane des {len(cheapest)} offres les moins chères en {grade}."
+        confidence = "bonne" if len(same) >= 3 else "moyenne"
+    else:
+        # Nearest condition with offers, preferring better ones (listed first).
+        nearest = min(by_grade, key=lambda g: (abs(g - target), g > target))
+        steps = target - nearest
+        base = by_grade[nearest][0]
+        estimate = base * STEP_DISCOUNT**steps
+        low, high = estimate * 0.8, estimate * 1.25
+        method = (
+            f"Aucune offre en {grade} : offre la moins chère en {GRADES[nearest]} "
+            f"({euros(base)}) × {str(STEP_DISCOUNT).replace('.', ',')} par cran d’état "
+            f"({steps:+d}). "
+            "Décote par défaut, à calibrer sur vos ventes."
+        )
+        confidence = "faible"
+    if len(used) < 3:
+        warnings.append("Moins de trois offres comparables : estimation fragile.")
+    return {
+        "estimate_eur": round(estimate, 2),
+        "low_eur": round(low, 2),
+        "high_eur": round(high, 2),
+        "condition": grade,
+        "method": method,
+        "confidence": confidence,
+        "offers_used": len(used),
+        "offers_total": len(offers),
+        "by_condition": {
+            GRADES[g]: prices[:5] for g, prices in sorted(by_grade.items())
+        },
+        "warnings": warnings,
+    }
+
+
 class PriceService:
     def __init__(self, store, fetch=fetch_card):
         self.store, self.fetch = store, fetch
 
-    def latest(self, db, copy_id):
+    def latest(self, db, copy_id, kind="price-snapshot"):
         row = db.execute(
-            "SELECT after_json FROM events WHERE copy_id=? AND kind='price-snapshot' ORDER BY id DESC LIMIT 1",
-            (copy_id,),
+            "SELECT after_json FROM events WHERE copy_id=? AND kind=? ORDER BY id DESC LIMIT 1",
+            (copy_id, kind),
         ).fetchone()
         return json.loads(row[0]) if row else None
+
+    def estimate(self, copy_id, text, actor):
+        """Record a sale estimate from pasted offers; the card itself is unchanged."""
+        with self.store.connect() as db:
+            card = self.store.get(db, copy_id)
+        offers = parse_offers(text)
+        if not offers:
+            raise ValueError(
+                "Aucune offre reconnue. Copiez la liste des offres de la page Cardmarket (Ctrl+A, Ctrl+C) puis collez-la ici."
+            )
+        result = estimate_sale(offers, card["condition"], stamp=card["stamp"])
+        plain_text = (text or "")[:4000].lower()
+        if card["name"].lower() not in plain_text:
+            result["warnings"].append(
+                f"Le texte collé ne mentionne pas « {card['name']} » : vérifiez qu’il s’agit du bon produit."
+            )
+        result.update(
+            observed_at=now(),
+            language=card["language"],
+            foil=bool(card["foil"]),
+            stamp=card["stamp"],
+            offers=offers[:60],
+        )
+        with self.store.connect(write=True) as db:
+            self.store.event(
+                db,
+                copy_id,
+                actor,
+                "sale-estimate",
+                "Estimation de vente depuis des offres Cardmarket collées",
+                {},
+                result,
+            )
+        return result
 
     def refresh(self, copy_id, version, actor):
         with self.store.connect() as db:

@@ -1389,3 +1389,15 @@ dialog::backdrop {
   color: var(--amber);
   font-weight: 600;
 }
+.sale-estimate {
+  border-top: 1px solid var(--line);
+  margin-top: 10px;
+  padding-top: 8px;
+}
+.sale-estimate textarea {
+  width: 100%;
+  font: inherit;
+}
+.sale-estimate-value {
+  font-weight: 600;
+}
