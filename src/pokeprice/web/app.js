@@ -1,0 +1,2297 @@
+"use strict";
+const $ = (id) => document.getElementById(id);
+const state = {
+  user: null,
+  setup: false,
+  summary: null,
+  offset: 0,
+  limit: 40,
+  selected: new Map(),
+  lotMode: false,
+  visibleCards: [],
+  detail: null,
+  request: 0,
+  view: "collection",
+};
+const money = (cents) =>
+  cents === null || cents === undefined
+    ? "Prix indisponible"
+    : new Intl.NumberFormat("fr-FR", {
+        style: "currency",
+        currency: "EUR",
+      }).format(cents / 100);
+const intakeState = {
+  token: null,
+  existing: null,
+  chosen: null,
+  busy: false,
+  saving: false,
+  hasPhoto: false,
+  generation: 0,
+};
+const photoState = {
+  token: null,
+  card: null,
+  busy: false,
+  saving: false,
+  generation: 0,
+  side: "front",
+};
+const stockLabels = {
+  available: "Disponible",
+  reserved: "Réservé",
+  sold: "Vendu",
+};
+const statusLabels = {
+  confirmed: "Identité confirmée",
+  review: "À vérifier",
+  unresolved: "À identifier",
+  failed: "À identifier",
+};
+const saleLabels = {
+  draft: "Brouillon",
+  reserved: "Réservé",
+  sold: "Vendu",
+  shipped: "Expédié",
+  completed: "Clôturé",
+  cancelled: "Annulé",
+  returned: "Retourné",
+};
+const editAllowed = () => state.user && state.user.role !== "reader";
+function el(tag, text, cls) {
+  const node = document.createElement(tag);
+  if (text !== undefined) node.textContent = text;
+  if (cls) node.className = cls;
+  return node;
+}
+async function api(path, options = {}) {
+  const response = await fetch("/api" + path, {
+    credentials: "same-origin",
+    ...options,
+    headers: {
+      ...(options.body && typeof options.body === "string"
+        ? { "Content-Type": "application/json" }
+        : {}),
+      ...options.headers,
+    },
+  });
+  const body = await response.text();
+  let result;
+  try {
+    result = body.trim() ? JSON.parse(body) : null;
+  } catch {
+    if (response.ok)
+      throw new Error(
+        `Réponse illisible du serveur (HTTP ${response.status}). Actualisez la page puis réessayez.`,
+      );
+  }
+  if (!response.ok) {
+    let detail =
+      result?.detail || `La demande n’a pas abouti (HTTP ${response.status}).`;
+    if (Array.isArray(detail))
+      detail = detail
+        .map((x) => `${x.loc.slice(1).join(" ")} : ${x.msg}`)
+        .join(" · ");
+    if (response.status === 401 && path !== "/login" && path !== "/session")
+      showAccess();
+    throw new Error(detail || "Erreur de connexion.");
+  }
+  if (result === null)
+    throw new Error(
+      `Réponse vide du serveur (HTTP ${response.status}). Actualisez la page puis réessayez.`,
+    );
+  return result;
+}
+function toast(message) {
+  $("toast").textContent = message;
+  $("toast").hidden = false;
+  clearTimeout(state.toastTimer);
+  state.toastTimer = setTimeout(() => ($("toast").hidden = true), 5000);
+}
+function options(select, albums, current = "", all = false) {
+  select.replaceChildren();
+  if (all) select.append(new Option("Tous les albums", ""));
+  for (const a of albums) select.append(new Option(a.name, a.id));
+  select.value = current;
+}
+function showAccess() {
+  if (typeof Workflows !== "undefined") Workflows.attach(null);
+  state.user = null;
+  state.selected.clear();
+  state.lotMode = false;
+  selectionBar();
+  $("workspace").hidden = true;
+  $("access").hidden = false;
+  for (const d of document.querySelectorAll("dialog[open]")) d.close();
+}
+async function refreshSummary() {
+  state.summary = await api("/summary");
+  const s = state.summary;
+  $("stats").replaceChildren();
+  for (const [value, label] of [
+    [s.copies, "exemplaires"],
+    [s.editions, "éditions identifiées"],
+    [s.available, "disponibles"],
+    [s.confirmed_without_price, "identifiées sans prix"],
+  ]) {
+    const box = el("div", undefined, "stat");
+    box.append(el("strong", value), el("span", label));
+    $("stats").append(box);
+  }
+  options($("album-filter"), s.albums, $("album-filter").value, true);
+  // Keep the selection: during a series this locked field holds its album.
+  options(
+    $("add-form").elements.album_id,
+    s.albums,
+    $("add-form").elements.album_id.value,
+  );
+}
+async function showWorkspace(user) {
+  state.user = user;
+  $("access").hidden = true;
+  $("workspace").hidden = false;
+  $("account-label").textContent = user.username;
+  $("settings-nav").hidden = user.role !== "admin";
+  $("backup-link").hidden = user.role !== "admin";
+  $("add-card").hidden = !editAllowed();
+  $("create-lot").hidden = !editAllowed();
+  $("sales-create-lot").hidden = !editAllowed();
+  $("trash-filter").hidden = user.role !== "admin";
+  $("select-page").hidden = !editAllowed();
+  await refreshSummary();
+  restoreLocation();
+  await loadCards();
+  if (state.view === "sales") await loadSales();
+  if (state.view === "settings") await loadUsers();
+  if (typeof Workflows !== "undefined") await Workflows.refresh();
+}
+function collectionQuery() {
+  return new URLSearchParams({
+    q: $("search").value,
+    album: $("album-filter").value,
+    stock: $("stock-filter").value,
+    status: $("status-filter").value,
+    variant: $("variant-filter").value,
+    limit: state.limit,
+    offset: state.offset,
+  });
+}
+function syncLocation(mode = "replace") {
+  const query = collectionQuery();
+  for (const key of ["q", "album", "stock", "status", "variant"])
+    if (!query.get(key)) query.delete(key);
+  if (state.offset === 0) query.delete("offset");
+  if (state.limit === 40) query.delete("limit");
+  if (state.view !== "collection") query.set("view", state.view);
+  if ($("display-mode")?.value === "editions") query.set("display", "editions");
+  const url = "/" + (query.size ? "?" + query.toString() : "");
+  if (location.pathname + location.search !== url)
+    history[mode === "push" ? "pushState" : "replaceState"]({}, "", url);
+}
+function restoreLocation() {
+  const query = new URLSearchParams(location.search);
+  if ($("display-mode"))
+    $("display-mode").value =
+      query.get("display") === "editions" ? "editions" : "copies";
+  $("search").value = (query.get("q") || "").slice(0, 300);
+  for (const [key, id] of [
+    ["album", "album-filter"],
+    ["stock", "stock-filter"],
+    ["status", "status-filter"],
+    ["variant", "variant-filter"],
+  ]) {
+    const select = $(id),
+      value = query.get(key) || "";
+    select.value = Array.from(select.options).some((o) => o.value === value)
+      ? value
+      : "";
+  }
+  const number = (key, fallback, max) =>
+    /^\d+$/.test(query.get(key) || "")
+      ? Math.min(max, Number(query.get(key)))
+      : fallback;
+  state.limit = Math.max(1, number("limit", 40, 200));
+  state.offset = number("offset", 0, Number.MAX_SAFE_INTEGER);
+  const view = query.get("view");
+  if ($("stock-filter").value === "deleted" && state.user?.role !== "admin")
+    $("stock-filter").value = "";
+  changeView(
+    view === "sales" || (view === "settings" && state.user?.role === "admin")
+      ? view
+      : "collection",
+    false,
+  );
+}
+async function loadCards() {
+  const generation = ++state.request;
+  syncLocation();
+  const query = collectionQuery();
+  const grouped = $("display-mode")?.value === "editions";
+  const data = await api((grouped ? "/editions?" : "/copies?") + query);
+  if (generation !== state.request) return;
+  state.visibleCards = grouped
+    ? data.items.flatMap((g) => g.copies)
+    : data.items;
+  $("result-count").textContent =
+    `${grouped ? data.copies_total : data.total} exemplaire(s) · ${data.editions} édition(s) identifiée(s) · ${data.available} disponible(s)`;
+  $("result-value").textContent =
+    `${(grouped ? data.copies_total : data.total) === data.without_price ? "Aucun prix disponible" : "Références connues : " + money(data.reference_total_cents)} · ${data.without_price} sans prix`;
+  $("cards").replaceChildren();
+  $("cards").classList.toggle("edition-list", grouped);
+  for (const entry of data.items) {
+    let container = $("cards");
+    if (grouped) {
+      const group = el("details", undefined, "edition-group");
+      const counts = entry.stock_counts;
+      group.append(
+        el(
+          "summary",
+          `${entry.name} · ${entry.set_name || "Extension à vérifier"} · ${entry.number} · ${entry.language.toUpperCase()} — ${entry.quantity} exemplaire(s) affiché(s) ; ${counts.available} disponible(s), ${counts.reserved} réservé(s), ${counts.sold} vendu(s)`,
+        ),
+      );
+      if (entry.global_quantity !== entry.quantity)
+        group.append(
+          el(
+            "p",
+            `${entry.global_quantity} exemplaire(s) au total dans la collection`,
+            "help",
+          ),
+        );
+      container = el("div", undefined, "card-grid");
+      group.append(container);
+      $("cards").append(group);
+    }
+    for (const card of grouped ? entry.copies : [entry]) {
+      const box = el("article", undefined, "card");
+      box.dataset.copyId = card.id;
+      box.classList.toggle("selected", state.selected.has(card.id));
+      if (
+        editAllowed() &&
+        !card.deleted_at &&
+        (!state.lotMode || card.stock_state === "available")
+      ) {
+        const label = el("label", undefined, "card-select");
+        const check = el("input");
+        check.type = "checkbox";
+        check.checked = state.selected.has(card.id);
+        check.setAttribute(
+          "aria-label",
+          `Sélectionner ${card.name}, ${card.album}, page ${card.page}, pochette ${card.position}`,
+        );
+        check.addEventListener("change", () => {
+          selectCopy(card, check.checked);
+        });
+        label.append(check);
+        box.append(label);
+      }
+      box.append(
+        el("span", (card.language || "?").toUpperCase(), "card-language"),
+      );
+      const button = el("button", undefined, "card-open");
+      button.type = "button";
+      button.setAttribute(
+        "aria-label",
+        `Ouvrir ${card.name}, ${card.number}, page ${card.page}, pochette ${card.position}`,
+      );
+      const image = el("div", undefined, "card-image");
+      if (card.photo) {
+        const img = el("img");
+        img.src = `/api/copies/${card.id}/photo?v=${card.version}`;
+        img.alt = card.name;
+        img.loading = "lazy";
+        img.decoding = "async";
+        image.append(img);
+      } else image.append(el("span", "Photo à ajouter", "no-photo"));
+      const info = el("div", undefined, "card-info");
+      info.append(
+        el(
+          "span",
+          statusLabels[card.identification_status],
+          "badge" +
+            (card.identification_status === "confirmed" ? "" : " review"),
+        ),
+        el("h3", card.name),
+        el(
+          "p",
+          `${card.set_name || "Extension à préciser"} · ${card.number || "Référence à préciser"}`,
+          "card-set",
+        ),
+      );
+      const bottom = el("div", undefined, "card-bottom");
+      bottom.append(
+        el("span", `P.${card.page} · #${card.position} · ${card.album}`),
+        el(
+          "span",
+          `${card.condition || "État inconnu"}${card.foil ? " · Foil" : ""}${card.stamp ? " · Tampon" : ""}`,
+        ),
+      );
+      if (card.price_alerts)
+        bottom.append(
+          el(
+            "span",
+            `⚠ ${card.variant_check ? "Variante à vérifier" : `${card.price_alerts} alerte(s) prix`}`,
+            "card-alert",
+          ),
+        );
+      info.append(bottom);
+      const price = el("div", undefined, "card-price");
+      price.append(
+        el(
+          "span",
+          money(card.reference_cents),
+          card.reference_cents === null ? "unknown-price" : "",
+        ),
+      );
+      price.append(
+        document.createTextNode(" "),
+        el(
+          "span",
+          card.deleted_at ? "Corbeille" : stockLabels[card.stock_state],
+          "badge " + card.stock_state,
+        ),
+      );
+      info.append(price);
+      if (card.photo) {
+        const zoom = CardMedia.zoomButton(image.firstElementChild);
+        zoom.classList.add("card-image");
+        box.append(zoom);
+      } else button.append(image);
+      button.append(info);
+      button.addEventListener("click", () =>
+        openDetail(card.id).catch((e) => toast(e.message)),
+      );
+      box.append(button);
+      container.append(box);
+    }
+  }
+  if (!data.items.length)
+    $("cards").append(
+      el("p", "Aucun exemplaire ne correspond à cette recherche.", "empty"),
+    );
+  $("previous").disabled = state.offset === 0;
+  $("next").disabled = state.offset + state.limit >= data.total;
+  $("page-label").textContent = data.total
+    ? `${state.offset + 1}–${Math.min(state.offset + state.limit, data.total)} sur ${data.total}`
+    : "0 résultat";
+  selectionBar();
+  if (typeof Workflows !== "undefined") Workflows.selection();
+}
+function selectionBar() {
+  if (typeof Workflows !== "undefined") Workflows.selection();
+  const active = editAllowed() && (state.lotMode || state.selected.size);
+  $("selection-bar").hidden = !active;
+  $("lot-builder").hidden = !state.lotMode || !editAllowed();
+  const saleReady =
+    state.selected.size > 0 &&
+    [...state.selected.values()].every(
+      (c) => c.stock_state === "available" && !c.deleted_at,
+    );
+  $("prepare-sale").disabled = !saleReady;
+  $("finish-lot").disabled = !saleReady;
+  $("change-variant").disabled = !state.selected.size || state.priceRun;
+  if (!state.priceRun) {
+    const priceable = [...state.selected.values()].filter(canRefreshPrice);
+    $("refresh-prices").disabled = !priceable.length;
+    $("refresh-prices").textContent = `Relever les prix (${priceable.length})`;
+  }
+  $("select-visible").disabled = !state.visibleCards.some(
+    (c) =>
+      c.stock_state === "available" &&
+      !c.deleted_at &&
+      !state.selected.has(c.id),
+  );
+  $("selection-count").textContent =
+    `${state.selected.size} exemplaire${state.selected.size > 1 ? "s" : ""} sélectionné${state.selected.size > 1 ? "s" : ""}`;
+  $("lot-summary").textContent = state.selected.size
+    ? $("selection-count").textContent +
+      " · Vous pouvez retirer chaque exemplaire ci-dessous."
+    : "Aucune carte choisie. Cochez les cases en haut à gauche des photos.";
+  $("lot-selected").replaceChildren();
+  for (const card of state.selected.values()) {
+    const button = el("button", cardLocation(card) + " ×", "lot-chip");
+    button.type = "button";
+    button.setAttribute("aria-label", "Retirer du lot " + cardLocation(card));
+    button.addEventListener("click", () => selectCopy(card, false));
+    $("lot-selected").append(button);
+  }
+  for (const box of document.querySelectorAll(".card[data-copy-id]")) {
+    const selected = state.selected.has(box.dataset.copyId);
+    box.classList.toggle("selected", selected);
+    const check = box.querySelector(".card-select input");
+    if (check) check.checked = selected;
+  }
+}
+function canRefreshPrice(card) {
+  return (
+    !card.deleted_at &&
+    card.identification_status === "confirmed" &&
+    Boolean(card.catalog_id)
+  );
+}
+// One request per card: a failure (tunnel, TCGdex, changed card) never stops
+// the others, and each card keeps its own audited correction.
+async function runPriceRefresh(cards, refresh, progress = () => {}) {
+  const result = { updated: [], skipped: 0, failed: [], warned: 0 };
+  const priceable = cards.filter(canRefreshPrice);
+  result.skipped = cards.length - priceable.length;
+  for (const [index, card] of priceable.entries()) {
+    progress(index + 1, priceable.length);
+    try {
+      const updated = await refresh(card);
+      result.updated.push(updated);
+      if (updated.price_snapshot?.warnings?.length) result.warned++;
+    } catch (error) {
+      result.failed.push({ card, message: error.message });
+    }
+  }
+  return result;
+}
+// Variant correction for a selection: an audited patch per card, then a new
+// price snapshot, since a variant change clears the reference price.
+async function runVariantChange(cards, foil, patch, refresh, progress = () => {}) {
+  const result = { updated: [], unchanged: 0, failed: [], unpriced: [] };
+  const changing = cards.filter((card) => Boolean(card.foil) !== foil);
+  result.unchanged = cards.length - changing.length;
+  for (const [index, card] of changing.entries()) {
+    progress(index + 1, changing.length);
+    let patched;
+    try {
+      patched = await patch(card);
+    } catch (error) {
+      result.failed.push({ card, message: error.message });
+      continue;
+    }
+    try {
+      result.updated.push(
+        canRefreshPrice(patched) ? await refresh(patched) : patched,
+      );
+    } catch (error) {
+      result.updated.push(patched);
+      result.unpriced.push({ card: patched, message: error.message });
+    }
+  }
+  return result;
+}
+function cardLocation(card) {
+  return `${card.name} · ${card.number || "Référence à préciser"} · ${card.album} · P.${card.page} #${card.position}`;
+}
+function selectCopy(card, selected) {
+  if (
+    !editAllowed() ||
+    (selected &&
+      (card.deleted_at || (state.lotMode && card.stock_state !== "available")))
+  )
+    return;
+  selected ? state.selected.set(card.id, card) : state.selected.delete(card.id);
+  selectionBar();
+}
+function changeView(view, remember = true) {
+  state.view = view;
+  for (const button of document.querySelectorAll("[data-view]"))
+    button.classList.toggle("active", button.dataset.view === view);
+  for (const name of ["collection", "sales", "settings"])
+    $(name + "-view").hidden = name !== view;
+  if (remember) syncLocation("push");
+}
+async function startLot() {
+  if (!editAllowed()) return;
+  state.lotMode = true;
+  for (const [id, card] of state.selected)
+    if (card.stock_state !== "available" || card.deleted_at)
+      state.selected.delete(id);
+  state.offset = 0;
+  $("stock-filter").value = "available";
+  changeView("collection");
+  selectionBar();
+  await loadCards();
+  $("lot-builder").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+function prepareLot() {
+  if (!editAllowed() || !state.selected.size) return;
+  $("sale-selection").replaceChildren(
+    el("strong", $("selection-count").textContent),
+    ...[...state.selected.values()].map((c) => el("p", cardLocation(c))),
+  );
+  $("sale-error").textContent = "";
+  $("sale-dialog").showModal();
+}
+function field(form, name, label, value, type = "text", choices = null) {
+  const wrapper = el("label", label);
+  let input;
+  if (choices) {
+    input = el("select");
+    for (const [v, l] of choices) input.append(new Option(l, v));
+    input.value = value ?? "";
+  } else {
+    input = el(type === "textarea" ? "textarea" : "input");
+    if (type !== "textarea") input.type = type;
+    input.value = value ?? "";
+  }
+  input.name = name;
+  if (!editAllowed()) input.disabled = true;
+  wrapper.append(input);
+  form.append(wrapper);
+  return input;
+}
+function pair(form) {
+  const row = el("div", undefined, "form-row");
+  form.append(row);
+  return row;
+}
+// "Rare" and "Rare Holo" share the star symbol: tell what the standard print is.
+function standardVariantHint(snapshot) {
+  const variants = snapshot?.variants;
+  if (!variants || !Object.keys(variants).length)
+    return "Relevez le prix pour savoir, selon TCGdex, si la version standard de cette carte est holo ou mate.";
+  const standard =
+    variants.holo && !variants.normal
+      ? "holo (illustration brillante d’origine)"
+      : variants.normal
+        ? "mate"
+        : "inconnue";
+  const reverse = variants.reverse ? " Une reverse existe." : "";
+  return `Selon TCGdex : ${snapshot.rarity || "rareté inconnue"}, version standard ${standard}.${reverse} Choisissez Foil seulement si votre carte brille davantage (reverse, illustration holo sur une carte normalement mate, tampon…).`;
+}
+function renderPriceSnapshot(parent, card) {
+  const section = el("section", undefined, "price-panel");
+  section.setAttribute("aria-label", "Relevé de prix");
+  const snapshot = card.price_snapshot;
+  const euros = (v) => (v === null || v === undefined ? "—" : money(Math.round(v * 100)));
+  if (snapshot) {
+    const m = snapshot.metrics;
+    section.append(
+      el(
+        "p",
+        `Dernier relevé TCGdex · ${new Date(snapshot.updated || snapshot.observed_at).toLocaleDateString("fr-FR")} · variante ${snapshot.variant}`,
+        "help",
+      ),
+      el(
+        "p",
+        `Bas ${euros(m.low)} · Moyenne 30 j ${euros(m.avg30)} · Moyenne 7 j ${euros(m.avg7)} · Tendance ${euros(m.trend)}`,
+      ),
+    );
+    if (snapshot.warnings.length) {
+      const list = el("ul", undefined, "price-warnings");
+      for (const warning of snapshot.warnings) list.append(el("li", warning));
+      section.append(list);
+    }
+  } else
+    section.append(
+      el(
+        "p",
+        card.identification_status === "confirmed" && card.catalog_id
+          ? "Aucun relevé détaillé : relevez le prix pour voir le prix bas, les moyennes et les alertes."
+          : "Identifiez et confirmez l’édition pour relever son prix.",
+        "help",
+      ),
+    );
+  const actions = el("div", undefined, "workflow-actions");
+  if (
+    editAllowed() &&
+    !card.deleted_at &&
+    card.identification_status === "confirmed" &&
+    card.catalog_id
+  ) {
+    const refresh = el("button", "Relever le prix (TCGdex)");
+    refresh.type = "button";
+    refresh.addEventListener("click", async () => {
+      refresh.disabled = true;
+      try {
+        await api(`/copies/${card.id}/price-refresh`, {
+          method: "POST",
+          body: JSON.stringify({ expected_version: card.version }),
+        });
+        await openDetail(card.id);
+        await loadCards();
+        toast("Prix relevé. La référence reste une tendance, pas un prix de vente.");
+      } catch (e) {
+        refresh.disabled = false;
+        toast(e.message);
+      }
+    });
+    actions.append(refresh);
+  }
+  if (card.cardmarket_url) {
+    const link = el("a", "Voir les offres Cardmarket");
+    link.href = card.cardmarket_url;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    actions.append(link);
+    section.append(
+      el(
+        "p",
+        card.stamp
+          ? `Variante tamponnée « ${card.stamp} » : Cardmarket la range avec les Foil, mélangée aux reverses. Ne retenez que les offres dont le commentaire mentionne le tampon (« stamp »).`
+          : `Filtre : langue de l’exemplaire${card.condition ? `, état ${card.condition} ou meilleur` : ""}${card.foil ? ", offres Foil uniquement" : ""}. Comparez des offres de même variante.`,
+        "help",
+      ),
+    );
+  }
+  if (actions.children.length) section.append(actions);
+  parent.append(section);
+}
+function renderCopyRemoval(parent, card) {
+  if (state.user?.role !== "admin") return;
+  const restoring = Boolean(card.deleted_at);
+  const section = el("section", undefined, "condition-panel");
+  section.setAttribute(
+    "aria-label",
+    restoring ? "Restaurer l’exemplaire" : "Supprimer l’exemplaire",
+  );
+  const action = el(
+    "button",
+    restoring ? "Restaurer cet exemplaire" : "Supprimer cet exemplaire",
+  );
+  action.type = "button";
+  action.disabled = !restoring && card.stock_state !== "available";
+  section.append(action);
+  const confirmation = el("form");
+  confirmation.hidden = true;
+  confirmation.append(el("p", cardLocation(card)));
+  confirmation.append(
+    el(
+      "p",
+      restoring
+        ? "Cet exemplaire retrouvera sa place dans la collection."
+        : "Cet exemplaire sera placé dans la corbeille. Ses photos et son historique seront conservés. Vous pourrez le restaurer depuis le filtre Stock → Corbeille.",
+      "help",
+    ),
+  );
+  const label = el(
+    "label",
+    restoring ? "Motif de la restauration" : "Motif de la suppression",
+  );
+  const reason = el("input");
+  reason.required = true;
+  reason.maxLength = 1000;
+  label.append(reason);
+  const confirm = el(
+    "button",
+    restoring ? "Confirmer la restauration" : "Confirmer la suppression",
+    "primary",
+  );
+  confirm.type = "submit";
+  const cancel = el("button", "Annuler");
+  cancel.type = "button";
+  cancel.addEventListener("click", () => {
+    confirmation.hidden = true;
+    action.hidden = false;
+  });
+  const error = el("p", "", "error");
+  error.setAttribute("role", "alert");
+  confirmation.append(label, confirm, cancel, error);
+  action.addEventListener("click", () => {
+    action.hidden = true;
+    confirmation.hidden = false;
+    reason.focus();
+  });
+  confirmation.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (confirm.disabled) return;
+    confirm.disabled = true;
+    error.textContent = "";
+    try {
+      await api(`/copies/${card.id}${restoring ? "/restore" : ""}`, {
+        method: restoring ? "POST" : "DELETE",
+        body: JSON.stringify({
+          expected_version: card.version,
+          reason: reason.value,
+        }),
+      });
+      state.selected.delete(card.id);
+      selectionBar();
+      $("detail-dialog").close();
+      await refreshSummary();
+      await loadCards();
+      toast(
+        restoring
+          ? "Exemplaire restauré."
+          : "Exemplaire placé dans la corbeille.",
+      );
+    } catch (e) {
+      error.textContent = e.message;
+    } finally {
+      confirm.disabled = false;
+    }
+  });
+  section.append(confirmation);
+  parent.append(section);
+}
+function renderConditionAssessment(parent, card, previous = null) {
+  const panel = el("section", undefined, "condition-panel");
+  panel.setAttribute("aria-label", "Aide à l’évaluation de l’état");
+  panel.append(el("h3", "Aide à l’évaluation de l’état"));
+  panel.append(
+    el(
+      "p",
+      `État enregistré : ${card.condition || "inconnu"} · ${card.condition_confirmed ? "vérifié sur la carte" : "à confirmer"}`,
+    ),
+  );
+  const status = el("p", "", "help");
+  status.setAttribute("role", "status");
+  const error = el("p", "", "error");
+  error.setAttribute("role", "alert");
+  if (editAllowed()) {
+    panel.append(
+      el(
+        "p",
+        "Cette action transmet les photos entières disponibles à Gemini. La proposition ne modifie ni l’état enregistré ni le prix.",
+        "help",
+      ),
+    );
+    const evaluate = el("button", "Évaluer l’état", "primary");
+    evaluate.type = "button";
+    evaluate.disabled = !(card.photo || card.back_photo);
+    evaluate.addEventListener("click", async () => {
+      evaluate.disabled = true;
+      error.textContent = "";
+      status.textContent = "Évaluation des photos en cours…";
+      try {
+        const result = await api(`/copies/${card.id}/condition-assessments`, {
+          method: "POST",
+          body: JSON.stringify({ expected_version: card.version }),
+        });
+        card.condition_assessments = [
+          result,
+          ...(card.condition_assessments || []),
+        ];
+        if (panel.isConnected) renderConditionAssessment(parent, card, panel);
+      } catch (e) {
+        error.textContent = e.message;
+        status.textContent = "L’état enregistré est conservé.";
+      } finally {
+        evaluate.disabled = false;
+      }
+    });
+    panel.append(evaluate);
+    if (!card.back_photo)
+      panel.append(
+        el(
+          "p",
+          "Ajoutez le verso pour examiner les deux faces. Avec une seule face, l’évaluation reste partielle.",
+          "help",
+        ),
+      );
+  }
+  const assessment = card.condition_assessments?.[0];
+  if (assessment) {
+    const result = assessment.result;
+    panel.append(
+      el(
+        "h4",
+        `Proposition IA : ${result.suggested_condition || "indéterminable"}`,
+      ),
+    );
+    panel.append(
+      el(
+        "p",
+        `Photos ${result.front_usable && result.back_usable ? "recto et verso" : "partielles"} · qualité ${{ adequate: "exploitable", limited: "limitée", unusable: "inexploitable" }[result.quality]} · ${new Date(assessment.created_at).toLocaleString("fr-FR")}`,
+        "help",
+      ),
+    );
+    panel.append(el("p", result.explanation));
+    for (const [label, flaws] of [
+      ["Recto", result.flaws_front],
+      ["Verso", result.flaws_back],
+    ])
+      if (flaws) panel.append(el("p", `${label} : ${flaws}`));
+    const limits = el("ul", undefined, "assessment-limits");
+    for (const limit of result.limits) limits.append(el("li", limit));
+    panel.append(limits);
+    if (assessment.stale)
+      panel.append(
+        el(
+          "p",
+          "Proposition obsolète : les photos ont changé. Demandez une nouvelle évaluation.",
+          "error",
+        ),
+      );
+    else if (editAllowed()) {
+      const validation = el("form", undefined, "condition-validation");
+      const label = el("label", "État retenu après examen");
+      const grade = el("select");
+      grade.required = true;
+      grade.append(
+        new Option("Choisir un état", ""),
+        ...["NM", "EX", "GD", "LP", "PL", "PO", "NM/EX"].map(
+          (value) => new Option(value, value),
+        ),
+      );
+      grade.value = result.suggested_condition;
+      label.append(grade);
+      const checkLabel = el("label", undefined, "check-label");
+      const check = el("input");
+      check.type = "checkbox";
+      check.required = true;
+      checkLabel.append(
+        check,
+        document.createTextNode(
+          "J’ai examiné la carte en main et je confirme l’état retenu.",
+        ),
+      );
+      const reasonLabel = el("label", "Motif de validation de l’état");
+      const reason = el("input");
+      reason.required = true;
+      reason.maxLength = 1000;
+      reason.value = "Examen de la carte et comparaison aux observations IA";
+      reasonLabel.append(reason);
+      const save = el("button", "Enregistrer l’état vérifié", "primary");
+      validation.append(label, checkLabel, reasonLabel, save);
+      validation.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        if (save.disabled || !check.checked) return;
+        save.disabled = true;
+        error.textContent = "";
+        try {
+          const changed = await api(
+            `/copies/${card.id}/condition-assessments/${assessment.id}/confirm`,
+            {
+              method: "POST",
+              body: JSON.stringify({
+                expected_version: card.version,
+                condition: grade.value,
+                human_confirmed: check.checked,
+                reason: reason.value,
+              }),
+            },
+          );
+          Object.assign(card, changed);
+          const fields = $("detail-body").querySelector(".detail-fields");
+          fields.elements.condition.value = card.condition;
+          fields.elements.condition_confirmed.checked = Boolean(
+            card.condition_confirmed,
+          );
+          renderConditionAssessment(parent, card, panel);
+          await loadCards();
+          toast("État vérifié enregistré ; prix conservé.");
+        } catch (e) {
+          error.textContent = e.message;
+        } finally {
+          save.disabled = false;
+        }
+      });
+      panel.append(validation);
+    }
+    if (card.condition_assessments.length > 1) {
+      const history = el("details");
+      history.append(
+        el(
+          "summary",
+          `Évaluations précédentes (${card.condition_assessments.length - 1})`,
+        ),
+      );
+      for (const past of card.condition_assessments.slice(1))
+        history.append(
+          el(
+            "p",
+            `${new Date(past.created_at).toLocaleString("fr-FR")} : ${past.result.suggested_condition || "indéterminable"}${past.stale ? " · photos remplacées" : ""} — ${past.result.explanation}`,
+          ),
+        );
+      panel.append(history);
+    }
+  } else panel.append(el("p", "Aucune proposition IA enregistrée.", "help"));
+  panel.append(status, error);
+  if (previous) previous.replaceWith(panel);
+  else parent.append(panel);
+}
+async function openDetail(id) {
+  const c = await api("/copies/" + id);
+  state.detail = c;
+  $("detail-body").replaceChildren();
+  const layout = el("div", undefined, "detail-layout"),
+    photo = el("div", undefined, "detail-photo"),
+    form = el("form", undefined, "detail-fields");
+  const faces = el("div", undefined, "card-faces");
+  faces.setAttribute("data-media-group", "");
+  for (const [side, label, key] of [
+    ["front", "Recto", "photo"],
+    ["back", "Verso", "back_photo"],
+  ]) {
+    const figure = el("figure");
+    figure.append(el("figcaption", label));
+    if (c[key]) {
+      const image = el("img");
+      image.src = `/api/copies/${id}/photo?side=${side}&v=${c.version}`;
+      image.alt = `${label} de ${c.name}`;
+      figure.append(image);
+    } else
+      figure.append(
+        el("p", `Photo du ${label.toLowerCase()} absente.`, "help"),
+      );
+    if (editAllowed() && !c.deleted_at) {
+      const actions = el("div", undefined, "intake-actions");
+      const capture = el(
+        "button",
+        `Prendre une photo du ${label.toLowerCase()}`,
+      );
+      capture.type = "button";
+      capture.addEventListener("click", () =>
+        CardMedia.capture((file) => openPhotoPreparation(file, c, side)),
+      );
+      const upload = el(
+        "label",
+        `Téléverser le ${label.toLowerCase()}`,
+        "button",
+      );
+      const input = el("input");
+      input.type = "file";
+      input.accept = "image/jpeg,image/png,image/webp";
+      input.setAttribute("aria-label", `Téléverser le ${label.toLowerCase()}`);
+      input.addEventListener("change", () => {
+        const file = input.files[0];
+        input.value = "";
+        if (file) openPhotoPreparation(file, c, side);
+      });
+      upload.append(input);
+      actions.append(capture, upload);
+      figure.append(actions);
+    }
+    faces.append(figure);
+  }
+  photo.append(faces);
+  photo.append(
+    el("p", `${c.album} · page ${c.page}, pochette ${c.position}`),
+    el(
+      "span",
+      c.deleted_at ? "Corbeille" : stockLabels[c.stock_state],
+      "badge " + c.stock_state,
+    ),
+  );
+  if (editAllowed() && !c.deleted_at) {
+    const identify = el("button", "Identifier la carte", "primary");
+    identify.type = "button";
+    identify.addEventListener("click", () => {
+      $("detail-dialog").close();
+      startIntake(c).catch((e) => toast(e.message));
+    });
+    photo.append(identify);
+  }
+  if (!c.deleted_at) renderConditionAssessment(photo, c);
+  renderCopyRemoval(photo, c);
+  form.append(
+    el("h2", c.name),
+    el(
+      "p",
+      `${c.number || "Sans référence"} · ${statusLabels[c.identification_status]}`,
+      "subtitle",
+    ),
+  );
+  field(form, "name", "Nom", c.name).required = true;
+  field(form, "set_name", "Extension", c.set_name);
+  let row = pair(form);
+  field(row, "number", "Référence", c.number);
+  field(row, "language", "Langue", c.language, "text", [
+    ["fr", "Français"],
+    ["en", "Anglais"],
+    ["ja", "Japonais"],
+    ["de", "Allemand"],
+    ["es", "Espagnol"],
+    ["it", "Italien"],
+    ["pt", "Portugais"],
+    ["ko", "Coréen"],
+    ["zh", "Chinois"],
+    ["unknown", "Inconnue"],
+  ]);
+  row = pair(form);
+  field(row, "catalog_id", "Identifiant catalogue (facultatif)", c.catalog_id);
+  const hp = field(row, "hp", "PV", c.hp, "number");
+  hp.min = "0";
+  hp.max = "5000";
+  field(
+    form,
+    "identification_status",
+    "Identification",
+    c.identification_status,
+    "text",
+    [
+      ["confirmed", "Identité confirmée"],
+      ["review", "À vérifier"],
+      ["unresolved", "À identifier"],
+      ["failed", "Lecture échouée"],
+    ],
+  );
+  row = pair(form);
+  field(row, "condition", "État", c.condition, "text", [
+    ["", "Inconnu"],
+    ["NM", "NM"],
+    ["EX", "EX"],
+    ["GD", "GD"],
+    ["LP", "LP"],
+    ["PL", "PL"],
+    ["PO", "PO"],
+    ["NM/EX", "NM/EX"],
+  ]);
+  field(row, "foil", "Variante", String(Boolean(c.foil)), "text", [
+    ["false", "Standard (telle qu’imprimée, Rare Holo comprise)"],
+    ["true", "Foil (plus brillante que la standard : reverse, holo tamponnée…)"],
+  ]);
+  form.append(el("p", standardVariantHint(c.price_snapshot), "help"));
+  field(form, "stamp", "Tampon sur l’illustration", c.stamp).maxLength = 120;
+  const checkLabel = el("label", undefined, "check-label");
+  const check = el("input");
+  check.type = "checkbox";
+  check.name = "condition_confirmed";
+  check.checked = Boolean(c.condition_confirmed);
+  check.disabled = !editAllowed() || Boolean(c.deleted_at);
+  checkLabel.append(
+    check,
+    document.createTextNode("État vérifié sur la carte"),
+  );
+  form.append(checkLabel);
+  field(
+    form,
+    "album_id",
+    "Album",
+    c.album_id,
+    "text",
+    state.summary.albums.map((a) => [a.id, a.name]),
+  );
+  row = pair(form);
+  for (const [name, label, max] of [
+    ["page", "Page", 1000],
+    ["position", "Pochette", 100],
+  ]) {
+    const input = field(row, name, label, c[name], "number");
+    input.min = "1";
+    input.max = String(max);
+    input.required = true;
+  }
+  row = pair(form);
+  const price = field(
+    row,
+    "reference_price_eur",
+    "Prix de référence (€)",
+    c.reference_cents === null ? "" : c.reference_cents / 100,
+    "number",
+  );
+  price.step = ".01";
+  price.min = "0";
+  field(row, "price_source", "Source / métrique du prix", c.price_source);
+  form.append(
+    el(
+      "p",
+      c.price_date
+        ? `Prix relevé le ${new Date(c.price_date).toLocaleDateString("fr-FR")}. Une correction d’identité ou de variante retire le prix à revérifier.`
+        : "Un prix vide reste indisponible. Le prix de vente se définit dans un lot.",
+      "subtitle",
+    ),
+  );
+  renderPriceSnapshot(form, c);
+  field(form, "notes", "Notes", c.notes, "textarea");
+  if (editAllowed() && !c.deleted_at) {
+    const reason = field(form, "reason", "Motif de la modification", "");
+    reason.required = true;
+    reason.maxLength = 1000;
+    const save = el("button", "Enregistrer la correction", "primary");
+    save.type = "submit";
+    form.append(save);
+  }
+  const error = el("p", "", "error");
+  error.setAttribute("role", "alert");
+  form.append(error);
+  const source = el("details");
+  source.append(el("summary", "Lecture et référence d’origine"));
+  const raw = el(
+    "pre",
+    c.source
+      ? JSON.stringify(c.source.data, null, 2)
+      : "Exemplaire ajouté dans l’application.",
+    "source-data",
+  );
+  source.append(raw);
+  form.append(source);
+  const history = el("details");
+  history.append(
+    el(
+      "summary",
+      `Historique · ${c.history.length} événement${c.history.length > 1 ? "s" : ""}`,
+    ),
+  );
+  const labels = {
+    name: "Nom",
+    set_name: "Extension",
+    number: "Référence",
+    catalog_id: "Catalogue",
+    language: "Langue",
+    hp: "PV",
+    condition: "État",
+    condition_confirmed: "État vérifié",
+    identification_status: "Identification",
+    foil: "Foil",
+    stamp: "Tampon",
+    album_id: "Album",
+    page: "Page",
+    position: "Pochette",
+    reference_cents: "Prix de référence",
+    price_source: "Source du prix",
+    stock_state: "Stock",
+    deleted_at: "Date de suppression",
+    notes: "Notes",
+    photo: "Photo",
+  };
+  for (const event of c.history) {
+    const entry = el("div", undefined, "history-entry");
+    entry.append(
+      el(
+        "strong",
+        `${event.actor} · ${new Date(event.created_at).toLocaleString("fr-FR")}`,
+      ),
+      el("p", event.reason),
+    );
+    // Older series back photos recorded a null "before" state.
+    const before = JSON.parse(event.before_json) || {},
+      after = JSON.parse(event.after_json) || {};
+    for (const [key, label] of Object.entries(labels)) {
+      if (before[key] !== after[key] && event.kind !== "import") {
+        const show = (v) =>
+          key === "reference_cents"
+            ? money(v)
+            : v === null || v === undefined || v === ""
+              ? "—"
+              : String(v);
+        entry.append(
+          el("p", `${label} : ${show(before[key])} → ${show(after[key])}`),
+        );
+      }
+    }
+    history.append(entry);
+  }
+  form.append(history);
+  const prices = el("details");
+  prices.append(el("summary", `Relevés de prix · ${c.prices.length}`));
+  for (const p of c.prices)
+    prices.append(
+      el(
+        "p",
+        `${money(p.amount_cents)} · ${p.variant === "foil" ? "Foil" : "Standard"} · ${p.source || "Source non renseignée"} · ${p.observed_at || "Date non renseignée"}`,
+      ),
+    );
+  form.append(prices);
+  if (c.deleted_at)
+    for (const input of form.querySelectorAll("input, select, textarea"))
+      input.disabled = true;
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    error.textContent = "";
+    const data = new FormData(form),
+      changes = { expected_version: c.version, reason: data.get("reason") };
+    for (const key of [
+      "name",
+      "set_name",
+      "number",
+      "language",
+      "catalog_id",
+      "identification_status",
+      "condition",
+      "album_id",
+      "notes",
+      "stamp",
+    ]) {
+      let value = data.get(key);
+      if (key === "catalog_id" && !value) value = null;
+      if (value !== (c[key] ?? (key === "catalog_id" ? null : "")))
+        changes[key] = value;
+    }
+    for (const key of ["page", "position", "hp"]) {
+      const value = data.get(key) === "" ? null : Number(data.get(key));
+      if (value !== c[key]) changes[key] = value;
+    }
+    for (const key of ["foil", "condition_confirmed"]) {
+      const value = key === "foil" ? data.get(key) === "true" : data.has(key);
+      if (value !== Boolean(c[key])) changes[key] = value;
+    }
+    const amount =
+      data.get("reference_price_eur") === ""
+        ? null
+        : Number(data.get("reference_price_eur"));
+    if (
+      amount !== (c.reference_cents === null ? null : c.reference_cents / 100)
+    ) {
+      changes.reference_price_eur = amount;
+      changes.price_source = data.get("price_source");
+    } else if (data.get("price_source") !== c.price_source)
+      changes.price_source = data.get("price_source");
+    try {
+      await api("/copies/" + id, {
+        method: "PATCH",
+        body: JSON.stringify(changes),
+      });
+      await refreshSummary();
+      await loadCards();
+      await openDetail(id);
+      toast("Correction enregistrée avec son historique.");
+    } catch (err) {
+      error.textContent = err.message;
+    }
+  });
+  layout.append(photo, form);
+  $("detail-body").append(layout);
+  if (!$("detail-dialog").open) $("detail-dialog").showModal();
+}
+async function loadSales() {
+  const sales = await api("/sales");
+  $("sales-list").replaceChildren();
+  if (!sales.length) {
+    $("sales-list").append(
+      el(
+        "p",
+        editAllowed()
+          ? "Aucun lot pour le moment. Cliquez sur « Créer un lot » pour choisir vos cartes."
+          : "Aucun lot pour le moment.",
+        "empty",
+      ),
+    );
+    return;
+  }
+  const transitions = {
+    draft: [
+      ["reserved", "Réserver les cartes"],
+      ["cancelled", "Annuler"],
+    ],
+    reserved: [
+      ["sold", "Confirmer la vente"],
+      ["cancelled", "Libérer la réservation"],
+    ],
+    sold: [
+      ["shipped", "Marquer expédiée"],
+      ["completed", "Clôturer"],
+      ["returned", "Enregistrer un retour"],
+    ],
+    shipped: [
+      ["completed", "Clôturer"],
+      ["returned", "Enregistrer un retour"],
+    ],
+    completed: [["returned", "Enregistrer un retour"]],
+    cancelled: [],
+    returned: [],
+  };
+  for (const sale of sales) {
+    const box = el("article", undefined, "sale");
+    const heading = el("div", undefined, "sale-heading");
+    heading.append(
+      el("h2", sale.title),
+      el(
+        "span",
+        saleLabels[sale.status],
+        "badge " +
+          (sale.status === "reserved"
+            ? "reserved"
+            : sale.status === "draft"
+              ? "review"
+              : "sold"),
+      ),
+    );
+    box.append(
+      heading,
+      el(
+        "p",
+        `${sale.items.length} exemplaire${sale.items.length > 1 ? "s" : ""} · ${sale.channel || "Canal à préciser"} · ${money(sale.amount_cents)}`,
+        "sale-meta",
+      ),
+    );
+    const items = el("div", undefined, "sale-items");
+    for (const item of sale.items) {
+      const button = el("button", `${item.name} · ${item.number}`);
+      button.addEventListener("click", () =>
+        openDetail(item.id).catch((e) => toast(e.message)),
+      );
+      items.append(button);
+    }
+    box.append(items);
+    if (editAllowed()) {
+      const draft = el("a", "Télécharger le brouillon d’annonce", "button");
+      draft.href = `/api/sales/${sale.id}/listing-package`;
+      box.append(draft);
+    }
+    box.append(
+      el(
+        "p",
+        `${sale.paid ? "Paiement enregistré · net calculé" : "Net prévu"} : ${money(sale.net_cents)}`,
+        "sale-total",
+      ),
+    );
+    if (editAllowed()) {
+      const form = el("form"),
+        amounts = el("div", undefined, "sale-money");
+      for (const [key, label] of [
+        ["asking", "Prix affiché (€)"],
+        ["target", "Prix cible (€)"],
+        ["minimum", "Minimum (€)"],
+        ["amount", "Prix (€)"],
+        ["fees", "Frais (€)"],
+        ["shipping_charged", "Port facturé (€)"],
+        ["shipping_cost", "Coût du port (€)"],
+        ["packing", "Emballage (€)"],
+        ["refund", "Remboursé (€)"],
+      ]) {
+        const input = field(
+          amounts,
+          key + "_eur",
+          label,
+          sale[key + "_cents"] == null ? "" : sale[key + "_cents"] / 100,
+          "number",
+        );
+        input.min = "0";
+        input.step = ".01";
+        input.required = !["asking", "target", "minimum"].includes(key);
+      }
+      form.append(amounts);
+      field(form, "channel", "Canal", sale.channel);
+      field(form, "listing_url", "Lien de l’annonce", sale.listing_url, "url");
+      field(
+        form,
+        "notes",
+        "Notes / expédition / retour",
+        sale.notes,
+        "textarea",
+      );
+      const paid = el("label", undefined, "check-label"),
+        check = el("input");
+      check.type = "checkbox";
+      check.name = "paid";
+      check.checked = Boolean(sale.paid);
+      paid.append(check, document.createTextNode("Paiement reçu"));
+      form.append(paid);
+      const reason = field(form, "reason", "Motif de la mise à jour", "");
+      reason.required = true;
+      const actions = el("div", undefined, "sale-actions");
+      const save = el("button", "Enregistrer");
+      save.type = "submit";
+      actions.append(save);
+      for (const [target, label] of transitions[sale.status]) {
+        const button = el(
+          "button",
+          label,
+          target === "reserved" || target === "sold" ? "primary" : "",
+        );
+        button.type = "submit";
+        button.dataset.target = target;
+        actions.append(button);
+      }
+      form.append(actions);
+      const error = el("p", "", "error");
+      error.setAttribute("role", "alert");
+      form.append(error);
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const data = new FormData(form),
+          changes = {
+            expected_version: sale.version,
+            reason: data.get("reason"),
+            paid: data.has("paid"),
+            channel: data.get("channel"),
+            listing_url: data.get("listing_url"),
+            notes: data.get("notes"),
+          };
+        for (const key of [
+          "amount",
+          "fees",
+          "shipping_charged",
+          "shipping_cost",
+          "packing",
+          "refund",
+          "asking",
+          "target",
+          "minimum",
+        ])
+          changes[key + "_eur"] =
+            data.get(key + "_eur") === ""
+              ? null
+              : Number(data.get(key + "_eur"));
+        if (e.submitter.dataset.target)
+          changes.status = e.submitter.dataset.target;
+        try {
+          await api("/sales/" + sale.id, {
+            method: "PATCH",
+            body: JSON.stringify(changes),
+          });
+          state.selected.clear();
+          state.lotMode = false;
+          selectionBar();
+          await refreshSummary();
+          await loadCards();
+          await loadSales();
+          toast("Vente et stock mis à jour.");
+        } catch (err) {
+          error.textContent = err.message;
+        }
+      });
+      box.append(form);
+    } else if (sale.notes) box.append(el("p", sale.notes, "sale-meta"));
+    $("sales-list").append(box);
+  }
+}
+async function loadUsers() {
+  if (typeof Workflows !== "undefined") await Workflows.backupStatus();
+  const users = await api("/users");
+  $("users-list").replaceChildren();
+  for (const u of users) {
+    const row = el("form", undefined, "user-access");
+    row.append(el("strong", u.username));
+    field(row, "role", "Accès", u.role, "text", [
+      ["reader", "Consultation"],
+      ["editor", "Gestion"],
+      ["admin", "Administration"],
+    ]);
+    const active = el("label", undefined, "check-label"),
+      check = el("input");
+    check.type = "checkbox";
+    check.name = "active";
+    check.checked = !u.disabled;
+    active.append(check, document.createTextNode("Compte actif"));
+    row.append(active);
+    const button = el("button", "Modifier l’accès");
+    button.type = "submit";
+    row.append(button);
+    row.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const data = new FormData(row);
+      try {
+        await api("/users/" + u.id, {
+          method: "PATCH",
+          body: JSON.stringify({
+            role: data.get("role"),
+            disabled: !data.has("active"),
+          }),
+        });
+        if (u.id === state.user.id) {
+          showAccess();
+          toast("Accès modifié. Reconnectez-vous.");
+        } else {
+          await loadUsers();
+          toast("Accès mis à jour ; sessions précédentes fermées.");
+        }
+      } catch (err) {
+        toast(err.message);
+      }
+    });
+    $("users-list").append(row);
+  }
+}
+for (const button of document.querySelectorAll("[data-close]"))
+  button.addEventListener("click", () => $(button.dataset.close).close());
+for (const button of document.querySelectorAll("[data-view]"))
+  button.addEventListener("click", async () => {
+    changeView(button.dataset.view);
+    try {
+      if (button.dataset.view === "sales") await loadSales();
+      if (button.dataset.view === "settings") await loadUsers();
+    } catch (e) {
+      toast(e.message);
+    }
+  });
+$("login-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  $("login-error").textContent = "";
+  const data = Object.fromEntries(new FormData(e.target));
+  try {
+    const user = await api(state.setup ? "/setup" : "/login", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+    state.setup = false;
+    e.target.reset();
+    await showWorkspace(user);
+  } catch (err) {
+    $("login-error").textContent = err.message;
+  }
+});
+$("logout").addEventListener("click", async () => {
+  try {
+    if (typeof Workflows !== "undefined") await Workflows.persist();
+    await api("/logout", { method: "POST" });
+    showAccess();
+  } catch (e) {
+    toast(e.message);
+  }
+});
+let searchTimer;
+window.addEventListener("popstate", async () => {
+  clearTimeout(searchTimer);
+  ++state.request;
+  if (!state.user) return;
+  restoreLocation();
+  try {
+    await loadCards();
+    if (state.view === "sales") await loadSales();
+    if (state.view === "settings") await loadUsers();
+  } catch (error) {
+    toast(error.message);
+  }
+});
+$("search").addEventListener("input", () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => {
+    state.offset = 0;
+    loadCards().catch((e) => toast(e.message));
+  }, 200);
+});
+for (const id of [
+  "album-filter",
+  "stock-filter",
+  "status-filter",
+  "variant-filter",
+])
+  $(id).addEventListener("change", () => {
+    state.offset = 0;
+    syncLocation("push");
+    loadCards().catch((e) => toast(e.message));
+  });
+$("previous").addEventListener("click", () => {
+  state.offset = Math.max(0, state.offset - state.limit);
+  syncLocation("push");
+  loadCards().catch((e) => toast(e.message));
+});
+$("next").addEventListener("click", () => {
+  state.offset += state.limit;
+  syncLocation("push");
+  loadCards().catch((e) => toast(e.message));
+});
+$("select-page").addEventListener("click", () => {
+  if (!editAllowed()) return;
+  for (const card of state.visibleCards)
+    if (!card.deleted_at && (!state.lotMode || card.stock_state === "available"))
+      state.selected.set(card.id, card);
+  selectionBar();
+});
+$("change-variant").addEventListener("click", () => {
+  if (!state.selected.size || state.priceRun) return;
+  $("variant-error").textContent = "";
+  for (const radio of $("variant-form").elements.foil) radio.checked = false;
+  $("variant-summary").textContent =
+    `${$("selection-count").textContent}. Les cartes déjà dans la variante choisie restent inchangées.`;
+  $("variant-dialog").showModal();
+});
+$("variant-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (state.priceRun) return;
+  const form = event.target,
+    submit = form.querySelector("[type=submit]");
+  const foil = form.elements.foil.value === "true",
+    reason = form.elements.reason.value.trim();
+  state.priceRun = true;
+  submit.disabled = true;
+  try {
+    const result = await runVariantChange(
+      [...state.selected.values()],
+      foil,
+      (card) =>
+        api(`/copies/${card.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ expected_version: card.version, reason, foil }),
+        }),
+      (card) =>
+        api(`/copies/${card.id}/price-refresh`, {
+          method: "POST",
+          body: JSON.stringify({ expected_version: card.version }),
+        }),
+      (done, total) => (submit.textContent = `Correction ${done}/${total}…`),
+    );
+    for (const card of result.updated)
+      if (state.selected.has(card.id)) {
+        const { price_snapshot, ...fields } = card;
+        state.selected.set(card.id, { ...state.selected.get(card.id), ...fields });
+      }
+    const parts = [
+      `${result.updated.length} carte(s) passée(s) en ${foil ? "Foil" : "Standard"}`,
+    ];
+    if (result.unchanged) parts.push(`${result.unchanged} déjà dans cette variante`);
+    if (result.unpriced.length)
+      parts.push(`${result.unpriced.length} sans nouveau prix (relevé à refaire)`);
+    if (result.failed.length)
+      parts.push(
+        `${result.failed.length} échec(s) : ${result.failed
+          .slice(0, 3)
+          .map((f) => `${f.card.name} (${f.message})`)
+          .join(" ; ")}`,
+      );
+    if (!result.failed.length) $("variant-dialog").close();
+    else $("variant-error").textContent = parts.at(-1);
+    toast(parts.join(" · ") + ".");
+    await refreshSummary();
+    await loadCards();
+  } finally {
+    state.priceRun = false;
+    submit.disabled = false;
+    submit.textContent = "Appliquer à la sélection";
+    selectionBar();
+  }
+});
+$("refresh-prices").addEventListener("click", async () => {
+  if (state.priceRun || !editAllowed()) return;
+  state.priceRun = true;
+  const button = $("refresh-prices");
+  button.disabled = true;
+  try {
+    const result = await runPriceRefresh(
+      [...state.selected.values()],
+      (card) =>
+        api(`/copies/${card.id}/price-refresh`, {
+          method: "POST",
+          body: JSON.stringify({ expected_version: card.version }),
+        }),
+      (done, total) => (button.textContent = `Relevé ${done}/${total}…`),
+    );
+    // Keep the selection usable: later actions need the new versions.
+    for (const card of result.updated)
+      if (state.selected.has(card.id)) {
+        const { price_snapshot, ...fields } = card;
+        state.selected.set(card.id, { ...state.selected.get(card.id), ...fields });
+      }
+    const parts = [`${result.updated.length} prix relevé(s)`];
+    if (result.warned) parts.push(`${result.warned} avec alertes à vérifier`);
+    if (result.skipped)
+      parts.push(`${result.skipped} ignorée(s) : édition non confirmée`);
+    if (result.failed.length)
+      parts.push(
+        `${result.failed.length} échec(s) : ${result.failed
+          .slice(0, 3)
+          .map((f) => `${f.card.name} (${f.message})`)
+          .join(" ; ")}`,
+      );
+    toast(parts.join(" · ") + ". Ouvrez une fiche pour voir les alertes.");
+    await refreshSummary();
+    await loadCards();
+  } finally {
+    state.priceRun = false;
+    selectionBar();
+  }
+});
+$("clear-selection").addEventListener("click", () => {
+  state.selected.clear();
+  selectionBar();
+});
+for (const id of ["create-lot", "sales-create-lot"])
+  $(id).addEventListener("click", () =>
+    startLot().catch((e) => toast(e.message)),
+  );
+$("select-visible").addEventListener("click", () => {
+  if (!editAllowed()) return;
+  for (const card of state.visibleCards)
+    if (card.stock_state === "available" && !card.deleted_at)
+      state.selected.set(card.id, card);
+  selectionBar();
+});
+$("cancel-lot").addEventListener("click", () => {
+  state.selected.clear();
+  state.lotMode = false;
+  selectionBar();
+});
+$("prepare-sale").addEventListener("click", prepareLot);
+$("finish-lot").addEventListener("click", prepareLot);
+$("sale-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const data = Object.fromEntries(new FormData(e.target));
+  data.amount_eur = Number(data.amount_eur);
+  for (const key of ["asking_eur", "target_eur", "minimum_eur"])
+    data[key] = data[key] === "" ? null : Number(data[key]);
+  data.copy_ids = [...state.selected.keys()];
+  if (!editAllowed() || !data.copy_ids.length) {
+    $("sale-error").textContent =
+      "Choisissez au moins un exemplaire disponible.";
+    return;
+  }
+  if ($("save-lot").disabled) return;
+  $("save-lot").disabled = true;
+  try {
+    await api("/sales", { method: "POST", body: JSON.stringify(data) });
+    $("sale-dialog").close();
+    e.target.reset();
+    state.selected.clear();
+    state.lotMode = false;
+    await loadCards();
+    await loadSales();
+    changeView("sales");
+    $("sales-view").scrollIntoView({ behavior: "smooth", block: "start" });
+    toast(
+      "Lot enregistré en brouillon. Les cartes restent disponibles jusqu’à réservation.",
+    );
+  } catch (err) {
+    $("sale-error").textContent = err.message;
+  } finally {
+    $("save-lot").disabled = false;
+  }
+});
+function showPhotoPreparation(prefix, token, processing) {
+  $(`${prefix}-preview`).src = `/api/intake/${token}/photo?v=${Date.now()}`;
+  $(`${prefix}-preview`).hidden = false;
+  $(`${prefix}-photo-options`).hidden = !processing;
+  if (!processing) return;
+  for (const key of ["crop", "perspective", "balance"])
+    $(`${prefix}-${key}`).checked = processing[key];
+  $(`${prefix}-processing`).textContent = processing.message;
+}
+async function changePhotoPreparation(prefix, token) {
+  const options = Object.fromEntries(
+    ["crop", "perspective", "balance"].map((key) => [
+      key,
+      $(`${prefix}-${key}`).checked,
+    ]),
+  );
+  if (!options.crop) options.perspective = false;
+  return api(`/intake/${token}/photo-options`, {
+    method: "POST",
+    body: JSON.stringify(options),
+  });
+}
+function photoBusy(busy, message = "") {
+  photoState.busy = busy;
+  $("photo-save").disabled = busy || !photoState.token;
+  for (const key of ["crop", "perspective", "balance"])
+    $(`photo-${key}`).disabled =
+      busy ||
+      !photoState.token ||
+      (key === "perspective" && !$("photo-crop").checked);
+  $("photo-status").textContent = message;
+}
+async function openPhotoPreparation(file, card, side = "front") {
+  if (photoState.busy || photoState.saving) return;
+  if (file.size > 8 * 1024 * 1024) {
+    toast("Photo limitée à 8 Mo.");
+    return;
+  }
+  const generation = ++photoState.generation;
+  photoState.card = card;
+  photoState.side = side;
+  photoState.file = file;
+  $("detail-dialog").close();
+  $("photo-error").textContent = "";
+  $("photo-title").textContent =
+    `Préparer le ${side === "back" ? "verso" : "recto"} de l’exemplaire`;
+  $("photo-preview").alt =
+    `Aperçu du ${side === "back" ? "verso" : "recto"} à enregistrer`;
+  $("photo-preview").hidden = true;
+  $("photo-photo-options").hidden = true;
+  $("photo-dialog").showModal();
+  photoBusy(true, "Préparation de la photo…");
+  try {
+    const result = await api("/intake/photo", {
+      method: "POST",
+      body: file,
+      headers: CardMedia.photoHeaders(file),
+    });
+    if (generation !== photoState.generation) {
+      await api(`/intake/${result.token}`, { method: "DELETE" });
+      return;
+    }
+    photoState.token = result.token;
+    photoState.prepared = Boolean(result.photo_processing);
+    showPhotoPreparation("photo", result.token, result.photo_processing);
+  } catch (error) {
+    if (generation === photoState.generation)
+      $("photo-error").textContent = error.message;
+  } finally {
+    if (generation === photoState.generation) photoBusy(false);
+  }
+}
+for (const key of ["crop", "perspective", "balance"]) {
+  $(`intake-${key}`).addEventListener("change", async () => {
+    if (intakeState.busy || !intakeState.token) return;
+    const generation = intakeState.generation;
+    intakeBusy(true, "Préparation de la photo…");
+    $("add-error").textContent = "";
+    try {
+      const result = await changePhotoPreparation("intake", intakeState.token);
+      if (generation !== intakeState.generation) return;
+      showPhotoPreparation("intake", intakeState.token, result);
+      clearIntakeChoice();
+      $("intake-candidates").replaceChildren();
+      $("intake-catalogue-message").textContent = "";
+      intakeBusy(
+        false,
+        "Réglages modifiés. Relisez la carte ou recherchez l’extension avant de confirmer.",
+      );
+    } catch (error) {
+      if (generation === intakeState.generation) {
+        intakeBusy(false);
+        $("add-error").textContent = error.message;
+      }
+    }
+  });
+  $(`photo-${key}`).addEventListener("change", async () => {
+    if (photoState.busy || !photoState.token) return;
+    const generation = photoState.generation;
+    photoBusy(true, "Préparation de la photo…");
+    $("photo-error").textContent = "";
+    try {
+      const result = await changePhotoPreparation("photo", photoState.token);
+      if (generation === photoState.generation)
+        showPhotoPreparation("photo", photoState.token, result);
+    } catch (error) {
+      if (generation === photoState.generation)
+        $("photo-error").textContent = error.message;
+    } finally {
+      if (generation === photoState.generation) photoBusy(false);
+    }
+  });
+}
+$("photo-dialog").addEventListener("cancel", (event) => {
+  if (photoState.saving) event.preventDefault();
+});
+$("photo-dialog").addEventListener("close", () => {
+  ++photoState.generation;
+  const token = photoState.token;
+  photoState.token = null;
+  photoState.file = null;
+  photoState.busy = false;
+  $("photo-preview").removeAttribute("src");
+  if (token) api(`/intake/${token}`, { method: "DELETE" }).catch(() => {});
+});
+$("photo-save").addEventListener("click", async () => {
+  if (photoState.busy || !photoState.token) return;
+  const card = photoState.card;
+  photoState.saving = true;
+  const close = $("photo-dialog").querySelector("[data-close]");
+  close.disabled = true;
+  photoBusy(true, "Enregistrement de la photo…");
+  try {
+    if (photoState.prepared)
+      await api(`/copies/${card.id}/photo-from-intake`, {
+        method: "POST",
+        body: JSON.stringify({
+          token: photoState.token,
+          expected_version: card.version,
+          side: photoState.side,
+        }),
+      });
+    else
+      await api(
+        `/copies/${card.id}/photo?version=${card.version}&side=${photoState.side}`,
+        {
+          method: "PUT",
+          body: photoState.file,
+          headers: { "Content-Type": photoState.file.type },
+        },
+      );
+    $("photo-dialog").close();
+    await openDetail(card.id);
+    await loadCards();
+    toast(
+      photoState.prepared
+        ? "Photo enregistrée ; photo entière conservée dans la sauvegarde."
+        : "Photo enregistrée.",
+    );
+  } catch (error) {
+    $("photo-error").textContent = error.message;
+  } finally {
+    photoState.saving = false;
+    close.disabled = false;
+    photoBusy(false);
+  }
+});
+function intakeBusy(busy, message = null) {
+  intakeState.busy = busy;
+  $("intake-read").disabled = busy || !intakeState.hasPhoto;
+  $("intake-search").disabled = busy;
+  $("intake-save").disabled = busy;
+  for (const field of $("add-form").elements) {
+    if (
+      ["name", "number", "set_name", "language", "hp", "reason"].includes(
+        field.name,
+      )
+    )
+      field.disabled = busy;
+  }
+  $("intake-confirm").disabled = busy;
+  for (const button of $("intake-candidates").querySelectorAll("button"))
+    button.disabled = busy;
+  for (const id of ["intake-camera", "intake-file"])
+    $(id).disabled = busy || Boolean(intakeState.existing);
+  for (const key of ["crop", "perspective", "balance"])
+    $(`intake-${key}`).disabled =
+      busy ||
+      !intakeState.hasPhoto ||
+      (key === "perspective" && !$("intake-crop").checked);
+  if (message !== null) $("intake-status").textContent = message;
+}
+function clearIntakeChoice() {
+  intakeState.chosen = null;
+  $("intake-confirm").checked = false;
+  $("intake-confirm-label").hidden = true;
+  $("intake-comparison").hidden = true;
+  $("intake-comparison").replaceChildren();
+  for (const button of $("intake-candidates").querySelectorAll(
+    ".intake-candidate",
+  ))
+    button.classList.remove("selected");
+}
+async function discardIntake() {
+  if (typeof Workflows !== "undefined" && Workflows.capture) return;
+  const token = intakeState.token;
+  intakeState.token = null;
+  if (token) {
+    try {
+      await api(`/intake/${token}`, { method: "DELETE" });
+    } catch {
+      /* Expired drafts need no cleanup. */
+    }
+  }
+}
+async function startIntake(existing = null, series = null) {
+  if (!editAllowed()) return;
+  if (typeof Workflows !== "undefined") {
+    await Workflows.persist();
+    Workflows.attach(null);
+  }
+  const generation = ++intakeState.generation;
+  await discardIntake();
+  if (generation !== intakeState.generation) return;
+  intakeState.existing = existing;
+  intakeState.hasPhoto = false;
+  const form = $("add-form");
+  form.reset();
+  clearIntakeChoice();
+  $("intake-candidates").replaceChildren();
+  $("intake-catalogue-message").textContent = "";
+  $("add-error").textContent = "";
+  $("intake-preview").hidden = true;
+  $("intake-preview").removeAttribute("src");
+  $("intake-photo-options").hidden = true;
+  $("intake-title").textContent = existing
+    ? "Identifier cet exemplaire"
+    : "Ajouter une carte";
+  $("intake-save").textContent = existing
+    ? "Enregistrer l’identification"
+    : "Ajouter l’exemplaire";
+  form.querySelector(".intake-actions").hidden = Boolean(existing);
+  if (existing) {
+    for (const key of [
+      "name",
+      "number",
+      "set_name",
+      "language",
+      "hp",
+      "stamp",
+      "album_id",
+      "page",
+      "position",
+    ])
+      form.elements[key].value = existing[key] ?? "";
+    form.elements.reason.value = "Identification assistée de cet exemplaire";
+  }
+  for (const key of ["album_id", "page", "position"])
+    form.elements[key].disabled = Boolean(existing);
+  if (typeof Workflows !== "undefined") Workflows.attach(series);
+  $("add-dialog").showModal();
+  intakeBusy(true, "Préparation de la saisie…");
+  try {
+    const result = series?.data.front_token
+      ? await api(`/intake/${series.data.front_token}`)
+      : await api(
+          existing ? `/copies/${existing.id}/intake` : "/intake/drafts",
+          { method: "POST" },
+        );
+    if (generation !== intakeState.generation) {
+      await api(`/intake/${result.token}`, { method: "DELETE" });
+      return;
+    }
+    intakeState.token = result.token;
+    intakeState.hasPhoto = result.has_photo;
+    if (result.has_photo) {
+      showPhotoPreparation("intake", result.token, result.photo_processing);
+    }
+    if (series && typeof Workflows !== "undefined")
+      await Workflows.restore(series);
+    intakeBusy(
+      false,
+      existing
+        ? result.has_photo
+          ? "La photo enregistrée est prête. Cliquez sur « Lire la carte » ou recherchez l’extension à partir de la saisie."
+          : "Saisissez le nom et la référence pour retrouver l’extension. La photo peut être ajoutée depuis la fiche."
+        : "Ajoutez une photo ou saisissez le nom et la référence pour retrouver l’extension.",
+    );
+  } catch (e) {
+    if (generation === intakeState.generation) {
+      intakeBusy(false, "");
+      $("add-error").textContent = e.message;
+    }
+  }
+}
+function showIntakeCandidates(result) {
+  clearIntakeChoice();
+  $("intake-candidates").replaceChildren();
+  $("intake-catalogue-message").textContent = result.message;
+  const form = $("add-form");
+  for (const candidate of result.candidates) {
+    const entry = el("article", undefined, "intake-candidate-entry");
+    const button = el("button", undefined, "intake-candidate");
+    button.type = "button";
+    button.setAttribute(
+      "aria-label",
+      `Choisir ${candidate.name}, ${candidate.set_name}, ${candidate.number}`,
+    );
+    if (candidate.image) {
+      const image = el("img");
+      image.src = candidate.image;
+      image.alt = `Illustration catalogue de ${candidate.name}`;
+      image.loading = "lazy";
+      entry.append(CardMedia.zoomButton(image));
+    }
+    button.append(
+      el("strong", candidate.name),
+      el("span", candidate.set_name),
+      el("span", `${candidate.number} · ${candidate.language.toUpperCase()}`),
+    );
+    button.addEventListener("click", () => {
+      clearIntakeChoice();
+      intakeState.chosen = candidate.id;
+      for (const key of ["name", "number", "set_name", "language", "hp"])
+        form.elements[key].value =
+          (key === "name"
+            ? candidate.printed_name || candidate.name
+            : key === "number"
+              ? candidate.printed_number || candidate.number
+              : candidate[key]) ?? "";
+      button.classList.add("selected");
+      if (candidate.image && intakeState.hasPhoto) {
+        for (const [label, src] of [
+          ["Votre exemplaire", $("intake-preview").src],
+          ["Carte du catalogue", candidate.image],
+        ]) {
+          const figure = el("figure");
+          const image = el("img");
+          image.src = src;
+          image.alt = label;
+          figure.append(image, el("figcaption", label));
+          $("intake-comparison").append(figure);
+        }
+        $("intake-comparison").hidden = false;
+      }
+      $("intake-confirm-label").hidden = false;
+      if (typeof Workflows !== "undefined") Workflows.changed();
+    });
+    entry.append(button);
+    $("intake-candidates").append(entry);
+  }
+}
+for (const key of ["name", "number", "set_name", "language", "hp"]) {
+  $("add-form").elements[key].addEventListener("input", clearIntakeChoice);
+  $("add-form").elements[key].addEventListener("change", clearIntakeChoice);
+}
+$("add-card").addEventListener("click", () =>
+  startIntake().catch((e) => toast(e.message)),
+);
+$("add-dialog").addEventListener("close", () => {
+  ++intakeState.generation;
+  if (typeof Workflows !== "undefined" && Workflows.capture) {
+    Workflows.persist()
+      .then(() => Workflows.refresh())
+      .catch((e) => toast(e.message));
+  } else discardIntake();
+});
+$("add-dialog").addEventListener("cancel", (e) => {
+  if (intakeState.saving) e.preventDefault();
+});
+async function uploadIntakePhoto(file) {
+  if (!file || intakeState.busy || intakeState.existing) return;
+  const generation = intakeState.generation;
+  $("add-error").textContent = "";
+  if (file.size > 8 * 1024 * 1024) {
+    $("add-error").textContent = "Photo limitée à 8 Mo.";
+    return;
+  }
+  intakeBusy(true, "Préparation de la photo…");
+  try {
+    const result = await api("/intake/photo", {
+      method: "POST",
+      body: file,
+      headers: CardMedia.photoHeaders(file),
+    });
+    if (generation !== intakeState.generation) {
+      await api(`/intake/${result.token}`, { method: "DELETE" });
+      return;
+    }
+    const previous = intakeState.token;
+    await discardIntake();
+    intakeState.token = result.token;
+    intakeState.hasPhoto = true;
+    clearIntakeChoice();
+    $("intake-candidates").replaceChildren();
+    $("intake-catalogue-message").textContent = "";
+    showPhotoPreparation("intake", result.token, result.photo_processing);
+    if (typeof Workflows !== "undefined") await Workflows.persist();
+    if (
+      previous &&
+      previous !== result.token &&
+      typeof Workflows !== "undefined" &&
+      Workflows.capture
+    )
+      await api(`/intake/${previous}`, { method: "DELETE" });
+    intakeBusy(
+      false,
+      "Photo prête. Cliquez sur « Lire la carte » ou complétez la saisie manuellement.",
+    );
+  } catch (e) {
+    if (generation === intakeState.generation) {
+      intakeBusy(false, "");
+      $("add-error").textContent = e.message;
+    }
+  }
+}
+$("intake-file").addEventListener("change", (event) => {
+  const file = event.target.files[0];
+  event.target.value = "";
+  uploadIntakePhoto(file);
+});
+$("intake-camera").addEventListener("click", () => {
+  if (intakeState.busy || intakeState.existing) return;
+  const generation = intakeState.generation;
+  CardMedia.capture((file) => {
+    if (generation === intakeState.generation) uploadIntakePhoto(file);
+  });
+});
+async function runIntake(analysis) {
+  if (!intakeState.token || intakeState.busy) return;
+  const generation = intakeState.generation;
+  const form = $("add-form");
+  const query = {
+    name: form.elements.name.value.trim(),
+    number: form.elements.number.value.trim(),
+    language: form.elements.language.value,
+    hp: form.elements.hp.value === "" ? null : Number(form.elements.hp.value),
+  };
+  if (!analysis && !query.name) {
+    $("add-error").textContent = "Saisissez le nom imprimé avant la recherche.";
+    return;
+  }
+  $("add-error").textContent = "";
+  clearIntakeChoice();
+  intakeBusy(
+    true,
+    analysis
+      ? "Lecture de la photo… Cela peut prendre quelques secondes."
+      : "Recherche de l’extension…",
+  );
+  try {
+    const result = await api(
+      `/intake/${intakeState.token}/${analysis ? "analyze" : "catalogue"}`,
+      { method: "POST", ...(analysis ? {} : { body: JSON.stringify(query) }) },
+    );
+    if (generation !== intakeState.generation) return;
+    if (result.observation) {
+      for (const key of ["name", "number", "language", "hp"])
+        form.elements[key].value = result.observation[key] ?? "";
+      // A printed stamp marks a promo variant: proposed, never silently dropped.
+      form.elements.stamp.value = result.observation.stamp_text || "";
+      form.elements.set_name.value = "";
+    }
+    showIntakeCandidates(result);
+    if (typeof Workflows !== "undefined") Workflows.changed();
+    intakeBusy(
+      false,
+      result.observation
+        ? [
+            "Lecture proposée : vérifiez les champs.",
+            result.observation.notes,
+            result.observation.flaws
+              ? "Défauts visibles : " + result.observation.flaws
+              : "",
+          ]
+            .filter(Boolean)
+            .join(" ")
+        : "Recherche terminée.",
+    );
+  } catch (e) {
+    if (generation === intakeState.generation) {
+      intakeBusy(false, "La saisie manuelle reste disponible.");
+      $("add-error").textContent = e.message;
+    }
+  }
+}
+$("intake-read").addEventListener("click", () => runIntake(true));
+$("intake-search").addEventListener("click", () => runIntake(false));
+$("add-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  if (intakeState.busy || !intakeState.token) return;
+  const generation = intakeState.generation;
+  const data = Object.fromEntries(new FormData(e.target));
+  for (const key of ["album_id", "page", "position"])
+    data[key] = e.target.elements[key].value;
+  for (const key of ["page", "position"]) data[key] = Number(data[key]);
+  data.hp = data.hp === "" ? null : Number(data.hp);
+  data.chosen_catalog_id = intakeState.chosen;
+  data.human_confirmed = $("intake-confirm").checked;
+  $("add-error").textContent = "";
+  intakeState.saving = true;
+  document.querySelector('[data-close="add-dialog"]').disabled = true;
+  intakeBusy(true, "Enregistrement de l’exemplaire…");
+  try {
+    const preparation =
+      typeof Workflows !== "undefined"
+        ? await Workflows.prepareSave(data)
+        : { url: `/intake/${intakeState.token}/save`, data };
+    const result = await api(preparation.url, {
+      method: "POST",
+      body: JSON.stringify(preparation.data),
+    });
+    const c = result.card || result;
+    if (generation !== intakeState.generation) return;
+    if (result.session && typeof Workflows !== "undefined")
+      await Workflows.next(result.session);
+    else $("add-dialog").close();
+    await refreshSummary();
+    await loadCards();
+    if (!result.session) await openDetail(c.id);
+    toast(
+      "Exemplaire enregistré. Son état physique et son prix restent à évaluer séparément.",
+    );
+  } catch (err) {
+    if (generation === intakeState.generation)
+      $("add-error").textContent = err.message;
+  } finally {
+    intakeState.saving = false;
+    document.querySelector('[data-close="add-dialog"]').disabled = false;
+    if (generation === intakeState.generation) intakeBusy(false);
+  }
+});
+$("user-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  try {
+    await api("/users", {
+      method: "POST",
+      body: JSON.stringify(Object.fromEntries(new FormData(e.target))),
+    });
+    e.target.reset();
+    $("user-message").textContent = "Compte créé.";
+    await loadUsers();
+  } catch (err) {
+    $("user-message").textContent = err.message;
+  }
+});
+$("album-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  try {
+    await api("/albums", {
+      method: "POST",
+      body: JSON.stringify(Object.fromEntries(new FormData(e.target))),
+    });
+    e.target.reset();
+    $("album-message").textContent = "Album ajouté.";
+    await refreshSummary();
+  } catch (err) {
+    $("album-message").textContent = err.message;
+  }
+});
+(async () => {
+  try {
+    const setup = await api("/setup");
+    state.setup = setup.required;
+    if (state.setup) {
+      $("access-title").textContent = "Créer votre accès privé";
+      $("access-help").textContent =
+        "Choisissez votre compte administrateur pour commencer. Le mot de passe doit contenir au moins 10 caractères.";
+      $("login-submit").textContent = "Créer mon compte";
+      $("login-form").elements.password.autocomplete = "new-password";
+      showAccess();
+    } else {
+      try {
+        await showWorkspace(await api("/session"));
+      } catch {
+        showAccess();
+      }
+    }
+  } catch (err) {
+    showAccess();
+    $("login-error").textContent = err.message;
+  }
+})();

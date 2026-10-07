@@ -51,3 +51,16 @@ def test_slice_grid_2x2():
     for idx, (pos, crop) in enumerate(crops, 1):
         assert pos == idx
         assert crop.size == (400, 400)
+
+
+def test_twelve_card_labels_are_rows_by_columns():
+    assert detect_grid_layout(None, "4x3") == (4, 3)
+    assert detect_grid_layout(None, "3x4") == (3, 4)
+
+
+def test_invalid_slice_geometry():
+    import pytest
+
+    for rows, cols, inset in [(0, 2, 0), (2, 0, 0), (2, 2, 0.5), (2, 2, -0.01)]:
+        with pytest.raises(ValueError):
+            slice_grid(Image.new("RGB", (100, 100)), rows, cols, inset)

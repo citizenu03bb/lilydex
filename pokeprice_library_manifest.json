@@ -1,0 +1,7 @@
+{
+  "albums": [
+    {"id":"diamond-pearl","name":"Diamond & Pearl","report":"pokedex_diamond_pearl_report.csv","photos":"~/Downloads/Pokedex - Diamond & Pearl"},
+    {"id":"platinium","name":"Platinium","report":"pokedex_platinium_report.csv","photos":"~/Downloads/Pokedex-Platinium"},
+    {"id":"platinium-3x3","name":"Platinium 3×3","report":"pokedex_platinium_3x3_report.csv","photos":"~/Downloads/Pokedex - Platinium 3x3"}
+  ]
+}

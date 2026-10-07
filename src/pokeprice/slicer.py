@@ -37,7 +37,9 @@ def normalize_orientation(image: Image.Image, rotation: str = "auto") -> Image.I
     return image
 
 
-def detect_grid_layout(image: Image.Image, requested_layout: str = "auto") -> Tuple[int, int]:
+def detect_grid_layout(
+    image: Image.Image, requested_layout: str = "auto"
+) -> Tuple[int, int]:
     """
     Determines grid layout (rows, cols).
     Supports: 'auto', '3x3', '2x2', 'single', or custom 'RxC'.
@@ -51,9 +53,12 @@ def detect_grid_layout(image: Image.Image, requested_layout: str = "auto") -> Tu
     if "x" in requested_layout:
         try:
             parts = requested_layout.split("x")
-            return int(parts[0]), int(parts[1])
+            rows, cols = int(parts[0]), int(parts[1])
+            if rows <= 0 or cols <= 0:
+                raise ValueError("Grid dimensions must be positive.")
+            return rows, cols
         except ValueError:
-            pass
+            raise ValueError("Invalid grid layout.")
 
     # Auto-detection heuristic based on aspect ratio
     # 3x3 pages are typical standard A4 / Letter format (ratio ~ 0.70 - 0.77)
@@ -66,50 +71,51 @@ def detect_grid_layout(image: Image.Image, requested_layout: str = "auto") -> Tu
 
 
 def slice_grid(
-    image: Image.Image,
-    rows: int,
-    cols: int,
-    inset_pct: float = 0.02
+    image: Image.Image, rows: int, cols: int, inset_pct: float = 0.02
 ) -> List[Tuple[int, Image.Image]]:
     """
     Slices the image into a grid of cells.
-    
+
     Args:
         image: PIL Image (already oriented portrait/upright)
         rows: Number of rows (e.g. 3 or 2)
         cols: Number of columns (e.g. 3 or 2)
         inset_pct: Percentage to crop inwards on each cell to avoid plastic sleeve seams.
-        
+
     Returns:
         List of (cell_index_1_based, cropped_cell_image) in row-major order.
     """
+    if rows <= 0 or cols <= 0 or not 0 <= inset_pct < 0.5:
+        raise ValueError(
+            "Positive grid dimensions and inset between 0 and 0.5 are required."
+        )
     w, h = image.size
     cell_w = w / float(cols)
     cell_h = h / float(rows)
-    
+
     crops = []
     idx = 1
-    
+
     for r in range(rows):
         for c in range(cols):
             x1 = c * cell_w
             y1 = r * cell_h
             x2 = (c + 1) * cell_w
             y2 = (r + 1) * cell_h
-            
+
             # Apply slight inset margin
             inset_x = (x2 - x1) * inset_pct
             inset_y = (y2 - y1) * inset_pct
-            
+
             box = (
                 int(x1 + inset_x),
                 int(y1 + inset_y),
                 int(x2 - inset_x),
-                int(y2 - inset_y)
+                int(y2 - inset_y),
             )
-            
+
             cropped = image.crop(box)
             crops.append((idx, cropped))
             idx += 1
-            
+
     return crops

@@ -1,0 +1,13 @@
+[Unit]
+Description=Poképrice - copie privée Drive et restauration de contrôle
+StartLimitIntervalSec=2h
+StartLimitBurst=3
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/Projects/pokeprice
+ExecStart=%h/Projects/pokeprice/.venv/bin/python -m pokeprice.manage --data %h/Projects/pokeprice/data/inventory backup-drive --rclone %h/.local/bin/rclone --remote gdrive
+UMask=0077
+TimeoutStartSec=15min
+Restart=on-failure
+RestartSec=15min

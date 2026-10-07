@@ -4,12 +4,21 @@ pokeprice CLI launcher script.
 """
 
 import sys
-import os
+from pathlib import Path
 
-# Add src to python path so it works seamlessly without pip install -e .
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
-
-from pokeprice.cli import main
+source = Path(__file__).resolve().parent / "src"
 
 if __name__ == "__main__":
+    sys.path.insert(0, str(source))
+    from pokeprice.cli import main
     main()
+else:
+    # Importing from the checkout should load the package, not this CLI module.
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        __name__, source / "pokeprice" / "__init__.py",
+        submodule_search_locations=[str(source / "pokeprice")],
+    )
+    package = importlib.util.module_from_spec(spec)
+    sys.modules[__name__] = package
+    spec.loader.exec_module(package)

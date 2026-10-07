@@ -1,8 +1,7 @@
 """
 HTML Interactive Report Generator for pokeprice.
-Generates a standalone, responsive, modern web report comparing real album crops
-with official TCGdex HD card illustrations side-by-side, with automatic condition
-price adjustment and counterfeit/inconsistency detection.
+Generates a responsive web report with embedded album crops and remote official images
+with opt-in condition simulations and explicit unresolved-card review.
 """
 
 import base64
@@ -10,6 +9,9 @@ import glob
 import io
 import json
 import os
+import math
+from html import escape as html_escape
+from urllib.parse import urlsplit
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 
@@ -17,12 +19,18 @@ import pandas as pd
 from PIL import Image
 
 from pokeprice.slicer import normalize_orientation, slice_grid
-from pokeprice.report import CONDITION_MULTIPLIERS, detect_card_anomaly
+from pokeprice.report import (
+    CONDITION_MULTIPLIERS,
+    condition_multiplier,
+    apply_pricing_and_anomalies,
+)
 
 
-def encode_image_base64(img: Image.Image, max_size: tuple = (400, 560), quality: int = 80) -> str:
+def encode_image_base64(
+    img: Image.Image, max_size: tuple = (400, 560), quality: int = 80
+) -> str:
     """Resizes and encodes a PIL Image to a compact base64 JPEG data URI."""
-    thumb = img.copy()
+    thumb = img.convert("RGB")
     thumb.thumbnail(max_size, Image.Resampling.LANCZOS)
     buf = io.BytesIO()
     thumb.save(buf, format="JPEG", quality=quality, optimize=True)
@@ -30,162 +38,156 @@ def encode_image_base64(img: Image.Image, max_size: tuple = (400, 560), quality:
     return f"data:image/jpeg;base64,{b64}"
 
 
-def generate_html_report(
-    df: pd.DataFrame,
-    album_dir: str,
-    output_html_path: str,
-    title: str = "Catalogue & Valorisation Album Pokémon"
-) -> str:
-    """
-    Slices album pages on the fly, links official TCGdex visuals, and builds a standalone HTML report.
-    """
-    patterns = ["*.jpg", "*.jpeg", "*.png", "*.webp", "*.JPG", "*.JPEG", "*.PNG"]
-    image_files = []
-    for pat in patterns:
-        image_files.extend(glob.glob(os.path.join(album_dir, pat)))
-    image_files = sorted(list(set(image_files)))
+def text_value(value, default=""):
+    return str(value) if pd.notna(value) else default
 
-    # Get set of pages and image filenames present in df to avoid slicing unnecessary images (e.g. cover)
-    df_pages = set(df["Page"].dropna().astype(int).unique()) if "Page" in df.columns else set()
-    df_filenames = set(df["Fichier_Image"].dropna().astype(str).unique()) if "Fichier_Image" in df.columns else set()
 
-    # Pre-slice and cache crops for each page
-    page_crops_map: Dict[int, Dict[int, Image.Image]] = {}
-    file_crops_map: Dict[str, Dict[int, Image.Image]] = {}
+def number_value(value):
+    try:
+        return float(value) if pd.notna(value) and math.isfinite(float(value)) else None
+    except (TypeError, ValueError):
+        return None
 
-    print(f"📦 Génération des aperçus visuels pour l'album ({len(image_files)} fichiers trouvés)...")
-    for p_idx, page_path in enumerate(image_files, 1):
-        fname = os.path.basename(page_path)
-        # Skip if page is not in dataframe and filename is not in dataframe
-        if df_pages and (p_idx not in df_pages) and (fname not in df_filenames):
-            continue
 
-        try:
-            p_img = Image.open(page_path)
-            oriented = normalize_orientation(p_img)
-            crops = slice_grid(oriented, rows=2, cols=2)
-            crop_dict = {pos: crop for pos, crop in crops}
-            page_crops_map[p_idx] = crop_dict
-            file_crops_map[fname] = crop_dict
-        except Exception as e:
-            print(f"  ❌ Erreur découpe page {p_idx} ({fname}): {e}")
+def safe_url(value):
+    url = text_value(value).strip()
+    try:
+        parsed = urlsplit(url)
+    except ValueError:
+        return ""
+    return url if parsed.scheme in ("http", "https") and parsed.netloc else ""
 
-    # Build card objects for JSON injection into the HTML
-    cards_data = []
-    for idx, row in df.iterrows():
+
+def build_report_cards(df, album_dir, *, grid=None, rotation="auto", inset=0.02):
+    """Embed the same per-page crop geometry used by the scanner."""
+    df = apply_pricing_and_anomalies(df)
+    files = sorted(
+        p
+        for p in Path(album_dir).iterdir()
+        if p.suffix.lower() in (".jpg", ".jpeg", ".png", ".webp")
+    )
+    by_name = {p.name: p for p in files}
+    cache = {}
+    cards = []
+    for index, (_, row) in enumerate(df.iterrows()):
         page = int(row.get("Page", 1))
         pos = int(row.get("Position", 1))
-        fname = str(row.get("Fichier_Image", "")).strip()
+        filename = text_value(row.get("Fichier_Image"))
+        # An explicit filename never falls back to a different page photograph.
+        path = (
+            by_name.get(filename)
+            if filename
+            else (files[page - 1] if 0 < page <= len(files) else None)
+        )
+        crop = None
+        if path and pos > 0:
+            same_page = (
+                df[df["Fichier_Image"] == filename]
+                if filename and "Fichier_Image" in df
+                else df[df["Page"] == page]
+            )
+            row_count = number_value(row.get("Grille_Lignes"))
+            col_count = number_value(row.get("Grille_Colonnes"))
+            if row_count and col_count:
+                rows, cols = int(row_count), int(col_count)
+            elif grid:
+                rows, cols = grid
+            else:
+                # Compatibility for legacy reports; new scans always persist geometry.
+                max_pos = int(same_page["Position"].max())
+                if max_pos > 9:
+                    raise ValueError(
+                        "Grille inconnue : préciser la géométrie des pages à 12 cartes."
+                    )
+                rows, cols = (3, 3) if max_pos > 4 else (2, 2)
+            rot = text_value(row.get("Rotation"), rotation) or rotation
+            margin = number_value(row.get("Marge_Decoupe"))
+            margin = margin if margin is not None else inset
+            key = (str(path), rows, cols, rot, margin)
+            if key not in cache:
+                with Image.open(path) as image:
+                    oriented = normalize_orientation(image, rot)
+                    cache[key] = dict(slice_grid(oriented, rows, cols, margin))
+            crop = cache[key].get(pos)
+        grade = text_value(row.get("Etat"))
+        mult = condition_multiplier(grade)
+        status = text_value(row.get("Statut_Identification"), "confirmed")
+        note = text_value(row.get("Note_Verification"))
+        anomaly = text_value(row.get("Alerte_Incoherence"))
+        cards.append(
+            {
+                "id": index,
+                "page": page,
+                "pos": pos,
+                "image_file": filename,
+                "ocr_name": text_value(row.get("OCR_Name")),
+                "ocr_number": text_value(row.get("OCR_Number")),
+                "pv": int(
+                    number_value(row.get("PV_Verifie"))
+                    if number_value(row.get("PV_Verifie")) is not None
+                    else (number_value(row.get("PV")) or 0)
+                ),
+                "is_foil": text_value(row.get("Is_Foil")).lower() == "oui",
+                "name": text_value(row.get("Identified_Name"), "À identifier"),
+                "set_name": text_value(row.get("Extension")),
+                "number": text_value(row.get("Numero_Officiel")),
+                "rarity": text_value(row.get("Rarete")),
+                "condition": grade,
+                "condition_source": text_value(
+                    row.get("Source_Etat"), "Inconnue (historique)"
+                ),
+                "price_date": text_value(row.get("Date_Prix")),
+                "price_source": text_value(row.get("Source_Prix_EUR")),
+                "decote_pct": int(round((1 - mult) * 100))
+                if mult is not None
+                else None,
+                "flaws": text_value(row.get("Defauts")),
+                "reference_price_eur": number_value(row.get("Prix_Reference_EUR")),
+                "simulated_price_eur": number_value(row.get("Prix_Simule_EUR")),
+                "trend_eur": number_value(row.get("Tendance_EUR")),
+                "cardmarket_url": safe_url(row.get("Lien_Cardmarket")),
+                "official_img": safe_url(row.get("Image_Officielle")),
+                "real_crop_img": encode_image_base64(crop) if crop else "",
+                "is_suspect": bool(anomaly),
+                "counterfeit_warning": anomaly,
+                "needs_review": text_value(row.get("Statut_Revision")) == "À vérifier",
+                "price_missing": status == "confirmed"
+                and number_value(row.get("Prix_Reference_EUR")) is None,
+                "match_status": status,
+                "verification_note": note,
+            }
+        )
+    return cards
 
-        # Deterministic Real crop thumbnail lookup
-        real_crop_img = None
-        if fname and fname in file_crops_map and pos in file_crops_map[fname]:
-            real_crop_img = file_crops_map[fname][pos]
-        elif page in page_crops_map and pos in page_crops_map[page]:
-            real_crop_img = page_crops_map[page][pos]
-        elif 0 <= page - 1 < len(image_files):
-            # Fallback if image wasn't pre-sliced
-            fallback_path = image_files[page - 1]
-            try:
-                p_img = Image.open(fallback_path)
-                oriented = normalize_orientation(p_img)
-                crops = slice_grid(oriented, rows=2, cols=2)
-                crop_dict = {p: c for p, c in crops}
-                page_crops_map[page] = crop_dict
-                real_crop_img = crop_dict.get(pos)
-            except Exception:
-                pass
 
-        real_crop_b64 = encode_image_base64(real_crop_img) if real_crop_img else ""
-
-        # Condition and pricing
-        cond = str(row.get("Etat", "NM/EX")).strip().upper()
-        if "/" in cond:
-            cond_key = cond.split("/")[0]
-        else:
-            cond_key = cond
-        mult = CONDITION_MULTIPLIERS.get(cond_key, 0.85)
-        decote_pct = int(round((1.0 - mult) * 100))
-
-        cat_price = float(row.get("Prix_Catalogue_EUR", row.get("Prix_Estime_EUR", 0.0)) or 0.0)
-        
-        # Anomaly detection
-        alerte_raw = row.get("Alerte_Incoherence", "")
-        if pd.notna(alerte_raw) and str(alerte_raw).strip() and str(alerte_raw).strip().lower() not in ("nan", "none"):
-            anomaly = str(alerte_raw).strip()
-        else:
-            anomaly = detect_card_anomaly(row.to_dict())
-
-        est_susp_raw = str(row.get("Est_Suspecte", "")).strip().lower()
-        is_suspect = (est_susp_raw == "oui") or bool(anomaly)
-
-        if is_suspect and ("incohérence holo" in anomaly.lower() or "contrefaçon" in anomaly.lower()):
-            adjusted_price = 0.0
-        else:
-            adjusted_price = float(row.get("Prix_Ajuste_EUR", round(cat_price * mult, 2)) or 0.0)
-
-        card_obj = {
-            "id": idx,
-            "page": page,
-            "pos": pos,
-            "image_file": fname or (os.path.basename(image_files[page - 1]) if 0 <= page - 1 < len(image_files) else ""),
-            "ocr_name": str(row.get("OCR_Name", "")),
-            "ocr_number": str(row.get("OCR_Number", "")),
-            "pv": int(row.get("PV")) if pd.notna(row.get("PV")) and row.get("PV") > 0 else 0,
-            "is_foil": str(row.get("Is_Foil", "")).lower() == "oui",
-            "name": str(row.get("Identified_Name", "Inconnue")),
-            "set_name": str(row.get("Extension", "")),
-            "number": str(row.get("Numero_Officiel", "")),
-            "rarity": str(row.get("Rarete", "")),
-            "condition": str(row.get("Etat", "NM/EX")),
-            "decote_pct": decote_pct,
-            "flaws": str(row.get("Defauts", "")),
-            "catalog_price_eur": cat_price,
-            "adjusted_price_eur": adjusted_price,
-            "trend_eur": float(row.get("Tendance_EUR", 0.0) or 0.0),
-            "cardmarket_url": str(row.get("Lien_Cardmarket", "")) if pd.notna(row.get("Lien_Cardmarket")) else "",
-            "official_img": (
-                str(row.get("Image_Officielle", ""))
-                if (pd.notna(row.get("Image_Officielle")) and str(row.get("Image_Officielle", "")).startswith("http"))
-                else ""
-            ),
-            "real_crop_img": real_crop_b64,
-            "is_suspect": is_suspect,
-            "counterfeit_warning": anomaly
-        }
-        cards_data.append(card_obj)
-
-    # Compute global stats
-    total_val_cat = sum(c["catalog_price_eur"] for c in cards_data)
-    total_val_adjusted = sum(c["adjusted_price_eur"] for c in cards_data)
-    total_cards = len(cards_data)
-    total_foils = sum(1 for c in cards_data if c["is_foil"])
-    total_suspect = sum(1 for c in cards_data if c["is_suspect"])
-
-    global_discount_pct = ((1.0 - (total_val_adjusted / total_val_cat)) * 100) if total_val_cat > 0 else 0.0
-
-    condition_counts = {}
-    for c in cards_data:
-        c_name = c["condition"] or "Non spécifié"
-        condition_counts[c_name] = condition_counts.get(c_name, 0) + 1
-
-    html_content = _build_html_template(
-        title=title,
-        cards=cards_data,
-        total_val_cat=total_val_cat,
-        total_val_adjusted=total_val_adjusted,
-        global_discount_pct=global_discount_pct,
-        total_cards=total_cards,
-        total_foils=total_foils,
-        condition_counts=condition_counts,
-        total_suspect=total_suspect
+def generate_html_report(
+    df,
+    album_dir,
+    output_html_path,
+    title="Références de prix Album Pokémon",
+    *,
+    grid=None,
+    rotation="auto",
+    inset=0.02,
+):
+    cards = build_report_cards(df, album_dir, grid=grid, rotation=rotation, inset=inset)
+    catalogue = sum(
+        c["reference_price_eur"] or 0 for c in cards if c["match_status"] == "confirmed"
     )
-
-    with open(output_html_path, "w", encoding="utf-8") as f:
-        f.write(html_content)
-
-    print(f"✨ Rapport interactif généré avec succès : {output_html_path}")
-    return output_html_path
+    adjusted = sum(c["simulated_price_eur"] or 0 for c in cards)
+    review_count = sum(c["needs_review"] for c in cards)
+    html = _build_html_template(
+        title,
+        cards,
+        catalogue,
+        adjusted,
+        sum(c["pos"] > 0 for c in cards),
+        sum(c["is_foil"] for c in cards),
+        review_count,
+    )
+    Path(output_html_path).write_text(html, encoding="utf-8")
+    print(f"Rapport HTML : {output_html_path}")
+    return str(output_html_path)
 
 
 def _build_html_template(
@@ -193,14 +195,22 @@ def _build_html_template(
     cards: list,
     total_val_cat: float,
     total_val_adjusted: float,
-    global_discount_pct: float,
     total_cards: int,
     total_foils: int,
-    condition_counts: dict,
-    total_suspect: int
+    total_suspect: int,
 ) -> str:
-    cards_json = json.dumps(cards, ensure_ascii=False)
-    
+    cards_json = (
+        json.dumps(cards, ensure_ascii=False, allow_nan=False)
+        .replace("&", "\\u0026")
+        .replace("<", "\\u003c")
+        .replace(">", "\\u003e")
+    )
+    title = html_escape(title)
+    coefficient_labels = " · ".join(
+        f"{grade} × {mult:.2f}" for grade, mult in CONDITION_MULTIPLIERS.items()
+    )
+    simulated_count = sum(c["simulated_price_eur"] is not None for c in cards)
+
     return f"""<!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -231,6 +241,14 @@ def _build_html_template(
       margin: 0;
       padding: 0;
     }}
+
+    [hidden] {{ display: none !important; }}
+    .simulation-controls {{ margin-top: 18px; line-height: 1.6; }}
+    .simulation-controls label {{ display: flex; align-items: center; gap: 10px; cursor: pointer; }}
+    .simulation-controls input {{ accent-color: var(--accent); width: 18px; height: 18px; }}
+    #simulationPanel {{ margin-top: 12px; border: 1px dashed var(--accent); }}
+    .price-meta {{ font-size: 0.75rem; color: var(--text-muted); margin-top: 6px; overflow-wrap: anywhere; }}
+    .simulation-price {{ margin-top: 10px; color: var(--text-muted); font-size: 0.85rem; }}
 
     body {{
       font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -610,19 +628,19 @@ def _build_html_template(
       flex-direction: column;
     }}
 
-    .price-tag-adjusted {{
+    .price-tag-reference {{
       font-size: 1.4rem;
       font-weight: 800;
       color: #4ade80;
       line-height: 1.1;
     }}
 
-    .price-tag-adjusted.zero-suspect {{
+    .price-tag-reference.zero-suspect {{
       color: #ef4444;
       text-decoration: line-through;
     }}
 
-    .price-tag-catalog {{
+    .price-caption {{
       font-size: 0.78rem;
       color: var(--text-muted);
       margin-top: 2px;
@@ -728,34 +746,58 @@ def _build_html_template(
         </div>
       </div>
 
-      {f'''<div class="alert-banner-top">
+      {
+        f'''<div class="alert-banner-top">
         <span style="font-size: 1.4rem;">⚠️</span>
         <div>
-          <strong>Alerte de collection : {total_suspect} carte(s) suspecte(s) ou incohérence(s) détectée(s)</strong><br>
-          Certaines cartes (ex. versions holo officielles imprimées sur papier mat non-brillant) ont été isolées et neutralisées à 0.00 € dans la valeur réelle ajustée.
+          <strong>Alerte de collection : {total_suspect} carte(s) à vérifier</strong><br>
+          La somme des références inclut uniquement les identités confirmées avec un prix disponible. Les états restent à confirmer ; les entrées à vérifier sont exclues de la simulation.
         </div>
-      </div>''' if total_suspect > 0 else ''}
+      </div>'''
+        if total_suspect > 0
+        else ""
+    }
 
       <div class="stats-grid">
         <div class="stat-card">
-          <div class="stat-label">Valeur Réelle Ajustée (État)</div>
-          <div class="stat-val highlight">{total_val_adjusted:.2f} €</div>
-          <div class="stat-sub">-{global_discount_pct:.1f}% de décote globale</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Valeur Catalogue (Réf. NM)</div>
-          <div class="stat-val" style="color: #94a3b8;">{total_val_cat:.2f} €</div>
-          <div class="stat-sub">Cote théorique si parfait état</div>
+          <div class="stat-label">Somme des références de prix</div>
+          <div class="stat-val highlight">{total_val_cat:.2f} €</div>
+          <div class="stat-sub">Identités confirmées · Références TCGdex · Prix de vente à vérifier</div>
         </div>
         <div class="stat-card">
           <div class="stat-label">Cartes scannées</div>
           <div class="stat-val">{total_cards}</div>
-          <div class="stat-sub">{total_foils} brillantes ({int(round(total_foils / total_cards * 100)) if total_cards else 0}%)</div>
+          <div class="stat-sub">{total_foils} brillantes ({
+        int(round(total_foils / total_cards * 100)) if total_cards else 0
+    }%)</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">Cartes suspectes / Incohérences</div>
-          <div class="stat-val" style="color: {'#ef4444' if total_suspect > 0 else '#94a3b8'};">{total_suspect}</div>
-          <div class="stat-sub">{'⚠️ À vérifier en priorité' if total_suspect > 0 else 'Aucune anomalie'}</div>
+          <div class="stat-label">À vérifier</div>
+          <div class="stat-val" style="color: {
+        "#ef4444" if total_suspect > 0 else "#94a3b8"
+    };">{total_suspect}</div>
+          <div class="stat-sub">{
+        "⚠️ À vérifier en priorité"
+        if total_suspect > 0
+        else "Références disponibles · États à confirmer"
+    }</div>
+        </div>
+      </div>
+      <div class="simulation-controls">
+        <label for="simulationToggle">
+          <input type="checkbox" id="simulationToggle" aria-controls="simulationPanel">
+          Afficher une simulation selon l’état
+        </label>
+        <div id="simulationPanel" class="stat-card" hidden>
+          <div class="stat-label">Total simulé</div>
+          <div class="stat-val">{total_val_adjusted:.2f} €</div>
+          <p class="stat-sub">Hypothèse indicative, sans calibration sur des ventes comparables. Le prix de référence n’est pas une cote NM garantie.</p>
+          <p class="stat-sub">Coefficients appliqués : {
+        coefficient_labels
+    }. NM/EX utilise EX.</p>
+          <p class="stat-sub">{simulated_count} entrée(s) incluses ; {
+        len(cards) - simulated_count
+    } exclue(s) : identité non confirmée, prix ou état inconnu, ou incohérence. Les états inclus restent à confirmer.</p>
         </div>
       </div>
     </header>
@@ -768,18 +810,28 @@ def _build_html_template(
       </div>
 
       <div class="pill-filters">
-        <button class="filter-btn active" data-filter="all">Toutes ({total_cards})</button>
-        <button class="filter-btn" data-filter="valuable">⭐ > 10 €</button>
-        <button class="filter-btn" data-filter="foil">✨ Brillantes ({total_foils})</button>
+        <button class="filter-btn active" data-filter="all">Toutes ({
+        len(cards)
+    })</button>
+        <button class="filter-btn" data-filter="valuable">⭐ Référence > 10 €</button>
+        <button class="filter-btn" data-filter="foil">✨ Brillantes ({
+        total_foils
+    })</button>
         <button class="filter-btn" data-filter="worn">⚠️ Abîmées (PO/PL)</button>
         <button class="filter-btn" data-filter="nm-ex">🛡️ NM / EX</button>
-        {f'<button class="filter-btn btn-suspect" data-filter="suspect">🚨 ⚠️ Suspectes / Incohérences ({total_suspect})</button>' if total_suspect > 0 else ''}
+        {
+        f'<button class="filter-btn btn-suspect" data-filter="suspect">⚠️ À vérifier ({total_suspect})</button>'
+        if total_suspect > 0
+        else ""
+    }
+        <button class="filter-btn" data-filter="missing-price">Prix indisponibles</button>
       </div>
 
       <select id="sortSelect" class="sort-select">
-        <option value="price-desc">Prix ajusté : Plus cher d'abord</option>
-        <option value="price-asc">Prix ajusté : Moins cher d'abord</option>
-        <option value="catalog-desc">Cote Catalogue NM : Décroissante</option>
+        <option value="price-desc">Prix de référence : Décroissant</option>
+        <option value="price-asc">Prix de référence : Croissant</option>
+        <option value="simulation-desc" data-simulation-option hidden disabled>Simulation : Décroissant</option>
+        <option value="simulation-asc" data-simulation-option hidden disabled>Simulation : Croissant</option>
         <option value="page-pos">Ordre du classeur (Page/Pos)</option>
         <option value="name">Nom alphabétique (A-Z)</option>
       </select>
@@ -817,6 +869,8 @@ def _build_html_template(
     let currentFilter = 'all';
     let currentSort = 'price-desc';
     let searchQuery = '';
+    let simulationEnabled = false;
+    let activeCardId = null;
 
     const gridEl = document.getElementById('cardsGrid');
     const searchInput = document.getElementById('searchInput');
@@ -824,6 +878,29 @@ def _build_html_template(
     const filterBtns = document.querySelectorAll('.filter-btn');
     const zoomDialog = document.getElementById('zoomDialog');
     const modalCloseBtn = document.getElementById('modalCloseBtn');
+    const simulationToggle = document.getElementById('simulationToggle');
+    const simulationPanel = document.getElementById('simulationPanel');
+    const simulationOptions = document.querySelectorAll('[data-simulation-option]');
+
+    function escapeHtml(value) {{
+      return String(value ?? '').replace(/[&<>"']/g, char => ({{
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }})[char]);
+    }}
+    function formatPrice(value) {{
+      return typeof value === 'number' && Number.isFinite(value) ? value.toFixed(2) + ' €' : 'Indisponible';
+    }}
+
+    function referencePrice(card) {{
+      return card.match_status === 'confirmed' ? card.reference_price_eur : null;
+    }}
+    function conditionLabel(card) {{
+      return card.condition_source === 'IA' ? 'État estimé par IA — à confirmer' : 'État fourni ou historique — à confirmer';
+    }}
+    function priceProvenance(card) {{
+      return 'Source : TCGdex / Cardmarket' + (card.price_source ? ' · ' + card.price_source : ' · champ non renseigné') +
+        ' · Date : ' + (card.price_date || 'non renseignée');
+    }}
 
     function getConditionClass(cond) {{
       const c = (cond || '').toUpperCase();
@@ -846,19 +923,21 @@ def _build_html_template(
           if (!matchName && !matchSet && !matchNum) return false;
         }}
 
-        if (currentFilter === 'valuable') return c.adjusted_price_eur >= 10.0;
+        if (currentFilter === 'valuable') return c.match_status === 'confirmed' && c.reference_price_eur > 10.0;
         if (currentFilter === 'foil') return c.is_foil;
         if (currentFilter === 'worn') return ['PL', 'PO'].includes(c.condition.toUpperCase());
         if (currentFilter === 'nm-ex') return ['NM', 'EX', 'NM/EX'].includes(c.condition.toUpperCase());
-        if (currentFilter === 'suspect') return c.is_suspect;
+        if (currentFilter === 'suspect') return c.needs_review;
+        if (currentFilter === 'missing-price') return c.price_missing;
         return true;
       }});
 
       filtered.sort((a, b) => {{
-        if (currentSort === 'price-desc') return b.adjusted_price_eur - a.adjusted_price_eur;
-        if (currentSort === 'price-asc') return a.adjusted_price_eur - b.adjusted_price_eur;
-        if (currentSort === 'catalog-desc') return b.catalog_price_eur - a.catalog_price_eur;
-        if (currentSort === 'page-pos') return (a.page * 10 + a.pos) - (b.page * 10 + b.pos);
+        if (currentSort === 'price-desc') return (referencePrice(b) ?? -Infinity) - (referencePrice(a) ?? -Infinity);
+        if (currentSort === 'price-asc') return (referencePrice(a) ?? Infinity) - (referencePrice(b) ?? Infinity);
+        if (simulationEnabled && currentSort === 'simulation-desc') return (b.simulated_price_eur ?? -Infinity) - (a.simulated_price_eur ?? -Infinity);
+        if (simulationEnabled && currentSort === 'simulation-asc') return (a.simulated_price_eur ?? Infinity) - (b.simulated_price_eur ?? Infinity);
+        if (currentSort === 'page-pos') return a.page - b.page || a.pos - b.pos;
         if (currentSort === 'name') return a.name.localeCompare(b.name);
         return 0;
       }});
@@ -871,10 +950,12 @@ def _build_html_template(
         return;
       }}
 
-      gridEl.innerHTML = filtered.map(c => {{
+      gridEl.innerHTML = filtered.map(raw => {{
+        const c = {{ ...raw }};
+        for (const key of Object.keys(c)) if (typeof c[key] === 'string') c[key] = escapeHtml(c[key]);
         const condClass = getConditionClass(c.condition);
-        const hasWarning = c.is_suspect;
-        const officialFallback = c.official_img || 'https://assets.tcgdex.net/univ/back/high.webp';
+        const hasWarning = c.needs_review;
+        const officialFallback = c.official_img;
 
         return `
           <div class="card-item ${{hasWarning ? 'suspect-card' : ''}}">
@@ -893,18 +974,21 @@ def _build_html_template(
               </div>
               <div class="image-box">
                 <span class="image-tag tag-official">🖼️ Officielle</span>
-                <img class="card-img" src="${{officialFallback}}" alt="${{c.name}} officielle" loading="lazy" onerror="this.src='https://assets.tcgdex.net/univ/back/high.webp'">
+                <img class="card-img" src="${{officialFallback}}" alt="Visuel officiel indisponible" loading="lazy">
               </div>
             </div>
 
             <div class="badges-row">
-              <span class="badge ${{condClass}}">${{c.condition || 'EX'}} (-${{c.decote_pct}}%)</span>
+              <span class="badge ${{condClass}}">${{c.condition || 'État inconnu'}} · à confirmer</span>
               ${{c.is_foil ? '<span class="badge badge-foil">✨ Foil / Reverse</span>' : ''}}
               ${{c.pv > 0 ? `<span class="badge badge-pv">${{c.pv}} PV</span>` : ''}}
-              ${{hasWarning ? '<span class="badge badge-suspect">⚠️ Fausse / Incohérence</span>' : ''}}
+              ${{c.match_status === 'confirmed' ? '<span class="badge">✓ Identité confirmée</span>' : ''}}
+              ${{c.price_missing ? '<span class="badge">Prix indisponible</span>' : ''}}
+              ${{hasWarning ? '<span class="badge badge-suspect">⚠️ À vérifier</span>' : ''}}
               <span class="badge" style="background: rgba(148, 163, 184, 0.1); color: #cbd5e1;">${{c.rarity || 'Commune'}}</span>
             </div>
 
+            <div class="price-meta">${{conditionLabel(c)}}</div>
             ${{c.flaws && c.flaws.toLowerCase() !== 'none visible' && c.flaws.toLowerCase() !== 'none' ? `
               <div class="flaw-box">
                 <strong>Défauts :</strong> ${{c.flaws}}
@@ -917,14 +1001,13 @@ def _build_html_template(
               </div>
             ` : ''}}
 
+            ${{c.verification_note ? `<div class="flaw-box"><strong>Vérification :</strong> ${{c.verification_note}}</div>` : ''}}
             <div class="price-row">
               <div class="price-block">
-                <div class="price-tag-adjusted ${{hasWarning && c.adjusted_price_eur === 0 ? 'zero-suspect' : ''}}">
-                  ${{c.adjusted_price_eur > 0 ? c.adjusted_price_eur.toFixed(2) + ' €' : (hasWarning ? '0.00 € (Proxy)' : 'N/A')}}
-                </div>
-                <div class="price-tag-catalog">
-                  Cote NM : ${{c.catalog_price_eur.toFixed(2)}} € ${{c.decote_pct > 0 ? '(-' + c.decote_pct + '%)' : ''}}
-                </div>
+                <div class="price-tag-reference">${{formatPrice(c.reference_price_eur)}}</div>
+                <div class="price-caption">${{c.match_status === 'confirmed' ? 'Prix de référence TCGdex' : 'Référence proposée — à vérifier'}}</div>
+                <div class="price-meta">${{priceProvenance(c)}}</div>
+                ${{simulationEnabled ? `<div class="simulation-price"><strong>Montant simulé :</strong> ${{formatPrice(c.simulated_price_eur)}}<br>${{c.decote_pct !== null ? 'Hypothèse : −' + c.decote_pct + '% · état à confirmer' : 'État inconnu : simulation indisponible'}}</div>` : ''}}
               </div>
               ${{c.cardmarket_url ? `
                 <a class="cm-link" href="${{c.cardmarket_url}}" target="_blank" rel="noopener">
@@ -937,24 +1020,47 @@ def _build_html_template(
       }}).join('');
     }}
 
-    function openZoom(cardId) {{
+    function renderModal(cardId) {{
       const card = CARDS.find(c => c.id === cardId);
       if (!card) return;
 
       document.getElementById('modalTitle').textContent = `${{card.name}} (${{card.set_name}} #${{card.number}})`;
       document.getElementById('modalRealImg').src = card.real_crop_img;
-      document.getElementById('modalOfficialImg').src = card.official_img || 'https://assets.tcgdex.net/univ/back/high.webp';
+      document.getElementById('modalOfficialImg').src = card.official_img;
 
+      const safe = {{ ...card }};
+      for (const key of Object.keys(safe)) if (typeof safe[key] === 'string') safe[key] = escapeHtml(safe[key]);
       document.getElementById('modalDetails').innerHTML = `
-        <p><strong>Emplacement classeur :</strong> Page ${{card.page}}, Position ${{card.pos}} (fichier : <code>${{card.image_file}}</code>)</p>
-        <p><strong>Points de Vie (PV) :</strong> ${{card.pv || 'N/A'}} | <strong>Finition :</strong> ${{card.is_foil ? 'Brillante (Holo/Reverse)' : 'Non-brillante'}}</p>
-        <p><strong>État physique évalué :</strong> <span style="font-weight:700;">${{card.condition}}</span> (décote appliquée : -${{card.decote_pct}}%) ${{card.flaws ? '— <em>' + card.flaws + '</em>' : ''}}</p>
-        <p><strong>Valeur réelle ajustée :</strong> <span style="color: #4ade80; font-weight: 800; font-size: 1.2rem;">${{card.adjusted_price_eur.toFixed(2)}} €</span> <span style="color: #94a3b8; font-size: 0.85rem;">(Cote catalogue NM : ${{card.catalog_price_eur.toFixed(2)}} €)</span></p>
-        ${{card.counterfeit_warning ? `<div style="background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.5); padding: 10px; border-radius: 8px; margin-top: 10px; color: #fca5a5;"><strong>⚠️ Diagnostic de suspicion :</strong><br>${{card.counterfeit_warning}}</div>` : ''}}
+        <p><strong>Emplacement classeur :</strong> Page ${{safe.page}}, Position ${{safe.pos}} (fichier : <code>${{safe.image_file}}</code>)</p>
+        <p><strong>Points de Vie (PV) :</strong> ${{safe.pv || 'N/A'}} | <strong>Finition :</strong> ${{safe.is_foil ? 'Brillante (Holo/Reverse)' : 'Non-brillante'}}</p>
+        <p><strong>${{conditionLabel(safe)}} :</strong> <span style="font-weight:700;">${{safe.condition || 'État inconnu'}}</span> ${{safe.flaws ? '— <em>' + safe.flaws + '</em>' : ''}}</p>
+        <p><strong>${{safe.match_status === 'confirmed' ? 'Prix de référence TCGdex' : 'Référence proposée — à vérifier'}} :</strong> ${{formatPrice(card.reference_price_eur)}}<br><span class="price-meta">${{priceProvenance(safe)}}</span></p>
+        ${{simulationEnabled ? `<p><strong>Montant simulé :</strong> ${{formatPrice(card.simulated_price_eur)}} · ${{safe.decote_pct !== null ? 'hypothèse de décote : −' + safe.decote_pct + '%' : 'état inconnu'}}. État à confirmer.</p>` : ''}}
+        ${{safe.counterfeit_warning ? `<div style="background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.5); padding: 10px; border-radius: 8px; margin-top: 10px; color: #fca5a5;"><strong>⚠️ Vérification nécessaire :</strong><br>${{safe.counterfeit_warning}}</div>` : ''}}
       `;
 
+    }}
+
+    function openZoom(cardId) {{
+      activeCardId = cardId;
+      renderModal(cardId);
       zoomDialog.showModal();
     }}
+
+    simulationToggle.addEventListener('change', () => {{
+      simulationEnabled = simulationToggle.checked;
+      simulationPanel.hidden = !simulationEnabled;
+      simulationOptions.forEach(option => {{
+        option.hidden = !simulationEnabled;
+        option.disabled = !simulationEnabled;
+      }});
+      if (!simulationEnabled && currentSort.startsWith('simulation-')) {{
+        currentSort = 'price-desc';
+        sortSelect.value = currentSort;
+      }}
+      renderCards();
+      if (zoomDialog.open && activeCardId !== null) renderModal(activeCardId);
+    }});
 
     modalCloseBtn.addEventListener('click', () => zoomDialog.close());
     zoomDialog.addEventListener('click', (e) => {{
@@ -981,6 +1087,7 @@ def _build_html_template(
     }});
 
     // Initial render
+    simulationToggle.checked = false;
     renderCards();
   </script>
 </body>

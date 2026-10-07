@@ -1,0 +1,10 @@
+[Unit]
+Description=Poképrice - sauvegarde locale vérifiée
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/Projects/pokeprice
+ExecStart=%h/Projects/pokeprice/.venv/bin/python -m pokeprice.manage --data %h/Projects/pokeprice/data/inventory backup-daily
+UMask=0077
+TimeoutStartSec=10min
+

@@ -1,0 +1,1108 @@
+"""Private FastAPI inventory API and a dependency-free French web interface."""
+
+import hashlib
+import hmac
+import io
+import json
+import secrets
+import sqlite3
+import threading
+import time
+import warnings
+from decimal import Decimal
+from pathlib import Path
+from typing import Literal
+from urllib.parse import urlsplit
+
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from PIL import Image, ImageOps
+from pydantic import BaseModel, ConfigDict, Field, StrictBool
+from starlette.middleware.trustedhost import TrustedHostMiddleware
+
+from .condition_assessment import ConditionService, assessment_rows, read_condition
+from .intake import IntakeService, catalogue_candidates, normalize_photo, read_photo
+from .inventory import Conflict, Store, cents, now
+from .inventory_backup import backup, export_csv, export_data, export_html
+from .photo_processing import parse_guide
+from .pricing import PriceService, cardmarket_url, fetch_card
+
+
+class Model(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+
+class PhotoOptions(Model):
+    crop: StrictBool = True
+    balance: StrictBool = True
+    perspective: StrictBool = True
+
+
+class PhotoAttachment(Model):
+    token: str = Field(min_length=20, max_length=100)
+    expected_version: int = Field(ge=1)
+    side: Literal["front", "back"] = "front"
+
+
+class ConditionRequest(Model):
+    expected_version: int = Field(ge=1)
+
+
+class ConditionConfirmation(ConditionRequest):
+    condition: Literal["NM", "EX", "GD", "LP", "PL", "PO", "NM/EX"]
+    human_confirmed: Literal[True]
+    reason: str = Field(min_length=1, max_length=1000)
+
+
+class Credentials(Model):
+    username: str = Field(min_length=1, max_length=80, pattern=r"^[\w.@-]+$")
+    password: str = Field(min_length=10, max_length=256)
+
+
+class UserCreate(Credentials):
+    role: Literal["admin", "editor", "reader"] = "reader"
+
+
+class UserPatch(Model):
+    role: Literal["admin", "editor", "reader"]
+    disabled: bool = False
+
+
+class CardFields(Model):
+    name: str | None = Field(default=None, min_length=1, max_length=256)
+    set_name: str | None = Field(default=None, max_length=256)
+    number: str | None = Field(default=None, max_length=80)
+    language: str | None = Field(default=None, pattern=r"^(?:[a-z]{2,3}|unknown)$")
+    catalog_id: str | None = Field(default=None, max_length=120)
+    hp: int | None = Field(default=None, ge=0, le=5000)
+    identification_status: (
+        Literal["confirmed", "review", "unresolved", "failed"] | None
+    ) = None
+    condition: Literal["", "NM", "EX", "GD", "LP", "PL", "PO", "NM/EX"] | None = None
+    condition_confirmed: bool | None = None
+    foil: bool | None = None
+    stamp: str | None = Field(default=None, max_length=120)
+    album_id: str | None = Field(default=None, min_length=1, max_length=120)
+    page: int | None = Field(default=None, ge=1, le=1000)
+    position: int | None = Field(default=None, ge=1, le=100)
+    notes: str | None = Field(default=None, max_length=8000)
+
+
+class CardPatch(CardFields):
+    expected_version: int = Field(ge=1)
+    reason: str = Field(min_length=1, max_length=1000)
+    reference_price_eur: Decimal | None = Field(
+        default=None, ge=0, le=10000000, decimal_places=2
+    )
+    price_source: str | None = Field(default=None, max_length=256)
+
+
+class CardCreate(CardFields):
+    name: str = Field(min_length=1, max_length=256)
+    album_id: str = Field(min_length=1, max_length=120)
+    page: int = Field(ge=1, le=1000)
+    position: int = Field(ge=1, le=100)
+    set_name: str = Field(default="", max_length=256)
+    number: str = Field(default="", max_length=80)
+    language: str = Field(default="fr", pattern=r"^(?:[a-z]{2,3}|unknown)$")
+    reason: str = Field(min_length=1, max_length=1000)
+    duplicate_acknowledgments: list[str] = Field(default_factory=list, max_length=200)
+
+
+class CopyRemoval(Model):
+    expected_version: int = Field(ge=1)
+    reason: str = Field(min_length=1, max_length=1000)
+
+
+class AlbumCreate(Model):
+    name: str = Field(min_length=1, max_length=120)
+
+
+class IntakeQuery(Model):
+    name: str = Field(min_length=1, max_length=256)
+    number: str = Field(default="", max_length=80)
+    language: str = Field(default="unknown", pattern=r"^(?:[a-z]{2,3}|unknown)$")
+    hp: int | None = Field(default=None, ge=0, le=5000)
+
+
+class IntakeSave(CardCreate):
+    chosen_catalog_id: str | None = Field(default=None, max_length=120)
+    human_confirmed: bool = False
+
+
+class CaptureCreate(Model):
+    album_id: str = Field(min_length=1, max_length=120)
+    slots: int = Field(default=9, ge=1, le=100)
+    page: int = Field(default=1, ge=1, le=1000)
+    position: int = Field(default=1, ge=1, le=100)
+
+
+class CaptureFields(CardFields):
+    reason: str = Field(default="", max_length=1000)
+    chosen_catalog_id: str | None = Field(default=None, max_length=120)
+    human_confirmed: bool = False
+
+
+class CapturePatch(Model):
+    expected_version: int = Field(ge=1)
+    page: int | None = Field(default=None, ge=1, le=1000)
+    position: int | None = Field(default=None, ge=1, le=100)
+    fields: CaptureFields | None = None
+    front_token: str | None = Field(default=None, min_length=20, max_length=100)
+    back_token: str | None = Field(default=None, min_length=20, max_length=100)
+    status: Literal["active", "paused", "closed"] | None = None
+
+
+class CaptureSave(IntakeSave):
+    expected_version: int = Field(ge=1)
+    token: str = Field(min_length=20, max_length=100)
+
+
+class BatchCopy(Model):
+    id: str = Field(min_length=1, max_length=100)
+    expected_version: int = Field(ge=1)
+
+
+class BatchPreview(Model):
+    copies: list[BatchCopy] = Field(min_length=1, max_length=20)
+    side: Literal["front", "back"] = "front"
+    options: PhotoOptions = Field(default_factory=PhotoOptions)
+
+
+class BatchApply(Model):
+    copy_ids: list[str] = Field(min_length=1, max_length=20)
+
+
+def intake_values(values):
+    data = values.model_dump(
+        exclude_unset=True,
+        exclude={
+            "expected_version",
+            "token",
+            "duplicate_acknowledgments",
+            "chosen_catalog_id",
+            "human_confirmed",
+            "catalog_id",
+            "identification_status",
+            "condition",
+            "condition_confirmed",
+            "foil",
+        },
+    )
+    if any(v is None and k != "hp" for k, v in data.items()):
+        raise ValueError("Champ vide non autorisé.")
+    for key in ("name", "number", "set_name", "language", "reason"):
+        data[key] = getattr(values, key)
+    return data
+
+
+class SaleCreate(Model):
+    title: str = Field(min_length=1, max_length=256)
+    copy_ids: list[str] = Field(min_length=1, max_length=401)
+    amount_eur: Decimal = Field(ge=0, le=10000000, decimal_places=2)
+    asking_eur: Decimal | None = Field(
+        default=None, ge=0, le=10000000, decimal_places=2
+    )
+    target_eur: Decimal | None = Field(
+        default=None, ge=0, le=10000000, decimal_places=2
+    )
+    minimum_eur: Decimal | None = Field(
+        default=None, ge=0, le=10000000, decimal_places=2
+    )
+    channel: str = Field(default="", max_length=120)
+    listing_url: str = Field(default="", max_length=2000)
+    notes: str = Field(default="", max_length=8000)
+
+
+class SalePatch(Model):
+    expected_version: int = Field(ge=1)
+    asking_eur: Decimal | None = Field(
+        default=None, ge=0, le=10000000, decimal_places=2
+    )
+    target_eur: Decimal | None = Field(
+        default=None, ge=0, le=10000000, decimal_places=2
+    )
+    minimum_eur: Decimal | None = Field(
+        default=None, ge=0, le=10000000, decimal_places=2
+    )
+    reason: str = Field(min_length=1, max_length=1000)
+    status: (
+        Literal[
+            "draft", "reserved", "sold", "shipped", "completed", "cancelled", "returned"
+        ]
+        | None
+    ) = None
+    amount_eur: Decimal | None = Field(
+        default=None, ge=0, le=10000000, decimal_places=2
+    )
+    fees_eur: Decimal | None = Field(default=None, ge=0, le=10000000, decimal_places=2)
+    shipping_charged_eur: Decimal | None = Field(
+        default=None, ge=0, le=10000000, decimal_places=2
+    )
+    shipping_cost_eur: Decimal | None = Field(
+        default=None, ge=0, le=10000000, decimal_places=2
+    )
+    packing_eur: Decimal | None = Field(
+        default=None, ge=0, le=10000000, decimal_places=2
+    )
+    refund_eur: Decimal | None = Field(
+        default=None, ge=0, le=10000000, decimal_places=2
+    )
+    paid: bool | None = None
+    channel: str | None = Field(default=None, max_length=120)
+    listing_url: str | None = Field(default=None, max_length=2000)
+    notes: str | None = Field(default=None, max_length=8000)
+
+
+def password_hash(password):
+    salt = secrets.token_bytes(16)
+    key = hashlib.scrypt(password.encode(), salt=salt, n=16384, r=8, p=1, dklen=32)
+    return salt.hex() + ":" + key.hex()
+
+
+def password_valid(password, encoded):
+    salt, key = encoded.split(":")
+    actual = hashlib.scrypt(
+        password.encode(), salt=bytes.fromhex(salt), n=16384, r=8, p=1, dklen=32
+    )
+    return hmac.compare_digest(actual, bytes.fromhex(key))
+
+
+def add_user(db, values):
+    import uuid
+
+    user = {"id": str(uuid.uuid4()), "username": values.username, "role": values.role}
+    db.execute(
+        "INSERT INTO users(id,username,password_hash,role,created_at) VALUES(?,?,?,?,?)",
+        (
+            user["id"],
+            user["username"],
+            password_hash(values.password),
+            user["role"],
+            now(),
+        ),
+    )
+    return user
+
+
+def create_app(
+    directory="data/inventory",
+    *,
+    secure_cookie=False,
+    allowed_hosts=None,
+    intake_reader=None,
+    intake_lookup=None,
+    condition_reader=None,
+    price_fetch=None,
+):
+    store = Store(directory)
+    if secure_cookie:
+        with store.connect() as db:
+            if not db.execute(
+                "SELECT 1 FROM users WHERE role='admin' AND disabled=0 LIMIT 1"
+            ).fetchone():
+                raise ValueError(
+                    "Créez un administrateur local avant le démarrage HTTPS."
+                )
+    app = FastAPI(
+        title="Poképrice — collection privée",
+        docs_url=None,
+        redoc_url=None,
+        openapi_url=None,
+    )
+    app.state.store = store
+    intake = IntakeService(
+        store, intake_reader or read_photo, intake_lookup or catalogue_candidates
+    )
+    app.state.intake = intake
+    conditions = ConditionService(store, condition_reader or read_condition)
+    app.state.conditions = conditions
+    pricing = PriceService(store, price_fetch or fetch_card)
+    app.state.pricing = pricing
+    app.add_middleware(
+        TrustedHostMiddleware,
+        allowed_hosts=allowed_hosts or ["127.0.0.1", "localhost", "testserver"],
+    )
+    static = Path(__file__).with_name("web")
+    failures = {}
+    login_lock = threading.Lock()
+    dummy_hash = password_hash("not-a-valid-user-password")
+
+    @app.middleware("http")
+    async def protect(request, call_next):
+        if request.method not in ("GET", "HEAD", "OPTIONS"):
+            origin = request.headers.get("origin")
+            base = urlsplit(str(request.base_url))
+            if origin and origin != f"{base.scheme}://{base.netloc}":
+                return Response("Origine interdite.", status_code=403)
+            if request.headers.get("sec-fetch-site") == "cross-site":
+                return Response("Origine interdite.", status_code=403)
+        if (
+            request.method == "GET"
+            and request.url.path == "/api/copies"
+            and "text/html" in request.headers.get("accept", "")
+            and request.headers.get("sec-fetch-dest", "") in ("", "document")
+        ):
+            response = RedirectResponse("/?" + request.url.query, status_code=303)
+        else:
+            response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://assets.tcgdex.net; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+        )
+        return response
+
+    @app.exception_handler(Conflict)
+    async def conflict(request, exc):
+        return Response(
+            json.dumps({"detail": str(exc)}),
+            status_code=409,
+            media_type="application/json",
+        )
+
+    @app.exception_handler(KeyError)
+    async def missing(request, exc):
+        return Response(
+            json.dumps({"detail": str(exc.args[0])}),
+            status_code=404,
+            media_type="application/json",
+        )
+
+    @app.exception_handler(ValueError)
+    async def invalid(request, exc):
+        return Response(
+            json.dumps({"detail": str(exc)}),
+            status_code=422,
+            media_type="application/json",
+        )
+
+    def current_user(request: Request):
+        token = request.cookies.get("pokeprice_session", "")
+        hashed = hashlib.sha256(token.encode()).hexdigest()
+        with store.connect() as db:
+            row = db.execute(
+                "SELECT u.id,u.username,u.role FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>? AND u.disabled=0",
+                (hashed, int(time.time())),
+            ).fetchone()
+        if not row:
+            raise HTTPException(401, "Connectez-vous pour consulter la collection.")
+        return dict(row)
+
+    def editor(user=Depends(current_user)):
+        if user["role"] not in ("admin", "editor"):
+            raise HTTPException(403, "Ce compte permet uniquement la consultation.")
+        return user
+
+    def admin(user=Depends(current_user)):
+        if user["role"] != "admin":
+            raise HTTPException(403, "Administration requise.")
+        return user
+
+    def issue_session(db, user, response):
+        token = secrets.token_urlsafe(32)
+        db.execute("DELETE FROM sessions WHERE expires_at<=?", (int(time.time()),))
+        db.execute(
+            "INSERT INTO sessions VALUES(?,?,?)",
+            (
+                hashlib.sha256(token.encode()).hexdigest(),
+                user["id"],
+                int(time.time()) + 43200,
+            ),
+        )
+        response.set_cookie(
+            "pokeprice_session",
+            token,
+            max_age=43200,
+            httponly=True,
+            secure=secure_cookie,
+            samesite="strict",
+            path="/",
+        )
+
+    @app.get("/", response_class=HTMLResponse)
+    def index():
+        return static.joinpath("index.html").read_text()
+
+    @app.get("/assets/{name}")
+    def assets(name: Literal["app.js", "media.js", "workflows.js", "style.css"]):
+        return FileResponse(static / name)
+
+    @app.get("/api/setup")
+    def setup_state():
+        with store.connect() as db:
+            return {
+                "required": not bool(
+                    db.execute("SELECT 1 FROM users LIMIT 1").fetchone()
+                )
+            }
+
+    @app.get("/health")
+    def health():
+        with store.connect() as db:
+            db.execute("SELECT 1").fetchone()
+        return {"status": "ok"}
+
+    @app.post("/api/setup")
+    def setup(values: Credentials, response: Response):
+        with store.connect(write=True) as db:
+            if db.execute("SELECT 1 FROM users LIMIT 1").fetchone():
+                raise Conflict("Le compte initial existe déjà.")
+            user = add_user(db, UserCreate(**values.model_dump(), role="admin"))
+            issue_session(db, user, response)
+            return user
+
+    @app.post("/api/login")
+    def login(values: Credentials, request: Request, response: Response):
+        key = request.client.host if request.client else "local"
+        timestamp = time.monotonic()
+        with login_lock:
+            attempts = [t for t in failures.get(key, []) if timestamp - t < 300]
+            if len(attempts) >= 5:
+                raise HTTPException(
+                    429, "Trop de tentatives. Réessayez dans cinq minutes."
+                )
+            # Reserve the attempt before hashing to account for simultaneous requests.
+            failures[key] = attempts + [timestamp]
+        with store.connect(write=True) as db:
+            row = db.execute(
+                "SELECT * FROM users WHERE username=?", (values.username,)
+            ).fetchone()
+            valid = password_valid(
+                values.password, row["password_hash"] if row else dummy_hash
+            )
+            if not valid or not row or row["disabled"]:
+                raise HTTPException(401, "Identifiants incorrects.")
+            user = {k: row[k] for k in ("id", "username", "role")}
+            issue_session(db, user, response)
+        with login_lock:
+            failures.pop(key, None)
+        return user
+
+    @app.get("/api/session")
+    def session(user=Depends(current_user)):
+        return user
+
+    @app.post("/api/logout")
+    def logout(request: Request, response: Response, user=Depends(current_user)):
+        with store.connect(write=True) as db:
+            db.execute(
+                "DELETE FROM sessions WHERE token_hash=?",
+                (
+                    hashlib.sha256(
+                        request.cookies["pokeprice_session"].encode()
+                    ).hexdigest(),
+                ),
+            )
+        response.delete_cookie("pokeprice_session", path="/")
+        return {"ok": True}
+
+    @app.get("/api/users")
+    def users(user=Depends(admin)):
+        with store.connect() as db:
+            return [
+                dict(r)
+                for r in db.execute(
+                    "SELECT id,username,role,disabled,created_at FROM users ORDER BY username"
+                )
+            ]
+
+    @app.post("/api/users", status_code=201)
+    def user_create(values: UserCreate, user=Depends(admin)):
+        with store.connect(write=True) as db:
+            try:
+                return add_user(db, values)
+            except sqlite3.IntegrityError:
+                raise Conflict("Ce compte existe déjà.")
+
+    @app.patch("/api/users/{user_id}")
+    def user_patch(user_id: str, values: UserPatch, user=Depends(admin)):
+        with store.connect(write=True) as db:
+            row = db.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
+            if not row:
+                raise KeyError("Compte introuvable.")
+            if (
+                row["role"] == "admin"
+                and not row["disabled"]
+                and (values.role != "admin" or values.disabled)
+            ):
+                count = db.execute(
+                    "SELECT COUNT(*) FROM users WHERE role='admin' AND disabled=0"
+                ).fetchone()[0]
+                if count <= 1:
+                    raise Conflict("Conservez au moins un administrateur actif.")
+            db.execute(
+                "UPDATE users SET role=?,disabled=? WHERE id=?",
+                (values.role, values.disabled, user_id),
+            )
+            db.execute("DELETE FROM sessions WHERE user_id=?", (user_id,))
+        return {"ok": True}
+
+    @app.get("/api/summary")
+    def summary(user=Depends(current_user)):
+        return store.summary()
+
+    @app.post("/api/albums", status_code=201)
+    def album_create(values: AlbumCreate, user=Depends(editor)):
+        import uuid
+
+        album = {"id": str(uuid.uuid4()), "name": values.name}
+        with store.connect(write=True) as db:
+            db.execute("INSERT INTO albums VALUES(?,?)", (album["id"], album["name"]))
+        return album
+
+    @app.get("/api/copies")
+    def copies(
+        q: str = Query(default="", max_length=300),
+        album: str = "",
+        stock: str = "",
+        status: str = "",
+        variant: Literal["", "standard", "foil", "check", "stamped"] = "",
+        limit: int = Query(default=60, ge=1, le=200),
+        offset: int = Query(default=0, ge=0),
+        user=Depends(current_user),
+    ):
+        if stock == "deleted" and user["role"] != "admin":
+            raise HTTPException(403, "La corbeille est réservée à l’administration.")
+        return store.listing(q, album, stock, status, limit, offset, variant=variant)
+
+    @app.delete("/api/copies/{copy_id}")
+    def copy_remove(copy_id: str, values: CopyRemoval, user=Depends(admin)):
+        return store.set_deleted(
+            copy_id, True, values.expected_version, user["username"], values.reason
+        )
+
+    @app.post("/api/copies/{copy_id}/restore")
+    def copy_restore(copy_id: str, values: CopyRemoval, user=Depends(admin)):
+        return store.set_deleted(
+            copy_id, False, values.expected_version, user["username"], values.reason
+        )
+
+    @app.get("/api/copies/{copy_id}")
+    def detail(copy_id: str, user=Depends(current_user)):
+        with store.connect() as db:
+            card = store.get(db, copy_id)
+            source = db.execute(
+                "SELECT raw_json,sha256,imported_at FROM sources WHERE copy_id=?",
+                (copy_id,),
+            ).fetchone()
+            card["source"] = (
+                {
+                    "data": json.loads(source["raw_json"]),
+                    "sha256": source["sha256"],
+                    "imported_at": source["imported_at"],
+                }
+                if source
+                else None
+            )
+            card["history"] = [
+                dict(r)
+                for r in db.execute(
+                    "SELECT * FROM events WHERE copy_id=? ORDER BY id DESC", (copy_id,)
+                )
+            ]
+            card["prices"] = [
+                dict(r)
+                for r in db.execute(
+                    "SELECT * FROM prices WHERE copy_id=? ORDER BY id DESC", (copy_id,)
+                )
+            ]
+            card["condition_assessments"] = assessment_rows(store, db, card)
+            snapshot = pricing.latest(db, copy_id)
+            card["price_snapshot"] = snapshot
+            card["cardmarket_url"] = cardmarket_url(
+                (snapshot or {}).get("id_product"),
+                card["language"],
+                card["condition"],
+                card["foil"],
+            )
+            return card
+
+    @app.post("/api/copies/{copy_id}/price-refresh")
+    def price_refresh(copy_id: str, values: ConditionRequest, user=Depends(editor)):
+        try:
+            return pricing.refresh(copy_id, values.expected_version, user["username"])
+        except RuntimeError as exc:
+            raise HTTPException(503, str(exc)) from None
+
+    @app.patch("/api/copies/{copy_id}")
+    def correct(copy_id: str, values: CardPatch, user=Depends(editor)):
+        changes = values.model_dump(
+            exclude_unset=True, exclude={"reason", "expected_version"}
+        )
+        if any(
+            v is None and k not in ("catalog_id", "hp", "reference_price_eur")
+            for k, v in changes.items()
+        ):
+            raise ValueError("Champ vide non autorisé.")
+        if "reference_price_eur" in changes:
+            changes["reference_cents"] = cents(changes.pop("reference_price_eur"))
+            if changes["reference_cents"] is not None:
+                if not changes.get("price_source"):
+                    raise ValueError("Précisez la source du prix.")
+                changes["price_date"] = now()
+            else:
+                changes.update(price_source="", price_date="")
+        return store.patch(
+            copy_id, changes, values.expected_version, user["username"], values.reason
+        )
+
+    @app.post("/api/copies", status_code=201)
+    def copy_create(values: CardCreate, user=Depends(editor)):
+        changes = values.model_dump(
+            exclude_unset=True, exclude={"reason", "duplicate_acknowledgments"}
+        )
+        if any(v is None and k not in ("catalog_id", "hp") for k, v in changes.items()):
+            raise ValueError("Champ vide non autorisé.")
+        for key in (
+            "name",
+            "album_id",
+            "page",
+            "position",
+            "set_name",
+            "number",
+            "language",
+        ):
+            changes[key] = getattr(values, key)
+        return store.create_copy(
+            changes,
+            user["username"],
+            values.reason,
+            duplicate_acknowledgments=values.duplicate_acknowledgments,
+        )
+
+    @app.get("/api/editions")
+    def editions(
+        q: str = Query(default="", max_length=300),
+        album: str = "",
+        stock: str = "",
+        status: str = "",
+        variant: Literal["", "standard", "foil", "check", "stamped"] = "",
+        limit: int = Query(default=40, ge=1, le=200),
+        offset: int = Query(default=0, ge=0),
+        user=Depends(current_user),
+    ):
+        if stock == "deleted" and user["role"] != "admin":
+            raise HTTPException(403, "La corbeille est réservée à l’administration.")
+        return store.grouped(q, album, stock, status, limit, offset, variant=variant)
+
+    from .capture import CaptureService
+    from .photo_batches import PhotoBatches
+
+    capture, batches = CaptureService(store, intake), PhotoBatches(store)
+
+    @app.get("/api/capture-sessions")
+    def capture_list(user=Depends(editor)):
+        return capture.listing(user["id"])
+
+    @app.post("/api/capture-sessions", status_code=201)
+    def capture_create(values: CaptureCreate, user=Depends(editor)):
+        return capture.create(user["id"], values.model_dump())
+
+    @app.get("/api/capture-sessions/{sid}")
+    def capture_get(sid: str, user=Depends(editor)):
+        with store.connect() as db:
+            return capture.get(db, sid, user["id"])
+
+    @app.patch("/api/capture-sessions/{sid}")
+    def capture_patch(sid: str, values: CapturePatch, user=Depends(editor)):
+        changes = values.model_dump(exclude_unset=True, exclude={"expected_version"})
+        if any(
+            changes.get(k) is None
+            for k in ("fields", "status", "page", "position")
+            if k in changes
+        ):
+            raise ValueError("Champ vide non autorisé.")
+        return capture.patch(sid, user["id"], values.expected_version, changes)
+
+    @app.post("/api/capture-sessions/{sid}/save", status_code=201)
+    def capture_save(sid: str, values: CaptureSave, user=Depends(editor)):
+        return capture.save(
+            sid,
+            user["id"],
+            user["username"],
+            values.expected_version,
+            values.token,
+            intake_values(values),
+            values.chosen_catalog_id,
+            values.human_confirmed,
+            values.duplicate_acknowledgments,
+        )
+
+    @app.post("/api/photo-batches", status_code=201)
+    def batch_preview(values: BatchPreview, user=Depends(editor)):
+        if len({c.id for c in values.copies}) != len(values.copies):
+            raise ValueError("Exemplaires répétés.")
+        return batches.preview(
+            user["id"],
+            [c.model_dump() for c in values.copies],
+            values.side,
+            values.options.model_dump(),
+        )
+
+    @app.get("/api/photo-batches")
+    def batch_list(user=Depends(editor)):
+        with store.connect() as db:
+            return [
+                batches.get(db, r[0], user["id"])
+                for r in db.execute(
+                    "SELECT id FROM photo_batches WHERE owner_id=? ORDER BY created_at DESC LIMIT 20",
+                    (user["id"],),
+                )
+            ]
+
+    @app.get("/api/photo-batches/{jid}")
+    def batch_get(jid: str, user=Depends(editor)):
+        with store.connect() as db:
+            return batches.get(db, jid, user["id"])
+
+    @app.get("/api/photo-batches/{jid}/photo/{copy_id}/{view}")
+    def batch_photo(
+        jid: str, copy_id: str, view: Literal["before", "result"], user=Depends(editor)
+    ):
+        with store.connect() as db:
+            job = batches.get(db, jid, user["id"])
+        item = next((i for i in job["data"]["items"] if i["id"] == copy_id), None)
+        if not item or not item.get(view):
+            raise KeyError("Photo absente.")
+        return FileResponse(store.photos / item[view], media_type="image/jpeg")
+
+    @app.post("/api/photo-batches/{jid}/apply")
+    def batch_apply(jid: str, values: BatchApply, user=Depends(editor)):
+        return batches.apply(jid, user["id"], user["username"], values.copy_ids)
+
+    @app.post("/api/photo-batches/{jid}/undo")
+    def batch_undo(jid: str, user=Depends(editor)):
+        return batches.apply(jid, user["id"], user["username"], [], undo=True)
+
+    @app.post("/api/intake/drafts", status_code=201)
+    def intake_draft(user=Depends(editor)):
+        return intake.new(user["id"])
+
+    @app.post("/api/intake/photo", status_code=201)
+    async def intake_photo(request: Request, user=Depends(editor)):
+        data = bytearray()
+        async for chunk in request.stream():
+            data.extend(chunk)
+            if len(data) > 8 * 1024 * 1024:
+                raise HTTPException(413, "Photo limitée à 8 Mo.")
+        guide = request.headers.get("x-card-guide")
+        return intake.new(
+            user["id"],
+            normalize_photo(data),
+            guide=parse_guide(guide) if guide else None,
+        )
+
+    @app.post("/api/copies/{copy_id}/intake", status_code=201)
+    def intake_existing(copy_id: str, user=Depends(editor)):
+        with store.connect() as db:
+            card = store.get(db, copy_id)
+        data = (store.photos / card["photo"]).read_bytes() if card["photo"] else None
+        return {
+            **intake.new(user["id"], data, {"id": copy_id, "version": card["version"]}),
+            "card": card,
+        }
+
+    @app.get("/api/intake/{token}")
+    def intake_metadata(token: str, user=Depends(editor)):
+        draft = intake.draft(token, user["id"])
+        return {
+            "token": token,
+            "has_photo": draft["photo"] is not None,
+            "photo_processing": draft["photo_processing"],
+            "searches": draft["searches"],
+            "observation": draft["observation"],
+        }
+
+    @app.get("/api/intake/{token}/photo")
+    def intake_preview(token: str, user=Depends(current_user)):
+        draft = intake.draft(token, user["id"])
+        if draft["photo"] is None:
+            raise HTTPException(404, "Photo absente.")
+        return Response(draft["photo"], media_type="image/jpeg")
+
+    @app.post("/api/intake/{token}/photo-options")
+    def intake_photo_options(token: str, values: PhotoOptions, user=Depends(editor)):
+        return intake.photo_options(token, user["id"], values.model_dump())
+
+    @app.post("/api/copies/{copy_id}/photo-from-intake")
+    def attach_prepared_photo(
+        copy_id: str, values: PhotoAttachment, user=Depends(editor)
+    ):
+        return intake.attach_photo(
+            values.token,
+            user["id"],
+            copy_id,
+            values.expected_version,
+            user["username"],
+            values.side,
+        )
+
+    @app.delete("/api/intake/{token}")
+    def intake_discard(token: str, user=Depends(editor)):
+        with intake.lock:
+            intake.draft(token, user["id"])
+            with store.connect() as db:
+                for row in db.execute(
+                    "SELECT data_json FROM capture_sessions WHERE owner_id=? AND status!='closed'",
+                    (user["id"],),
+                ):
+                    data = json.loads(row[0])
+                    if token in (data.get("front_token"), data.get("back_token")):
+                        raise Conflict(
+                            "Cette photo est conservée pour une série en cours."
+                        )
+            del intake.drafts[token]
+            with store.connect(write=True) as db:
+                db.execute(
+                    "DELETE FROM intake_drafts WHERE token=? AND owner_id=?",
+                    (token, user["id"]),
+                )
+        return {"discarded": True}
+
+    @app.post("/api/intake/{token}/analyze")
+    def intake_analyze(token: str, user=Depends(editor)):
+        try:
+            return intake.analyze(token, user["id"])
+        except RuntimeError as exc:
+            raise HTTPException(502, str(exc)) from None
+
+    @app.post("/api/intake/{token}/catalogue")
+    def intake_catalogue(token: str, values: IntakeQuery, user=Depends(editor)):
+        return intake.search(token, user["id"], values.model_dump())
+
+    @app.post("/api/intake/{token}/save", status_code=201)
+    def intake_save(token: str, values: IntakeSave, user=Depends(editor)):
+        data = intake_values(values)
+        return intake.save(
+            token,
+            user["id"],
+            user["username"],
+            data,
+            values.chosen_catalog_id,
+            values.human_confirmed,
+            duplicate_acknowledgments=values.duplicate_acknowledgments,
+        )
+
+    @app.post("/api/intake/{token}/duplicates")
+    def intake_duplicates(token: str, values: IntakeSave, user=Depends(editor)):
+        draft = intake.draft(token, user["id"])
+        data = {
+            **intake_values(values),
+            "photo": store.save_photo(draft["photo"]) if draft["photo"] else None,
+            "photo_original": store.save_photo(draft["original_photo"])
+            if draft["original_photo"]
+            else None,
+        }
+        with store.connect() as db:
+            return store.duplicates(
+                db,
+                data,
+                draft["existing"]["id"] if draft["existing"] else draft["copy_id"],
+            )
+
+    @app.get("/api/copies/{copy_id}/photo")
+    def photo(
+        copy_id: str,
+        side: Literal["front", "back"] = "front",
+        user=Depends(current_user),
+    ):
+        with store.connect() as db:
+            card = store.get(db, copy_id)
+        name = card["photo" if side == "front" else "back_photo"]
+        if not name:
+            raise HTTPException(404, "Photo absente.")
+        return FileResponse(store.photos / name, media_type="image/jpeg")
+
+    @app.put("/api/copies/{copy_id}/photo")
+    async def upload(
+        copy_id: str,
+        request: Request,
+        version: int = Query(ge=1),
+        side: Literal["front", "back"] = "front",
+        user=Depends(editor),
+    ):
+        data = bytearray()
+        async for chunk in request.stream():
+            data.extend(chunk)
+            if len(data) > 8 * 1024 * 1024:
+                raise HTTPException(413, "Photo limitée à 8 Mo.")
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("error", Image.DecompressionBombWarning)
+                with Image.open(io.BytesIO(data)) as image:
+                    if (
+                        image.format not in ("JPEG", "PNG", "WEBP")
+                        or image.width * image.height > 24000000
+                    ):
+                        raise ValueError("Format ou dimensions non pris en charge.")
+                    image = ImageOps.exif_transpose(image).convert("RGB")
+                    image.thumbnail((1600, 1600))
+                    output = io.BytesIO()
+                    image.save(output, format="JPEG", quality=90)
+        except (
+            OSError,
+            ValueError,
+            Image.DecompressionBombWarning,
+            Image.DecompressionBombError,
+        ):
+            raise HTTPException(
+                422, "Photo JPEG, PNG ou WebP valide requise (24 mégapixels maximum)."
+            )
+        name = store.save_photo(output.getvalue())
+        return store.patch(
+            copy_id,
+            {
+                "photo" if side == "front" else "back_photo": name,
+                "photo_original" if side == "front" else "back_photo_original": name,
+                "condition_confirmed": False,
+            },
+            version,
+            user["username"],
+            "Ajout ou remplacement de la photo du "
+            + ("recto" if side == "front" else "verso"),
+        )
+
+    @app.post("/api/copies/{copy_id}/condition-assessments", status_code=201)
+    def assess_condition(copy_id: str, values: ConditionRequest, user=Depends(editor)):
+        try:
+            return conditions.evaluate(
+                copy_id, values.expected_version, user["username"]
+            )
+        except RuntimeError as error:
+            raise HTTPException(502, str(error)) from None
+
+    @app.post("/api/copies/{copy_id}/condition-assessments/{assessment_id}/confirm")
+    def confirm_condition(
+        copy_id: str,
+        assessment_id: str,
+        values: ConditionConfirmation,
+        user=Depends(editor),
+    ):
+        return conditions.confirm(
+            copy_id,
+            assessment_id,
+            values.expected_version,
+            values.condition,
+            user["username"],
+            values.reason,
+        )
+
+    @app.get("/api/sales")
+    def sales(user=Depends(current_user)):
+        return store.sales()
+
+    @app.post("/api/sales", status_code=201)
+    def sale_create(values: SaleCreate, user=Depends(editor)):
+        data = values.model_dump(
+            exclude={
+                "copy_ids",
+                "amount_eur",
+                "asking_eur",
+                "target_eur",
+                "minimum_eur",
+            }
+        )
+        data["amount_cents"] = cents(values.amount_eur)
+        for key in ("asking", "target", "minimum"):
+            data[key + "_cents"] = cents(getattr(values, key + "_eur"))
+        return {"id": store.create_sale(data, values.copy_ids, user["username"])}
+
+    @app.patch("/api/sales/{sale_id}")
+    def sale_patch(sale_id: str, values: SalePatch, user=Depends(editor)):
+        changes = values.model_dump(
+            exclude_unset=True, exclude={"expected_version", "reason"}
+        )
+        if any(
+            v is None and k not in ("asking_eur", "target_eur", "minimum_eur")
+            for k, v in changes.items()
+        ):
+            raise ValueError("Champ vide non autorisé.")
+        for field in list(changes):
+            if field.endswith("_eur"):
+                changes[field[:-4] + "_cents"] = cents(changes.pop(field))
+        return store.update_sale(
+            sale_id, changes, values.expected_version, user["username"], values.reason
+        )
+
+    @app.get("/api/sales/{sale_id}/listing-package")
+    def listing_package(sale_id: str, user=Depends(editor)):
+        import shutil
+        import tempfile
+
+        from starlette.background import BackgroundTask
+
+        from .listing_package import package
+
+        folder = Path(tempfile.mkdtemp(prefix="pokeprice-listing-"))
+        target = folder / "annonce.zip"
+        try:
+            package(store, sale_id, target)
+        except Exception:
+            shutil.rmtree(folder)
+            raise
+        return FileResponse(
+            target,
+            filename="pokeprice-brouillon-annonce.zip",
+            media_type="application/zip",
+            background=BackgroundTask(shutil.rmtree, folder),
+        )
+
+    @app.get("/api/export/{kind}")
+    def export(kind: Literal["csv", "json", "html"], user=Depends(current_user)):
+        body = {
+            "csv": export_csv,
+            "json": lambda s: json.dumps(export_data(s), ensure_ascii=False, indent=2),
+            "html": export_html,
+        }[kind](store)
+        media = {"csv": "text/csv", "json": "application/json", "html": "text/html"}[
+            kind
+        ]
+        return Response(
+            body,
+            media_type=media,
+            headers={
+                "Content-Disposition": f'attachment; filename="pokeprice-collection.{kind}"'
+            },
+        )
+
+    @app.get("/api/backup/status")
+    def backup_status(user=Depends(admin)):
+        from .daily_backup import public_status
+
+        return public_status(store)
+
+    @app.post("/api/backup/daily")
+    def backup_daily(user=Depends(admin)):
+        from .daily_backup import daily, public_status
+
+        daily(store, force=True)
+        return public_status(store)
+
+    @app.get("/api/backup")
+    def download_backup(user=Depends(admin)):
+        import tempfile
+
+        from starlette.background import BackgroundTask
+
+        folder = Path(tempfile.mkdtemp(prefix="pokeprice-backup-"))
+        target = folder / "collection.zip"
+        try:
+            backup(store, target)
+        except Exception:
+            import shutil
+
+            shutil.rmtree(folder)
+            raise
+        import shutil
+
+        return FileResponse(
+            target,
+            filename="pokeprice-backup.zip",
+            media_type="application/zip",
+            background=BackgroundTask(shutil.rmtree, folder),
+        )
+
+    return app

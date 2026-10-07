@@ -36,5 +36,13 @@ ENV/
 /temp_crops/
 *.csv
 *.xlsx
+*.checkpoint.json
+*.checkpoint.json.tmp
+outputs/
+*.html
 !tests/fixtures/*.csv
 .~lock.*
+!src/pokeprice/library_template.html
+/pokeprice_library.json
+/data/
+!src/pokeprice/web/index.html

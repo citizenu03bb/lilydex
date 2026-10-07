@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bibliothèque Pokémon</title>
+<style>
+:root{font-family:system-ui,sans-serif;color:#213040;background:#f3f5f8;color-scheme:light}*{box-sizing:border-box}body{margin:0}main{max-width:1180px;margin:auto;padding:36px 22px}h1{font-size:32px;letter-spacing:-1px;margin:0 0 8px}.intro{color:#536374;margin:0 0 24px}.controls{display:grid;grid-template-columns:1fr 240px 190px;gap:12px}input,select{font:inherit;padding:13px;border:1px solid #bcc8d4;border-radius:9px;background:white;min-width:0}input:focus,select:focus{outline:3px solid #c4def7;border-color:#3571ab}label{display:block;font-size:13px;color:#536374;margin-bottom:5px}.summary{margin:22px 0 12px;font-weight:650}.hint{font-size:13px;color:#657282;margin:0 0 24px}.group{margin:12px 0;background:white;border:1px solid #d5dce4;border-radius:12px;overflow:hidden}summary{padding:20px;cursor:pointer;display:flex;align-items:center;gap:18px;list-style:none}summary::-webkit-details-marker{display:none}summary::before{content:'▸';color:#577084}.group[open]>summary::before{content:'▾'}.name{font-size:18px;font-weight:650}.meta{font-size:14px;color:#627082;margin-top:5px}.count{margin-left:auto;background:#e5f0fb;color:#214f7b;border-radius:8px;padding:9px 13px;white-space:nowrap;font-weight:650}.unresolved{color:#916013}.copies{display:grid;grid-template-columns:repeat(auto-fill,minmax(245px,1fr));gap:12px;padding:0 20px 20px}.copy{border:1px solid #e2e7ee;border-radius:8px;padding:15px}.copy img{width:100%;height:220px;object-fit:contain;background:#f8fafc;border-radius:6px;margin-bottom:10px}.location{font-weight:650}.copy p{font-size:14px;margin:8px 0;line-height:1.5}.note{color:#687585}.copy a{color:#265d91}.empty{padding:38px;background:white;border-radius:10px;text-align:center;color:#5e6b79}footer{font-size:13px;color:#697888;margin-top:28px;line-height:1.6} @media(max-width:700px){main{padding:24px 14px}.controls{grid-template-columns:1fr}.count{white-space:normal;text-align:center;font-size:14px}summary{padding:16px;gap:10px}.name{font-size:16px}}
+</style>
+</head>
+<body><main>
+<h1>Bibliothèque Pokémon</h1>
+<p class="intro">Tous les albums, une recherche. Retrouve chaque exemplaire et son emplacement.</p>
+<div class="controls">
+<div><label for="search">Rechercher une carte, une extension ou un numéro</label><input id="search" type="search" placeholder="Pikachu, Zarbi L, 35/100…" autocomplete="off"></div>
+<div><label for="album">Album</label><select id="album"><option value="">Tous les albums</option></select></div>
+<div><label for="sort">Trier</label><select id="sort"><option value="name">Nom de la carte</option><option value="quantity">Nombre d’exemplaires</option></select></div>
+</div>
+<p id="summary" class="summary" aria-live="polite"></p>
+<p class="hint">Chaque ligne regroupe une édition dans une langue donnée. Clique pour voir les exemplaires. Foil et état sont indiqués pour chacun.</p>
+<div id="results"></div>
+<footer>Les exemplaires correspondent aux pochettes conservées dans les rapports. Les identités à vérifier restent séparées. Les prix affichés sont des références datées, sans décote appliquée. La bibliothèque doit être régénérée après une correction d’album.</footer>
+</main>
+<script>
+const LIBRARY = __LIBRARY_DATA__;
+const search = document.getElementById('search');
+const album = document.getElementById('album');
+const sort = document.getElementById('sort');
+const results = document.getElementById('results');
+const summary = document.getElementById('summary');
+function esc(value) {return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function norm(value) {return String(value ?? '').normalize('NFKD').replace(/\p{M}/gu,'').toLowerCase();}
+function matchesTerm(text,term) {
+  // A single Unown letter must be a word, rather than a letter inside an extension name.
+  return /^[a-z]$/.test(term) ? text.split(/[^\p{L}\p{N}]+/u).includes(term) : text.includes(term);
+}
+function selectGroups(query='', albumId='') {
+  const terms=norm(query).trim().split(/\s+/).filter(Boolean);
+  return LIBRARY.groups.map(g => ({...g, copies:g.copies.filter(c => (!albumId || c.album_id === albumId) && terms.every(term => matchesTerm(norm([g.name,g.set,g.number,g.language,c.search,c.album].join(' ')),term)))})).filter(g=>g.copies.length);
+}
+function render() {
+  const groups=selectGroups(search.value,album.value);
+  groups.sort((a,b) => sort.value==='quantity' ? b.copies.length-a.copies.length || a.name.localeCompare(b.name,'fr') : a.name.localeCompare(b.name,'fr'));
+  const copies=groups.reduce((n,g)=>n+g.copies.length,0), editions=groups.filter(g=>g.confirmed).length;
+  const unresolved=groups.filter(g=>!g.confirmed).reduce((n,g)=>n+g.copies.length,0);
+  summary.textContent=`${copies} exemplaire${copies===1?'':'s'} · ${editions} édition${editions===1?'':'s'} identifiée${editions===1?'':'s'}`+(unresolved?` · ${unresolved} identité${unresolved===1?'':'s'} à vérifier`:'');
+  results.innerHTML=groups.length?groups.map(g=>`<details class="group"><summary><div><div class="name">${esc(g.name)}</div><div class="meta">${esc(g.set||'Extension à identifier')} · ${esc(g.number||'Référence inconnue')} · ${esc(g.language||'Langue non renseignée')}${g.confirmed?'':' · <span class="unresolved">Identité à vérifier</span>'}</div></div><span class="count">${g.copies.length} exemplaire${g.copies.length===1?'':'s'}</span></summary><div class="copies">${g.copies.map(c=>`<article class="copy">${c.image?`<img src="${esc(c.image)}" alt="${esc(g.name)} — ${esc(c.album)}, page ${c.page}, position ${c.position}" loading="lazy">`:''}${c.back_image?`<figure><figcaption>Verso</figcaption><img src="${esc(c.back_image)}" alt="Verso de ${esc(g.name)}" loading="lazy"></figure>`:''}<div class="location">${esc(c.album)}</div><p>Page ${c.page} · Position ${c.position}<br>${esc(c.condition||'État inconnu')} · ${c.condition_confirmed?'état vérifié':'état à confirmer'}${c.foil?' · Foil / Reverse':''}</p><p>${g.confirmed?'✓ Identité confirmée':'Identité à vérifier'}<br>${g.confirmed&&typeof c.reference_price==='number'?`Référence : ${c.reference_price.toFixed(2)} €<br><span class="note">${c.price_provider===''?'':esc(c.price_provider||'TCGdex / Cardmarket')+' · '}${esc(c.price_source||'champ non renseigné')} · ${esc(c.price_date||'date non renseignée')}</span>`:'Prix indisponible'}</p>${c.note?`<p class="note">${esc(c.note)}</p>`:''}${c.report_url?`<a href="${esc(c.report_url)}">Ouvrir l’album</a>`:''}</article>`).join('')}</div></details>`).join(''):'<div class="empty">Aucun exemplaire ne correspond à cette recherche.</div>';
+}
+album.innerHTML += LIBRARY.albums.map(a=>`<option value="${esc(a.id)}">${esc(a.name)}</option>`).join('');
+search.addEventListener('input',render);
+album.addEventListener('change',render);
+sort.addEventListener('change',render);
+render();
+</script>
+</body></html>

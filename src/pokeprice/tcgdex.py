@@ -9,7 +9,7 @@ import re
 import urllib.parse
 import urllib.request
 import unicodedata
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from typing import Optional, Dict, Any, List
 
 CACHE_DIR = os.path.expanduser("~/.cache/pokeprice")
@@ -18,7 +18,15 @@ CACHE_FILE = os.path.join(CACHE_DIR, "tcgdex_cache.json")
 
 def strip_accents(s: str) -> str:
     """Removes accents and lowercases string for robust matching."""
-    return "".join(c for c in unicodedata.normalize("NFD", s) if unicodedata.category(c) != "Mn").lower().strip()
+    return (
+        "".join(
+            c
+            for c in unicodedata.normalize("NFD", s)
+            if unicodedata.category(c) != "Mn"
+        )
+        .lower()
+        .strip()
+    )
 
 
 @dataclass
@@ -38,13 +46,28 @@ class CardPriceInfo:
     tcg_reverse_usd: Optional[float]
     image_url: Optional[str]
     cardmarket_id: Optional[int]
+    hp: Optional[int] = None
+    language: str = ""
+    match_method: str = ""
+    pricing_updated: str = ""
+    price_field: str = ""
 
 
 class TCGdexClient:
-    def __init__(self, language: str = "fr", use_cache: bool = True):
+    def __init__(
+        self,
+        language: str = "fr",
+        use_cache: bool = True,
+        *,
+        offline: bool = False,
+        cache_file: Optional[str] = None,
+    ):
         self.language = language
         self.base_url = f"https://api.tcgdex.net/v2/{language}"
         self.use_cache = use_cache
+        self.offline = offline
+        self.cache_file = cache_file or CACHE_FILE
+        self.last_match_reason = ""
         self.cache: Dict[str, Any] = {}
         self.name_map: Dict[str, str] = {}
         if self.use_cache:
@@ -82,16 +105,18 @@ class TCGdexClient:
 
     def _load_cache(self):
         try:
-            if os.path.exists(CACHE_FILE):
-                with open(CACHE_FILE, "r", encoding="utf-8") as f:
+            if os.path.exists(self.cache_file):
+                with open(self.cache_file, "r", encoding="utf-8") as f:
                     self.cache = json.load(f)
         except Exception:
             self.cache = {}
 
     def _save_cache(self):
         try:
-            os.makedirs(CACHE_DIR, exist_ok=True)
-            with open(CACHE_FILE, "w", encoding="utf-8") as f:
+            os.makedirs(
+                os.path.dirname(os.path.abspath(self.cache_file)), exist_ok=True
+            )
+            with open(self.cache_file, "w", encoding="utf-8") as f:
                 json.dump(self.cache, f, ensure_ascii=False)
         except Exception:
             pass
@@ -100,9 +125,11 @@ class TCGdexClient:
         if self.use_cache and url in self.cache:
             return self.cache[url]
 
+        if self.offline:
+            return None
+
         req = urllib.request.Request(
-            url,
-            headers={"User-Agent": "pokeprice/0.1.0 (Pokemon Card Scanner)"}
+            url, headers={"User-Agent": "pokeprice/0.1.0 (Pokemon Card Scanner)"}
         )
         try:
             with urllib.request.urlopen(req, timeout=10) as resp:
@@ -120,7 +147,12 @@ class TCGdexClient:
         # Strip evolution reminder clauses, e.g. "Mackogneur, Placez Mackogneur sur..."
         cleaned = re.sub(r",.*$", "", name)
         # Strip levels: 'NIV. 25', '(NIV. 24)', 'NIV.X', 'LV. 50'
-        cleaned = re.sub(r"[\(\[\s]*(?:niv|lv)\.?\s*([xX]|\d+)[\)\]\s]*", "", cleaned, flags=re.IGNORECASE)
+        cleaned = re.sub(
+            r"[\(\[\s]*(?:niv|lv)\.?\s*([xX]|\d+)[\)\]\s]*",
+            "",
+            cleaned,
+            flags=re.IGNORECASE,
+        )
         # Strip trailing punctuation, extra spaces, brackets
         cleaned = cleaned.strip(" -_#(),.[]")
         return cleaned
@@ -146,11 +178,7 @@ class TCGdexClient:
         return None, None
 
     def search_card(
-        self,
-        name: str,
-        raw_number: str = "",
-        is_holo: bool = False,
-        hp: int = 0
+        self, name: str, raw_number: str = "", is_holo: bool = False, hp: int = 0
     ) -> Optional[CardPriceInfo]:
         """
         Searches for a card in the TCGdex database, applying fuzzy snapping,
@@ -158,150 +186,161 @@ class TCGdexClient:
         """
         import difflib
 
-        clean = self.clean_name(name)
-        if not clean:
+        self.last_match_reason = (
+            "Identité non résolue : aucune correspondance vérifiée."
+        )
+        original = self.clean_name(name)
+        if not original:
             return None
+        norm = strip_accents(original)
+        resolved = self.name_map.get(norm, original)
 
-        # Resolve unaccented or alternate spellings via name_map & difflib
-        norm = strip_accents(clean)
-        if norm in self.name_map:
-            clean = self.name_map[norm]
-        else:
-            close = difflib.get_close_matches(norm, self.name_map.keys(), n=1, cutoff=0.7)
-            if close:
-                clean = self.name_map[close[0]]
+        def exact_candidates(base, query):
+            found = self._get_json(f"{base}/cards?name={urllib.parse.quote(query)}")
+            if not isinstance(found, list):
+                return []
+            return [
+                c
+                for c in found
+                if isinstance(c, dict)
+                and strip_accents(self.clean_name(c.get("name", "")))
+                == strip_accents(self.clean_name(query))
+            ]
 
-        # Query candidates by name in French
-        search_url = f"{self.base_url}/cards?name={urllib.parse.quote(clean)}"
-        candidates = self._get_json(search_url)
-
-        # Fallback to English endpoint if French yields no results
         query_base = self.base_url
-        if not candidates or not isinstance(candidates, list):
-            en_url = f"https://api.tcgdex.net/v2/en/cards?name={urllib.parse.quote(clean)}"
-            en_candidates = self._get_json(en_url)
-            if en_candidates and isinstance(en_candidates, list):
-                candidates = en_candidates
-                query_base = "https://api.tcgdex.net/v2/en"
-            else:
-                first_word = clean.split()[0] if len(clean.split()) > 1 else ""
-                if first_word:
-                    en_url = f"https://api.tcgdex.net/v2/en/cards?name={urllib.parse.quote(first_word)}"
-                    en_candidates = self._get_json(en_url)
-                    if en_candidates and isinstance(en_candidates, list):
-                        candidates = en_candidates
-                        query_base = "https://api.tcgdex.net/v2/en"
-                if not candidates or not isinstance(candidates, list):
+        candidates = exact_candidates(query_base, resolved)
+        name_method = "exact"
+        if not candidates and self.language != "en":
+            query_base = "https://api.tcgdex.net/v2/en"
+            candidates = exact_candidates(query_base, original)
+        if not candidates:
+            # Fuzzy correction is a proposal, never a replacement for exact English names.
+            close = difflib.get_close_matches(
+                norm, self.name_map.keys(), n=2, cutoff=0.85
+            )
+            if not close:
+                return None
+            if len(close) > 1:
+                scores = [difflib.SequenceMatcher(None, norm, c).ratio() for c in close]
+                if scores[0] - scores[1] < 0.05:
+                    self.last_match_reason = (
+                        "Nom ambigu : plusieurs corrections possibles."
+                    )
                     return None
+            query_base = self.base_url
+            candidates = exact_candidates(query_base, self.name_map[close[0]])
+            name_method = "name-corrected"
+        if not candidates:
+            return None
 
-        # Filter candidates whose clean base name matches
-        name_matches = [
-            c for c in candidates 
-            if self.clean_name(c.get("name", "")).lower() == clean.lower()
-        ]
-        prioritized_candidates = name_matches if name_matches else candidates
-
-        query_level = self.extract_level(name)
         num, denom = self.parse_card_number(raw_number)
-        selected_card_id = None
+        level = self.extract_level(name)
+        details = []
+        fetched = set()
+        unavailable = set()
 
-        # 1. Try exact localId match
-        if num:
-            matched_num_cands = []
-            for c in prioritized_candidates:
-                cand_local = str(c.get("localId", "")).lstrip("0") or "0"
-                if cand_local.lower() == num.lower():
-                    matched_num_cands.append(c)
-
-            if len(matched_num_cands) == 1:
-                selected_card_id = matched_num_cands[0]["id"]
-            elif len(matched_num_cands) > 1:
-                # Disambiguate among cards with the same number using denom, HP, or level
-                for c in matched_num_cands:
-                    cid = c["id"]
-                    detail = self._get_json(f"{query_base}/cards/{cid}")
-                    if not detail:
-                        continue
-                    if denom and detail.get("set", {}).get("cardCount", {}).get("official") == denom:
-                        selected_card_id = cid
-                        break
-                    if hp > 0 and detail.get("hp") == hp:
-                        selected_card_id = cid
-                        break
-                    if query_level and self.extract_level(detail.get("name", "")) == query_level:
-                        selected_card_id = cid
-                        break
-                if not selected_card_id:
-                    selected_card_id = matched_num_cands[0]["id"]
-
-        # 2. Level match (for Diamond & Pearl / Platinum era cards like "Jirachi NIV.39", "Givrali NIV.42")
-        if not selected_card_id and query_level:
-            for c in prioritized_candidates:
-                cand_level = self.extract_level(c.get("name", ""))
-                if cand_level == query_level:
-                    selected_card_id = c["id"]
-                    break
-
-        # 3. Denominator match (snap OCR errors like 12/114 -> 15/114)
-        if not selected_card_id and denom:
-            denom_cands = []
-            for c in prioritized_candidates:
-                cid = c["id"]
+        def load_candidates(items):
+            for candidate in items:
+                cid = candidate.get("id")
+                if cid in fetched:
+                    continue
+                fetched.add(cid)
                 detail = self._get_json(f"{query_base}/cards/{cid}")
-                if detail and detail.get("set", {}).get("cardCount", {}).get("official") == denom:
-                    denom_cands.append((c, detail))
-            if denom_cands:
-                # If HP matches, pick that one
-                for c, det in denom_cands:
-                    if hp > 0 and det.get("hp") == hp:
-                        selected_card_id = c["id"]
-                        break
-                if not selected_card_id:
-                    selected_card_id = denom_cands[0][0]["id"]
+                if not isinstance(detail, dict):
+                    unavailable.add(cid)
+                    continue
+                official_hp = detail.get("hp")
+                if hp > 0 and official_hp is not None and str(official_hp) != str(hp):
+                    continue
+                official_level = self.extract_level(detail.get("name", ""))
+                if level and official_level and official_level != level:
+                    continue
+                details.append(detail)
 
-        # 4. HP match (disambiguate when card number is missing)
-        if not selected_card_id and hp > 0:
-            hp_cands = []
-            for c in prioritized_candidates:
-                cid = c["id"]
-                detail = self._get_json(f"{query_base}/cards/{cid}")
-                if detail and detail.get("hp") == hp:
-                    hp_cands.append(c)
-            if hp_cands:
-                # If query has level, prefer DP/Pt era (set ID starting with 'dp' or 'pl')
-                if query_level:
-                    for c in hp_cands:
-                        if c["id"].startswith("dp") or c["id"].startswith("pl"):
-                            selected_card_id = c["id"]
-                            break
-                if not selected_card_id:
-                    selected_card_id = hp_cands[0]["id"]
+        # Exact lookup needs only cards sharing the numerator, not every printing.
+        numbered = (
+            [
+                c
+                for c in candidates
+                if (str(c.get("localId", "")).lstrip("0") or "0").lower() == num.lower()
+            ]
+            if num
+            else []
+        )
+        load_candidates(numbered if num else candidates)
 
-        # 5. Fallback: First candidate with an image or candidate 0
-        if not selected_card_id:
-            for c in prioritized_candidates:
-                if c.get("image"):
-                    selected_card_id = c["id"]
-                    break
-            if not selected_card_id:
-                selected_card_id = prioritized_candidates[0]["id"]
+        def numerator(d):
+            return str(d.get("localId", "")).lstrip("0").lower() or "0"
 
-        # Fetch detailed card information
-        card_detail = self._get_json(f"{query_base}/cards/{selected_card_id}")
-        if not card_detail:
+        def denominator(d):
+            return ((d.get("set") or {}).get("cardCount") or {}).get("official")
+
+        selected = []
+        method = name_method
+        if num and denom:
+            selected = [
+                d
+                for d in details
+                if numerator(d) == num.lower() and denominator(d) == denom
+            ]
+            if selected and unavailable:
+                self.last_match_reason = (
+                    "Éditions candidates indisponibles : vérification nécessaire."
+                )
+                return None
+            if not selected:
+                load_candidates(candidates)
+                # Snap only a unique denominator candidate corroborated by supplied HP.
+                selected = [
+                    d
+                    for d in details
+                    if denominator(d) == denom
+                    and (hp <= 0 or str(d.get("hp")) == str(hp))
+                ]
+                method = "number-corrected"
+        elif num:
+            selected = [d for d in details if numerator(d) == num.lower()]
+            method = "partial-number"
+        elif hp > 0:
+            selected = [d for d in details if str(d.get("hp")) == str(hp)]
+            method = "hp-only"
+        else:
+            selected = details
+            method = "name-only"
+        # Multiple printings remain unresolved even if one has an image.
+        unique = {d.get("id"): d for d in selected}
+        if len(unique) != 1:
+            self.last_match_reason = "Identité non résolue : références contradictoires ou plusieurs éditions possibles."
             return None
+        detail = next(iter(unique.values()))
+        info = self._build_price_info(detail, is_holo_detected=is_holo)
+        info.language = query_base.rsplit("/", 1)[-1]
+        info.match_method = method if name_method == "exact" else name_method
+        self.last_match_reason = (
+            ""
+            if info.match_method == "exact"
+            else "Correspondance proposée : vérifier la référence sur la photo."
+        )
+        return info
 
-        return self._build_price_info(card_detail, is_holo_detected=is_holo)
-
-    def get_card_by_id(self, card_id: str, is_holo: bool = False) -> Optional[CardPriceInfo]:
+    def get_card_by_id(
+        self, card_id: str, is_holo: bool = False, language: Optional[str] = None
+    ) -> Optional[CardPriceInfo]:
         """Fetches card info directly by TCGdex ID (e.g. 'dp4-4')."""
-        card_detail = self._get_json(f"{self.base_url}/cards/{card_id}")
+        lookup_language = language or self.language
+        if lookup_language not in ("fr", "en"):
+            raise ValueError("Langue de catalogue non prise en charge")
+        card_detail = self._get_json(
+            f"https://api.tcgdex.net/v2/{lookup_language}/cards/{card_id}"
+        )
         if not card_detail:
             return None
-        return self._build_price_info(card_detail, is_holo_detected=is_holo)
+        info = self._build_price_info(card_detail, is_holo_detected=is_holo)
+        info.language = lookup_language
+        return info
 
     def _build_price_info(self, data: dict, is_holo_detected: bool) -> CardPriceInfo:
-        pricing = data.get("pricing", {})
+        pricing = data.get("pricing") or {}
         cm = pricing.get("cardmarket", {}) or {}
         tcg = pricing.get("tcgplayer", {}) or {}
 
@@ -315,7 +354,7 @@ class TCGdexClient:
         tcg_norm = tcg.get("normal", {}) or {}
         tcg_rev = tcg.get("reverse-holofoil", {}) or {}
         tcg_holo = tcg.get("holofoil", {}) or {}
-        
+
         tcg_market = tcg_norm.get("marketPrice") or tcg_holo.get("marketPrice")
         tcg_reverse = tcg_rev.get("marketPrice")
 
@@ -323,12 +362,16 @@ class TCGdexClient:
         # If holo/reverse detected and a holo trend exists, use it; otherwise standard trend
         if is_holo_detected and trend_holo:
             recommended = trend_holo
+            price_field = "trend-holo" if cm.get("trend-holo") else "avg-holo"
         elif trend is not None:
             recommended = trend
+            price_field = "trend"
         elif avg is not None:
             recommended = avg
+            price_field = "avg"
         else:
             recommended = low
+            price_field = "low" if low is not None else ""
 
         set_info = data.get("set", {}) or {}
         set_count = set_info.get("cardCount", {}) or {}
@@ -357,5 +400,9 @@ class TCGdexClient:
             tcg_market_usd=tcg_market,
             tcg_reverse_usd=tcg_reverse,
             image_url=img_url,
-            cardmarket_id=data.get("thirdParty", {}).get("cardmarket")
+            cardmarket_id=(data.get("thirdParty") or {}).get("cardmarket"),
+            hp=data.get("hp"),
+            language=self.language,
+            pricing_updated=cm.get("updated", ""),
+            price_field=price_field,
         )

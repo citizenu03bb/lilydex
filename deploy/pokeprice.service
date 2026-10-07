@@ -1,0 +1,23 @@
+[Unit]
+Description=Collection Pokemon privee
+After=network.target
+
+[Service]
+Type=simple
+User=pokeprice
+Group=pokeprice
+WorkingDirectory=/opt/pokeprice
+EnvironmentFile=/etc/pokeprice.env
+ExecStart=/opt/pokeprice/.venv/bin/python -m pokeprice.manage --data /srv/pokeprice/inventory serve --secure-cookie --allowed-host ${POKEPRICE_HOST}
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/pokeprice
+LimitNOFILE=4096
+
+[Install]
+WantedBy=multi-user.target

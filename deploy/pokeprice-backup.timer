@@ -1,0 +1,11 @@
+[Unit]
+Description=Sauvegarde quotidienne Pokemon
+
+[Timer]
+OnCalendar=*-*-* 03:00:00
+Persistent=true
+RandomizedDelaySec=10min
+Unit=pokeprice-backup.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,699 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>Poképrice · Collection</title>
+    <link rel="stylesheet" href="/assets/style.css" />
+    <script src="/assets/media.js" defer></script>
+    <script src="/assets/app.js" defer></script>
+    <script src="/assets/workflows.js" defer></script>
+  </head>
+  <body>
+    <section id="access" class="access" hidden>
+      <div class="access-card">
+        <span class="brand"><span class="brand-mark">P</span> Poképrice</span>
+        <h1 id="access-title">Votre collection privée</h1>
+        <p id="access-help">Connectez-vous pour retrouver vos cartes.</p>
+        <form id="login-form">
+          <label
+            >Nom d’utilisateur<input
+              name="username"
+              autocomplete="username"
+              required
+              maxlength="80"
+          /></label>
+          <label
+            >Mot de passe<input
+              name="password"
+              type="password"
+              autocomplete="current-password"
+              required
+              minlength="10"
+              maxlength="256"
+          /></label>
+          <button class="primary" id="login-submit">Se connecter</button>
+          <p class="error" id="login-error" role="alert"></p>
+        </form>
+      </div>
+    </section>
+    <div id="workspace" hidden>
+      <header class="topbar">
+        <a class="brand" href="/"
+          ><span class="brand-mark">P</span> Poképrice</a
+        >
+        <nav aria-label="Navigation principale">
+          <button class="nav-button active" data-view="collection">
+            Collection
+          </button>
+          <button class="nav-button" data-view="sales">Ventes</button>
+          <button
+            class="nav-button"
+            data-view="settings"
+            id="settings-nav"
+            hidden
+          >
+            Gestion
+          </button>
+        </nav>
+        <div class="account">
+          <span id="account-label"></span
+          ><button id="logout" class="quiet">Déconnexion</button>
+        </div>
+      </header>
+      <main>
+        <section id="collection-view">
+          <div class="heading">
+            <div>
+              <p class="eyebrow">VOTRE BIBLIOTHÈQUE</p>
+              <h1>Collection Pokémon</h1>
+              <p class="subtitle">
+                Chaque exemplaire, sa photo et son emplacement.
+              </p>
+            </div>
+            <div class="heading-actions">
+              <details class="export-menu">
+                <summary class="button">Exporter ↓</summary>
+                <div>
+                  <a href="/api/export/html">Bibliothèque hors connexion</a
+                  ><a href="/api/export/csv">Tableau CSV</a
+                  ><a href="/api/export/json">Données et historique</a>
+                  <a id="backup-link" href="/api/backup" hidden
+                    >Sauvegarde complète</a
+                  >
+                </div>
+              </details>
+              <button id="create-lot" class="primary" hidden>
+                Créer un lot
+              </button>
+              <button id="add-card" class="primary" hidden>
+                + Ajouter une carte
+              </button>
+              <button id="capture-series" hidden>Saisie en série</button>
+            </div>
+          </div>
+          <div class="stats" id="stats"></div>
+          <div id="capture-resume" class="workflow-panel" hidden></div>
+          <section
+            id="lot-builder"
+            class="lot-builder"
+            aria-label="Constitution du lot"
+            hidden
+          >
+            <div class="lot-heading">
+              <div>
+                <h2>1. Choisir les exemplaires du lot</h2>
+                <p>
+                  Cochez les cartes disponibles. La sélection est conservée
+                  quand vous changez de recherche, d’album ou de page.
+                </p>
+              </div>
+              <button id="cancel-lot">Annuler le lot</button>
+            </div>
+            <div class="lot-actions">
+              <button id="select-visible">Ajouter les cartes affichées</button>
+              <button id="finish-lot" class="primary" disabled>
+                Continuer
+              </button>
+            </div>
+            <p id="lot-summary" aria-live="polite"></p>
+            <div id="lot-selected" class="lot-selected"></div>
+          </section>
+          <section class="search-bar" aria-label="Recherche et filtres">
+            <label class="search-label"
+              ><span>Rechercher</span
+              ><input
+                id="search"
+                type="search"
+                placeholder="Nom, extension, référence…"
+                autocomplete="off"
+            /></label>
+            <label
+              >Album<select id="album-filter">
+                <option value="">Tous les albums</option>
+              </select></label
+            >
+            <label
+              >Stock<select id="stock-filter">
+                <option value="">Tous les exemplaires</option>
+                <option value="available">Disponibles</option>
+                <option value="reserved">Réservés</option>
+                <option value="sold">Vendus</option>
+                <option id="trash-filter" value="deleted" hidden>
+                  Corbeille
+                </option>
+              </select></label
+            >
+            <label
+              >Identification<select id="status-filter">
+                <option value="">Toutes les identités</option>
+                <option value="confirmed">Confirmées</option>
+                <option value="review">À vérifier</option>
+                <option value="unresolved">À identifier</option>
+              </select></label
+            >
+            <label
+              >Variante<select id="variant-filter">
+                <option value="">Toutes les variantes</option>
+                <option value="standard">Standard</option>
+                <option value="foil">Foil</option>
+                <option value="check">Foil à vérifier (alerte du relevé)</option>
+                <option value="stamped">Tamponnées</option>
+              </select></label
+            >
+          </section>
+          <div class="result-line">
+            <label
+              >Afficher<select id="display-mode">
+                <option value="copies">Exemplaires</option>
+                <option value="editions">Éditions et quantités</option>
+              </select></label
+            >
+            <p id="result-count" aria-live="polite"></p>
+            <span id="result-value"></span>
+          </div>
+          <button id="batch-photos" hidden>
+            Préparer les photos sélectionnées
+          </button>
+          <button id="select-page" type="button" hidden>
+            Sélectionner les cartes affichées
+          </button>
+          <div id="cards" class="card-grid"></div>
+          <div class="pagination">
+            <button id="previous">← Précédent</button
+            ><span id="page-label"></span><button id="next">Suivant →</button>
+          </div>
+        </section>
+        <section id="sales-view" hidden>
+          <div class="heading">
+            <div>
+              <p class="eyebrow">STOCK & TRANSACTIONS</p>
+              <h1>Lots et ventes</h1>
+              <p class="subtitle">
+                Regroupez des exemplaires, puis suivez leur réservation et leur
+                vente.
+              </p>
+            </div>
+            <button id="sales-create-lot" class="primary" hidden>
+              Créer un lot
+            </button>
+          </div>
+          <div id="sales-list" class="sales-list"></div>
+        </section>
+        <section id="settings-view" hidden>
+          <div class="heading">
+            <div>
+              <p class="eyebrow">GESTION PRIVÉE</p>
+              <h1>Comptes et albums</h1>
+            </div>
+          </div>
+          <section id="backup-status-panel" class="workflow-panel">
+            <h2>Sauvegardes</h2>
+            <div id="backup-status" role="status"></div>
+            <button id="backup-now">Sauvegarder et vérifier maintenant</button>
+            <p id="backup-error" class="error" role="alert"></p>
+          </section>
+          <div class="settings-grid">
+            <section class="panel">
+              <h2>Donner un accès</h2>
+              <p>
+                Lecture : consultation et exports. Gestion : corrections et
+                ventes. Administration : comptes et sauvegardes.
+              </p>
+              <form id="user-form">
+                <label
+                  >Nom d’utilisateur<input
+                    name="username"
+                    required
+                    maxlength="80"
+                    autocomplete="off" /></label
+                ><label
+                  >Mot de passe initial<input
+                    name="password"
+                    type="password"
+                    minlength="10"
+                    maxlength="256"
+                    required
+                    autocomplete="new-password"
+                /></label>
+                <label
+                  >Accès<select name="role">
+                    <option value="reader">Consultation</option>
+                    <option value="editor">Gestion</option>
+                    <option value="admin">Administration</option>
+                  </select></label
+                ><button class="primary">Créer le compte</button>
+                <p id="user-message" role="status"></p>
+              </form>
+              <div id="users-list"></div>
+            </section>
+            <section class="panel">
+              <h2>Nouvel album</h2>
+              <form id="album-form">
+                <label
+                  >Nom de l’album<input
+                    name="name"
+                    required
+                    maxlength="120" /></label
+                ><button class="primary">Ajouter l’album</button>
+                <p id="album-message" role="status"></p>
+              </form>
+              <h2>Conserver la collection</h2>
+              <p>
+                La sauvegarde complète contient la base et les photos. Gardez
+                une copie sur un autre appareil ou dans Drive.
+              </p>
+              <a class="button" href="/api/backup">Télécharger la sauvegarde</a>
+            </section>
+          </div>
+        </section>
+      </main>
+      <div class="selection-bar" id="selection-bar" hidden>
+        <span id="selection-count"></span
+        ><button id="clear-selection" type="button">Désélectionner tout</button
+        ><button id="refresh-prices" type="button">Relever les prix</button
+        ><button id="change-variant" type="button">Changer la variante</button
+        ><button id="prepare-sale" class="primary">Créer le lot</button>
+      </div>
+    </div>
+    <dialog id="detail-dialog">
+      <div class="dialog-header">
+        <span class="eyebrow">FICHE D’EXEMPLAIRE</span
+        ><button
+          class="close"
+          data-close="detail-dialog"
+          aria-label="Fermer la fiche"
+        >
+          ×
+        </button>
+      </div>
+      <div id="detail-body"></div>
+    </dialog>
+    <dialog id="add-dialog">
+      <div class="dialog-header">
+        <h2 id="intake-title">Ajouter une carte</h2>
+        <button
+          class="close"
+          data-close="add-dialog"
+          aria-label="Fermer l’ajout"
+        >
+          ×
+        </button>
+      </div>
+      <form id="add-form" class="dialog-form">
+        <section id="series-banner" class="workflow-panel" hidden>
+          <p id="series-progress" role="status"></p>
+          <p id="series-sync" class="help" role="status"></p>
+          <button id="series-pause" type="button">
+            Mettre la série en pause
+          </button>
+        </section>
+        <section class="intake-photo" aria-label="Photo et lecture de la carte">
+          <p>
+            Photographiez le recto entier, avec les deux coins inférieurs
+            lisibles. Vous pouvez aussi saisir les informations à la main.
+          </p>
+          <div class="intake-actions">
+            <button type="button" id="intake-camera">Prendre une photo</button>
+            <label class="button"
+              >Téléverser une image<input
+                id="intake-file"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+            /></label>
+          </div>
+          <img id="intake-preview" alt="Photo de votre exemplaire" hidden />
+          <fieldset id="intake-photo-options" class="photo-options" hidden>
+            <legend>Préparer la photo</legend>
+            <label class="check-label"
+              ><input id="intake-crop" type="checkbox" checked />Recadrage
+              automatique</label
+            >
+            <label class="check-label"
+              ><input
+                id="intake-perspective"
+                type="checkbox"
+                checked
+              />Redresser la perspective</label
+            >
+            <label class="check-label"
+              ><input id="intake-balance" type="checkbox" checked />Équilibrer
+              légèrement les couleurs</label
+            >
+            <p id="intake-processing" class="help" role="status"></p>
+            <p class="help">
+              Vérifiez les quatre coins et la référence. Désactivez les trois
+              options pour retrouver la photo entière avec ses couleurs
+              initiales.
+            </p>
+          </fieldset>
+          <button type="button" id="intake-read" disabled>Lire la carte</button>
+          <p class="help">
+            « Lire la carte » transmet cette photo à Gemini pour proposer une
+            lecture. Aucune carte n’est enregistrée avant votre validation.
+          </p>
+        </section>
+        <section id="series-back" hidden>
+          <h3>Verso (facultatif)</h3>
+          <div class="intake-actions">
+            <button id="series-back-camera" type="button">
+              Photographier le verso
+            </button>
+            <label class="button"
+              >Téléverser le verso<input
+                id="series-back-file"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+            /></label>
+            <button id="series-back-remove" type="button" hidden>
+              Retirer le verso
+            </button>
+          </div>
+          <div id="series-back-preview"></div>
+        </section>
+        <p id="intake-status" role="status" aria-live="polite"></p>
+        <label>Nom imprimé<input name="name" required maxlength="256" /></label>
+        <div class="form-row">
+          <label
+            >Référence complète<input
+              name="number"
+              maxlength="80"
+              placeholder="Ex. 077/203" /></label
+          ><label
+            >Langue<select name="language">
+              <option value="unknown">Inconnue</option>
+              <option value="fr">Français</option>
+              <option value="en">Anglais</option>
+              <option value="ja">Japonais</option>
+              <option value="de">Allemand</option>
+              <option value="es">Espagnol</option>
+              <option value="it">Italien</option>
+              <option value="pt">Portugais</option>
+              <option value="ko">Coréen</option>
+              <option value="zh">Chinois</option>
+            </select></label
+          >
+        </div>
+        <p class="help">
+          Référence en bas à gauche ou à droite selon la série. Le numéro
+          Pokédex sous l’illustration n’est pas la référence de la carte.
+        </p>
+        <label
+          >PV (facultatif)<input name="hp" type="number" min="0" max="5000"
+        /></label>
+        <label
+          >Tampon sur l’illustration (facultatif)<input
+            name="stamp"
+            maxlength="120"
+            placeholder="Ex. EX Fantômes Holon"
+        /></label>
+        <button type="button" id="intake-search">Rechercher l’extension</button>
+        <p id="intake-catalogue-message" role="status"></p>
+        <div
+          id="intake-candidates"
+          class="intake-candidates"
+          aria-label="Éditions proposées"
+        ></div>
+        <label
+          >Extension (facultative)<input
+            name="set_name"
+            maxlength="256"
+            placeholder="Peut rester vide"
+        /></label>
+        <div
+          id="intake-comparison"
+          class="intake-comparison"
+          aria-label="Comparaison de votre photo et du catalogue"
+          hidden
+        ></div>
+        <label id="intake-confirm-label" class="check-label" hidden
+          ><input id="intake-confirm" type="checkbox" />J’ai comparé la photo,
+          l’illustration et la référence : c’est cette édition.</label
+        >
+        <label>Album<select name="album_id" required></select></label>
+        <div class="form-row">
+          <label
+            >Page<input
+              name="page"
+              type="number"
+              min="1"
+              max="1000"
+              value="1"
+              required /></label
+          ><label
+            >Pochette<input
+              name="position"
+              type="number"
+              min="1"
+              max="100"
+              value="1"
+              required
+          /></label>
+        </div>
+        <label
+          >Motif / notes de saisie<input
+            name="reason"
+            required
+            value="Ajout manuel"
+        /></label>
+        <p>
+          Sans confirmation d’une édition proposée, l’identité reste à vérifier.
+          L’état physique et le prix sont évalués séparément dans la fiche.
+        </p>
+        <button id="intake-save" class="primary">Ajouter l’exemplaire</button>
+        <section id="duplicate-alert" class="workflow-panel" hidden></section>
+        <p class="error" id="add-error" role="alert"></p>
+      </form>
+    </dialog>
+    <dialog id="variant-dialog" aria-labelledby="variant-title">
+      <div class="dialog-header">
+        <h2 id="variant-title">Changer la variante</h2>
+        <button data-close="variant-dialog" class="close" aria-label="Fermer">
+          ×
+        </button>
+      </div>
+      <form id="variant-form" class="dialog-form">
+        <p id="variant-summary"></p>
+        <label class="check-label"
+          ><input type="radio" name="foil" value="false" required />Standard
+          (telle qu’imprimée, Rare Holo comprise)</label
+        >
+        <label class="check-label"
+          ><input type="radio" name="foil" value="true" />Foil (plus brillante
+          que la standard : reverse, holo tamponnée…)</label
+        >
+        <label
+          >Motif de la correction<input
+            name="reason"
+            required
+            maxlength="1000"
+            value="Variante vérifiée sur la carte"
+        /></label>
+        <p class="help">
+          Chaque carte reçoit sa propre correction dans l’historique. Le prix de
+          référence est ensuite relevé à nouveau pour la nouvelle variante.
+        </p>
+        <p id="variant-error" class="error" role="alert"></p>
+        <button class="primary" type="submit">Appliquer à la sélection</button>
+      </form>
+    </dialog>
+    <dialog id="series-dialog">
+      <div class="dialog-header">
+        <h2>Commencer une série</h2>
+        <button data-close="series-dialog" class="close" aria-label="Fermer">
+          ×
+        </button>
+      </div>
+      <form id="series-form" class="dialog-form">
+        <p>
+          Un album, une page, puis une carte à la fois. Chaque validation
+          propose la pochette suivante. La carte en cours est conservée pendant
+          30 jours.
+        </p>
+        <label>Album<select name="album_id" required></select></label>
+        <label
+          >Ou créer un album<input name="album_name" maxlength="120"
+        /></label>
+        <div class="form-row">
+          <label
+            >Pochettes par page<input
+              name="slots"
+              type="number"
+              min="1"
+              max="100"
+              value="9"
+              required /></label
+          ><label
+            >Première page<input
+              name="page"
+              type="number"
+              min="1"
+              max="1000"
+              value="1"
+              required /></label
+          ><label
+            >Première pochette<input
+              name="position"
+              type="number"
+              min="1"
+              max="100"
+              value="1"
+              required
+          /></label>
+        </div>
+        <button class="primary">Commencer</button>
+        <p id="series-error" class="error" role="alert"></p>
+      </form>
+    </dialog>
+    <dialog id="batch-dialog">
+      <div class="dialog-header">
+        <h2>Préparer les photos par lot</h2>
+        <button data-close="batch-dialog" class="close" aria-label="Fermer">
+          ×
+        </button>
+      </div>
+      <form id="batch-form" class="dialog-form">
+        <p>
+          Jusqu’à 20 exemplaires. Comparez les résultats avant de choisir les
+          photos à remplacer.
+        </p>
+        <label
+          >Face<select name="side">
+            <option value="front">Recto</option>
+            <option value="back">Verso</option>
+          </select></label
+        >
+        <label class="check-label"
+          ><input name="crop" type="checkbox" checked />Recadrage
+          automatique</label
+        >
+        <label class="check-label"
+          ><input name="perspective" type="checkbox" checked />Correction de
+          perspective</label
+        >
+        <label class="check-label"
+          ><input name="balance" type="checkbox" checked />Équilibrage léger des
+          couleurs</label
+        >
+        <button id="batch-preview-button">Simuler</button>
+      </form>
+      <div id="batch-results" class="dialog-form"></div>
+      <div id="batch-history" class="dialog-form"></div>
+      <div class="dialog-form">
+        <button id="batch-apply" class="primary" hidden>
+          Appliquer les photos cochées</button
+        ><button id="batch-undo" hidden>Annuler ce traitement</button>
+        <p id="batch-error" class="error" role="alert"></p>
+      </div>
+    </dialog>
+    <dialog id="sale-dialog">
+      <div class="dialog-header">
+        <h2>2. Enregistrer le lot</h2>
+        <button
+          class="close"
+          data-close="sale-dialog"
+          aria-label="Revenir à la sélection"
+        >
+          ×
+        </button>
+      </div>
+      <form id="sale-form" class="dialog-form">
+        <div id="sale-selection" class="lot-preview"></div>
+        <details>
+          <summary>Prix de l’annonce et objectifs (facultatifs)</summary>
+          <label
+            >Prix affiché (€)<input
+              name="asking_eur"
+              type="number"
+              min="0"
+              step="0.01"
+          /></label>
+          <label
+            >Prix cible (€)<input
+              name="target_eur"
+              type="number"
+              min="0"
+              step="0.01"
+          /></label>
+          <label
+            >Minimum (€)<input
+              name="minimum_eur"
+              type="number"
+              min="0"
+              step="0.01"
+          /></label>
+        </details>
+        <label
+          >Titre du lot<input name="title" required maxlength="256" /></label
+        ><label
+          >Prix convenu ou envisagé (€)<input
+            name="amount_eur"
+            type="number"
+            min="0"
+            step="0.01"
+            required /></label
+        ><label
+          >Canal<input
+            name="channel"
+            placeholder="Vente directe, plateforme…"
+            maxlength="120" /></label
+        ><label
+          >Lien de l’annonce<input
+            name="listing_url"
+            type="url"
+            maxlength="2000" /></label
+        ><label>Notes<textarea name="notes" maxlength="8000"></textarea></label>
+        <p>
+          Le brouillon ne réserve pas les cartes et ne publie aucune annonce.
+        </p>
+        <button id="save-lot" class="primary">
+          Enregistrer le lot en brouillon
+        </button>
+        <p id="sale-error" class="error" role="alert"></p>
+      </form>
+    </dialog>
+    <dialog id="photo-dialog" aria-labelledby="photo-title">
+      <div class="dialog-header">
+        <h2 id="photo-title">Préparer la photo de l’exemplaire</h2>
+        <button
+          class="close"
+          data-close="photo-dialog"
+          aria-label="Fermer la préparation"
+        >
+          ×
+        </button>
+      </div>
+      <div class="dialog-form">
+        <img id="photo-preview" alt="Aperçu de la photo à enregistrer" />
+        <fieldset id="photo-photo-options" class="photo-options">
+          <legend>Préparer la photo</legend>
+          <label class="check-label"
+            ><input id="photo-crop" type="checkbox" checked />Recadrage
+            automatique</label
+          >
+          <label class="check-label"
+            ><input id="photo-perspective" type="checkbox" checked />Redresser
+            la perspective</label
+          >
+          <label class="check-label"
+            ><input id="photo-balance" type="checkbox" checked />Équilibrer
+            légèrement les couleurs</label
+          >
+          <p id="photo-processing" class="help" role="status"></p>
+          <p class="help">
+            Vérifiez les quatre coins et la référence. Désactivez les trois
+            options pour retrouver la photo entière avec ses couleurs initiales.
+            La photo entière est conservée dans la sauvegarde.
+          </p>
+        </fieldset>
+        <p id="photo-status" role="status" aria-live="polite"></p>
+        <p id="photo-error" class="error" role="alert"></p>
+        <button id="photo-save" class="primary" type="button">
+          Enregistrer cette photo
+        </button>
+      </div>
+    </dialog>
+    <div id="toast" role="status" hidden></div>
+  </body>
+</html>

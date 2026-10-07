@@ -1,0 +1,15 @@
+[Unit]
+Description=Sauvegarde de la collection Pokemon
+
+[Service]
+Type=oneshot
+User=pokeprice
+Group=pokeprice
+WorkingDirectory=/opt/pokeprice
+ExecStart=/opt/pokeprice/.venv/bin/python -m pokeprice.manage --data /srv/pokeprice/inventory backup
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/pokeprice

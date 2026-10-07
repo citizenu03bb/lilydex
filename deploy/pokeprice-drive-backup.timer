@@ -1,0 +1,10 @@
+[Unit]
+Description=Poképrice - copie Drive quotidienne avec deux rattrapages
+
+[Timer]
+OnCalendar=*-*-* 03:15:00 Europe/Paris
+Persistent=true
+Unit=pokeprice-drive-backup.service
+
+[Install]
+WantedBy=timers.target
