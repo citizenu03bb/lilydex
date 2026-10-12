@@ -99,6 +99,75 @@ def test_unresolved_candidate_prices_not_trusted_and_photos_distinct(inventory):
     )
 
 
+@pytest.mark.parametrize("endpoint", ["/api/copies", "/api/editions"])
+def test_binder_sort_orders_locations_before_filtering_and_pagination(
+    client, inventory, endpoint
+):
+    store, _, _ = inventory
+    cards = {(c["album_id"], c["position"]): c for c in store.listing()["items"]}
+    locations = {
+        ("a", 1): (1, 1),
+        ("a", 2): (10, 2),
+        ("a", 3): (2, 10),
+        ("a", 4): (2, 2),
+        ("b", 1): (10, 1),
+        ("b", 2): (2, 10),
+        ("b", 3): (2, 2),
+    }
+    for key, (page, position) in locations.items():
+        card = cards[key]
+        store.patch(
+            card["id"],
+            {"page": page, "position": position},
+            card["version"],
+            "pat",
+            "Emplacement vérifié",
+        )
+    with store.connect() as db:
+        db.execute("UPDATE albums SET name='z Album' WHERE id='a'")
+        db.execute("UPDATE albums SET name='A album' WHERE id='b'")
+
+    def ids(params):
+        response = client.get(endpoint, params=params)
+        assert response.status_code == 200
+        entries = response.json()["items"]
+        if endpoint == "/api/editions":
+            return [[c["id"] for c in g["copies"]] for g in entries]
+        return [c["id"] for c in entries]
+
+    def expected(keys):
+        if endpoint == "/api/editions":
+            groups = {}
+            for key in keys:
+                card = cards[key]
+                groups.setdefault(card["edition_id"], []).append(card["id"])
+            return list(groups.values())
+        return [cards[key]["id"] for key in keys]
+
+    binder = [("b", 3), ("b", 2), ("b", 1), ("a", 1), ("a", 4), ("a", 3), ("a", 2)]
+    by_name = [("b", 3), ("b", 2), ("a", 1), ("a", 2), ("b", 1), ("a", 4), ("a", 3)]
+    assert ids({}) == expected(by_name)
+    assert ids({"sort": "name"}) == expected(by_name)
+    assert ids({"sort": "binder"}) == expected(binder)
+    assert ids({"sort": "binder", "offset": 1, "limit": 2}) == expected(binder)[1:3]
+    assert ids({"sort": "binder", "album": "a"}) == expected(binder[3:])
+    assert ids(
+        {
+            "sort": "binder",
+            "q": "zarbi",
+            "stock": "available",
+            "status": "confirmed",
+            "variant": "standard",
+        }
+    ) == expected([("b", 2), ("b", 1), ("a", 1), ("a", 2)])
+    assert client.get(endpoint, params={"sort": "invalid"}).status_code == 422
+
+    # Two albums with the same name must still be traversed separately.
+    with store.connect() as db:
+        db.execute("UPDATE albums SET name='Album'")
+    assert ids({"sort": "binder"}) == expected(binder[3:] + binder[:3])
+
+
 def test_roles_private_photos_csrf_and_unknown_fields(client):
     assert (
         client.post(

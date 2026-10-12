@@ -228,6 +228,11 @@ La recherche, les filtres, la pagination et l'onglet actif sont inscrits dans
 l'URL, par exemple `/?q=Zarbi&stock=available&offset=40`. Actualiser ou partager
 ce lien conserve la consultation ; les boutons précédent/suivant du navigateur
 restaurent également les filtres et la page. La connexion reste nécessaire.
+Le sélecteur **Trier → Classeur** parcourt les albums par nom, puis les pages
+et les pochettes dans l'ordre numérique. Ce choix est conservé dans l'adresse
+(`?sort=binder`) avec tous les filtres et les affichages par exemplaire ou par
+édition ; les éditions suivent le premier exemplaire dans cet ordre. Le tri
+par nom reste le choix par défaut.
 Un lien `/api/copies?...` ouvert comme une page rejoint cette consultation en
 conservant ses paramètres ; les appels de l'API continuent à recevoir du JSON.
 

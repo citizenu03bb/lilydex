@@ -17,6 +17,11 @@ const controls = {
     value: "",
     options: ["", "standard", "foil", "check"].map((value) => ({ value })),
   },
+  "sort-order": {
+    value: "name",
+    options: ["name", "binder"].map((value) => ({ value })),
+  },
+  "display-mode": { value: "copies" },
 };
 const state = {
   user: { role: "editor" },
@@ -27,7 +32,7 @@ const state = {
 const location = {
   pathname: "/",
   search:
-    "?q=Zarbi+%3F&album=album-1&stock=available&status=confirmed&variant=check&limit=40&offset=80",
+    "?q=Zarbi+%3F&album=album-1&stock=available&status=confirmed&variant=check&sort=binder&limit=40&offset=80",
 };
 const history = {};
 for (const method of ["pushState", "replaceState"])
@@ -55,24 +60,28 @@ context.restoreLocation();
 assert.equal(controls.search.value, "Zarbi ?");
 assert.equal(controls["stock-filter"].value, "available");
 assert.equal(controls["variant-filter"].value, "check");
+assert.equal(controls["sort-order"].value, "binder");
 assert.equal(state.offset, 80);
 context.syncLocation();
 assert(location.search.includes("variant=check"));
+assert(location.search.includes("sort=binder"));
 assert(!location.search.includes("limit="));
 // A refresh reconstructs the same filters/page from the canonical URL.
 controls.search.value = "";
 controls["stock-filter"].value = "";
+controls["sort-order"].value = "name";
 state.offset = 0;
 context.restoreLocation();
 assert.equal(controls.search.value, "Zarbi ?");
 assert.equal(controls["stock-filter"].value, "available");
+assert.equal(controls["sort-order"].value, "binder");
 assert.equal(state.offset, 80);
 controls.search.value = "Évoli & Pikachu";
 context.syncLocation("push");
 context.restoreLocation();
 assert.equal(controls.search.value, "Évoli & Pikachu");
 location.search =
-  "?album=missing&stock=invalid&variant=holo&view=settings&limit=999&offset=-1";
+  "?album=missing&stock=invalid&variant=holo&sort=invalid&view=settings&limit=999&offset=-1";
 context.restoreLocation();
 assert.equal(controls["variant-filter"].value, "");
 assert.equal(controls["album-filter"].value, "");
@@ -80,3 +89,24 @@ assert.equal(controls["stock-filter"].value, "");
 assert.equal(state.view, "collection");
 assert.equal(state.limit, 200);
 assert.equal(state.offset, 0);
+assert.equal(controls["sort-order"].value, "name");
+context.syncLocation();
+assert(!location.search.includes("sort="));
+assert.equal(context.collectionQuery().get("sort"), "name");
+// Existing links, with no sort, keep the default name order.
+controls["sort-order"].value = "binder";
+location.search = "?q=Pikachu";
+context.restoreLocation();
+assert.equal(controls["sort-order"].value, "name");
+// The same order survives display and tab changes without the Foil filter.
+for (const view of ["collection", "sales", "settings"]) {
+  state.user.role = "admin";
+  location.search = `?sort=binder&display=editions&view=${view}`;
+  context.restoreLocation();
+  assert.equal(controls["sort-order"].value, "binder");
+  assert.equal(controls["variant-filter"].value, "");
+  assert.equal(controls["display-mode"].value, "editions");
+  assert.equal(state.view, view);
+  context.syncLocation("push");
+  assert.equal(new URLSearchParams(location.search).get("sort"), "binder");
+}

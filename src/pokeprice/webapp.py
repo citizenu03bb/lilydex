@@ -564,13 +564,16 @@ def create_app(
         stock: str = "",
         status: str = "",
         variant: Literal["", "standard", "foil", "check", "stamped"] = "",
+        sort: Literal["name", "binder"] = "name",
         limit: int = Query(default=60, ge=1, le=200),
         offset: int = Query(default=0, ge=0),
         user=Depends(current_user),
     ):
         if stock == "deleted" and user["role"] != "admin":
             raise HTTPException(403, "La corbeille est réservée à l’administration.")
-        return store.listing(q, album, stock, status, limit, offset, variant=variant)
+        return store.listing(
+            q, album, stock, status, limit, offset, variant=variant, sort=sort
+        )
 
     @app.delete("/api/copies/{copy_id}")
     def copy_remove(copy_id: str, values: CopyRemoval, user=Depends(admin)):
@@ -689,13 +692,16 @@ def create_app(
         stock: str = "",
         status: str = "",
         variant: Literal["", "standard", "foil", "check", "stamped"] = "",
+        sort: Literal["name", "binder"] = "name",
         limit: int = Query(default=40, ge=1, le=200),
         offset: int = Query(default=0, ge=0),
         user=Depends(current_user),
     ):
         if stock == "deleted" and user["role"] != "admin":
             raise HTTPException(403, "La corbeille est réservée à l’administration.")
-        return store.grouped(q, album, stock, status, limit, offset, variant=variant)
+        return store.grouped(
+            q, album, stock, status, limit, offset, variant=variant, sort=sort
+        )
 
     from .capture import CaptureService
     from .photo_batches import PhotoBatches

@@ -172,6 +172,7 @@ function collectionQuery() {
     stock: $("stock-filter").value,
     status: $("status-filter").value,
     variant: $("variant-filter").value,
+    sort: $("sort-order").value,
     limit: state.limit,
     offset: state.offset,
   });
@@ -180,6 +181,7 @@ function syncLocation(mode = "replace") {
   const query = collectionQuery();
   for (const key of ["q", "album", "stock", "status", "variant"])
     if (!query.get(key)) query.delete(key);
+  if (query.get("sort") === "name") query.delete("sort");
   if (state.offset === 0) query.delete("offset");
   if (state.limit === 40) query.delete("limit");
   if (state.view !== "collection") query.set("view", state.view);
@@ -199,12 +201,14 @@ function restoreLocation() {
     ["stock", "stock-filter"],
     ["status", "status-filter"],
     ["variant", "variant-filter"],
+    ["sort", "sort-order"],
   ]) {
     const select = $(id),
-      value = query.get(key) || "";
+      fallback = key === "sort" ? "name" : "",
+      value = query.get(key) || fallback;
     select.value = Array.from(select.options).some((o) => o.value === value)
       ? value
-      : "";
+      : fallback;
   }
   const number = (key, fallback, max) =>
     /^\d+$/.test(query.get(key) || "")
@@ -1592,6 +1596,7 @@ for (const id of [
   "stock-filter",
   "status-filter",
   "variant-filter",
+  "sort-order",
 ])
   $(id).addEventListener("change", () => {
     state.offset = 0;

@@ -271,7 +271,15 @@ class Store:
         )
 
     def listing(
-        self, query="", album="", stock="", status="", limit=60, offset=0, variant=""
+        self,
+        query="",
+        album="",
+        stock="",
+        status="",
+        limit=60,
+        offset=0,
+        variant="",
+        sort="name",
     ):
         with self.connect() as db:
             # Latest TCGdex snapshot of each copy, for alert badges and filters.
@@ -290,7 +298,13 @@ class Store:
             rows = [
                 dict(r)
                 for r in db.execute(
-                    "SELECT c.*, a.name album,s.raw_json original_aliases FROM copies c JOIN albums a ON a.id=c.album_id LEFT JOIN sources s ON s.copy_id=c.id WHERE (c.deleted_at!='')=? ORDER BY c.name COLLATE NOCASE, c.album_id,c.page,c.position,c.id",
+                    "SELECT c.*, a.name album,s.raw_json original_aliases FROM copies c JOIN albums a ON a.id=c.album_id LEFT JOIN sources s ON s.copy_id=c.id WHERE (c.deleted_at!='')=? ORDER BY "
+                    # Binder order: one pass through each album, page after page.
+                    + (
+                        "a.name COLLATE NOCASE, c.album_id, c.page, c.position, c.id"
+                        if sort == "binder"
+                        else "c.name COLLATE NOCASE, c.album_id,c.page,c.position,c.id"
+                    ),
                     (stock == "deleted",),
                 )
             ]
@@ -654,9 +668,19 @@ class Store:
             return self.get(db, copy_id)
 
     def grouped(
-        self, query="", album="", stock="", status="", limit=40, offset=0, variant=""
+        self,
+        query="",
+        album="",
+        stock="",
+        status="",
+        limit=40,
+        offset=0,
+        variant="",
+        sort="name",
     ):
-        data = self.listing(query, album, stock, status, 1000000, variant=variant)
+        data = self.listing(
+            query, album, stock, status, 1000000, variant=variant, sort=sort
+        )
         groups = {}
         for card in data["items"]:
             group = groups.setdefault(
