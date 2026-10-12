@@ -56,6 +56,10 @@ class Drive:
         )
 
     def prepare(self):
+        if not DRIVE_FOLDER:
+            raise ValueError(
+                "Dossier Drive non configuré : renseignez POKEPRICE_DRIVE_FOLDER ou ~/.config/pokeprice/drive_folder."
+            )
         # Listing refreshes OAuth through rclone before reading the access token.
         self.transfer("lsjson", f"{self.remote}:", "--max-depth", "1")
         config = json.loads(self.run("config", "dump"))[self.remote]

@@ -1,3 +1,7 @@
+import os
+
+# The real private Drive folder lives in local configuration, never in tests.
+os.environ["POKEPRICE_DRIVE_FOLDER"] = "test-drive-folder"
 import urllib.parse
 
 import pytest

@@ -1,3 +1,4 @@
+import shutil
 import hashlib
 import io
 import json
@@ -505,7 +506,7 @@ def test_offline_export_keeps_original_aliases_verified_state_and_manual_price_s
     )
     assert store.listing(query="evoli")["items"][0]["id"] == original["id"]
     script = re.search(r"<script>(.*?)</script>", export_html(store), re.S).group(1)
-    node = "node"
+    node = shutil.which("node") or "node"
     result = subprocess.run(
         [node, str(Path(__file__).with_name("library_runtime.cjs"))],
         input=json.dumps(

@@ -1,3 +1,4 @@
+import shutil
 import json
 import re
 import subprocess
@@ -10,9 +11,7 @@ from PIL import Image
 from pokeprice.library import build_library, consolidate, load_manifest
 from pokeprice.report import read_report
 
-NODE = (
-    "node"
-)
+NODE = shutil.which("node") or "node"
 
 
 def inputs(tmp_path):

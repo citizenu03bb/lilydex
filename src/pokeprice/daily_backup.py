@@ -13,7 +13,22 @@ from zoneinfo import ZoneInfo
 from .inventory import now
 from .inventory_backup import backup, restore_backup
 
-DRIVE_FOLDER = "DOSSIER-DRIVE-PRIVE"
+
+def configured_drive_folder():
+    """Private Drive folder id, kept out of the repository.
+
+    POKEPRICE_DRIVE_FOLDER, else ~/.config/pokeprice/drive_folder.
+    """
+    value = os.environ.get("POKEPRICE_DRIVE_FOLDER", "").strip()
+    if not value:
+        config = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
+        path = config / "pokeprice" / "drive_folder"
+        if path.exists():
+            value = path.read_text(encoding="utf-8").strip()
+    return value
+
+
+DRIVE_FOLDER = configured_drive_folder()
 
 
 def serialized(action):
@@ -133,7 +148,9 @@ def public_status(store):
     for key in ("local", "external"):
         if data.get(key):
             data[key] = {k: v for k, v in data[key].items() if k != "path"}
-    data["drive_folder_url"] = f"https://drive.google.com/drive/folders/{DRIVE_FOLDER}"
+    data["drive_folder_url"] = (
+        f"https://drive.google.com/drive/folders/{DRIVE_FOLDER}" if DRIVE_FOLDER else ""
+    )
     return data
 
 
