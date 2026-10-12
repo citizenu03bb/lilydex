@@ -317,6 +317,8 @@ def test_schema4_migration_preserves_existing_copy(collection):
     _, app, card, _ = collection
     with sqlite3.connect(app.state.store.database) as db:
         db.execute("DROP TABLE condition_assessments")
+        for table in ("catalog_names", "catalog_lookups"):
+            db.execute("DROP TABLE " + table)
         for table in ("intake_drafts", "capture_sessions", "photo_batches"):
             db.execute("DROP TABLE " + table)
         for column in (
@@ -330,7 +332,7 @@ def test_schema4_migration_preserves_existing_copy(collection):
         db.execute("PRAGMA user_version=4")
     migrated = Store(app.state.store.root)
     with migrated.connect() as db:
-        assert db.execute("PRAGMA user_version").fetchone()[0] == 8
+        assert db.execute("PRAGMA user_version").fetchone()[0] == 9
         new = migrated.get(db, card["id"])
         assert all(
             new[k] == v

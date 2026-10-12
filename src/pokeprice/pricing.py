@@ -29,7 +29,6 @@ CARDMARKET_CONDITIONS = {
     "PO": 7,
 }
 SOURCE = "TCGdex · Cardmarket"
-API = "https://api.tcgdex.net/v2"
 # Below this value cards are sold in bulk lots: warnings would only be noise.
 MATERIAL_EUR = 2.0
 
@@ -53,39 +52,6 @@ def fetch_card(catalog_id, language):
     raise RuntimeError(
         "TCGdex indisponible ou sans prix Cardmarket pour cette carte. Réessayez plus tard."
     )
-
-
-def _tcgdex_json(url):
-    request = Request(url, headers={"User-Agent": "pokeprice/0.1.0"})
-    try:
-        with urlopen(request, timeout=15) as response:
-            return json.loads(response.read())
-    except Exception:  # noqa: BLE001 - A missing translation is not an error.
-        return None
-
-
-def fetch_names(catalog_id, known=None, dex_ids=None):
-    """Names in French and English, so a search finds the card in either language.
-
-    The edition's own name first; when the edition does not exist in a language
-    (Base Set 2 has no French release), the Pokémon's name in that language,
-    found through its Pokédex number.
-    """
-    names = dict(known or {})
-    for lang in ("fr", "en"):
-        if lang in names:
-            continue
-        name = (_tcgdex_json(f"{API}/{lang}/cards/{catalog_id}") or {}).get("name")
-        if not name and dex_ids:
-            same = _tcgdex_json(
-                f"{API}/{lang}/cards?dexId=eq:{dex_ids[0]}&pagination:itemsPerPage=10"
-            )
-            candidates = [c.get("name", "") for c in same or [] if isinstance(c, dict)]
-            # The plain species name is the shortest common one ("Dracaufeu").
-            name = min((c for c in candidates if c), key=len, default=None)
-        if isinstance(name, str) and name.strip():
-            names[lang] = name.strip()
-    return names
 
 
 def summarize(data, foil):
@@ -296,8 +262,8 @@ def estimate_sale(offers, condition, *, stamp=""):
 
 
 class PriceService:
-    def __init__(self, store, fetch=fetch_card, names=fetch_names):
-        self.store, self.fetch, self.names = store, fetch, names
+    def __init__(self, store, fetch=fetch_card):
+        self.store, self.fetch = store, fetch
 
     def latest(self, db, copy_id, kind="price-snapshot"):
         row = db.execute(
@@ -404,8 +370,6 @@ class PriceService:
         # The network calls stay outside the write transaction.
         data = self.fetch(card["catalog_id"], card["language"])
         snapshot = summarize(data, card["foil"])
-        known = {card["language"]: data["name"]} if data.get("name") else {}
-        snapshot["names"] = self.names(card["catalog_id"], known, data.get("dexId"))
         snapshot["observed_at"] = now()
         changes = {
             "reference_cents": cents(snapshot["reference_eur"]),
@@ -427,5 +391,11 @@ class PriceService:
                 )
             self.store.event(
                 db, copy_id, actor, "price-snapshot", "Relevé TCGdex", {}, snapshot
+            )
+            # The edition name in the copy's language comes free with the relevé.
+            from .names import NameCatalog
+
+            NameCatalog.record(
+                db, card["catalog_id"], card["language"], data.get("name"), "edition"
             )
             return {**self.store.get(db, copy_id), "price_snapshot": snapshot}

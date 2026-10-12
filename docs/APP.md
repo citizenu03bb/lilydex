@@ -90,6 +90,23 @@ autres sont ignorées. Chaque carte est relevée séparément : un échec (TCGde
 tunnel, fiche modifiée entre-temps) n'arrête pas les suivantes. Le bilan indique
 les prix relevés, les cartes ignorées, les échecs et les cartes avec alertes.
 
+### Noms dans plusieurs langues
+
+La recherche trouve une carte par son nom dans six langues (français, anglais,
+allemand, italien, espagnol, portugais) : « Dracaufeu » ou « Glurak » trouvent un
+Charizard anglais. `pokeprice-manage names` récupère ces noms une seule fois par
+édition (schéma 9, tables `catalog_names` et `catalog_lookups`) ; `prices`
+l'appelle à la fin de chaque relevé, sans requête pour les éditions connues.
+
+Ménagement de TCGdex : une requête par extension et par langue (elle donne toutes
+les cartes de l'extension, gardées pour les classeurs à venir), une à la fois avec
+0,25 s de pause, réponses mises en cache y compris les absences (redemandées au
+bout de 90 jours), nouvel essai avec attente croissante et respect de
+`Retry-After` sur 429 et 5xx, arrêt après cinq échecs serveur consécutifs. Une
+édition absente d'une langue reçoit le nom du Pokémon, retrouvé par son numéro de
+Pokédex. Premier passage du 12 octobre 2026 : 1 136 requêtes en 7 min 37 s, puis
+aucune.
+
 ### Tampon sur l'illustration
 
 Le champ **Tampon sur l'illustration** (schéma 8) garde le texte d'un logo de

@@ -12,6 +12,7 @@ from pokeprice.webapp import create_app
 # holo market next to a normal-only card.
 CARD = {
     "id": "swsh7-077",
+    "name": "Gourgeist",
     "variants": {"normal": True, "holo": False, "reverse": False},
     "pricing": {
         "cardmarket": {
@@ -86,13 +87,8 @@ def client(tmp_path):
             card["variants"] = {"holo": True}
         return card
 
-    def names(catalog_id, known, dex_ids=None):
-        return {**known, "fr": "Banshitrouye", "en": "Gourgeist"}
-
     store = Store(tmp_path / "inventory")
-    with TestClient(
-        create_app(store.root, price_fetch=fetch, price_names=names)
-    ) as client:
+    with TestClient(create_app(store.root, price_fetch=fetch)) as client:
         client.post(
             "/api/setup", json={"username": "pat", "password": "Collection-test-2026!"}
         )
@@ -213,7 +209,7 @@ def test_stamp_is_a_searchable_variant_that_resets_the_reference(client):
 
     store = client.app.state.store
     with sqlite3.connect(store.database) as db:
-        assert db.execute("PRAGMA user_version").fetchone()[0] == 8
+        assert db.execute("PRAGMA user_version").fetchone()[0] == 9
     card = confirmed(client, foil=True, position=6, stamp="EX Fantômes Holon")
     assert card["stamp"] == "EX Fantômes Holon"
     priced = client.post(
@@ -357,8 +353,7 @@ def test_refresh_many_snapshots_confirmed_cards_and_reports_failures(client):
     good = confirmed(client, position=9)
     bad = confirmed(client, position=10, catalog_id="offline-1")
     client.post("/api/copies", json=values(client, position=11))  # Not confirmed.
-    pricing = client.app.state.pricing
-    service = PriceService(store, pricing.fetch, pricing.names)
+    service = PriceService(store, client.app.state.pricing.fetch)
     summary = service.refresh_many("manage")
     assert summary["selected"] == 2 and summary["refreshed"] == 1
     assert summary["failed"][0]["id"] == bad["id"]
@@ -366,34 +361,3 @@ def test_refresh_many_snapshots_confirmed_cards_and_reports_failures(client):
     again = service.refresh_many("manage", only_missing=True)
     assert again["selected"] == 1  # Only the failed one was never snapshotted.
     assert client.get(f"/api/copies/{good['id']}").json()["price_snapshot"]
-
-
-def test_search_finds_a_card_by_its_name_in_the_other_language(client):
-    card = confirmed(client, position=12)  # English "Gourgeist".
-    assert client.get("/api/copies", params={"q": "banshitrouye"}).json()["total"] == 0
-    client.post(f"/api/copies/{card['id']}/price-refresh", json={"expected_version": 1})
-    found = client.get("/api/copies", params={"q": "banshitrouye"}).json()
-    assert [c["id"] for c in found["items"]] == [card["id"]]
-    snapshot = client.get(f"/api/copies/{card['id']}").json()["price_snapshot"]
-    assert snapshot["names"] == {"fr": "Banshitrouye", "en": "Gourgeist"}
-
-
-def test_names_fall_back_to_the_species_when_the_edition_has_no_translation(
-    monkeypatch,
-):
-    from pokeprice import pricing
-
-    def tcgdex(url):
-        if url.endswith("/fr/cards/base4-4"):
-            return None  # Base Set 2 was never released in French.
-        if "/fr/cards?dexId=eq:6" in url:
-            return [
-                {"name": "Dracaufeu-EX"},
-                {"name": "Dracaufeu"},
-                {"name": "Méga-Dracaufeu"},
-            ]
-        raise AssertionError(url)
-
-    monkeypatch.setattr(pricing, "_tcgdex_json", tcgdex)
-    names = pricing.fetch_names("base4-4", {"en": "Charizard"}, [6])
-    assert names == {"en": "Charizard", "fr": "Dracaufeu"}

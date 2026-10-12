@@ -91,7 +91,7 @@ class Store:
             version = db.execute("PRAGMA user_version").fetchone()[0]
             if version == 0:
                 db.executescript(SCHEMA)
-            elif version not in (1, 2, 3, 4, 5, 6, 7, 8):
+            elif version not in (1, 2, 3, 4, 5, 6, 7, 8, 9):
                 raise ValueError("Version de base incompatible.")
             if db.execute("PRAGMA user_version").fetchone()[0] == 1:
                 db.executescript(
@@ -156,6 +156,18 @@ class Store:
                     BEGIN IMMEDIATE;
                     ALTER TABLE copies ADD COLUMN stamp TEXT NOT NULL DEFAULT '';
                     PRAGMA user_version=8;
+                    COMMIT;
+                """)
+            if db.execute("PRAGMA user_version").fetchone()[0] == 8:
+                # Edition names per language, fetched once; lookups cache TCGdex answers.
+                db.executescript("""
+                    BEGIN IMMEDIATE;
+                    CREATE TABLE catalog_names(catalog_id TEXT NOT NULL, language TEXT NOT NULL,
+                        name TEXT NOT NULL, source TEXT NOT NULL, fetched_at TEXT NOT NULL,
+                        PRIMARY KEY(catalog_id, language));
+                    CREATE TABLE catalog_lookups(key TEXT PRIMARY KEY, found INTEGER NOT NULL,
+                        value TEXT, checked_at TEXT NOT NULL);
+                    PRAGMA user_version=9;
                     COMMIT;
                 """)
             db.execute("PRAGMA journal_mode=WAL")
@@ -269,6 +281,12 @@ class Store:
                     "SELECT copy_id,after_json FROM events WHERE id IN (SELECT max(id) FROM events WHERE kind='price-snapshot' GROUP BY copy_id)"
                 )
             }
+            names = {
+                r[0]: r[1]
+                for r in db.execute(
+                    "SELECT catalog_id, group_concat(name, ' ') FROM catalog_names GROUP BY catalog_id"
+                )
+            }
             rows = [
                 dict(r)
                 for r in db.execute(
@@ -282,9 +300,9 @@ class Store:
             snapshot = snapshots.get(row["id"]) or {}
             row["price_alerts"] = len(snapshot.get("warnings") or [])
             row["variant_check"] = bool(row["foil"] and snapshot.get("variant_check"))
-            # Edition names in French and English (TCGdex): "Dracaufeu" finds
-            # an English "Charizard" and the other way round.
-            row["catalog_names"] = " ".join((snapshot.get("names") or {}).values())
+            # Edition names in several languages (TCGdex, fetched once): "Dracaufeu"
+            # finds an English "Charizard" and the other way round.
+            row["catalog_names"] = names.get(row["catalog_id"], "")
             original = json.loads(row.pop("original_aliases") or "{}")
             row["search_aliases"] = " ".join(
                 str(original.get(k) or "")

@@ -92,7 +92,7 @@ def restore_backup(archive_path, destination):
                 ):
                     raise ValueError("Base restaurée incohérente.")
                 version = db.execute("PRAGMA user_version").fetchone()[0]
-                if version not in (1, 2, 3, 4, 5, 6, 7, 8):
+                if version not in (1, 2, 3, 4, 5, 6, 7, 8, 9):
                     raise ValueError("Version de base incompatible.")
                 photos = [
                     row[0]

@@ -84,6 +84,11 @@ def main():
     prices.add_argument(
         "--actor", default="manage", help="Auteur inscrit dans l'historique"
     )
+    names = actions.add_parser(
+        "names",
+        help="Noms des éditions en plusieurs langues (TCGdex, une fois par édition)",
+    )
+    names.add_argument("--languages", default="fr,en,de,it,es,pt")
     exporter = actions.add_parser("export", help="Export de la collection gérée")
     exporter.add_argument("format", choices=["csv", "json", "html"])
     exporter.add_argument("output")
@@ -178,6 +183,14 @@ def main():
                 only_missing=args.only_missing,
                 limit=args.limit,
             )
+            from .names import NameCatalog
+
+            # New editions get their names too; known ones cost no request.
+            result["names"] = NameCatalog(store).refresh()
+        elif args.action == "names":
+            from .names import NameCatalog
+
+            result = NameCatalog(store).refresh(tuple(args.languages.split(",")))
         elif args.action == "export":
             from .inventory_backup import export_csv, export_data, export_html
 

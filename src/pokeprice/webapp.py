@@ -298,7 +298,6 @@ def create_app(
     intake_lookup=None,
     condition_reader=None,
     price_fetch=None,
-    price_names=None,
 ):
     store = Store(directory)
     if secure_cookie:
@@ -322,11 +321,7 @@ def create_app(
     app.state.intake = intake
     conditions = ConditionService(store, condition_reader or read_condition)
     app.state.conditions = conditions
-    pricing = PriceService(
-        store,
-        price_fetch or fetch_card,
-        **({"names": price_names} if price_names else {}),
-    )
+    pricing = PriceService(store, price_fetch or fetch_card)
     app.state.pricing = pricing
     app.add_middleware(
         TrustedHostMiddleware,

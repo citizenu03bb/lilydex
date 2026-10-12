@@ -208,12 +208,18 @@ def test_schema_5_migration_preserves_all_copy_data(tmp_path):
         db.execute("ALTER TABLE copies DROP COLUMN deleted_at")
         db.execute("ALTER TABLE copies DROP COLUMN stamp")
         db.execute("PRAGMA user_version=5")
-        for table in ("intake_drafts", "capture_sessions", "photo_batches"):
+        for table in (
+            "intake_drafts",
+            "capture_sessions",
+            "photo_batches",
+            "catalog_names",
+            "catalog_lookups",
+        ):
             db.execute("DROP TABLE " + table)
         before = [dict(r) for r in db.execute("SELECT * FROM copies ORDER BY id")]
     migrated = Store(store.root)
     with migrated.connect() as db:
-        assert db.execute("PRAGMA user_version").fetchone()[0] == 8
+        assert db.execute("PRAGMA user_version").fetchone()[0] == 9
         after = [dict(r) for r in db.execute("SELECT * FROM copies ORDER BY id")]
     added = ("deleted_at", "stamp")
     assert [{k: v for k, v in c.items() if k not in added} for c in after] == before
