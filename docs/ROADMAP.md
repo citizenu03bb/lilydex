@@ -227,7 +227,7 @@ vérification : changer de modèle relève de la configuration, pas du code.
   - [x] Relevé TCGdex : 379 cartes le 12 octobre (`pokeprice-manage prices`) ; 20 sans cote TCGdex (Zarbi, Celebi NP, Nidoran ♀ Jungle, Méganium HGSS)
   - [x] Restauration du snapshot initial depuis Drive, vérifiée le 12 octobre
   - [ ] Audit des variantes Foil (27 cartes signalées par le relevé, 84 sur 90 non vérifiées)
-  - [ ] Dépôt distant privé
+  - [x] Dépôt distant privé : GitHub `citizenu03bb/pokeprice`, historique sans données personnelles, bugs suivis en issues
 - [ ] M1 — Valeur en jeu, file « À examiner », totaux prudents
 - [ ] M2 — Vérifications indépendantes branchées, banc en test de non-régression
 - [ ] M3 — Import de classeur dans l'application, série Android réceptionnée
