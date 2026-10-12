@@ -284,7 +284,6 @@ class GeminiVisionProvider:
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
                 response_schema=GeminiOCRPayload,
-                temperature=0.1,
             ),
         )
 
@@ -311,7 +310,7 @@ class GeminiVisionProvider:
                     LAYOUT_PROMPT,
                 ],
                 config=types.GenerateContentConfig(
-                    response_mime_type="application/json", temperature=0.1
+                    response_mime_type="application/json"
                 ),
             )
             parsed = json.loads(resp.text or "{}")

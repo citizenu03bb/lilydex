@@ -443,7 +443,6 @@ def run_gemini():
                 config=types.GenerateContentConfig(
                     response_mime_type="application/json",
                     response_schema=Transcription,
-                    temperature=0.1,
                 ),
             )
             transcription = Transcription.model_validate_json(response.text).model_dump()

@@ -78,7 +78,6 @@ def read_condition(photos):
                 config=types.GenerateContentConfig(
                     response_mime_type="application/json",
                     response_schema=schema,
-                    temperature=0.1,
                     automatic_function_calling=types.AutomaticFunctionCallingConfig(
                         disable=True
                     ),
