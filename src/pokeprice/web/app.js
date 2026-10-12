@@ -138,6 +138,7 @@ async function refreshSummary() {
     box.append(el("strong", value), el("span", label));
     $("stats").append(box);
   }
+  renderValuationTotals($("collection-values"), s.valuation_totals);
   options($("album-filter"), s.albums, $("album-filter").value, true);
   // Keep the selection: during a series this locked field holds its album.
   options(
@@ -173,15 +174,42 @@ function collectionQuery() {
     status: $("status-filter").value,
     variant: $("variant-filter").value,
     sort: $("sort-order").value,
+    review: $("review-filter").value,
+    threshold: reviewThreshold(),
     limit: state.limit,
     offset: state.offset,
   });
 }
+function reviewThreshold() {
+  const value = Number($("review-threshold").value);
+  return Number.isFinite(value) &&
+    value >= 0.01 && value <= 10000 &&
+    Math.abs(value * 100 - Math.round(value * 100)) < 0.000001
+    ? value : 10;
+}
+function renderValuationTotals(target, values) {
+  target.replaceChildren();
+  for (const [key, label, description] of [
+    ["trend", "Tendance", "Tendance TCGdex de la variante enregistrée."],
+    ["prudent", "Valeur prudente", "Minimum entre tendance et moyenne à 30 jours. Les deux prix sont nécessaires ; aucune décote d’état."],
+    ["sale_estimate", "Estimation de vente", "Dernières offres collées pour l’identité, la variante et l’état actuels. Prix demandés, hors frais et port."],
+  ]) {
+    const box = el("div", undefined, "valuation-total");
+    box.title = description;
+    box.append(
+      el("span", label),
+      el("strong", money(values[key + "_cents"])),
+      el("small", `${values[key + "_known"]}/${values.copies} exemplaires · ${values[key + "_missing"]} sans prix`),
+    );
+    target.append(box);
+  }
+}
 function syncLocation(mode = "replace") {
   const query = collectionQuery();
-  for (const key of ["q", "album", "stock", "status", "variant"])
+  for (const key of ["q", "album", "stock", "status", "variant", "review"])
     if (!query.get(key)) query.delete(key);
   if (query.get("sort") === "name") query.delete("sort");
+  if (query.get("threshold") === "10") query.delete("threshold");
   if (state.offset === 0) query.delete("offset");
   if (state.limit === 40) query.delete("limit");
   if (state.view !== "collection") query.set("view", state.view);
@@ -202,6 +230,7 @@ function restoreLocation() {
     ["status", "status-filter"],
     ["variant", "variant-filter"],
     ["sort", "sort-order"],
+    ["review", "review-filter"],
   ]) {
     const select = $(id),
       fallback = key === "sort" ? "name" : "",
@@ -210,6 +239,9 @@ function restoreLocation() {
       ? value
       : fallback;
   }
+  const threshold = query.get("threshold") || "10";
+  $("review-threshold").value = /^\d+(?:\.\d{1,2})?$/.test(threshold) &&
+    Number(threshold) >= 0.01 && Number(threshold) <= 10000 ? threshold : "10";
   const number = (key, fallback, max) =>
     /^\d+$/.test(query.get(key) || "")
       ? Math.min(max, Number(query.get(key)))
@@ -239,7 +271,8 @@ async function loadCards() {
   $("result-count").textContent =
     `${grouped ? data.copies_total : data.total} exemplaire(s) · ${data.editions} édition(s) identifiée(s) · ${data.available} disponible(s)`;
   $("result-value").textContent =
-    `${(grouped ? data.copies_total : data.total) === data.without_price ? "Aucun prix disponible" : "Références connues : " + money(data.reference_total_cents)} · ${data.without_price} sans prix`;
+    `${data.valuation_totals.review_count} à examiner · seuil ${money(Math.round(reviewThreshold() * 100))}`;
+  renderValuationTotals($("result-values"), data.valuation_totals);
   $("cards").replaceChildren();
   $("cards").classList.toggle("edition-list", grouped);
   for (const entry of data.items) {
@@ -339,11 +372,17 @@ async function loadCards() {
         );
       info.append(bottom);
       const price = el("div", undefined, "card-price");
+      if (card.valuation?.needs_review) {
+        const badge = el("span", "À examiner", "badge review");
+        badge.title = card.valuation.reasons.map((r) => r.label).join(" · ");
+        bottom.append(badge);
+        info.append(el("p", badge.title, "review-reasons"));
+      }
       price.append(
         el(
           "span",
-          money(card.reference_cents),
-          card.reference_cents === null ? "unknown-price" : "",
+          `Prudente : ${money(card.valuation?.prudent_cents)}`,
+          card.valuation?.prudent_cents == null ? "unknown-price" : "",
         ),
       );
       price.append(
@@ -355,6 +394,8 @@ async function loadCards() {
         ),
       );
       info.append(price);
+      if (card.valuation?.needs_review)
+        info.append(el("p", `Valeur en jeu : ${money(card.valuation.risk_cents)}${card.valuation.risk_incomplete ? " · incomplète" : ""}`, "risk-value"));
       if (card.photo) {
         const zoom = CardMedia.zoomButton(image.firstElementChild);
         zoom.classList.add("card-image");
@@ -559,6 +600,16 @@ function standardVariantHint(snapshot) {
 function renderPriceSnapshot(parent, card) {
   const section = el("section", undefined, "price-panel");
   section.setAttribute("aria-label", "Relevé de prix");
+  if (card.valuation) {
+    const value = card.valuation;
+    section.append(el("p", `Tendance : ${money(value.trend_cents)} · Prudente : ${money(value.prudent_cents)} · Estimation de vente : ${money(value.sale_estimate_cents)}`));
+    section.append(el("p", `Valeur en jeu : ${money(value.risk_cents)}${value.risk_incomplete ? " · prix incomplets" : ""} · seuil ${money(value.threshold_cents)}. Maximum prudent des variantes et éditions plausibles, sans décote d’état.`, "help"));
+    if (value.needs_review) {
+      const reasons = el("ul", undefined, "price-warnings");
+      for (const reason of value.reasons) reasons.append(el("li", reason.label));
+      section.append(reasons);
+    }
+  }
   const snapshot = card.price_snapshot;
   const euros = (v) => (v === null || v === undefined ? "—" : money(Math.round(v * 100)));
   if (snapshot) {
@@ -641,6 +692,8 @@ function renderSaleEstimate(parent, card) {
   const box = el("div", undefined, "sale-estimate");
   const estimate = card.sale_estimate;
   if (estimate) {
+    if (card.sale_estimate_stale)
+      box.append(el("p", "Estimation ancienne : l’identité, la variante ou l’état a changé. Elle est exclue des totaux ; collez de nouvelles offres pour la refaire.", "price-warnings"));
     box.append(
       el(
         "p",
@@ -960,7 +1013,7 @@ function renderConditionAssessment(parent, card, previous = null) {
   else parent.append(panel);
 }
 async function openDetail(id) {
-  const c = await api("/copies/" + id);
+  const c = await api("/copies/" + id + "?threshold=" + reviewThreshold());
   state.detail = c;
   $("detail-body").replaceChildren();
   const layout = el("div", undefined, "detail-layout"),
@@ -1597,8 +1650,11 @@ for (const id of [
   "status-filter",
   "variant-filter",
   "sort-order",
+  "review-filter",
+  "review-threshold",
 ])
   $(id).addEventListener("change", () => {
+    if (id === "review-threshold") $(id).value = String(reviewThreshold());
     state.offset = 0;
     syncLocation("push");
     loadCards().catch((e) => toast(e.message));

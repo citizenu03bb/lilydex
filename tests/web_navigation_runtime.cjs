@@ -22,6 +22,8 @@ const controls = {
     options: ["name", "binder"].map((value) => ({ value })),
   },
   "display-mode": { value: "copies" },
+  "review-filter": { value: "", options: ["", "needed"].map((value) => ({ value })) },
+  "review-threshold": { value: "10" },
 };
 const state = {
   user: { role: "editor" },
@@ -109,4 +111,21 @@ for (const view of ["collection", "sales", "settings"]) {
   assert.equal(state.view, view);
   context.syncLocation("push");
   assert.equal(new URLSearchParams(location.search).get("sort"), "binder");
+}
+location.search = "?review=needed&threshold=12.50&sort=binder&offset=40";
+context.restoreLocation();
+assert.equal(controls["review-filter"].value, "needed");
+assert.equal(context.collectionQuery().get("threshold"), "12.5");
+context.syncLocation();
+assert.equal(new URLSearchParams(location.search).get("review"), "needed");
+controls["review-threshold"].value = "10";
+context.restoreLocation();
+assert.equal(controls["review-threshold"].value, "12.5");
+for (const value of ["", "-1", "NaN", "Infinity", "0", "10001", "1.001", "1e2"]) {
+  location.search = `?review=invalid&threshold=${value}`;
+  context.restoreLocation();
+  assert.equal(controls["review-filter"].value, "");
+  assert.equal(context.collectionQuery().get("threshold"), "10");
+  context.syncLocation();
+  assert(!location.search.includes("threshold="));
 }

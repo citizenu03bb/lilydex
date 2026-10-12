@@ -545,8 +545,11 @@ def create_app(
         return {"ok": True}
 
     @app.get("/api/summary")
-    def summary(user=Depends(current_user)):
-        return store.summary()
+    def summary(
+        threshold: float = Query(default=10, ge=0.01, le=10000),
+        user=Depends(current_user),
+    ):
+        return store.summary(threshold_cents=cents(threshold))
 
     @app.post("/api/albums", status_code=201)
     def album_create(values: AlbumCreate, user=Depends(editor)):
@@ -565,6 +568,8 @@ def create_app(
         status: str = "",
         variant: Literal["", "standard", "foil", "check", "stamped"] = "",
         sort: Literal["name", "binder"] = "name",
+        review: Literal["", "needed"] = "",
+        threshold: float = Query(default=10, ge=0.01, le=10000),
         limit: int = Query(default=60, ge=1, le=200),
         offset: int = Query(default=0, ge=0),
         user=Depends(current_user),
@@ -572,7 +577,16 @@ def create_app(
         if stock == "deleted" and user["role"] != "admin":
             raise HTTPException(403, "La corbeille est réservée à l’administration.")
         return store.listing(
-            q, album, stock, status, limit, offset, variant=variant, sort=sort
+            q,
+            album,
+            stock,
+            status,
+            limit,
+            offset,
+            variant=variant,
+            sort=sort,
+            review=review,
+            threshold_cents=cents(threshold),
         )
 
     @app.delete("/api/copies/{copy_id}")
@@ -588,7 +602,11 @@ def create_app(
         )
 
     @app.get("/api/copies/{copy_id}")
-    def detail(copy_id: str, user=Depends(current_user)):
+    def detail(
+        copy_id: str,
+        threshold: float = Query(default=10, ge=0.01, le=10000),
+        user=Depends(current_user),
+    ):
         with store.connect() as db:
             card = store.get(db, copy_id)
             source = db.execute(
@@ -620,6 +638,16 @@ def create_app(
             snapshot = pricing.latest(db, copy_id)
             card["price_snapshot"] = snapshot
             card["sale_estimate"] = pricing.latest(db, copy_id, "sale-estimate")
+            card["valuation"] = store.valuation(
+                card,
+                store.valuation_context(db),
+                card["source"]["data"] if card["source"] else None,
+                threshold_cents=cents(threshold),
+            )
+            card["sale_estimate_stale"] = bool(
+                card["sale_estimate"]
+                and card["valuation"]["sale_estimate_cents"] is None
+            )
             card["cardmarket_url"] = cardmarket_url(
                 (snapshot or {}).get("id_product"),
                 card["language"],
@@ -693,6 +721,8 @@ def create_app(
         status: str = "",
         variant: Literal["", "standard", "foil", "check", "stamped"] = "",
         sort: Literal["name", "binder"] = "name",
+        review: Literal["", "needed"] = "",
+        threshold: float = Query(default=10, ge=0.01, le=10000),
         limit: int = Query(default=40, ge=1, le=200),
         offset: int = Query(default=0, ge=0),
         user=Depends(current_user),
@@ -700,7 +730,16 @@ def create_app(
         if stock == "deleted" and user["role"] != "admin":
             raise HTTPException(403, "La corbeille est réservée à l’administration.")
         return store.grouped(
-            q, album, stock, status, limit, offset, variant=variant, sort=sort
+            q,
+            album,
+            stock,
+            status,
+            limit,
+            offset,
+            variant=variant,
+            sort=sort,
+            review=review,
+            threshold_cents=cents(threshold),
         )
 
     from .capture import CaptureService

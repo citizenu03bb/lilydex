@@ -194,6 +194,8 @@ def catalogue_candidates(query, get_json=None):
                     "hp": detail.get("hp"),
                     "image": image + "/low.webp" if image else "",
                     "source": base + "/cards/" + summary["id"],
+                    "pricing": detail.get("pricing"),
+                    "variants": detail.get("variants"),
                 }
             )
         incomplete = len(summaries) > 8

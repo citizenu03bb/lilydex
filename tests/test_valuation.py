@@ -1,0 +1,293 @@
+import copy
+
+import pytest
+from fastapi.testclient import TestClient
+from test_intake import values
+from test_pricing import CARD
+
+from pokeprice.pricing import summarize
+from pokeprice.valuation import amount, assess, totals
+from pokeprice.webapp import create_app
+
+
+def card(**overrides):
+    return {
+        "catalog_id": "swsh7-077",
+        "name": "Gourgeist",
+        "set_name": "Evolving Skies",
+        "number": "077/203",
+        "language": "en",
+        "identification_status": "confirmed",
+        "foil": False,
+        "stamp": "",
+        "condition": "PL",
+        "condition_confirmed": False,
+        "price_date": "2026-10-07",
+        **overrides,
+    }
+
+
+def test_prudent_value_uses_30_days_and_risk_uses_the_other_variant():
+    result = assess(card(), summarize(CARD, False))
+    assert result["trend_cents"] == 625
+    assert result["prudent_cents"] == 625
+    assert result["risk_cents"] == 14015  # min(429.97, 140.15), not avg1=1450.
+    assert {r["code"] for r in result["reasons"]} >= {
+        "value",
+        "variant_premium",
+        "unstable",
+        "condition",
+    }
+    assert (
+        assess(card(), summarize(CARD, False), threshold_cents=14016)["needs_review"]
+        is False
+    )
+    assert (
+        assess(card(), summarize(CARD, False), threshold_cents=14015)["needs_review"]
+        is True
+    )
+
+
+@pytest.mark.parametrize(
+    "value", [None, True, False, "4.20", -1, float("nan"), float("inf")]
+)
+def test_invalid_or_absent_quote_stays_unknown(value):
+    assert amount(value) is None
+
+
+def test_zero_is_a_real_quote_but_a_single_metric_is_not_prudent():
+    snapshot = {
+        "catalog_id": "swsh7-077",
+        "raw": {"cardmarket": {"trend": 0, "avg30": 0}},
+    }
+    result = assess(card(), snapshot)
+    assert result["prudent_cents"] == result["risk_cents"] == 0
+    assert result["needs_review"] is False
+    snapshot["raw"]["cardmarket"] = {"trend": 42, "avg30": None}
+    result = assess(card(), snapshot)
+    assert result["prudent_cents"] is None and result["risk_cents"] is None
+    assert result["needs_review"] and result["risk_incomplete"]
+    summary = totals([{"valuation": result}])
+    assert summary["prudent_cents"] is None and summary["prudent_missing"] == 1
+    assert summary["trend_cents"] == 4200 and summary["trend_known"] == 1
+
+
+def test_uncertain_candidate_prices_never_become_collection_value():
+    candidates = [{"id": CARD["id"], "price_snapshot": summarize(CARD, False)}]
+    result = assess(
+        card(catalog_id=None, identification_status="review", price_date=""),
+        candidates=candidates,
+    )
+    assert result["risk_cents"] == 14015
+    assert result["trend_cents"] is None and result["prudent_cents"] is None
+    assert {r["code"] for r in result["reasons"]} >= {"identity", "value"}
+    candidates.append({"id": "unknown-price"})
+    assert assess(card(identification_status="review"), candidates=candidates)[
+        "risk_incomplete"
+    ]
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"price_date": ""},
+        {"catalog_id": "different"},
+        {"identification_status": "review"},
+    ],
+)
+def test_an_invalidated_price_snapshot_is_not_revived(overrides):
+    result = assess(card(**overrides), summarize(CARD, False))
+    assert result["trend_cents"] is None and result["prudent_cents"] is None
+    assert result["needs_review"]
+
+
+def test_non_eur_quotes_are_not_summed_as_euros():
+    snapshot = summarize(copy.deepcopy(CARD), False)
+    snapshot["raw"]["cardmarket"]["unit"] = "USD"
+    assert assess(card(), snapshot)["prudent_cents"] is None
+
+
+def test_known_reverse_with_no_quotes_cannot_silently_go_to_bulk():
+    snapshot = {
+        "catalog_id": "swsh7-077",
+        "variants": {"normal": True, "reverse": True},
+        "raw": {"cardmarket": {"trend": 1, "avg30": 0.5}},
+    }
+    result = assess(card(), snapshot)
+    assert result["risk_cents"] == 50
+    assert result["needs_review"] and result["risk_incomplete"]
+
+
+def test_a_candidate_snapshot_must_match_its_catalogue_id():
+    result = assess(
+        card(identification_status="review"),
+        candidates=[{"id": "different", "price_snapshot": summarize(CARD, False)}],
+    )
+    assert result["risk_cents"] is None and result["risk_incomplete"]
+
+
+@pytest.mark.parametrize("raw", ["invalid", {"cardmarket": [1, 2]}])
+def test_malformed_catalogue_prices_remain_unknown(raw):
+    result = assess(card(), {"catalog_id": CARD["id"], "raw": raw})
+    assert result["prudent_cents"] is None and result["needs_review"]
+
+
+def test_malformed_variant_metadata_does_not_hide_known_price_risk():
+    snapshot = summarize(CARD, False)
+    snapshot["variants"] = ["invalid"]
+    assert assess(card(), snapshot)["risk_cents"] == 14015
+
+
+@pytest.fixture
+def client(tmp_path):
+    with TestClient(
+        create_app(tmp_path / "inventory", price_fetch=lambda *_: copy.deepcopy(CARD))
+    ) as client:
+        assert (
+            client.post(
+                "/api/setup",
+                json={"username": "pat", "password": "Collection-test-2026!"},
+            ).status_code
+            == 200
+        )
+        client.post("/api/albums", json={"name": "Test"})
+        yield client
+
+
+def create(client, **overrides):
+    response = client.post(
+        "/api/copies",
+        json=values(
+            client,
+            catalog_id=CARD["id"],
+            identification_status="confirmed",
+            condition="PL",
+            **overrides,
+        ),
+    )
+    assert response.status_code == 201, response.text
+    return response.json()
+
+
+def refresh(client, c):
+    response = client.post(
+        f"/api/copies/{c['id']}/price-refresh", json={"expected_version": c["version"]}
+    )
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+def test_api_review_filter_threshold_pagination_and_group_totals(client):
+    refresh(client, create(client))
+    refresh(client, create(client, position=2))
+    for endpoint in ("/api/copies", "/api/editions"):
+        response = client.get(
+            endpoint,
+            params={"review": "needed", "threshold": 10, "sort": "binder", "limit": 1},
+        ).json()
+        assert len(response["items"]) == 1
+        amounts = response["valuation_totals"]
+        assert (
+            amounts["copies"] == 2
+            and amounts["trend_cents"] == amounts["prudent_cents"] == 1250
+        )
+        assert amounts["review_count"] == 2
+        assert (
+            amounts["sale_estimate_cents"] is None
+            and amounts["sale_estimate_missing"] == 2
+        )
+        assert (
+            client.get(endpoint, params={"review": "needed", "threshold": 150}).json()[
+                "total"
+            ]
+            == 0
+        )
+        assert client.get(endpoint, params={"review": "invalid"}).status_code == 422
+        assert client.get(endpoint, params={"threshold": 0}).status_code == 422
+    assert (
+        client.get("/api/summary").json()["valuation_totals"]["prudent_cents"] == 1250
+    )
+
+
+def test_sale_estimate_is_excluded_after_grade_or_identity_changes_even_if_reverted(
+    client,
+):
+    c = refresh(client, create(client))
+    response = client.post(
+        f"/api/copies/{c['id']}/sale-estimate",
+        json={"text": "Gourgeist\nPL\n14,00 €\nPL\n16,00 €"},
+    )
+    assert response.status_code == 201, response.text
+    detail = client.get(f"/api/copies/{c['id']}").json()
+    assert detail["valuation"]["sale_estimate_cents"] == 1500
+    assert (
+        client.get("/api/summary").json()["valuation_totals"]["sale_estimate_cents"]
+        == 1500
+    )
+    for grade in ("NM", "PL"):
+        detail = client.patch(
+            f"/api/copies/{c['id']}",
+            json={
+                "expected_version": detail["version"],
+                "reason": "Vérification",
+                "condition": grade,
+            },
+        ).json()
+    detail = client.get(f"/api/copies/{c['id']}").json()
+    assert detail["sale_estimate"] is not None and detail["sale_estimate_stale"] is True
+    assert detail["valuation"]["sale_estimate_cents"] is None
+    assert (
+        client.get("/api/summary").json()["valuation_totals"]["sale_estimate_cents"]
+        is None
+    )
+    detail = client.patch(
+        f"/api/copies/{c['id']}",
+        json={
+            "expected_version": detail["version"],
+            "reason": "Identité corrigée",
+            "catalog_id": "new-identity",
+        },
+    ).json()
+    assert (
+        client.get(f"/api/copies/{c['id']}").json()["valuation"]["prudent_cents"]
+        is None
+    )
+
+
+def test_candidate_evidence_is_valued_without_confirming_or_fetching_prices(client):
+    c = create(client)
+    store = client.app.state.store
+    c = store.patch(
+        c["id"],
+        {"identification_status": "review", "catalog_id": None},
+        c["version"],
+        "pat",
+        "À identifier",
+    )
+    evidence = {
+        "searches": [
+            {
+                "query": {k: c[k] for k in ("name", "number", "language")},
+                "candidates": [{"id": CARD["id"], "pricing": CARD["pricing"]}],
+            }
+        ]
+    }
+    with store.connect(write=True) as db:
+        store.event(
+            db, c["id"], "pat", "identification", "Éditions candidates", {}, evidence
+        )
+    detail = client.get(f"/api/copies/{c['id']}").json()
+    assert detail["reference_cents"] is None and detail["catalog_id"] is None
+    assert detail["valuation"]["risk_cents"] == 14015
+    assert detail["valuation"]["prudent_cents"] is None
+    c = client.patch(
+        f"/api/copies/{c['id']}",
+        json={
+            "expected_version": c["version"],
+            "name": "Other card",
+            "reason": "Lecture corrigée",
+        },
+    ).json()
+    assert (
+        client.get(f"/api/copies/{c['id']}").json()["valuation"]["risk_cents"] is None
+    )

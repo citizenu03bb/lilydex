@@ -339,6 +339,28 @@ main {
   grid-template-columns: 2fr 1.2fr 1.2fr 1.2fr;
   gap: 15px;
 }
+.valuation-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 22px;
+}
+.valuation-total {
+  padding: 16px;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.valuation-total strong, .valuation-total small {
+  display: block;
+  margin-top: 6px;
+}
+.valuation-total strong { font-size: 1.3rem; }
+.valuation-total small, .review-reasons { color: var(--muted); font-size: 0.78rem; }
+.risk-value { font-size: 0.85rem; font-weight: 600; }
+@media (max-width: 600px) {
+  .valuation-grid { grid-template-columns: 1fr; gap: 8px; }
+}
 .search-label input {
   background: #f9faf6;
 }

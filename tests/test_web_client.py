@@ -105,3 +105,20 @@ def test_bulk_price_refresh_skips_unconfirmed_and_continues_after_failures():
         capture_output=True,
         text=True,
     )
+
+
+def test_valuation_totals_show_coverage_and_keep_missing_prices_unknown():
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("Node.js is required")
+    root = Path(__file__).resolve().parents[1]
+    subprocess.run(
+        [
+            node,
+            str(root / "tests/web_valuation_runtime.cjs"),
+            str(root / "src/pokeprice/web/app.js"),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )

@@ -42,6 +42,7 @@ const context = vm.createContext({
     return { text, value };
   },
   api: async () => ({ copies: 1, editions: 1, available: 1, albums }),
+  renderValuationTotals: () => {},
 });
 vm.runInContext(
   "var state = {};" +

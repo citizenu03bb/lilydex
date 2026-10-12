@@ -94,6 +94,8 @@
             </div>
           </div>
           <div class="stats" id="stats"></div>
+          <p class="help">Valeurs de la collection complète · montants connus, sans décote d’état</p>
+          <section id="collection-values" class="valuation-grid" aria-label="Valeurs de la collection complète"></section>
           <div id="capture-resume" class="workflow-panel" hidden></div>
           <section
             id="lot-builder"
@@ -168,6 +170,16 @@
                 <option value="binder">Classeur (album, page, pochette)</option>
               </select></label
             >
+            <label
+              >Examen<select id="review-filter">
+                <option value="">Toutes les cartes</option>
+                <option value="needed">À examiner</option>
+              </select></label
+            >
+            <label
+              >Seuil de valeur (€)<input id="review-threshold" type="number"
+                min="0.01" max="10000" step="0.01" value="10"
+            /></label>
           </section>
           <div class="result-line">
             <label
@@ -179,6 +191,7 @@
             <p id="result-count" aria-live="polite"></p>
             <span id="result-value"></span>
           </div>
+          <section id="result-values" class="valuation-grid" aria-label="Valeurs des résultats filtrés"></section>
           <button id="batch-photos" hidden>
             Préparer les photos sélectionnées
           </button>

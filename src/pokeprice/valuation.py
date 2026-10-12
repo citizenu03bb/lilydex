@@ -1,0 +1,219 @@
+"""Read-only valuation of dated evidence; hypotheses never become reference prices."""
+
+import math
+from decimal import Decimal, ROUND_HALF_UP
+
+DEFAULT_THRESHOLD_CENTS = 1000
+IDENTITY_FIELDS = ("catalog_id", "name", "number", "set_name", "language")
+ESTIMATE_FIELDS = (*IDENTITY_FIELDS, "foil", "stamp", "condition")
+
+
+def amount(value):
+    """An absent, negative or non-finite quote stays unknown, including booleans."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    if not math.isfinite(value) or value < 0:
+        return None
+    return int((Decimal(str(value)) * 100).quantize(Decimal("1"), ROUND_HALF_UP))
+
+
+def market(snapshot):
+    raw = (snapshot or {}).get("raw") or {}
+    if not isinstance(raw, dict):
+        return {}
+    quotes = raw.get("cardmarket") or {}
+    if not isinstance(quotes, dict):
+        return {}
+    # Legacy snapshots still have the selected metrics, but no other avg30.
+    if not quotes and snapshot:
+        suffix = "-holo" if snapshot.get("variant") == "holo/reverse" else ""
+        quotes = {k + suffix: v for k, v in snapshot.get("metrics", {}).items()}
+    return quotes if quotes.get("unit", "EUR") == "EUR" else {}
+
+
+def variant_values(snapshot):
+    quotes = market(snapshot)
+    variants = (snapshot or {}).get("variants") or {}
+    if not isinstance(variants, dict):
+        variants = {}
+    result = []
+    for foil, suffix in ((False, ""), (True, "-holo")):
+        trend, average = (
+            amount(quotes.get("trend" + suffix)),
+            amount(quotes.get("avg30" + suffix)),
+        )
+        if trend is None and average is None and not (foil and variants.get("reverse")):
+            continue
+        spread = [
+            v
+            for key in ("trend", "avg1", "avg7", "avg30")
+            if (v := amount(quotes.get(key + suffix))) is not None and v > 0
+        ]
+        result.append(
+            {
+                "foil": foil,
+                "trend_cents": trend,
+                "average_30d_cents": average,
+                "prudent_cents": min(trend, average)
+                if trend is not None and average is not None
+                else None,
+                "unstable": bool(spread and max(spread) >= 2 * min(spread)),
+            }
+        )
+    return result
+
+
+def candidates_from_evidence(card, evidence):
+    """Only the last matching search is plausible; older searches are history."""
+    searches = (evidence or {}).get("searches") or []
+    if not searches:
+        return []
+    search = searches[-1]
+    if any(
+        search.get("query", {}).get(k) != card.get(k)
+        for k in ("name", "number", "language")
+    ):
+        return []
+    if search.get("query", {}).get("hp") is not None and search["query"][
+        "hp"
+    ] != card.get("hp"):
+        return []
+    return search.get("candidates") or []
+
+
+def assess(card, snapshot=None, estimate=None, candidates=(), *, threshold_cents=1000):
+    confirmed = card["identification_status"] == "confirmed"
+    # Identity/variant corrections clear price_date. Never revive their old price.
+    if (
+        not confirmed
+        or not card.get("price_date")
+        or ((snapshot or {}).get("catalog_id") != card.get("catalog_id"))
+    ):
+        snapshot = None
+    values = variant_values(snapshot)
+    variants = (snapshot or {}).get("variants") or {}
+    if not isinstance(variants, dict):
+        variants = {}
+    current = next((v for v in values if v["foil"] == bool(card["foil"])), {})
+    hypotheses = [
+        {
+            **v,
+            "catalog_id": card.get("catalog_id"),
+            "source": (snapshot or {}).get("source"),
+            "observed_at": (snapshot or {}).get("updated")
+            or (snapshot or {}).get("observed_at"),
+        }
+        for v in values
+    ]
+    if not confirmed:
+        for candidate in candidates:
+            candidate_snapshot = candidate.get("price_snapshot")
+            if (
+                candidate_snapshot
+                and candidate_snapshot.get("catalog_id") == candidate["id"]
+            ):
+                hypotheses.extend(
+                    {
+                        **v,
+                        "catalog_id": candidate["id"],
+                        "source": candidate.get("source")
+                        or candidate_snapshot.get("source"),
+                        "observed_at": candidate_snapshot.get("updated")
+                        or candidate_snapshot.get("observed_at"),
+                    }
+                    for v in variant_values(candidate_snapshot)
+                )
+    known = [h["prudent_cents"] for h in hypotheses if h["prudent_cents"] is not None]
+    risk = max(known) if known else None
+    missing_candidates = not confirmed and len(
+        {h["catalog_id"] for h in hypotheses}
+    ) < len(candidates)
+    incomplete = (
+        any(h["prudent_cents"] is None for h in hypotheses) or missing_candidates
+    )
+    material_unknown = (
+        any(
+            h["prudent_cents"] is None
+            and (
+                (h["trend_cents"] is None and h["average_30d_cents"] is None)
+                or max(h["trend_cents"] or 0, h["average_30d_cents"] or 0)
+                >= threshold_cents
+            )
+            for h in hypotheses
+        )
+        or missing_candidates
+    )
+    reasons = []
+    if not confirmed:
+        reasons.append({"code": "identity", "label": "Identité incertaine"})
+    if (
+        risk is None
+        or material_unknown
+        or (confirmed and current.get("prudent_cents") is None)
+    ):
+        reasons.append({"code": "missing_price", "label": "Prix prudent incomplet"})
+    if risk is not None and risk >= threshold_cents:
+        reasons.append({"code": "value", "label": "Carte de valeur"})
+        alternative = next((v for v in values if v["foil"] != bool(card["foil"])), {})
+        other = alternative.get("prudent_cents")
+        own = current.get("prudent_cents")
+        if (
+            other is not None
+            and other >= threshold_cents
+            and (own is None or other >= 3 * max(own, 1))
+        ):
+            reasons.append(
+                {"code": "variant_premium", "label": "Variante à forte prime"}
+            )
+        if snapshot and (variants.get("reverse") or card["foil"]):
+            reasons.append(
+                {"code": "variant", "label": "Reverse ou variante spéciale à examiner"}
+            )
+        if any(
+            h["unstable"] and (h["prudent_cents"] or 0) >= threshold_cents
+            for h in hypotheses
+        ):
+            reasons.append({"code": "unstable", "label": "Marché instable"})
+        if not card.get("condition_confirmed"):
+            reasons.append({"code": "condition", "label": "État non validé"})
+    sale = None
+    if (
+        confirmed
+        and estimate
+        and all(
+            estimate.get(k) == card.get(k) for k in ("language", "stamp", "condition")
+        )
+        and bool(estimate.get("foil")) == bool(card["foil"])
+    ):
+        if all(
+            k not in estimate or estimate[k] == card.get(k) for k in IDENTITY_FIELDS
+        ):
+            sale = amount(estimate.get("estimate_eur"))
+    return {
+        "trend_cents": current.get("trend_cents"),
+        "prudent_cents": current.get("prudent_cents"),
+        "sale_estimate_cents": sale,
+        "risk_cents": risk,
+        "risk_incomplete": risk is None or incomplete,
+        "threshold_cents": threshold_cents,
+        "needs_review": bool(reasons),
+        "reasons": reasons,
+        "hypotheses": hypotheses,
+    }
+
+
+def totals(cards):
+    """Known subtotals always carry coverage; an entirely missing total is null."""
+    result = {}
+    for key in ("trend", "prudent", "sale_estimate"):
+        known = [
+            c["valuation"][key + "_cents"]
+            for c in cards
+            if c["valuation"][key + "_cents"] is not None
+        ]
+        result[key + "_cents"] = sum(known) if known else None
+        result[key + "_known"] = len(known)
+        result[key + "_missing"] = len(cards) - len(known)
+    result["copies"] = len(cards)
+    result["review_count"] = sum(c["valuation"]["needs_review"] for c in cards)
+    return result

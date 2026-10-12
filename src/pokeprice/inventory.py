@@ -11,6 +11,7 @@ from decimal import Decimal
 from pathlib import Path
 
 from .library import normalized
+from .valuation import ESTIMATE_FIELDS, assess, candidates_from_evidence, totals
 
 
 def now():
@@ -280,14 +281,15 @@ class Store:
         offset=0,
         variant="",
         sort="name",
+        review="",
+        threshold_cents=1000,
     ):
         with self.connect() as db:
+            valuation_context = self.valuation_context(db)
             # Latest TCGdex snapshot of each copy, for alert badges and filters.
             snapshots = {
-                r[0]: json.loads(r[1])
-                for r in db.execute(
-                    "SELECT copy_id,after_json FROM events WHERE id IN (SELECT max(id) FROM events WHERE kind='price-snapshot' GROUP BY copy_id)"
-                )
+                copy_id: value[1]
+                for copy_id, value in valuation_context["price-snapshot"].items()
             }
             names = {
                 r[0]: r[1]
@@ -318,6 +320,9 @@ class Store:
             # finds an English "Charizard" and the other way round.
             row["catalog_names"] = names.get(row["catalog_id"], "")
             original = json.loads(row.pop("original_aliases") or "{}")
+            row["valuation"] = self.valuation(
+                row, valuation_context, original, threshold_cents=threshold_cents
+            )
             row["search_aliases"] = " ".join(
                 str(original.get(k) or "")
                 for k in ("OCR_Name", "Identified_Name", "Nom_Verifie")
@@ -350,6 +355,7 @@ class Store:
                 and (not album or row["album_id"] == album)
                 and (not stock or stock == "deleted" or row["stock_state"] == stock)
                 and (not status or row["identification_status"] == status)
+                and (not review or row["valuation"]["needs_review"])
                 and (
                     not variant
                     or (variant == "standard" and not row["foil"])
@@ -375,9 +381,115 @@ class Store:
             ),
             "reference_total_cents": sum(r["reference_cents"] or 0 for r in selected),
             "without_price": sum(r["reference_cents"] is None for r in selected),
+            "valuation_totals": totals(selected),
         }
 
-    def summary(self):
+    @staticmethod
+    def valuation_context(db):
+        latest = list(
+            db.execute(
+                "SELECT id,copy_id,kind,after_json FROM events WHERE id IN "
+                "(SELECT max(id) FROM events WHERE kind IN ('price-snapshot','sale-estimate','identification') GROUP BY copy_id,kind)"
+            )
+        )
+        context = {
+            kind: {} for kind in ("price-snapshot", "sale-estimate", "identification")
+        }
+        for event in latest:
+            context[event["kind"]][event["copy_id"]] = (
+                event["id"],
+                json.loads(event["after_json"]),
+            )
+        invalidated = {}
+        for event in db.execute(
+            "SELECT id,copy_id,before_json,after_json FROM events WHERE kind='correction' ORDER BY id"
+        ):
+            before, after = (
+                json.loads(event["before_json"]),
+                json.loads(event["after_json"]),
+            )
+            if any(before.get(k) != after.get(k) for k in ESTIMATE_FIELDS):
+                invalidated[event["copy_id"]] = event["id"]
+        for copy_id, (event_id, _) in list(context["sale-estimate"].items()):
+            if invalidated.get(copy_id, 0) > event_id:
+                del context["sale-estimate"][copy_id]
+        context["catalog"] = {}
+        for card in db.execute("SELECT id,catalog_id,language,price_date FROM copies"):
+            event_id, snapshot = context["price-snapshot"].get(card["id"], (0, {}))
+            if (
+                card["price_date"]
+                and card["catalog_id"]
+                and snapshot.get("catalog_id") == card["catalog_id"]
+            ):
+                key = (card["catalog_id"], card["language"])
+                if event_id > context["catalog"].get(key, (0, {}))[0]:
+                    context["catalog"][key] = (event_id, snapshot)
+        return context
+
+    @staticmethod
+    def valuation(card, context, source=None, *, threshold_cents=1000):
+        source = source or {}
+        evidence = context["identification"].get(card["id"], (0, {}))[1]
+        if "searches" not in evidence:
+            evidence = source
+        candidates = candidates_from_evidence(card, evidence)
+        if (
+            not evidence.get("searches")
+            and source.get("TCGdex_ID")
+            and all(
+                source.get(old) == card.get(current)
+                for old, current in (
+                    ("Identified_Name", "name"),
+                    ("Numero_Officiel", "number"),
+                    ("Langue_Carte", "language"),
+                )
+            )
+        ):
+            candidates = [
+                {
+                    "id": source["TCGdex_ID"],
+                    "source": "Rapport d’origine",
+                    "price_snapshot": {
+                        "catalog_id": source["TCGdex_ID"],
+                        "updated": source.get("Date_Prix"),
+                        "raw": {
+                            "cardmarket": {
+                                "trend": source.get("Tendance_EUR"),
+                                "trend-holo": source.get("Tendance_Holo_EUR"),
+                            }
+                        },
+                    },
+                }
+            ]
+        priced = {}
+        for candidate in candidates:
+            candidate = dict(candidate)
+            pricing = candidate.get("pricing")
+            if isinstance(pricing, dict) and isinstance(
+                pricing.get("cardmarket"), dict
+            ):
+                candidate["price_snapshot"] = {
+                    "catalog_id": candidate["id"],
+                    "raw": pricing,
+                    "variants": candidate.get("variants"),
+                    "updated": pricing["cardmarket"].get("updated"),
+                }
+            cached = context["catalog"].get((candidate["id"], card["language"]))
+            if cached and (
+                cached[1].get("updated") or cached[1].get("observed_at") or ""
+            ) >= (candidate.get("price_snapshot", {}).get("updated") or ""):
+                candidate["price_snapshot"] = cached[1]
+            priced[candidate["id"]] = candidate
+        return assess(
+            card,
+            context["price-snapshot"].get(card["id"], (0, None))[1],
+            context["sale-estimate"].get(card["id"], (0, None))[1],
+            list(priced.values()),
+            threshold_cents=threshold_cents,
+        )
+
+    def summary(self, threshold_cents=1000):
+        data = self.listing(limit=1000000, threshold_cents=threshold_cents)
         with self.connect() as db:
             albums = [
                 dict(r)
@@ -385,12 +497,7 @@ class Store:
                     "SELECT a.id,a.name,COUNT(c.id) copies FROM albums a LEFT JOIN copies c ON c.album_id=a.id AND c.deleted_at='' GROUP BY a.id ORDER BY a.name"
                 )
             ]
-            rows = [
-                dict(r)
-                for r in db.execute(
-                    "SELECT identification_status,reference_cents,edition_id,stock_state FROM copies WHERE deleted_at=''"
-                )
-            ]
+            rows = data["items"]
             return {
                 "copies": len(rows),
                 "editions": len(
@@ -413,6 +520,7 @@ class Store:
                 ),
                 "available": sum(r["stock_state"] == "available" for r in rows),
                 "albums": albums,
+                "valuation_totals": data["valuation_totals"],
             }
 
     def set_deleted(self, copy_id, deleted, version, actor, reason):
@@ -677,9 +785,19 @@ class Store:
         offset=0,
         variant="",
         sort="name",
+        review="",
+        threshold_cents=1000,
     ):
         data = self.listing(
-            query, album, stock, status, 1000000, variant=variant, sort=sort
+            query,
+            album,
+            stock,
+            status,
+            1000000,
+            variant=variant,
+            sort=sort,
+            review=review,
+            threshold_cents=threshold_cents,
         )
         groups = {}
         for card in data["items"]:

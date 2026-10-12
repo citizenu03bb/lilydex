@@ -144,6 +144,21 @@ Il s'agit de prix demandés, pas de ventes ; les frais et le port restent à
 déduire. L'estimation est enregistrée dans l'historique avec les offres, sans
 modifier la carte ni son prix de référence ; la plus récente s'affiche.
 
+### Repérer les cartes à examiner
+
+Le filtre **Examen → À examiner** retient les cartes de valeur, les identités
+incertaines et les prix prudents incomplets. Le **seuil de valeur** vaut 10 €
+par défaut et reste dans l’adresse avec le filtre et le tri Classeur. Les badges
+et les fiches précisent les motifs d’examen et la valeur en jeu : maximum du
+prix prudent des variantes et éditions plausibles.
+
+La collection et les résultats filtrés affichent **Tendance**, **Valeur
+prudente** (minimum entre tendance et moyenne à 30 jours, sans décote d’état)
+et **Estimation de vente**, avec le nombre d’exemplaires couverts. Les prix
+absents restent inconnus. Une estimation ancienne après correction d’identité,
+de variante ou d’état est conservée dans la fiche et exclue des totaux.
+Voir [les règles et la réception de M1](VALUATION.md).
+
 ### Vérifier les variantes
 
 Le filtre **Variante** de la barre de recherche propose Standard, Foil et

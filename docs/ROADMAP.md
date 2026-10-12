@@ -111,6 +111,12 @@ dans le filtre « Foil à vérifier » sans décision ; une restauration Drive a
 valeur (Pikachu 78/110, Dracaufeu 4/130, Lucario LV.X, Tortank obscur…) sont dans
 la file, et la file contient au plus 15 % des cartes.
 
+**Livré le 12 octobre 2026 :** calcul local depuis les relevés conservés,
+candidats séparés des références, filtre/badges/motifs, seuil dans l’URL et
+trois totaux avec couverture. Audit en lecture seule : **57/405 (14,07 %)**
+au seuil de 10 €, les quatre éditions attendues dans la file.
+Règles et commande de réception : [VALUATION.md](VALUATION.md).
+
 ### M2 — Vérifications automatiques indépendantes (3 à 5 jours)
 
 - Lecture Gemini enrichie : illustration holo, fond holographique, tampon (déjà
@@ -228,7 +234,7 @@ vérification : changer de modèle relève de la configuration, pas du code.
   - [x] Restauration du snapshot initial depuis Drive, vérifiée le 12 octobre
   - [ ] Audit des variantes Foil (27 cartes signalées par le relevé, 84 sur 90 non vérifiées)
   - [x] Dépôt distant privé : GitHub `citizenu03bb/pokeprice`, historique sans données personnelles, bugs suivis en issues
-- [ ] M1 — Valeur en jeu, file « À examiner », totaux prudents
+- [x] M1 — Valeur en jeu, file « À examiner », totaux prudents
 - [ ] M2 — Vérifications indépendantes branchées, banc en test de non-régression
 - [ ] M3 — Import de classeur dans l'application, série Android réceptionnée
 - [ ] M4 — Estimation par état, lots du vrac, calibration par les ventes

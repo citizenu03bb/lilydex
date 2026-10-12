@@ -341,6 +341,10 @@ class PriceService:
             )
         result.update(
             observed_at=now(),
+            catalog_id=card["catalog_id"],
+            name=card["name"],
+            number=card["number"],
+            set_name=card["set_name"],
             language=card["language"],
             foil=bool(card["foil"]),
             stamp=card["stamp"],
