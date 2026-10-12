@@ -282,6 +282,9 @@ class Store:
             snapshot = snapshots.get(row["id"]) or {}
             row["price_alerts"] = len(snapshot.get("warnings") or [])
             row["variant_check"] = bool(row["foil"] and snapshot.get("variant_check"))
+            # Edition names in French and English (TCGdex): "Dracaufeu" finds
+            # an English "Charizard" and the other way round.
+            row["catalog_names"] = " ".join((snapshot.get("names") or {}).values())
             original = json.loads(row.pop("original_aliases") or "{}")
             row["search_aliases"] = " ".join(
                 str(original.get(k) or "")
@@ -300,6 +303,7 @@ class Store:
                         "stamp",
                         "source_key",
                         "search_aliases",
+                        "catalog_names",
                     )
                 )
             )
