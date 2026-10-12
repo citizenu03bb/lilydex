@@ -272,6 +272,58 @@ class PriceService:
         ).fetchone()
         return json.loads(row[0]) if row else None
 
+    def refresh_many(
+        self, actor, *, album="", only_missing=False, limit=None, workers=4
+    ):
+        """Snapshot every confirmed identity; one failure never stops the others."""
+        from concurrent.futures import ThreadPoolExecutor
+
+        with self.store.connect() as db:
+            rows = db.execute(
+                "SELECT id,version,reference_cents FROM copies WHERE deleted_at='' AND identification_status='confirmed' AND catalog_id IS NOT NULL AND (?='' OR album_id=?) ORDER BY id",
+                (album, album),
+            ).fetchall()
+            done = {
+                r[0]
+                for r in db.execute(
+                    "SELECT DISTINCT copy_id FROM events WHERE kind='price-snapshot'"
+                )
+            }
+        rows = [r for r in rows if not (only_missing and r["id"] in done)][:limit]
+
+        def one(row):
+            try:
+                card = self.refresh(row["id"], row["version"], actor)
+                return row, card, None
+            except Exception as error:  # noqa: BLE001 - Reported per card.
+                return row, None, str(error)
+
+        summary = {
+            "selected": len(rows),
+            "refreshed": 0,
+            "changed": 0,
+            "warned": 0,
+            "variant_check": 0,
+            "failed": [],
+            "reference_before_cents": 0,
+            "reference_after_cents": 0,
+        }
+        with ThreadPoolExecutor(workers) as pool:
+            for row, card, error in pool.map(one, rows):
+                summary["reference_before_cents"] += row["reference_cents"] or 0
+                if error:
+                    summary["failed"].append({"id": row["id"], "error": error})
+                    summary["reference_after_cents"] += row["reference_cents"] or 0
+                    continue
+                summary["refreshed"] += 1
+                summary["changed"] += card["reference_cents"] != row["reference_cents"]
+                summary["warned"] += bool(card["price_snapshot"]["warnings"])
+                summary["variant_check"] += bool(
+                    card["price_snapshot"].get("variant_check")
+                )
+                summary["reference_after_cents"] += card["reference_cents"] or 0
+        return summary
+
     def estimate(self, copy_id, text, actor):
         """Record a sale estimate from pasted offers; the card itself is unchanged."""
         with self.store.connect() as db:

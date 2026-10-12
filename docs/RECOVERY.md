@@ -19,8 +19,14 @@ Le transfert est limité à 100 Mio par fichier : les sept parties de
 `collection.tar.gz` reproduisent localement le SHA-256 initial après concaténation.
 Les manifestes, sommes de contrôle et `RESTAURER.txt` sont également copiés.
 Tailles, dossier parent et permissions ont été relus pour les fichiers Drive :
-seul le propriétaire a accès. Le contrôle complet après téléchargement depuis
-Drive reste à faire ; le connecteur a renvoyé HTTP 403 lors de cet essai.
+seul le propriétaire a accès.
+
+**Restauration depuis Drive vérifiée le 12 octobre 2026** avec le remote rclone
+`gdrive` : les sept parties téléchargées passent `SHA256SUMS.parts`, l'archive
+reconstituée passe `SHA256SUMS`, `freeze_collection.py verify` et `restore`
+contrôlent 368 fichiers, et la régénération sans réseau donne les mêmes résultats
+que le tableau ci-dessous (401 vignettes identiques). Preuve :
+`outputs/evaluation/step0/recovery-check/validation-drive-2026-10-12.json`.
 Les sommes de contrôle détectent une altération ; elles ne chiffrent pas les photos.
 Voir [DAILY-BACKUPS.md](DAILY-BACKUPS.md) pour la collection gérée et l'application récente.
 

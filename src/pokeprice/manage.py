@@ -71,6 +71,19 @@ def main():
         "restore", help="Restaurer dans un nouveau dossier --data"
     )
     restore.add_argument("archive")
+    prices = actions.add_parser(
+        "prices", help="Relevé TCGdex des identités confirmées (prix et variantes)"
+    )
+    prices.add_argument("--album", default="", help="Limiter à un album (identifiant)")
+    prices.add_argument(
+        "--only-missing",
+        action="store_true",
+        help="Seulement les cartes jamais relevées",
+    )
+    prices.add_argument("--limit", type=int, default=None)
+    prices.add_argument(
+        "--actor", default="manage", help="Auteur inscrit dans l'historique"
+    )
     exporter = actions.add_parser("export", help="Export de la collection gérée")
     exporter.add_argument("format", choices=["csv", "json", "html"])
     exporter.add_argument("output")
@@ -156,6 +169,15 @@ def main():
                     args.size,
                     expected_sha256=args.expected_sha256,
                 )
+        elif args.action == "prices":
+            from .pricing import PriceService
+
+            result = PriceService(store).refresh_many(
+                args.actor,
+                album=args.album,
+                only_missing=args.only_missing,
+                limit=args.limit,
+            )
         elif args.action == "export":
             from .inventory_backup import export_csv, export_data, export_html
 

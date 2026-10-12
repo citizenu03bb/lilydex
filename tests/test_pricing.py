@@ -343,3 +343,20 @@ def test_sale_estimate_is_recorded_without_touching_the_card(client):
         f"/api/copies/{card['id']}/sale-estimate", json={"text": "rien à lire"}
     )
     assert empty.status_code == 422
+
+
+def test_refresh_many_snapshots_confirmed_cards_and_reports_failures(client):
+    from pokeprice.pricing import PriceService
+
+    store = client.app.state.store
+    good = confirmed(client, position=9)
+    bad = confirmed(client, position=10, catalog_id="offline-1")
+    client.post("/api/copies", json=values(client, position=11))  # Not confirmed.
+    service = PriceService(store, client.app.state.pricing.fetch)
+    summary = service.refresh_many("manage")
+    assert summary["selected"] == 2 and summary["refreshed"] == 1
+    assert summary["failed"][0]["id"] == bad["id"]
+    assert summary["reference_after_cents"] == 625
+    again = service.refresh_many("manage", only_missing=True)
+    assert again["selected"] == 1  # Only the failed one was never snapshotted.
+    assert client.get(f"/api/copies/{good['id']}").json()["price_snapshot"]

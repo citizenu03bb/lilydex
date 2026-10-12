@@ -80,6 +80,10 @@ de correction. Une carte à vérifier ou sans édition n'est pas relevée.
 d'au moins ×3 avec l'autre variante, des moyennes divergentes ou un prix bas
 très inférieur à la tendance. En dessous, la carte relève du vrac vendu en lot.
 
+En ligne de commande, `pokeprice-manage prices` relève toutes les identités
+confirmées (`--album <id>` pour un album, `--only-missing` pour les cartes jamais
+relevées, `--actor` pour l'auteur inscrit) et affiche un bilan.
+
 Pour plusieurs cartes, les cocher puis cliquer **Relever les prix (n)** dans la
 barre de sélection ; le nombre compte les cartes confirmées avec édition, les
 autres sont ignorées. Chaque carte est relevée séparément : un échec (TCGdex,

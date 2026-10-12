@@ -158,8 +158,10 @@ premières ventes.
 
 ### M5 — Exploitation (1 à 3 jours selon l'hébergement)
 
-- Décision d'hébergement, puis mise en place (voir décisions) ; tunnel nommé à
-  adresse stable si l'application reste à la maison.
+- Sans budget : l'application reste sur le portable ; accès distant privé et
+  gratuit par réseau maillé (Tailscale, offre personnelle) à la place du tunnel
+  rapide instable, sans exposition publique ni nom de domaine. Serveur ou tunnel
+  nommé avec domaine réexaminés quand un budget existe.
 - Script de contrôle unique : tests Python et JavaScript, lint des fichiers modifiés.
 - Tests de bout en bout (Playwright sur copie temporaire de la base) : saisie,
   relevé, estimation, série, lot.
@@ -171,15 +173,29 @@ de façon stable là où le propriétaire l'utilise.
 **Effort total du MVP : 10 à 19 jours de travail effectif.** Le critère S5 se
 mesure à la fin de M3, la sortie du MVP sur le premier des six classeurs après M4.
 
-## Décisions à prendre par le propriétaire
+## Décisions
 
-| Décision | Options | Recommandation |
+| Sujet | Décision du 12 octobre 2026 | Conséquence |
 |---|---|---|
-| Seuil de valeur en jeu | 5 € (≈ 22 % des cartes à examiner) ou 10 € (≈ 10 %) | 10 €, à revoir après le premier classeur |
-| Saisie des classeurs | pages dans l'application (M3) ou ligne de commande puis import | pages dans l'application |
-| Second avis pour les cartes chères | Gemini seul, ou Sonnet via l'API (≈ 0,5 à 1 centime par carte, compte API à créer) | commencer par Gemini seul, ajouter Sonnet si les contrefaçons ou les éditions posent problème |
-| Hébergement | rester à la maison avec tunnel nommé, ou petit serveur (budget et domaine à fixer) | à la maison tant que l'usage est personnel |
-| Double prise de vue | oui, avec un second éclairage sur le support, ou examen à l'œil | à l'œil pour le MVP, double prise si les reverses chères sont nombreuses |
+| Seuil de valeur en jeu | **10 €** (≈ 10 % des cartes à examiner) | à revoir après le premier classeur |
+| Saisie des classeurs | **les deux : application et ligne de commande** | M3 construit un service d'import commun (découpe, lecture, vérifications, file d'examen) ; la CLI et l'application n'en sont que deux façades, testées sur le même cœur |
+| Second avis (Sonnet) | **à discuter** | options ci-dessous ; Gemini seul en attendant |
+| Hébergement | **aucun budget avant le mois prochain** : faire avec l'existant | portable à la maison ; accès distant gratuit et privé à mettre en place (M5) ; serveur ou domaine réexaminés le mois prochain |
+| Reverses | **éclairage adapté** : une surface foil montre une bande arc-en-ciel (photo de Drackhaus 64/132) | M3 : consigne d'éclairage rasant à la prise ; essai à deux images avec la lumière déplacée ; un comptage naïf des couleurs saturées ne suffit pas (zones de texte imprimées en couleur) |
+
+**Second avis — options à trancher :**
+
+- **Gemini seul** : gratuit au-delà du coût actuel ; au banc, meilleur sur le holo
+  (21/21) mais 2 fausses alertes de contrefaçon sur 30.
+- **Agent Sonnet sur l'abonnement Claude** : sans budget supplémentaire, lancé à la
+  demande sur la file « À examiner » d'un classeur (≈ 74 000 jetons pour 31 cartes
+  au banc). Au banc : aucune fausse alerte de contrefaçon, lecture comparable à
+  Gemini, moins bon sur le holo (7/9).
+- **Sonnet par l'API** : ≈ 0,5 à 1 centime par carte vérifiée, automatisable, mais
+  compte Console et crédits à créer, donc après le mois prochain.
+
+Dans tous les cas, le second avis passe par une interface commune de
+vérification : changer de modèle relève de la configuration, pas du code.
 
 ## Risques
 
@@ -208,6 +224,10 @@ mesure à la fin de M3, la sortie du MVP sur le premier des six classeurs après
 ## Suivi
 
 - [ ] M0 — Relevés complets, audit des variantes clos, restauration Drive, dépôt distant
+  - [x] Relevé TCGdex : 379 cartes le 12 octobre (`pokeprice-manage prices`) ; 20 sans cote TCGdex (Zarbi, Celebi NP, Nidoran ♀ Jungle, Méganium HGSS)
+  - [x] Restauration du snapshot initial depuis Drive, vérifiée le 12 octobre
+  - [ ] Audit des variantes Foil (27 cartes signalées par le relevé, 84 sur 90 non vérifiées)
+  - [ ] Dépôt distant privé
 - [ ] M1 — Valeur en jeu, file « À examiner », totaux prudents
 - [ ] M2 — Vérifications indépendantes branchées, banc en test de non-régression
 - [ ] M3 — Import de classeur dans l'application, série Android réceptionnée
