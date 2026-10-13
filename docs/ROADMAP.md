@@ -1,6 +1,7 @@
 # Roadmap MVP — pokeprice
 
-Version du 12 octobre 2026. Remplace la roadmap du 5 octobre, conservée comme
+Version du 12 octobre 2026, mise à jour le 13 octobre après la revue de M1.1
+(prochaines étapes ci-dessous). Remplace la roadmap du 5 octobre, conservée comme
 journal dans [archive/ROADMAP-2026-10-05.md](archive/ROADMAP-2026-10-05.md)
 (évaluation des logiciels existants, choix FastAPI/SQLite, étapes 0 à 6,
 chantier « pilotage par agents »).
@@ -78,6 +79,49 @@ schéma 8. Tout le code est commité sur `master` (174 tests).
    les ventes réelles ; le vrac n'a pas de valorisation de lot.
 6. **Exploitation** : pas de dépôt distant, pas d'hébergement décidé, tunnel
    rapide instable (cinq coupures en deux heures le 6 octobre).
+
+## Prochaines étapes — ordre proposé le 13 octobre, à valider
+
+| # | Étape | Pourquoi maintenant | Effort |
+|---|---|---|---|
+| 1 | ~~**Clore M0 : audit des variantes Foil** par observation de la finition et du tampon, en commençant par les 27 cartes signalées~~ **Fait le 13 octobre** | Peu coûteux ; M2 et le référentiel comparent leurs propositions à ces observations, elles doivent être justes | ½ jour |
+| 2 | **M1.1 : premier cas de bout en bout**, EX Fantômes Holon en français : règle FR avec tampon, preuve FR, capture Cardmarket, saisie d’un relevé lié à la correspondance | Valide le système de preuve sur le problème qui l’a motivé et mesure le coût réel d’une preuve | dans les 2 jours de M1.1 |
+| 3 | **M2 : vérifications indépendantes** | Ne dépend plus de M1.1 ; nécessaire avant de saisir les six classeurs | 3 à 5 jours |
+| 4 | **M3 : saisie des six classeurs**, avec extension du référentiel par impact (éditions chères et nombreuses d’abord) | Les observations sont prêtes ; chaque classeur alimente la file « Référentiel à compléter » | 3 à 5 jours |
+| 5 | **M4 puis M5** | Inchangés | 3 à 6 jours |
+
+L’étape 2 demande un petit ajout de code : la saisie, depuis la fiche, d’un
+relevé Cardmarket lié à sa correspondance (tendance et moyenne à 30 jours
+ensemble). Aujourd’hui, ce chemin n’existe que dans les tests.
+
+**Étape 1 close le 13 octobre (soir).** Les 8 Foil signalées par une alerte du
+relevé ont été confirmées une à une ; 14 autres Foil l’ont été dans la journée ;
+les 35 dernières, toutes dans l’album Platinium, ont été confirmées en groupe
+sur observation du propriétaire (reverse, absence de tampon constatée). Les
+filtres « Foil à vérifier (alerte du relevé) » et « Foil non vérifiées à l’œil »
+sont vides : chaque Foil de la collection a une finition observée et une
+confirmation datée et attribuée. Dix d’entre elles (extensions Noir & Blanc)
+sont des reverses que TCGdex ne répertorie pas : la confirmation physique prime.
+
+**Décision sur la borne de 15 % : plus d’actualité.** Le 13 octobre au soir, la
+file contient **31 cartes sur 403 (7,7 %)** au seuil de 10 € (même nombre à
+5 €). Toutes attendent un prix : relevé à refaire après un changement de
+catégorie, saisie manuelle faute de cotation TCGdex, ou version holo spéciale à
+préciser (Lougaroc sm3-76, Steelix hgss2-24). Aucun examen physique n’y reste.
+Avant le nettoyage du jour, elle en comptait 34 à 10 € et 57 à 5 €.
+
+**Recoupement avec M1.1.** Le 13 octobre, deux mécanismes simples ont été
+ajoutés hors du référentiel (commit `f5580be`, règles dans
+[VALUATION.md](VALUATION.md)) :
+- un prix saisi à la main tient lieu de prix prudent quand TCGdex n’a pas de
+  cotation Cardmarket (Celebi NP, Zarbi, Méganium HGSS, Nidoran ♀ Jungle) ;
+- un verdict humain (vérifié, incorrect) sur le produit Cardmarket que TCGdex
+  associe à une carte, avec détection des produits partagés entre numéros
+  voisins (Darkrai GE 3/4, Airmure BCR 95/96, Solochi DRX 93/94).
+
+Ces deux mécanismes jouent en version simple le rôle de la correspondance
+marchande et des relevés manuels liés de M1.1 : il faudra les reprendre dans le
+référentiel le moment venu.
 
 ## Jalons
 
@@ -198,7 +242,7 @@ erreur coûte le plus. Procédure pour chaque pièce :
    liste les cotations liées devenues incompatibles ; `--apply` inscrit leur
    suspension au journal.
 
-**Ordre :** vocabulaire d’observation avant les scans (dont tampon non examiné /
+**Ordre initial** (remplacé par les [prochaines étapes](#prochaines-étapes--ordre-proposé-le-13-octobre-à-valider)) : vocabulaire d’observation avant les scans (dont tampon non examiné /
 absence constatée / présence constatée), moteur pur, règles sourcées sur les
 huit familles, puis audit et activation après sauvegarde/restauration. Les
 anciennes cotations restent visibles avec leur provenance ; une incompatibilité
@@ -209,6 +253,7 @@ leurs preuves d’impression et de marché sur leur périmètre, le paquet fonct
 hors ligne et une restauration reproduit une décision historique. La consultation
 ne certifie pas les faits métier et ne constitue pas une livraison de M1.1.
 
+Explication fonctionnelle : [PRINT_REFERENCE_GUIDE.md](PRINT_REFERENCE_GUIDE.md).
 Comportement, migration et réception :
 [PRINT_REFERENCE_CONTRACT.md](PRINT_REFERENCE_CONTRACT.md).
 Contexte et enrichissement : [PRINT_REFERENCE_PROPOSAL.md](PRINT_REFERENCE_PROPOSAL.md).
@@ -326,10 +371,10 @@ vérification : changer de modèle relève de la configuration, pas du code.
 
 ## Suivi
 
-- [ ] M0 — Relevés complets, audit des variantes clos, restauration Drive, dépôt distant
-  - [x] Relevé TCGdex : 379 cartes le 12 octobre (`pokeprice-manage prices`) ; 20 sans cote TCGdex (Zarbi, Celebi NP, Nidoran ♀ Jungle, Méganium HGSS)
+- [x] M0 — Relevés complets, audit des variantes clos, restauration Drive, dépôt distant
+  - [x] Relevé TCGdex : 379 cartes le 12 octobre (`pokeprice-manage prices`) ; 20 sans cote TCGdex (Zarbi, Celebi NP, Nidoran ♀ Jungle, Méganium HGSS) ; depuis le 13 octobre, un prix saisi à la main tient lieu de valeur prudente pour ces cartes
   - [x] Restauration du snapshot initial depuis Drive, vérifiée le 12 octobre
-  - [ ] Audit des variantes Foil (27 cartes signalées par le relevé, 84 sur 90 non vérifiées)
+  - [x] Audit des variantes Foil, clos le 13 octobre : alertes du relevé toutes décidées, toutes les Foil confirmées à l’œil (filtre « Foil non vérifiées à l’œil » vide)
   - [x] Dépôt distant privé : GitHub `citizenu03bb/pokeprice`, historique sans données personnelles, bugs suivis en issues
 - [x] M1 — Valeur en jeu, file « À examiner », totaux prudents
 - [ ] M1.1 — Référentiel des impressions : socle livré en audit ; preuves FR et de marché limitées à 2 jours ; ne bloque plus M2
