@@ -5,7 +5,7 @@ import json
 import re
 import sqlite3
 import uuid
-from contextlib import contextmanager, nullcontext
+from contextlib import closing, contextmanager, nullcontext
 from datetime import datetime, timezone
 from decimal import Decimal
 from pathlib import Path
@@ -19,6 +19,8 @@ from .valuation import (
     totals,
 )
 from .variant_pricing import category, compatible_quote, pricing_issue
+
+SCHEMA_VERSION = 14
 
 
 def now():
@@ -99,8 +101,10 @@ class Store:
             version = db.execute("PRAGMA user_version").fetchone()[0]
             if version == 0:
                 db.executescript(SCHEMA)
-            elif version not in range(1, 15):
+            elif version not in range(1, SCHEMA_VERSION + 1):
                 raise ValueError("Version de base incompatible.")
+            elif version < SCHEMA_VERSION:
+                self.snapshot_before_migration(db, version)
             if db.execute("PRAGMA user_version").fetchone()[0] == 1:
                 db.executescript(
                     "BEGIN IMMEDIATE; ALTER TABLE users ADD COLUMN disabled INTEGER NOT NULL DEFAULT 0; PRAGMA user_version=2; COMMIT;"
@@ -247,6 +251,29 @@ class Store:
         from .reference_service import ReferenceService
 
         self.reference = ReferenceService(self)
+
+    def snapshot_before_migration(self, db, version):
+        """Keep the database as it was; a failed copy stops the migration."""
+        folder = self.root.parent / "backups"
+        folder.mkdir(parents=True, exist_ok=True)
+        stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+        target = folder / f"before-schema{SCHEMA_VERSION}-from{version}-{stamp}.sqlite3"
+        temporary = target.with_name(target.name + ".tmp")
+        try:
+            with closing(sqlite3.connect(temporary)) as copy:
+                db.backup(copy)
+                # A single self-contained file, readable without -wal/-shm files.
+                copy.execute("PRAGMA journal_mode=DELETE")
+                if (
+                    copy.execute("PRAGMA integrity_check").fetchone()[0] != "ok"
+                    or copy.execute("PRAGMA user_version").fetchone()[0] != version
+                ):
+                    raise ValueError("Copie avant migration incohérente.")
+            temporary.chmod(0o600)
+            temporary.replace(target)
+        finally:
+            temporary.unlink(missing_ok=True)
+        return target
 
     @staticmethod
     def attach_decision_engines(db):

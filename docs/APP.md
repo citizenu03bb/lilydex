@@ -570,6 +570,14 @@ L'[instantané initial](RECOVERY.md) conserve en plus les pages originales des
 albums et le pipeline. Les nouvelles captures de sources excluent désormais
 `data/` et `outputs/development/` ; sauvegarder la gestion avec la commande dédiée.
 
+**Avant chaque migration de schéma**, l'application copie d'abord la base telle
+quelle dans `data/backups/before-schemaN-fromM-<date>.sqlite3` (fichier SQLite
+unique, privé, intégrité vérifiée). Si la copie échoue, la base n'est pas
+migrée et l'application ne démarre pas. Les photos ne sont pas copiées : aucune
+migration ne les modifie. Toute commande qui ouvre la base (y compris `backup`)
+déclenche la migration ; c'est cette copie qui conserve l'état précédent. Ces
+fichiers ne sont pas purgés avec les sauvegardes quotidiennes.
+
 ## Validation de cette version
 
 Les 401 exemplaires ont été importés, puis réimportés : **0 ajout, 401 reconnus**.

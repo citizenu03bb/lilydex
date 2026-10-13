@@ -2,6 +2,7 @@
 
 import copy
 import json
+import sqlite3
 
 import pytest
 from fastapi.testclient import TestClient
@@ -9,6 +10,7 @@ from test_condition_assessment import picture
 from test_intake import values
 from test_pricing import CARD
 
+from pokeprice.inventory import Store
 from pokeprice.inventory_backup import export_data
 from pokeprice.verification import propose_variant, reading_conflicts
 from pokeprice.webapp import create_app
@@ -317,3 +319,37 @@ def test_reader_role_cannot_request_a_reading(app):
         json={"expected_version": card["version"]},
     )
     assert response.status_code == 403 and not reader.sent
+
+
+def schema13(store):
+    with sqlite3.connect(store.database) as db:
+        db.execute("DROP TABLE verifications")
+        db.execute("PRAGMA user_version=13")
+
+
+def test_migration_keeps_a_copy_of_the_previous_schema(app):
+    client, _ = app
+    card = photographed(client)
+    store = client.app.state.store
+    schema13(store)
+    Store(store.root)
+    backups = list((store.root.parent / "backups").glob("before-schema14-from13-*"))
+    assert len(backups) == 1 and backups[0].stat().st_mode & 0o777 == 0o600
+    with sqlite3.connect(backups[0]) as db:
+        assert db.execute("PRAGMA user_version").fetchone()[0] == 13
+        assert db.execute("SELECT version FROM copies").fetchone()[0] == card["version"]
+    with store.connect() as db:
+        assert db.execute("PRAGMA user_version").fetchone()[0] == 14
+    Store(store.root)  # Already current: no further copy.
+    assert len(list((store.root.parent / "backups").glob("before-*"))) == 1
+
+
+def test_failed_copy_leaves_the_database_unmigrated(app):
+    client, _ = app
+    store = client.app.state.store
+    schema13(store)
+    (store.root.parent / "backups").write_text("not a folder")
+    with pytest.raises(OSError):
+        Store(store.root)
+    with sqlite3.connect(store.database) as db:
+        assert db.execute("PRAGMA user_version").fetchone()[0] == 13

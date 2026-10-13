@@ -12,7 +12,7 @@ import zipfile
 from contextlib import closing
 from pathlib import Path
 
-from .inventory import Store, now
+from .inventory import SCHEMA_VERSION, Store, now
 
 
 def backup(store, destination):
@@ -115,7 +115,7 @@ def restore_backup(archive_path, destination):
                 ):
                     raise ValueError("Base restaurée incohérente.")
                 version = db.execute("PRAGMA user_version").fetchone()[0]
-                if version not in range(1, 15):
+                if version not in range(1, SCHEMA_VERSION + 1):
                     raise ValueError("Version de base incompatible.")
                 photos = [
                     row[0]
