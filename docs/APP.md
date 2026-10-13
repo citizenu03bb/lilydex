@@ -82,7 +82,8 @@ décisions, les cotations liées et leurs événements, et les documents sources
 rangés une fois par SHA-256 dans `reference_documents/` (PDF, JSON ou HTML).
 Une pièce manquante ou altérée est signalée ; aucun téléchargement automatique
 ne rétablit son statut de preuve.
-Voir [l’état détaillé et les limites de M1.1](PRINT_REFERENCE_IMPLEMENTATION.md).
+Voir [le guide fonctionnel du référentiel](PRINT_REFERENCE_GUIDE.md) et
+[l’état détaillé et les limites de M1.1](PRINT_REFERENCE_IMPLEMENTATION.md).
 
 ## Ce qui fonctionne
 
