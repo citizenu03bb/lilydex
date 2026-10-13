@@ -117,6 +117,32 @@ trois totaux avec couverture. Audit en lecture seule : **57/405 (14,07 %)**
 au seuil de 10 €, les quatre éditions attendues dans la file.
 Règles et commande de réception : [VALUATION.md](VALUATION.md).
 
+**Complément du 12 octobre :** finition observée distincte de la catégorie de
+prix ; confirmation physique datée et attribuée ; contrôles qui se clôturent
+sans être rouverts par un relevé catalogue. Les cartes de valeur vérifiées
+gardent leur badge et quittent la file. Une divergence catalogue reste une tâche
+même sous le seuil tant que la variante n’est pas confirmée. Sur la sauvegarde
+de contrôle avant migration : **73/405 (18,02 %)** dans la file ; la borne de
+15 % de la réception initiale n’est donc plus satisfaite sur cet état. Aucun
+contrôle n’est masqué pour respecter artificiellement cette borne. L’audit des
+éditions connues accepte désormais « dans la file ou examen physique terminé ».
+
+Le contrôle de cohérence couvre aussi les parallèles EX Fantômes Holon :
+« illustration holo + tampon » n°18–98 ne peut pas être confirmée en Standard.
+Une ancienne combinaison incohérente revient dans la file, et son prix est
+exclu des totaux, sans modifier les observations physiques enregistrées.
+
+### Proposition M1.1 — Référentiel embarqué des impressions
+
+Proposition du 13 octobre 2026, non implémentée : livrer avant M2 un moteur
+commun et des règles d’édition sourcées, versionnées et utilisables hors ligne.
+La couverture doit accompagner les **six albums restant à scanner** ; la
+collection actuelle fournit le premier banc de régression. Une édition nouvelle
+doit pouvoir être ajoutée par des données, sans correctif du moteur, et son
+absence du référentiel ne doit pas bloquer la saisie physique.
+Périmètre, enrichissement, migration et réception :
+[PRINT_REFERENCE_PROPOSAL.md](PRINT_REFERENCE_PROPOSAL.md).
+
 ### M2 — Vérifications automatiques indépendantes (3 à 5 jours)
 
 - Lecture Gemini enrichie : illustration holo, fond holographique, tampon (déjà
@@ -240,3 +266,12 @@ vérification : changer de modèle relève de la configuration, pas du code.
 - [ ] M4 — Estimation par état, lots du vrac, calibration par les ventes
 - [ ] M5 — Hébergement, tests de bout en bout, restauration après déploiement
 - [ ] Sortie MVP — critères S1 à S6 tenus sur un nouveau classeur
+
+### Cohérence des catégories après M1 — 12 octobre 2026
+
+La fiche calcule désormais Standard/Foil depuis les observations physiques et
+les métadonnées de l’édition ; le serveur impose la même décision. Les cas
+ambigus restent à examiner avec un produit documenté. Les corrections
+anciennes sans finition reviennent dans la file sans être déclarées erronées.
+L’audit `scripts/audit_variant_categories.py` est en lecture seule ; aucune
+confirmation humaine ni observation physique n’est inventée ou réécrite.
