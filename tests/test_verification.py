@@ -370,7 +370,7 @@ def auto(tmp_path):
         create_app(
             tmp_path / "inventory",
             variant_reader=reader,
-            auto_variant_checks=True,
+            auto_checks=True,
             price_fetch=lambda catalog_id, *_: {**CARD, "id": catalog_id},
         )
     ) as client:

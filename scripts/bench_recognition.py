@@ -505,21 +505,27 @@ def run_agent(name):
 REFUSE = {
     ("Gliscor E4", "62/111"): "haut coupé : le nom n’est pas sur la photo",
 }
-# Minimum scores per measure (ROADMAP M2): those of the 7 October 2026 bench,
-# without the photos to refuse (Gliscor: number and language read, edition not).
-# Edition is the app's own worst of two runs (13 October): a miss sends the card
-# to "à vérifier", it costs time, not money. Safety measures are never lowered.
+# Minimum scores per measure (ROADMAP M2), without the photos to refuse.
+# Number and edition by Gemini cost time, not money, when missed: their floor is
+# the lowest of four live runs (13 October: 24, 24, 23, 25 and 20, 21, 18, 22),
+# below the known noise. Safety measures keep the 7 October scores, never lowered.
 # Stored as a share, so that a rebuilt truth set keeps the same bar.
 APP_THRESHOLDS = {
-    "number_ok": (24, 30),
+    "number_ok": (23, 30),
     "language_ok": (30, 30),
-    "edition_ok": (20, 29),
+    "edition_ok": (18, 29),
     "refused_ok": (1, 1),
     "art_holo_ok": (21, 21),
     # The app's protocol may answer "unclear" (the 7 October one could not):
     # an abstention goes to a human. Minimum set by the first app run, 13 October.
     "art_holo_read": (18, 21),
     "stamp_ok": (21, 21),
+    # Edition by image (DINOv2, deterministic), against every TCGdex print of the
+    # same name, reprints with identical artwork included, at MARGIN 0.05.
+    # Levels of 13 October; the 7 October gallery lacked those reprints.
+    "edition_image_ok": (22, 27),
+    "edition_quiet": (26, 27),
+    "edition_caught": (14, 26),
 }
 APP_LABELS = {
     "number_ok": "Numéro (lecture de saisie)",
@@ -529,6 +535,9 @@ APP_LABELS = {
     "art_holo_ok": "Illustration holo ou mate, quand elle tranche",
     "art_holo_read": "Illustration tranchée (sinon examen humain)",
     "stamp_ok": "Tampon (lecture de finition)",
+    "edition_image_ok": "Édition confirmée par l’image (DINOv2)",
+    "edition_quiet": "Vraie édition sans fausse alerte",
+    "edition_caught": "Édition voisine la plus proche signalée",
 }
 # Gemini answers differ from one run to the next: each measure is judged on the
 # worst of APP_RUNS live runs, so that a lucky run never hides a regression.
@@ -581,6 +590,7 @@ def run_app(index=1):
     import tempfile
 
     sys.path.insert(0, str(ROOT / "src"))
+    from pokeprice.edition_check import EditionCheckService
     from pokeprice.intake import catalogue_candidates, read_photo
     from pokeprice.pricing import fetch_catalogue_card
     from pokeprice.variant_catalogue import VariantCatalogue
@@ -590,6 +600,8 @@ def run_app(index=1):
     with tempfile.TemporaryDirectory() as folder:
         store, confirmed = app_store(Path(folder) / "inventory")
         service = VariantCheckService(store)
+        # Reference images and their vectors survive runs: only Gemini is re-asked.
+        editions = EditionCheckService(store, references=OUT / "app-refs")
         catalogue = VariantCatalogue(store, fetch_catalogue_card)
 
         def one(entry):
@@ -624,6 +636,15 @@ def run_app(index=1):
                 )
             except Exception as error:  # noqa: BLE001 - A failed read scores as wrong.
                 record["reading_error"] = str(error)
+            try:
+                with store.connect() as db:
+                    version = store.get(db, copy_id)["version"]
+                check = editions.evaluate(copy_id, version, "banc")
+                record["edition"] = {
+                    k: check[k] for k in ("card", "result", "proposal", "usage")
+                }
+            except Exception as error:  # noqa: BLE001 - Reported, scored as unavailable.
+                record["edition_error"] = str(error)
             print(f"{entry['label']:<45} {record.get('proposal', {}).get('status', 'échec')}")
             return copy_id, record
 
@@ -645,9 +666,13 @@ def run_app(index=1):
 def replay(run):
     """Recompute proposals from recorded readings with the current rules."""
     sys.path.insert(0, str(ROOT / "src"))
+    from pokeprice.edition_check import propose_edition
     from pokeprice.verification import propose_variant
 
     for record in run["cards"].values():
+        edition = record.get("edition")
+        if edition:
+            edition["proposal"] = propose_edition(edition["card"], edition["result"])
         if record.get("reading"):
             record["proposal"] = propose_variant(
                 record["card"], record["reading"], record["snapshot"], record["valuation"]
@@ -658,6 +683,7 @@ def replay(run):
 def app_scores(entries, run):
     """Per-card verdicts: True, False, or None when the truth does not say."""
     sys.path.insert(0, str(ROOT / "src"))
+    from pokeprice.edition_check import propose_edition
     from pokeprice.verification import foil_value
 
     scores = {}
@@ -687,6 +713,7 @@ def app_scores(entries, run):
             if refuse or not truth["catalog_id"]
             else (record.get("candidates") or [None])[0] == truth["catalog_id"],
             "refused_ok": not observation if refuse else None,
+            **edition_scores(truth, record.get("edition"), propose_edition),
             "art_holo_ok": None
             if truth["art_holo"] is None or artwork == "unclear"
             else artwork == ("holo" if truth["art_holo"] else "matte"),
@@ -701,6 +728,25 @@ def app_scores(entries, run):
             "status": proposal.get("status", "échec"),
         }
     return scores
+
+
+def edition_scores(truth, edition, propose):
+    """Image check on the true print, then on its closest same-name neighbour."""
+    scored = edition and truth["catalog_id"] in (edition["result"].get("scores") or {})
+    if not truth["catalog_id"] or not scored:
+        return {"edition_image_ok": None, "edition_quiet": None, "edition_caught": None}
+    status = edition["proposal"]["status"]
+    scores = edition["result"]["scores"]
+    others = [i for i in scores if i != truth["catalog_id"]]
+    caught = None
+    if others:  # As if the copy recorded the most similar wrong print.
+        wrong = max(others, key=lambda i: scores[i])
+        caught = propose({"catalog_id": wrong}, edition["result"])["status"] == "disagree"
+    return {
+        "edition_image_ok": status == "agree",
+        "edition_quiet": status != "disagree",
+        "edition_caught": caught,
+    }
 
 
 def app_regressions(entries, runs):

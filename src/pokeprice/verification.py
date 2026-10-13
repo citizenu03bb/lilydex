@@ -304,38 +304,21 @@ def latest_conflicts(db):
     return result
 
 
-CARD_FIELDS = (
-    "catalog_id",
-    "language",
-    "identification_status",
-    "finish",
-    "foil",
-    "stamp",
-    "stamp_state",
-    "variant_confirmed",
-)
-TRIGGERS = {
-    "manual": "Lecture de la finition demandée explicitement ; fiche inchangée",
-    "intake": "Lecture de la finition lancée automatiquement à la saisie ; fiche inchangée",
-}
+class CheckService:
+    """What every independent check shares: one reading per copy at a time,
+    the front photo it read, a stored proposal, never a change to the copy."""
 
+    kind = ""
+    card_fields = ("catalog_id", "language", "identification_status")
+    labels = {}
 
-class VariantCheckService:
-    def __init__(self, store, reader=None):
-        self.store, self.reader = store, reader or GeminiFinishReader()
+    def __init__(self, store, reader):
+        self.store, self.reader = store, reader
         self.lock = threading.Lock()
         self.running = set()
 
-    def evaluate(
-        self,
-        copy_id,
-        version,
-        actor,
-        *,
-        snapshot=None,
-        valuation=None,
-        trigger="manual",
-    ):
+    def run(self, copy_id, version, actor, read, trigger="manual"):
+        """``read(card, photo_bytes)`` returns (result, proposal, raw, usage)."""
         with self.lock:
             if copy_id in self.running:
                 raise Conflict("Une lecture est déjà en cours pour cet exemplaire.")
@@ -350,16 +333,9 @@ class VariantCheckService:
                 if not card["photo"]:
                     raise ValueError("Ajoutez une photo du recto avant la lecture.")
                 photos = {"front": photo_snapshot(self.store, db, card)["front"]}
-            observed, raw, usage = self.reader(
-                (self.store.photos / photos["front"]["image"]).read_bytes()
+            result, proposal, raw, usage = read(
+                card, (self.store.photos / photos["front"]["image"]).read_bytes()
             )
-            try:
-                result = FinishReading.model_validate(observed).model_dump()
-            except ValueError:
-                raise RuntimeError(
-                    "Réponse de lecture invalide. La fiche reste inchangée."
-                ) from None
-            proposal = propose_variant(card, result, snapshot, valuation)
             check_id = str(uuid.uuid4())
             with self.store.connect(write=True) as db:
                 current = self.store.get(db, copy_id)
@@ -374,7 +350,7 @@ class VariantCheckService:
                     (
                         check_id,
                         copy_id,
-                        "variant",
+                        self.kind,
                         self.reader.source,
                         self.reader.model,
                         self.reader.protocol,
@@ -382,7 +358,7 @@ class VariantCheckService:
                         now(),
                         json.dumps(photos, ensure_ascii=False),
                         json.dumps(
-                            {k: card[k] for k in CARD_FIELDS}, ensure_ascii=False
+                            {k: card[k] for k in self.card_fields}, ensure_ascii=False
                         ),
                         json.dumps(result, ensure_ascii=False),
                         json.dumps(proposal, ensure_ascii=False),
@@ -395,12 +371,12 @@ class VariantCheckService:
                     copy_id,
                     actor,
                     "verification",
-                    TRIGGERS[trigger],
+                    self.labels[trigger],
                     {},
                     {
                         "verification_id": check_id,
                         "trigger": trigger,
-                        "kind": "variant",
+                        "kind": self.kind,
                         "source": self.reader.source,
                         "model": self.reader.model,
                         "protocol": self.reader.protocol,
@@ -411,17 +387,22 @@ class VariantCheckService:
                     },
                 )
                 return next(
-                    row for row in check_rows(db, current) if row["id"] == check_id
+                    row
+                    for row in check_rows(db, current, self.kind)
+                    if row["id"] == check_id
                 )
         finally:
             with self.lock:
                 self.running.discard(copy_id)
 
-    def evaluate_new_copy(self, copy_id, actor, inputs):
+    def ready(self, card):
+        return True
+
+    def evaluate_new_copy(self, copy_id, actor, evaluate):
         """Read a freshly saved copy once; a failure is logged, never raised.
 
-        ``inputs(copy_id)`` returns the catalogue snapshot and valuation. A copy
-        without a front photo, or already read on its current photo, is skipped.
+        ``evaluate(card)`` runs the check. A copy without a front photo, not
+        ready for this check, or already read on its current photo is skipped.
         """
         try:
             with self.store.connect() as db:
@@ -429,18 +410,11 @@ class VariantCheckService:
                 if (
                     not card["photo"]
                     or card["deleted_at"]
-                    or any(not row["stale"] for row in check_rows(db, card))
+                    or not self.ready(card)
+                    or any(not row["stale"] for row in check_rows(db, card, self.kind))
                 ):
                     return None
-            snapshot, valuation = inputs(copy_id)
-            return self.evaluate(
-                copy_id,
-                card["version"],
-                actor,
-                snapshot=snapshot,
-                valuation=valuation,
-                trigger="intake",
-            )
+            return evaluate(card)
         except Exception as error:  # noqa: BLE001 - A background reading never breaks intake.
             # Service errors are French messages written here; anything else
             # (network, provider) is reduced to its type to keep secrets out.
@@ -452,11 +426,71 @@ class VariantCheckService:
                     copy_id,
                     actor,
                     "verification-failed",
-                    "Lecture automatique de la finition impossible ; demandez-la depuis la fiche",
+                    self.labels["failed"],
                     {},
-                    {"kind": "variant", "trigger": "intake", "error": message},
+                    {"kind": self.kind, "trigger": "intake", "error": message},
                 )
             return None
+
+
+class VariantCheckService(CheckService):
+    kind = "variant"
+    card_fields = (
+        "catalog_id",
+        "language",
+        "identification_status",
+        "finish",
+        "foil",
+        "stamp",
+        "stamp_state",
+        "variant_confirmed",
+    )
+    labels = {
+        "manual": "Lecture de la finition demandée explicitement ; fiche inchangée",
+        "intake": "Lecture de la finition lancée automatiquement à la saisie ; fiche inchangée",
+        "failed": "Lecture automatique de la finition impossible ; demandez-la depuis la fiche",
+    }
+
+    def __init__(self, store, reader=None):
+        super().__init__(store, reader or GeminiFinishReader())
+
+    def evaluate(
+        self,
+        copy_id,
+        version,
+        actor,
+        *,
+        snapshot=None,
+        valuation=None,
+        trigger="manual",
+    ):
+        def read(card, photo):
+            observed, raw, usage = self.reader(photo)
+            try:
+                result = FinishReading.model_validate(observed).model_dump()
+            except ValueError:
+                raise RuntimeError(
+                    "Réponse de lecture invalide. La fiche reste inchangée."
+                ) from None
+            return result, propose_variant(card, result, snapshot, valuation), raw, usage
+
+        return self.run(copy_id, version, actor, read, trigger)
+
+    def evaluate_new_copy(self, copy_id, actor, inputs):
+        """``inputs(copy_id)`` returns the catalogue snapshot and valuation."""
+
+        def evaluate(card):
+            snapshot, valuation = inputs(copy_id)
+            return self.evaluate(
+                copy_id,
+                card["version"],
+                actor,
+                snapshot=snapshot,
+                valuation=valuation,
+                trigger="intake",
+            )
+
+        return super().evaluate_new_copy(copy_id, actor, evaluate)
 
     def confirm(self, copy_id, check_id, version, values, actor, reason, proposal):
         """Apply the human's decision; the reading is only its evidence."""

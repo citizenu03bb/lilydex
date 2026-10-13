@@ -175,7 +175,7 @@ def main():
                     secure_cookie=args.secure_cookie,
                     allowed_hosts=args.allowed_host
                     or ["127.0.0.1", "localhost", args.host],
-                    auto_variant_checks=not args.no_auto_checks,
+                    auto_checks=not args.no_auto_checks,
                 ),
                 host=args.host,
                 port=args.port,

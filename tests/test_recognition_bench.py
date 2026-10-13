@@ -50,11 +50,10 @@ def test_a_perfect_run_passes():
 
 
 def test_a_measure_below_its_share_is_a_regression():
-    # 24/30 (80 %) for the number: 7 good readings out of 9 (78 %) is just below.
-    entries = [entry(str(i)) for i in range(9)]
-    cards = {str(i): record() for i in range(7)}
-    for i in ("7", "8"):
-        cards[i] = record(observation={"number": "13/64", "language": "fr"})
+    # 23/30 (77 %) for the number: 3 good readings out of 4 (75 %) is just below.
+    entries = [entry(str(i)) for i in range(4)]
+    cards = {str(i): record() for i in range(3)}
+    cards["3"] = record(observation={"number": "13/64", "language": "fr"})
     failures, _ = bench.app_regressions(entries, [{"cards": cards}])
     assert len(failures) == 1 and "Numéro" in failures[0]
 

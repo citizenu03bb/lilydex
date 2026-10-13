@@ -45,6 +45,7 @@ from .pricing import (
 )
 from .variant_catalogue import VariantCatalogue
 from .variant_pricing import category
+from .edition_check import EditionCheckService, propose_edition
 from .verification import (
     VariantCheckService,
     check_inputs,
@@ -102,6 +103,10 @@ class VariantDecision(ConditionRequest):
     stamp_state: Literal["unobserved", "absent", "present"]
     stamp: str = Field(default="", max_length=120)
     variant_confirmed: bool
+    reason: str = Field(min_length=1, max_length=1000)
+
+
+class EditionKeep(ConditionRequest):
     reason: str = Field(min_length=1, max_length=1000)
 
 
@@ -358,7 +363,10 @@ def create_app(
     intake_lookup=None,
     condition_reader=None,
     variant_reader=None,
-    auto_variant_checks=False,
+    edition_reader=None,
+    edition_get_json=None,
+    edition_fetch=None,
+    auto_checks=False,
     price_fetch=None,
     variant_fetch=None,
     market_fetch=None,
@@ -387,6 +395,10 @@ def create_app(
     app.state.conditions = conditions
     variant_checks = VariantCheckService(store, variant_reader)
     app.state.variant_checks = variant_checks
+    edition_checks = EditionCheckService(
+        store, edition_reader, edition_get_json, edition_fetch
+    )
+    app.state.edition_checks = edition_checks
     # An injected price source (tests) never reaches TCGdex for neighbours.
     market = MarketProducts(
         store, market_fetch or (fetch_tcgdex if price_fetch is None else None)
@@ -745,6 +757,18 @@ def create_app(
                     latest["result"],
                     store.category_snapshot(db, card),
                     card["valuation"],
+                )
+            card["edition_checks"] = check_rows(db, card, "edition")
+            card["edition_check_available"] = edition_checks.available
+            if card["edition_checks"] and not card["edition_checks"][0]["stale"]:
+                latest = card["edition_checks"][0]
+                latest["current_proposal"] = propose_edition(card, latest["result"])
+                latest["kept"] = any(
+                    json.loads(e[0]).get("verification_id") == latest["id"]
+                    for e in db.execute(
+                        "SELECT after_json FROM events WHERE copy_id=? AND kind='edition-validation'",
+                        (copy_id,),
+                    )
                 )
             card["sale_estimate_stale"] = bool(
                 card["sale_estimate"]
@@ -1157,14 +1181,18 @@ def create_app(
         return intake.search(token, user["id"], values.model_dump())
 
     def read_after_intake(tasks, card, user):
-        """A new photographed copy gets its finish read once, after the response."""
-        if auto_variant_checks and card.get("photo"):
+        """A new photographed copy is checked once, after the response."""
+        if auto_checks and card.get("photo"):
             tasks.add_task(
                 variant_checks.evaluate_new_copy,
                 card["id"],
                 user["username"],
                 variant_inputs,
             )
+            if edition_checks.available:
+                tasks.add_task(
+                    edition_checks.evaluate_new_copy, card["id"], user["username"]
+                )
 
     @app.post("/api/intake/{token}/save", status_code=201)
     def intake_save(
@@ -1334,6 +1362,28 @@ def create_app(
             user["username"],
             values.reason,
             proposal,
+        )
+
+    @app.post("/api/copies/{copy_id}/edition-checks", status_code=201)
+    def check_edition(copy_id: str, values: ConditionRequest, user=Depends(editor)):
+        if not edition_checks.available:
+            raise HTTPException(
+                503,
+                "Contrôle d’édition indisponible : installez l’option vision (uv sync --extra vision).",
+            )
+        try:
+            return edition_checks.evaluate(
+                copy_id, values.expected_version, user["username"]
+            )
+        except RuntimeError as error:
+            raise HTTPException(502, str(error)) from None
+
+    @app.post("/api/copies/{copy_id}/edition-checks/{check_id}/keep")
+    def keep_edition(
+        copy_id: str, check_id: str, values: EditionKeep, user=Depends(editor)
+    ):
+        return edition_checks.keep(
+            copy_id, check_id, values.expected_version, user["username"], values.reason
         )
 
     @app.get("/api/sales")

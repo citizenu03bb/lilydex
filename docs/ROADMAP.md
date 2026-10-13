@@ -340,6 +340,31 @@ pas. Amélioration possible hors seuil : garder ☆, δ et les lettres de Zarbi 
 le nom, et lire l’étoile noire des promos comme symbole d’extension (Celebi
 ☆ ex14-100 est une autre carte que la promo np-29).
 
+**Tranche 3, 13 octobre : édition contrôlée par l’image.** DINOv2 (option
+`vision`, GPU ou processeur, environ une seconde par carte une fois les
+images en cache) classe la photo parmi toutes les impressions TCGdex de même
+nom ; un écart d’au moins 0,05 en faveur d’une autre impression envoie la
+carte dans « À examiner », jusqu’à ce qu’une personne garde ou corrige
+l’édition. Lancé automatiquement à la saisie d’une édition confirmée.
+
+| Mesure (banc rejoué sur l’application) | Résultat |
+|---|---|
+| Vraie édition confirmée par l’image | 22/27 |
+| Vraie édition sans fausse alerte | 26/27 (Solochi) |
+| Impression voisine la plus ressemblante signalée | 14/26 |
+
+Le 7 octobre donnait 24/27 sur une galerie sans les réimpressions à
+l’illustration identique (Recherche d’énergie, PokéNav) : l’image seule ne
+les départage pas, le contrôle reste alors indécis. Marge 0,05 choisie le
+13 octobre (0,02 : 3 fausses alertes, 17 voisines ; 0,08 : aucune, 11).
+Quatre passages Gemini ont montré un bruit plus large que prévu (numéro 23
+à 25/30, édition 18 à 22/29) : les seuils de numéro et d’édition Gemini sont
+au plus bas observé, les seuils de sécurité restent ceux du 7 octobre.
+Piste : DINOv2 retrouve presque toutes les éditions que Gemini manque faute
+d’avoir lu le numéro (Fossile Crâne, Zarbi K, Octillery…) ; il pourrait
+proposer l’édition à la saisie quand le catalogue ne trouve rien.
+Reste pour M2 : Tesseract (langue), double source pour la contrefaçon.
+
 ### M3 — Saisie à l'échelle des six classeurs (3 à 5 jours)
 
 - **Import d'un classeur depuis l'application** : photos de pages téléversées,
@@ -456,6 +481,7 @@ vérification : changer de modèle relève de la configuration, pas du code.
 - [ ] M2 — Vérifications indépendantes branchées, banc en test de non-régression
   - [x] Tranche 1 : lecture de la finition, proposition Standard/Foil, validation humaine, désaccords dans la file (13 octobre)
   - [x] Tranche 2 : lecture automatique à la saisie et banc rejoué sur l’application, pire de deux passages, seuils de sécurité inchangés (13 octobre)
+  - [x] Tranche 3 : contrôle de l’édition par l’image (DINOv2), désaccords dans la file, seuils Gemini au plancher de quatre passages (13 octobre)
 - [ ] M3 — Import de classeur dans l'application, série Android réceptionnée
 - [ ] M4 — Estimation par état, lots du vrac, calibration par les ventes
 - [ ] M5 — Hébergement, tests de bout en bout, restauration après déploiement

@@ -28,6 +28,11 @@ web = [
 cloud = [
     "google-genai>=1.0.0",
 ]
+# Independent edition check (M2): DINOv2 image similarity, local, CPU or GPU.
+vision = [
+    "torch>=2.4",
+    "transformers>=4.45",
+]
 
 [project.scripts]
 pokeprice = "pokeprice.cli:main"

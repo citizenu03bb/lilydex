@@ -637,9 +637,11 @@ class Store:
             if invalidated.get(copy_id, 0) > event_id:
                 del context["sale-estimate"][copy_id]
         context["market-product"] = Store.market_verdicts(db)
+        from .edition_check import edition_conflicts
         from .verification import latest_conflicts
 
         context["variant-readings"] = latest_conflicts(db)
+        context["edition-readings"] = edition_conflicts(db)
         context["catalog"] = {}
         context["variant-catalogue"] = {}
         for row in db.execute(
@@ -681,6 +683,15 @@ class Store:
                 {
                     "code": "variant_reading",
                     "label": "Lecture de la finition en désaccord : " + conflicts[0],
+                }
+            ]
+            result["needs_review"] = True
+        conflicts = context.get("edition-readings", {}).get(card["id"])
+        if conflicts:
+            result["reasons"] = result["reasons"] + [
+                {
+                    "code": "edition_reading",
+                    "label": "Contrôle de l’édition en désaccord : " + conflicts[0],
                 }
             ]
             result["needs_review"] = True

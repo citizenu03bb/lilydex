@@ -371,6 +371,35 @@ Une photo inexploitable (Gliscor, nom coupé) doit être refusée, pas lue.
 actuelles ; le test `tests/test_recognition_bench.py` en fait autant quand le
 banc local est présent.
 
+### Contrôler l’édition par l’image (M2)
+
+Dans la fiche, **Comparer aux images TCGdex** compare la photo du recto aux
+images de toutes les impressions de même nom (langue de la carte et anglais).
+Le calcul se fait sur cet ordinateur avec DINOv2, sans lire le texte : c’est un
+contrôle indépendant de la lecture Gemini qui a proposé l’édition. Les images
+de référence et leurs vecteurs restent en cache dans `data/inventory/references`.
+Le contrôle est enregistré comme la lecture de la finition et ne modifie pas la
+fiche.
+
+- **Édition confirmée** : l’édition de la fiche est la plus proche.
+- **Image indécise** : une autre impression devance de moins de 0,05 ; c’est le
+  cas des réimpressions à l’illustration identique (dresseurs, Base Set 2).
+- **Désaccord** : une autre impression devance d’au moins 0,05 ; la carte entre
+  dans « À examiner ». **Garder l’édition de la fiche** après examen la retire
+  de la file ; pour corriger, passer par l’identification, le contrôle est
+  recalculé contre la nouvelle édition.
+
+Sans image TCGdex de l’édition de la fiche (promos McDonald’s), le contrôle est
+impossible. Il demande l’option vision :
+
+```bash
+uv sync --all-extras
+```
+
+Le modèle (`facebook/dinov2-small`, 90 Mo) est téléchargé au premier usage ;
+`HF_HOME` permet de réutiliser un cache existant. Avec `serve`, le contrôle est
+lancé automatiquement après chaque saisie photo dont l’édition est confirmée.
+
 ## Supprimer ou restaurer un exemplaire
 
 Un administrateur ouvre la fiche et choisit **Supprimer cet exemplaire**, puis

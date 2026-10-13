@@ -1206,6 +1206,156 @@ function renderConditionAssessment(parent, card, previous = null) {
   if (previous) previous.replaceWith(panel);
   else parent.append(panel);
 }
+function renderEditionCheck(parent, card, previous = null) {
+  const panel = el("section", undefined, "condition-panel");
+  panel.setAttribute("aria-label", "Contrôle de l’édition");
+  panel.append(el("h3", "Contrôle de l’édition par l’image"));
+  const status = el("p", "", "help");
+  status.setAttribute("role", "status");
+  const error = el("p", "", "error");
+  error.setAttribute("role", "alert");
+  if (!card.edition_check_available)
+    panel.append(
+      el(
+        "p",
+        "Contrôle indisponible sur ce serveur (option vision non installée).",
+        "help",
+      ),
+    );
+  else if (editAllowed()) {
+    panel.append(
+      el(
+        "p",
+        "Compare la photo du recto, sur cet ordinateur, aux images TCGdex des cartes de même nom. Ne modifie pas la fiche.",
+        "help",
+      ),
+    );
+    const run = el("button", "Comparer aux images TCGdex");
+    run.type = "button";
+    run.disabled =
+      !card.photo || !card.catalog_id || card.identification_status !== "confirmed";
+    run.addEventListener("click", async () => {
+      run.disabled = true;
+      error.textContent = "";
+      status.textContent =
+        "Comparaison en cours (la première fois, téléchargement des images)…";
+      try {
+        const result = await api(`/copies/${card.id}/edition-checks`, {
+          method: "POST",
+          body: JSON.stringify({ expected_version: card.version }),
+        });
+        card.edition_checks = [
+          { ...result, current_proposal: result.proposal },
+          ...(card.edition_checks || []),
+        ];
+        if (panel.isConnected) renderEditionCheck(parent, card, panel);
+      } catch (e) {
+        error.textContent = e.message;
+        status.textContent = "La fiche est conservée.";
+      } finally {
+        run.disabled = false;
+      }
+    });
+    panel.append(run);
+  }
+  const check = card.edition_checks?.[0];
+  if (check) {
+    const proposal = check.current_proposal || check.proposal;
+    panel.append(
+      el(
+        "h4",
+        {
+          agree: "Édition confirmée par l’image",
+          undecided: "Image indécise",
+          disagree: "Désaccord avec l’édition de la fiche",
+          unavailable: "Contrôle à relancer",
+        }[proposal.status],
+      ),
+    );
+    panel.append(el("p", proposal.reason));
+    const scores = check.result.scores;
+    const names = Object.fromEntries(
+      check.result.gallery.map((g) => [g.id, g.set_name || g.id]),
+    );
+    const ranking = Object.keys(scores)
+      .sort((a, b) => scores[b] - scores[a])
+      .slice(0, 3);
+    const list = el("ol", undefined, "help");
+    for (const id of ranking)
+      list.append(
+        el(
+          "li",
+          `${names[id]} (${id}) · ${scores[id].toFixed(3)}${id === card.catalog_id ? " · édition de la fiche" : ""}`,
+        ),
+      );
+    panel.append(
+      list,
+      el(
+        "p",
+        `${Object.keys(scores).length} impressions comparées · ${check.source} ${check.model} · ${new Date(check.created_at).toLocaleString("fr-FR")}`,
+        "help",
+      ),
+    );
+    if (check.stale)
+      panel.append(
+        el(
+          "p",
+          "Contrôle obsolète : la photo du recto a changé. Relancez la comparaison.",
+          "error",
+        ),
+      );
+    else if (check.kept)
+      panel.append(
+        el("p", "Édition de la fiche conservée après examen de la carte.", "help"),
+      );
+    else if (proposal.status === "disagree" && editAllowed() && !card.deleted_at) {
+      const keep = el("form", undefined, "condition-validation");
+      const reasonLabel = el("label", "Motif");
+      const reason = el("input");
+      reason.required = true;
+      reason.maxLength = 1000;
+      reason.value = "Édition vérifiée sur la carte malgré le contrôle par l’image";
+      reasonLabel.append(reason);
+      const save = el("button", "Garder l’édition de la fiche", "primary");
+      keep.append(
+        el(
+          "p",
+          "Pour corriger l’édition, utilisez l’identification de la fiche ; le contrôle sera recalculé.",
+          "help",
+        ),
+        reasonLabel,
+        save,
+      );
+      keep.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        if (save.disabled) return;
+        save.disabled = true;
+        error.textContent = "";
+        try {
+          await api(`/copies/${card.id}/edition-checks/${check.id}/keep`, {
+            method: "POST",
+            body: JSON.stringify({
+              expected_version: card.version,
+              reason: reason.value,
+            }),
+          });
+          await loadCards();
+          await openDetail(card.id);
+          toast("Édition conservée ; la carte quitte « À examiner ».");
+        } catch (e) {
+          error.textContent = e.message;
+        } finally {
+          save.disabled = false;
+        }
+      });
+      panel.append(keep);
+    }
+  } else if (card.edition_check_available)
+    panel.append(el("p", "Aucun contrôle d’édition enregistré.", "help"));
+  panel.append(status, error);
+  if (previous) previous.replaceWith(panel);
+  else parent.append(panel);
+}
 const finishLabels = {
   non_holo: "Non holo (mate)",
   holo: "Holo dans l’illustration",
@@ -1480,6 +1630,7 @@ async function openDetail(id) {
   }
   if (!c.deleted_at) {
     renderVariantCheck(photo, c);
+    renderEditionCheck(photo, c);
     renderConditionAssessment(photo, c);
   }
   renderCopyRemoval(photo, c);
