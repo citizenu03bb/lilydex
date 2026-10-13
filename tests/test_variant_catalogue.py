@@ -23,7 +23,7 @@ def test_finish_metadata_is_available_without_a_cardmarket_price(monkeypatch):
     assert {k: v for k, v in data.items() if k != "_acquisition"} == catalogue
     assert data["_acquisition"]["served_language"] == "fr"
     assert len(calls) == 1
-    with pytest.raises(RuntimeError, match="sans prix Cardmarket"):
+    with pytest.raises(ValueError, match="aucun prix Cardmarket"):
         fetch_card("np-29", "fr")
     assert len(calls) == 3  # Price lookup tries French, then English.
 

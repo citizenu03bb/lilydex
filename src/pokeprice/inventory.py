@@ -539,6 +539,17 @@ class Store:
         }
 
     @staticmethod
+    def market_verdicts(db):
+        """Latest human verdict on the Cardmarket product, per catalogue id."""
+        result = {}
+        for row in db.execute(
+            "SELECT after_json FROM events WHERE kind='market-product' ORDER BY id"
+        ):
+            record = json.loads(row[0])
+            result[record["catalog_id"]] = record
+        return result
+
+    @staticmethod
     def valuation_context(db):
         latest = list(
             db.execute(
@@ -577,6 +588,7 @@ class Store:
         for copy_id, (event_id, _) in list(context["sale-estimate"].items()):
             if invalidated.get(copy_id, 0) > event_id:
                 del context["sale-estimate"][copy_id]
+        context["market-product"] = Store.market_verdicts(db)
         context["catalog"] = {}
         context["variant-catalogue"] = {}
         for row in db.execute(
@@ -680,6 +692,9 @@ class Store:
             list(priced.values()),
             threshold_cents=threshold_cents,
             category_snapshot=Store.category_metadata(card, context),
+            market_verdict=context.get("market-product", {}).get(
+                card.get("catalog_id")
+            ),
         )
 
     def summary(self, threshold_cents=1000):

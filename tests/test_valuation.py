@@ -362,3 +362,50 @@ def test_candidate_evidence_is_valued_without_confirming_or_fetching_prices(clie
     assert (
         client.get(f"/api/copies/{c['id']}").json()["valuation"]["risk_cents"] is None
     )
+
+
+def manual(**overrides):
+    return card(
+        **{
+            "catalog_id": "np-29",
+            "variant_confirmed": True,
+            "condition_confirmed": True,
+            "reference_cents": 5210,
+            "price_source": "Cardmarket · page produit Celebi-NP29 · tendance",
+            **overrides,
+        }
+    )
+
+
+def test_manual_reference_stands_in_when_tcgdex_has_no_cardmarket_quote():
+    result = assess(manual())
+    assert result["risk_cents"] == result["prudent_cents"] == 5210
+    assert result["trend_cents"] == 5210
+    assert result["risk_incomplete"] and result["is_valuable"]
+    assert result["manual_price"]["source"].startswith("Cardmarket")
+    assert not result["needs_review"]
+    assert result["hypotheses"][0]["observed_at"] == "2026-10-07"
+    # Unconfirmed physical checks still apply above the threshold.
+    reasons = {r["code"] for r in assess(manual(condition_confirmed=False))["reasons"]}
+    assert reasons == {"value", "condition"}
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"price_source": "TCGdex · Cardmarket trend"},
+        {"price_source": ""},
+        {"price_date": ""},
+        {"reference_cents": None},
+    ],
+)
+def test_only_a_dated_human_reference_counts_as_manual_value(overrides):
+    result = assess(manual(**overrides))
+    assert result["manual_price"] is None and result["risk_cents"] is None
+    assert {r["code"] for r in result["reasons"]} == {"missing_price"}
+
+
+def test_a_tcgdex_prudent_price_wins_over_the_manual_reference():
+    c = manual(catalog_id="swsh7-077")
+    result = assess(c, summarize(CARD, False))
+    assert result["manual_price"] is None and result["prudent_cents"] == 625

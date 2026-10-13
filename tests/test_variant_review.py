@@ -611,8 +611,11 @@ def test_celebi_finish_metadata_without_euro_prices_is_cached_independently(clie
     assert detail["price_category"] == row["price_category"]
     assert detail["price_category"]["mode"] == "automatic"
     assert not detail["valuation"]["price_variant_issue"]
-    assert detail["valuation"]["prudent_cents"] is None
-    assert {r["code"] for r in detail["valuation"]["reasons"]} == {"missing_price"}
+    # No euro quote from TCGdex: the dated manual reference stands in for it.
+    assert detail["valuation"]["prudent_cents"] == 5210
+    assert detail["valuation"]["manual_price"]["source"] == "Ancien relevé manuel"
+    assert detail["valuation"]["risk_incomplete"]
+    assert not detail["valuation"]["needs_review"]
     with client.app.state.store.connect() as db:
         stored = db.execute(
             "SELECT value FROM catalog_lookups WHERE key LIKE 'variant:%'"

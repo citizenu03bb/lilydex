@@ -83,6 +83,43 @@ def candidates_from_evidence(card, evidence):
     return search.get("candidates") or []
 
 
+def applicable(verdict, id_product):
+    """A verdict on another product (TCGdex fixed its mapping) no longer applies."""
+    if verdict and id_product is not None and verdict.get("id_product") == id_product:
+        return verdict.get("verdict") or ""
+    return ""
+
+
+def other_cards(shared):
+    """Number first: TCGdex names are English (Airmure is Skarmory)."""
+    return ", ".join(
+        f"n° {o['catalog_id'].rpartition('-')[2]} ({o.get('name') or '?'} en anglais"
+        + (f", {o['hp']} PV" if o.get("hp") else "")
+        + ")"
+        for o in shared
+    )
+
+
+def manual_reference(card):
+    """A dated reference typed by a person, as opposed to a TCGdex refresh."""
+    amount_cents = card.get("reference_cents")
+    source = (card.get("price_source") or "").strip()
+    if (
+        not isinstance(amount_cents, int)
+        or isinstance(amount_cents, bool)
+        or amount_cents < 0
+        or not source
+        or source.startswith("TCGdex")
+        or not card.get("price_date")
+    ):
+        return None
+    return {
+        "amount_cents": amount_cents,
+        "source": source,
+        "observed_at": card["price_date"],
+    }
+
+
 def assess(
     card,
     snapshot=None,
@@ -91,6 +128,7 @@ def assess(
     *,
     threshold_cents=1000,
     category_snapshot=None,
+    market_verdict=None,
 ):
     confirmed = card["identification_status"] == "confirmed"
     physically_confirmed = bool(confirmed and card.get("variant_confirmed"))
@@ -103,6 +141,12 @@ def assess(
         and (snapshot or {}).get("catalog_id") == card.get("catalog_id")
         and (snapshot or {}).get("variant_check")
     )
+    # The product mapping belongs to the catalogue id, even once its price is cleared.
+    id_product = (
+        (snapshot or {}).get("id_product")
+        if confirmed and (snapshot or {}).get("catalog_id") == card.get("catalog_id")
+        else None
+    )
     # Identity/variant corrections clear price_date. Never revive their old price.
     if (
         not confirmed
@@ -110,6 +154,19 @@ def assess(
         or ((snapshot or {}).get("catalog_id") != card.get("catalog_id"))
     ):
         snapshot = None
+        shared = []
+    else:
+        shared = (snapshot or {}).get("shared_product_with") or []
+    verdict = applicable(market_verdict, id_product)
+    if verdict:
+        shared = []
+    market_product = (
+        {"id_product": id_product, "verdict": verdict, "shared_with": shared}
+        if id_product is not None
+        else None
+    )
+    if verdict == "wrong":
+        snapshot = None  # These quotes describe another card.
     values = variant_values(snapshot)
     variants = (snapshot or {}).get("variants") or {}
     if not isinstance(variants, dict):
@@ -117,6 +174,20 @@ def assess(
     current = next((v for v in values if v["foil"] == bool(card["foil"])), {})
     if issue:
         current = {}  # The stored category's quote does not price this physical print.
+    manual = None
+    if confirmed and not issue and current.get("prudent_cents") is None:
+        manual = manual_reference(card)
+    if manual:
+        # Simple fallback: a dated manual quote stands in for the missing
+        # TCGdex prudent price. It is usually a trend alone, so it stays flagged.
+        current = {
+            "foil": bool(card["foil"]),
+            "trend_cents": manual["amount_cents"],
+            "average_30d_cents": None,
+            "prudent_cents": manual["amount_cents"],
+            "unstable": False,
+        }
+        values = [v for v in values if v["foil"] != bool(card["foil"])] + [current]
     # Once the physical print is checked, rejected variants are no longer plausible.
     plausible_values = (
         [current]
@@ -133,6 +204,10 @@ def assess(
         }
         for v in plausible_values
     ]
+    if manual:
+        for h in hypotheses:
+            if h["foil"] == bool(card["foil"]):
+                h.update(source=manual["source"], observed_at=manual["observed_at"])
     if not confirmed:
         for candidate in candidates:
             candidate_snapshot = candidate.get("price_snapshot")
@@ -157,7 +232,9 @@ def assess(
         {h["catalog_id"] for h in hypotheses}
     ) < len(candidates)
     incomplete = (
-        any(h["prudent_cents"] is None for h in hypotheses) or missing_candidates
+        any(h["prudent_cents"] is None for h in hypotheses)
+        or missing_candidates
+        or bool(manual)
     )
     material_unknown = (
         any(
@@ -190,6 +267,15 @@ def assess(
         )
     if not confirmed:
         reasons.append({"code": "identity", "label": "Identité incertaine"})
+    if confirmed and shared:
+        own = (card.get("catalog_id") or "").rpartition("-")[2]
+        reasons.append(
+            {
+                "code": "market_product",
+                "label": f"TCGdex donne aussi ce produit Cardmarket à {other_cards(shared)} : "
+                f"vérifiez que la page montre votre n° {own}, puis confirmez-la ou signalez-la incorrecte.",
+            }
+        )
     if (
         risk is None
         or material_unknown
@@ -265,6 +351,8 @@ def assess(
         "is_valuable": risk is not None and risk >= threshold_cents,
         "market_unstable": any(h["unstable"] for h in hypotheses),
         "variant_catalog_warning": catalogue_warning,
+        "manual_price": manual,
+        "market_product": market_product,
         "price_variant_issue": issue,
         "needs_review": bool(reasons),
         "reasons": reasons,
@@ -330,6 +418,8 @@ def assess_binding(card, resolution, quotes, *, threshold_cents=1000):
         "is_valuable": risk is not None and risk >= threshold_cents,
         "market_unstable": False,
         "variant_catalog_warning": False,
+        "manual_price": None,
+        "market_product": None,
         "price_variant_issue": None if eligible else reasons[0]["label"],
         "needs_review": bool(reasons),
         "reasons": reasons,

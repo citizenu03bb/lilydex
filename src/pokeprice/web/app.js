@@ -610,6 +610,8 @@ function renderPriceSnapshot(parent, card) {
     const value = card.valuation;
     section.append(el("p", `Tendance : ${money(value.trend_cents)} · Prudente : ${money(value.prudent_cents)} · Estimation de vente : ${money(value.sale_estimate_cents)}`));
     section.append(el("p", `Valeur en jeu : ${money(value.risk_cents)}${value.risk_incomplete ? " · prix incomplets" : ""} · seuil ${money(value.threshold_cents)}. Maximum prudent des variantes et éditions plausibles, sans décote d’état.`, "help"));
+    if (value.manual_price)
+      section.append(el("p", `Valeur manuelle : TCGdex ne fournit pas de prix prudent, la référence saisie (${money(value.manual_price.amount_cents)}, ${value.manual_price.source}) en tient lieu. Sans moyenne à 30 jours, elle reste marquée incomplète.`, "help"));
     if (card.variant_confirmed && value.variant_catalog_warning)
       section.append(el("p", "Variante confirmée physiquement ; TCGdex ne répertorie pas cette variante. La confirmation humaine est conservée.", "help"));
     if (value.market_unstable)
@@ -707,10 +709,97 @@ function renderPriceSnapshot(parent, card) {
         "help",
       ),
     );
+  } else if (card.cardmarket_search_url) {
+    const link = el("a", "Chercher sur Cardmarket");
+    link.href = card.cardmarket_search_url;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    actions.append(link);
+    section.append(
+      el(
+        "p",
+        "Lien déduit du nom anglais et du numéro : TCGdex ne fournit pas le produit Cardmarket. Vérifiez l’édition sur la page ouverte avant de relever la tendance.",
+        "help",
+      ),
+    );
   }
   if (actions.children.length) section.append(actions);
+  renderMarketProduct(section, card);
   renderSaleEstimate(section, card);
   parent.append(section);
+}
+// TCGdex may give two cards of a set one Cardmarket product (Darkrai GE 3/4).
+// A person checks the page and records a verdict for this catalogue id.
+function renderMarketProduct(parent, card) {
+  const market = card.valuation?.market_product;
+  if (!market) return;
+  const box = el("div", undefined, "market-product");
+  // TCGdex names are English (Airmure is Skarmory): lead with the number.
+  const others = (market.shared_with || [])
+    .map((o) => `n° ${o.catalog_id.split("-").at(-1)} (${o.name || "?"} en anglais${o.hp ? `, ${o.hp} PV` : ""})`)
+    .join(", ");
+  const own = (card.catalog_id || "").split("-").at(-1);
+  if (market.verdict === "wrong")
+    box.append(el("p", `Produit Cardmarket n° ${market.id_product} signalé incorrect : les prix TCGdex de cette carte sont écartés. Relevez la tendance sur la bonne page et saisissez-la comme prix de référence.`, "price-warnings"));
+  else if (market.verdict === "verified")
+    box.append(el("p", `Produit Cardmarket n° ${market.id_product} vérifié.`, "help"));
+  else if (others)
+    box.append(el("p", `TCGdex donne aussi ce produit Cardmarket à une autre carte de l’extension : ${others}. Ouvrez la page et vérifiez qu’elle montre votre n° ${own} (PV, niveau, illustration).`, "price-warnings"));
+  if (editAllowed() && !card.deleted_at) {
+    const details = el("details");
+    details.open = Boolean(others) && !market.verdict;
+    details.append(el("summary", others && !market.verdict ? "Confirmer ou rejeter ce produit Cardmarket" : "Verdict sur le produit Cardmarket"));
+    // Distinct from the form's own "Motif de la modification" field below.
+    const label = el("label", "Motif du verdict (obligatoire)");
+    const reason = el("input");
+    reason.placeholder = "Ex. page BCR 95 conforme ; ou page Lv.38, carte Lv.40";
+    reason.maxLength = 1000;
+    reason.addEventListener("input", () => reason.setCustomValidity(""));
+    label.append(reason);
+    // The box sits inside the detail form: Enter must not save the whole form.
+    reason.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") event.preventDefault();
+    });
+    const error = el("p", "", "error");
+    const buttons = el("div", undefined, "workflow-actions");
+    const choices = [
+      ["verified", "Produit vérifié", "Produit Cardmarket vérifié."],
+      ["wrong", "Produit incorrect", "Produit signalé incorrect ; prix TCGdex retiré."],
+      ["", "Annuler le verdict", "Verdict annulé."],
+    ].filter(([verdict]) => verdict !== market.verdict && (verdict || market.verdict));
+    for (const [verdict, label, done] of choices) {
+      const button = el("button", label);
+      button.type = "button";
+      button.addEventListener("click", async () => {
+        if (!reason.value.trim()) {
+          // Not `required`: an empty verdict box must not block the main form.
+          reason.setCustomValidity("Indiquez le motif du verdict.");
+          reason.reportValidity();
+          reason.focus();
+          return;
+        }
+        button.disabled = true;
+        error.textContent = "";
+        try {
+          await api(`/copies/${card.id}/market-product`, {
+            method: "POST",
+            body: JSON.stringify({ expected_version: card.version, verdict, reason: reason.value.trim() }),
+          });
+          await refreshSummary();
+          await openDetail(card.id);
+          await loadCards();
+          toast(done);
+        } catch (e) {
+          button.disabled = false;
+          error.textContent = e.message;
+        }
+      });
+      buttons.append(button);
+    }
+    details.append(label, buttons, error);
+    box.append(details);
+  }
+  parent.append(box);
 }
 // Asking prices pasted from Cardmarket: the server parses them and applies a
 // fixed rule (same condition first, else a documented per-step discount).

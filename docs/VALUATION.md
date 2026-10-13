@@ -17,6 +17,30 @@ reste zéro. La valeur en jeu est le maximum prudent des variantes et des
 éditions candidates plausibles ; elle sert à repérer les contrôles utiles.
 Les moyennes à 1 et 7 jours servent à signaler l’instabilité.
 
+**Valeur manuelle.** Quand TCGdex ne fournit aucun prix prudent pour la
+catégorie de l’exemplaire (carte sans cotation Cardmarket, comme les promos
+Nintendo ou certains Zarbi), une référence saisie à la main, datée et sourcée
+hors TCGdex, en tient lieu. Le plus souvent c’est une tendance seule : la valeur
+reste marquée incomplète, mais la carte sort du motif « prix à actualiser ». Un
+prix TCGdex disponible l’emporte toujours. Le relevé échoue alors avec un
+message explicite (422), et la fiche propose une recherche Cardmarket déduite
+du nom anglais et du numéro.
+
+**Produit Cardmarket douteux.** TCGdex attribue parfois un même produit
+Cardmarket à deux cartes d’une extension (Darkrai GE 3 Lv.38 et GE 4 Lv.40 :
+produit 277905, celui du Lv.38). À chaque relevé, les numéros voisins (n-1,
+n+1) sont comparés, avec un cache de 30 jours. Un produit partagé met la carte
+en examen jusqu’au verdict d’une personne, qui s’applique à l’identifiant
+catalogue et à ce produit seulement :
+- **vérifié** : le doute est levé ;
+- **incorrect** : les prix TCGdex de cette carte sont écartés et ses références
+  TCGdex retirées. Le relevé est refusé, et la valeur manuelle prend le relais ;
+- **annulé** : retour au comportement automatique.
+
+Si TCGdex change de produit, l’ancien verdict ne s’applique plus. La recherche
+Cardmarket déduite ajoute le code imprimé de l’extension quand il est connu
+(« Darkrai GE 4 » ouvre directement la bonne page).
+
 Après confirmation physique de la variante, seule la catégorie de prix retenue
 reste une hypothèse plausible. Une autre variante plus chère ne maintient plus
 artificiellement la valeur en jeu de l’exemplaire.

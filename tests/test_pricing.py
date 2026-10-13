@@ -1,11 +1,21 @@
 import copy
+import io
+import json
 
 import pytest
 from fastapi.testclient import TestClient
 from test_intake import values
 
+from pokeprice import pricing
 from pokeprice.inventory import Store
-from pokeprice.pricing import binding_market_url, cardmarket_url, summarize
+from pokeprice.pricing import (
+    NoCardmarketQuote,
+    binding_market_url,
+    cardmarket_search_url,
+    cardmarket_url,
+    fetch_catalogue_card,
+    summarize,
+)
 from pokeprice.webapp import create_app
 
 # Shape of a real TCGdex answer (ex13-78, 7 October 2026): a thin, volatile
@@ -82,6 +92,10 @@ def client(tmp_path):
         calls.append((catalog_id, language))
         if catalog_id == "offline-1":
             raise RuntimeError("TCGdex indisponible")
+        if catalog_id == "np-29":
+            raise NoCardmarketQuote(
+                "TCGdex connaît cette carte mais ne fournit aucun prix Cardmarket."
+            )
         card = copy.deepcopy(CARD)
         card["id"] = catalog_id
         if catalog_id == "holo-1":  # Printed holo only, no reverse.
@@ -377,3 +391,48 @@ def test_refresh_many_snapshots_confirmed_cards_and_reports_failures(client):
     again = service.refresh_many("manage", only_missing=True)
     assert again["selected"] == 1  # Only the failed one was never snapshotted.
     assert client.get(f"/api/copies/{good['id']}").json()["price_snapshot"]
+
+
+def test_a_card_without_cardmarket_quote_is_not_reported_as_an_outage(monkeypatch):
+    # Shape of TCGdex np-29 on 13 October 2026: TCGplayer only.
+    data = {"id": "np-29", "pricing": {"cardmarket": None, "tcgplayer": {}}}
+    monkeypatch.setattr(
+        pricing, "urlopen", lambda *a, **k: io.BytesIO(json.dumps(data).encode())
+    )
+    with pytest.raises(NoCardmarketQuote, match="aucun prix Cardmarket"):
+        fetch_catalogue_card("np-29", "fr", require_price=True)
+    assert fetch_catalogue_card("np-29", "fr")["id"] == "np-29"
+
+    def offline(*args, **kwargs):
+        raise OSError("réseau")
+
+    monkeypatch.setattr(pricing, "urlopen", offline)
+    with pytest.raises(RuntimeError, match="indisponible") as error:
+        fetch_catalogue_card("np-29", "fr", require_price=True)
+    assert not isinstance(error.value, NoCardmarketQuote)
+
+
+def test_unpriced_refresh_is_a_clear_422_and_detail_offers_an_inferred_search(client):
+    card = confirmed(client, catalog_id="np-29", name="Celebi")
+    response = client.post(
+        f"/api/copies/{card['id']}/price-refresh", json={"expected_version": 1}
+    )
+    assert response.status_code == 422
+    assert "aucun prix Cardmarket" in response.json()["detail"]
+    detail = client.get(f"/api/copies/{card['id']}").json()
+    assert detail["cardmarket_url"] is None
+    assert detail["cardmarket_search_url"] == (
+        "https://www.cardmarket.com/fr/Pokemon/Products/Search?searchString=Celebi+29"
+    )
+
+
+def test_inferred_cardmarket_search_uses_name_and_local_number():
+    # Checked on Cardmarket, 13 October 2026: a unique match opens the product.
+    assert cardmarket_search_url("Nidoran ♀", "base2-57").endswith(
+        "searchString=Nidoran+57"
+    )
+    assert cardmarket_search_url("Unown L", "dp4-91").endswith(
+        "searchString=Unown+L+91"
+    )
+    assert cardmarket_search_url("Celebi", None) is None
+    assert cardmarket_search_url("", "np-29") is None

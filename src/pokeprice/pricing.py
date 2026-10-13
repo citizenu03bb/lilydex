@@ -7,6 +7,7 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 from .inventory import Conflict, cents, now
+from .valuation import applicable
 from .variant_pricing import (
     category,
     has_original_holo_and_reverse,
@@ -39,10 +40,15 @@ SOURCE = "TCGdex · Cardmarket"
 MATERIAL_EUR = 2.0
 
 
+class NoCardmarketQuote(ValueError):
+    """TCGdex knows the card but has no Cardmarket quote: retrying will not help."""
+
+
 def fetch_catalogue_card(catalog_id, language, *, require_price=False):
     """Edition metadata is useful even when no euro quote is available."""
     if not re.fullmatch(r"[A-Za-z0-9._-]{1,120}", catalog_id or ""):
         raise ValueError("Identifiant de catalogue invalide.")
+    unpriced = False
     for lang in dict.fromkeys([language, "en"]):
         request = Request(
             f"https://api.tcgdex.net/v2/{lang}/cards/{catalog_id}",
@@ -53,23 +59,25 @@ def fetch_catalogue_card(catalog_id, language, *, require_price=False):
                 data = json.loads(response.read())
         except Exception:  # noqa: BLE001, S112 - Try the next language; details are not useful.
             continue
-        if (
-            isinstance(data, dict)
-            and data.get("id") == catalog_id
-            and (not require_price or (data.get("pricing") or {}).get("cardmarket"))
-        ):
-            return {
-                **data,
-                "_acquisition": {
-                    "provider": "TCGdex",
-                    "requested_language": language,
-                    "served_language": lang,
-                    "source": request.full_url,
-                },
-            }
-    if require_price:
-        raise RuntimeError(
-            "TCGdex indisponible ou sans prix Cardmarket pour cette carte. Un prix peut être relevé manuellement sur Cardmarket."
+        if not isinstance(data, dict) or data.get("id") != catalog_id:
+            continue
+        if require_price and not (data.get("pricing") or {}).get("cardmarket"):
+            unpriced = True
+            continue
+        return {
+            **data,
+            "_acquisition": {
+                "provider": "TCGdex",
+                "requested_language": language,
+                "served_language": lang,
+                "source": request.full_url,
+            },
+        }
+    if unpriced:
+        raise NoCardmarketQuote(
+            "TCGdex connaît cette carte mais ne fournit aucun prix Cardmarket. "
+            "Relevez la tendance sur Cardmarket et saisissez-la comme prix de "
+            "référence, avec sa source : elle servira de valeur manuelle."
         )
     raise RuntimeError("TCGdex indisponible pour cette édition. Réessayez plus tard.")
 
@@ -197,6 +205,20 @@ def cardmarket_url(id_product, language="", condition="", foil=False):
     return "https://www.cardmarket.com/fr/Pokemon/Products?" + urlencode(query)
 
 
+def cardmarket_search_url(english_name, catalog_id, set_code=None):
+    """Inferred search when TCGdex gives no product: a unique match opens its page."""
+    if not english_name or not catalog_id or "-" not in catalog_id:
+        return None
+    number = catalog_id.rsplit("-", 1)[1]
+    # Cardmarket spells gender signs [F]/[M]; the bare name still matches.
+    name = re.sub(r"[♀♂]", " ", english_name)
+    # "Darkrai GE 4" opens the product; "Darkrai 4" may list several.
+    words = " ".join(f"{name} {set_code or ''} {number}".split())
+    return "https://www.cardmarket.com/fr/Pokemon/Products/Search?" + urlencode(
+        {"searchString": words}
+    )
+
+
 # --- Sale estimate from offers pasted from a Cardmarket product page ---------
 
 # Cardmarket condition codes, best first.
@@ -314,8 +336,8 @@ def estimate_sale(offers, condition, *, stamp=""):
 
 
 class PriceService:
-    def __init__(self, store, fetch=fetch_card):
-        self.store, self.fetch = store, fetch
+    def __init__(self, store, fetch=fetch_card, market=None):
+        self.store, self.fetch, self.market = store, fetch, market
 
     def latest(self, db, copy_id, kind="price-snapshot"):
         row = db.execute(
@@ -356,6 +378,7 @@ class PriceService:
             "changed": 0,
             "warned": 0,
             "variant_check": 0,
+            "shared_product": [],
             "failed": [],
             "reference_before_cents": 0,
             "reference_after_cents": 0,
@@ -374,6 +397,8 @@ class PriceService:
                     card["price_snapshot"].get("variant_check")
                 )
                 summary["reference_after_cents"] += card["reference_cents"] or 0
+                if card["price_snapshot"].get("shared_product_with"):
+                    summary["shared_product"].append(row["id"])
         return summary
 
     def estimate(self, copy_id, text, actor):
@@ -427,6 +452,9 @@ class PriceService:
         if card["version"] != version:
             raise Conflict("La fiche a changé. Rechargez-la avant de relever le prix.")
         # The network calls stay outside the write transaction.
+        if self.market:
+            # Cached for the search link, even when TCGdex has no euro quote.
+            self.market.set_code(card["catalog_id"])
         data = self.fetch(card["catalog_id"], card["language"])
         if data.get("id") != card["catalog_id"]:
             raise ValueError("Le catalogue retourné ne correspond pas à cette édition.")
@@ -436,6 +464,19 @@ class PriceService:
         snapshot = summarize(data, card["foil"])
         if issue := pricing_issue(card, snapshot):
             raise ValueError(issue)
+        with self.store.connect() as db:
+            verdict = self.store.market_verdicts(db).get(card["catalog_id"])
+        if applicable(verdict, snapshot["id_product"]) == "wrong":
+            raise ValueError(
+                "Le produit Cardmarket que TCGdex associe à cette carte a été "
+                "signalé incorrect. Saisissez la tendance relevée sur la bonne "
+                "page comme prix de référence, avec sa source."
+            )
+        snapshot["shared_product_with"] = (
+            self.market.shared_with(card["catalog_id"], snapshot["id_product"])
+            if self.market
+            else []
+        )
         snapshot["observed_at"] = now()
         changes = {
             "foil": bool(card["foil"]),

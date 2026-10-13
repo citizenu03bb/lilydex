@@ -25,9 +25,11 @@ from .intake import IntakeService, catalogue_candidates, normalize_photo, read_p
 from .inventory import Conflict, Store, cents, now
 from .inventory_backup import backup, export_csv, export_data, export_html
 from .photo_processing import parse_guide
+from .market_product import MarketProducts, cached_set_code, fetch_tcgdex
 from .pricing import (
     PriceService,
     binding_market_url,
+    cardmarket_search_url,
     cardmarket_url,
     fetch_card,
     fetch_catalogue_card,
@@ -54,6 +56,12 @@ class PhotoAttachment(Model):
 
 class ConditionRequest(Model):
     expected_version: int = Field(ge=1)
+
+
+class MarketVerdict(Model):
+    expected_version: int = Field(ge=1)
+    verdict: Literal["wrong", "verified", ""]
+    reason: str = Field(min_length=1, max_length=1000)
 
 
 class OffersPaste(Model):
@@ -320,6 +328,7 @@ def create_app(
     condition_reader=None,
     price_fetch=None,
     variant_fetch=None,
+    market_fetch=None,
 ):
     store = Store(directory)
     if secure_cookie:
@@ -343,7 +352,12 @@ def create_app(
     app.state.intake = intake
     conditions = ConditionService(store, condition_reader or read_condition)
     app.state.conditions = conditions
-    pricing = PriceService(store, price_fetch or fetch_card)
+    # An injected price source (tests) never reaches TCGdex for neighbours.
+    market = MarketProducts(
+        store, market_fetch or (fetch_tcgdex if price_fetch is None else None)
+    )
+    app.state.market = market
+    pricing = PriceService(store, price_fetch or fetch_card, market)
     app.state.pricing = pricing
     variant_catalogue = VariantCatalogue(
         store,
@@ -702,6 +716,22 @@ def create_app(
             bound_quote = card["reference_resolution"]["price_selection"]["quote"] or {}
             if bound_quote.get("binding_key"):
                 card["cardmarket_url"] = binding_market_url(bound_quote["binding"])
+            market_state = card["valuation"].get("market_product") or {}
+            if market_state.get("verdict") == "wrong":
+                card["cardmarket_url"] = None  # That product is another card.
+            card["cardmarket_search_url"] = None
+            if card["catalog_id"] and (
+                not card["cardmarket_url"] or market_state.get("shared_with")
+            ):
+                english = db.execute(
+                    "SELECT name FROM catalog_names WHERE catalog_id=? AND language='en'",
+                    (card["catalog_id"],),
+                ).fetchone()
+                card["cardmarket_search_url"] = cardmarket_search_url(
+                    english[0] if english else card["name"],
+                    card["catalog_id"],
+                    cached_set_code(db, card["catalog_id"]),
+                )
             return card
 
     @app.post("/api/copies/{copy_id}/variant-preview")
@@ -760,6 +790,16 @@ def create_app(
             values.expected_version,
             values.active,
             values.affects,
+            user["username"],
+            values.reason,
+        )
+
+    @app.post("/api/copies/{copy_id}/market-product")
+    def market_product(copy_id: str, values: MarketVerdict, user=Depends(editor)):
+        return market.judge(
+            copy_id,
+            values.expected_version,
+            values.verdict,
             user["username"],
             values.reason,
         )

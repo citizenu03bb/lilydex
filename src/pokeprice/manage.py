@@ -219,9 +219,10 @@ def main():
             plan = candidates(store, copy_ids=args.copy_id)
             result = apply(store, plan) if args.apply else {"candidates": plan}
         elif args.action == "prices":
+            from .market_product import MarketProducts
             from .pricing import PriceService
 
-            result = PriceService(store).refresh_many(
+            result = PriceService(store, market=MarketProducts(store)).refresh_many(
                 args.actor,
                 album=args.album,
                 only_missing=args.only_missing,
