@@ -1,12 +1,16 @@
 # Proposition — M1.1 : référentiel embarqué des impressions
 
-Statut : proposition du 13 octobre 2026, non implémentée.
+Statut : proposition du 13 octobre 2026, contrat précisé après consultation,
+non implémentée. Le comportement à livrer est défini dans
+[PRINT_REFERENCE_CONTRACT.md](PRINT_REFERENCE_CONTRACT.md) ; ce document
+conserve le contexte et le périmètre de la proposition.
 
 ## Résultat recherché
 
-Une carte décrite « illustration holo + tampon EX Deoxys » doit être reconnue
-comme une parallèle reverse et utiliser sa cotation Foil, sans nouvelle
-exception dans le code. Une holo d’origine doit utiliser la cotation Standard.
+Sur un périmètre documenté, une carte décrite « illustration holo + tampon
+EX Deoxys » doit être reconnue comme une parallèle reverse et utiliser sa
+correspondance de prix vérifiée, sans nouvelle exception dans le code.
+Une holo d’origine utilise Standard lorsque cette correspondance est établie.
 Les observations physiques et leur confirmation restent attribuées à Pat.
 
 Le moteur doit accompagner les **six albums restant à scanner**. La collection
@@ -77,8 +81,9 @@ Chaque entrée décrit :
   encore provisoire.
 
 Le paquet comporte une version de schéma et une version de contenu. Les
-documents originaux sont archivés localement et inclus dans la procédure de
-sauvegarde ; leurs références et les faits vérifiés accompagnent les règles.
+documents originaux sont archivés une fois par empreinte, hors du paquet,
+et inclus dans la procédure de sauvegarde ; leurs références et les faits
+vérifiés accompagnent les règles.
 Les versions de règles utilisées sont conservées avec leur empreinte pour
 pouvoir expliquer une décision ancienne après une mise à jour. La sauvegarde
 et la restauration devront donc inclure ces archives de référence.
@@ -92,15 +97,21 @@ mais ne suffit plus à choisir tous les produits ou filtres. En particulier,
 
 ## Résolution et interface
 
-Le calcul prend l’édition identifiée, les observations et le référentiel. Une
-règle embarquée vérifiée prime sur les indications contradictoires de TCGdex.
+Le calcul part d’un ensemble d’impressions possibles ; les observations
+réduisent cet ensemble. Le prix exige une seule correspondance marchande
+vérifiée pour toutes les possibilités restantes, même si l’impression précise
+reste indéterminée. Un unique candidat connu dans une liste partielle ne suffit
+pas. Les états de résolution et l’identité de prix sont définis dans le contrat.
+Une règle embarquée vérifiée applicable prime sur les indications plus faibles
+de TCGdex.
 Le désaccord reste visible et ne réécrit pas l’observation humaine.
 
 | Situation | Comportement proposé |
 |---|---|
-| Une impression correspond | Impression et catégorie de prix calculées, avec explication et source |
-| Plusieurs impressions partagent la même cotation vérifiée | Catégorie commune utilisable ; l’impression précise n’est pas inventée |
-| Plusieurs impressions impliquent des cotations différentes | Choix guidé entre ces impressions ; prix indéterminé tant que le choix manque |
+| Une impression est établie avec correspondance vérifiée | Impression et correspondance calculées, avec explication et source |
+| Plusieurs impressions partagent la même correspondance vérifiée | Prix commun utilisable ; l’impression précise n’est pas inventée |
+| Impression reconnue, correspondance manquante | Impression conservée ; prix vérifié inconnu |
+| Plusieurs impressions impliquent des correspondances différentes | Choix guidé entre ces impressions ; prix indéterminé tant que le choix manque |
 | Édition ou langue non couverte | Proposition catalogue explicitement provisoire ; demande d’enrichissement regroupée par édition |
 | Observation hors du périmètre documenté | Conservation de l’observation et option « Autre impression / non répertoriée » |
 
@@ -120,9 +131,9 @@ possibles, la fiche demande le détail qui les distingue, avec des libellés
 concrets. Une remarque libre ne valide plus à elle seule une correspondance
 de prix : il faut un produit ou une impression identifié et une source.
 
-Pour les nouvelles observations, « tampon non vérifié » et « aucun tampon
-observé » doivent être distingués. Les anciens champs vides et confirmations
-restent conservés avec leur provenance ; aucune absence de tampon n’est
+Pour les nouvelles observations, `stamp_state` distingue tampon non examiné,
+absence constatée et présence constatée. Les anciens champs vides et
+confirmations restent conservés avec leur provenance ; aucune absence de tampon n’est
 inventée lors de la migration.
 
 La sauvegarde d’une observation physique reste possible hors ligne, sans prix
@@ -152,31 +163,46 @@ provisoires, ainsi que le nombre d’exemplaires concernés. Le pourcentage est
 recalculé après chaque import : il ne constitue pas une promesse de couverture
 des albums encore inconnus.
 
-## Livraison en deux étapes
+## Livraison avant M2
 
-**1. Moteur et première couverture.** Définir le format, transférer les règles
-actuelles, formaliser les cas Roigada, Pikachu, Grainipiot, Manaphy, Baggaïd,
-Celebi et Barboach, et afficher la provenance. Les huit groupes identifiés sont
-le premier banc de régression ; chaque entrée ne couvre que les impressions
-et langues effectivement documentées. Les preuves manquantes restent signalées.
+**1. Observations et contrat.** Stabiliser les discriminants à capturer avant
+les six scans, l’identité de prix et les sorties du résolveur. Le contrat définit
+20 scénarios de réception, dont les précisions compatibles et le changement de
+produit malgré une même étiquette Foil.
 
-**2. Audit et extension.** Rejouer toutes les fiches en lecture seule, établir
-un rapport avant/après, puis étendre les règles aux éditions déjà présentes
-et aux nouvelles éditions découvertes pendant les six scans. Faire évoluer M2
-pour confronter ses propositions à ce référentiel et afficher les contradictions.
+**2. Moteur commun.** Livrer le moteur pur et l’adaptateur des usages actuels,
+avec des fixtures synthétiques ; la sauvegarde physique ne dépend pas de la
+couverture du référentiel.
+
+**3. Règles et première couverture.** Transférer les règles justifiées et
+formaliser les cas Roigada, Pikachu, Grainipiot, Manaphy, Baggaïd, Celebi et
+Barboach. Les huit groupes sont le premier banc de régression. Chaque entrée
+doit avoir ses preuves d’impression et de marché, sur ses numéros et langues.
+Les preuves manquantes restent signalées ; le comportement actuel ne vaut pas
+preuve. Le paquet installé est contrôlé hors du dépôt et hors ligne.
+
+**4. Audit et extension.** Rejouer les fiches en lecture seule, établir le
+rapport avant/après, puis migrer et activer après contrôle de sauvegarde et
+restauration. Étendre les règles pendant les six scans. M2 confronte ses
+propositions aux candidats et aux preuves de ce contrat.
 
 L’audit distingue les catégories inchangées, les catégories à corriger, les
 correspondances de prix modifiées, les ambiguïtés et les périmètres non couverts.
 Une mise à jour du référentiel ne change pas les confirmations physiques.
 Toute correction appliquée à une fiche garde l’auteur, le motif, la version
-du référentiel et l’historique. Un changement de correspondance de prix invalide
-la cotation courante et exige un nouveau relevé ; il ne réutilise pas le prix
-d’une autre impression.
+du référentiel et l’historique. Une cotation incompatible est suspendue,
+conservée avec source et date et exclue des valeurs. Une précision compatible
+ne l’efface pas. Sans cotation compatible justifiée, un nouveau relevé est
+nécessaire ; le prix d’une autre correspondance n’est jamais transféré.
 
 Sauvegarde avant toute migration ; validation sur une restauration temporaire.
 La proposition actuelle ne modifie aucune fiche et ne déclenche aucun scan.
 
 ## Critères de réception
+
+La réception détaillée et les invariants sont dans
+[le contrat M1.1](PRINT_REFERENCE_CONTRACT.md#9-livraison-et-réception), scénarios
+**C01–C20**. Les exigences suivantes en résument le périmètre.
 
 - Les cas de régression donnent la bonne catégorie avec les appels réseau coupés.
 - Une donnée TCGdex contradictoire ne modifie pas une règle embarquée vérifiée.
@@ -202,3 +228,5 @@ La proposition actuelle ne modifie aucune fiche et ne déclenche aucun scan.
 Les promos, kits et parallèles particulières demandent aussi leurs preuves
 de produit. Leur présence dans une API ne suffit pas à certifier l’exhaustivité
 des impressions ou leur correspondance de marché.
+La revue de design ne certifie pas ces pièces ni leur portée linguistique :
+leur vérification reste une étape explicite de la première couverture.

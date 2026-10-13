@@ -132,16 +132,35 @@ Le contrôle de cohérence couvre aussi les parallèles EX Fantômes Holon :
 Une ancienne combinaison incohérente revient dans la file, et son prix est
 exclu des totaux, sans modifier les observations physiques enregistrées.
 
-### Proposition M1.1 — Référentiel embarqué des impressions
+### M1.1 — Contrat précisé, référentiel à implémenter
 
-Proposition du 13 octobre 2026, non implémentée : livrer avant M2 un moteur
+Contrat v1 du 13 octobre 2026, non implémenté : livrer avant M2 un moteur
 commun et des règles d’édition sourcées, versionnées et utilisables hors ligne.
 La couverture doit accompagner les **six albums restant à scanner** ; la
 collection actuelle fournit le premier banc de régression. Une édition nouvelle
 doit pouvoir être ajoutée par des données, sans correctif du moteur, et son
 absence du référentiel ne doit pas bloquer la saisie physique.
-Périmètre, enrichissement, migration et réception :
-[PRINT_REFERENCE_PROPOSAL.md](PRINT_REFERENCE_PROPOSAL.md).
+
+Après consultation indépendante (Claude Opus, Gemini, DeepSeek, Mistral),
+le contrat retient un ensemble d’impressions candidates et une correspondance
+marchande explicite. Standard/Foil reste une projection ; la conservation du
+prix dépend du produit, des filtres, des métriques et de la population cotée.
+La résolution d’impression et la résolution de marché ont des états distincts.
+
+**Ordre :** vocabulaire d’observation avant les scans (dont tampon non examiné /
+absence constatée / présence constatée), moteur pur, règles sourcées sur les
+huit familles, puis audit et activation après sauvegarde/restauration. Les
+anciennes cotations restent visibles avec leur provenance ; une incompatibilité
+les suspend sans effacer les attestations physiques.
+
+**Terminé lorsque :** les scénarios C01–C20 passent, les règles réelles ont
+leurs preuves d’impression et de marché sur leur périmètre, le paquet fonctionne
+hors ligne et une restauration reproduit une décision historique. La consultation
+ne certifie pas les faits métier et ne constitue pas une livraison de M1.1.
+
+Comportement, migration et réception :
+[PRINT_REFERENCE_CONTRACT.md](PRINT_REFERENCE_CONTRACT.md).
+Contexte et enrichissement : [PRINT_REFERENCE_PROPOSAL.md](PRINT_REFERENCE_PROPOSAL.md).
 
 ### M2 — Vérifications automatiques indépendantes (3 à 5 jours)
 
