@@ -1,7 +1,8 @@
 # M1.1 — Contrat des observations, de la résolution et des cotations
 
 Version du contrat : **1.1**, 13 octobre 2026 (révision après revue : §3, §5,
-§6, §7, §8). **Implémentation partielle en mode audit ; M1.1 non réceptionné.** État et limites :
+§6, §7, §8). **Implémentation partielle en mode audit ; M1.1 non réceptionné.**
+Explication sans détail technique : [guide fonctionnel](PRINT_REFERENCE_GUIDE.md). État et limites :
 [PRINT_REFERENCE_IMPLEMENTATION.md](PRINT_REFERENCE_IMPLEMENTATION.md).
 
 Ce document définit le comportement à livrer ; depuis la révision 1.1, M2
