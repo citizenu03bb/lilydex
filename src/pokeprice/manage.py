@@ -84,6 +84,14 @@ def main():
     prices.add_argument(
         "--actor", default="manage", help="Auteur inscrit dans l'historique"
     )
+    repair = actions.add_parser(
+        "repair-prices",
+        help="Auditer les cotations perdues après précision de finition",
+    )
+    repair.add_argument("--apply", action="store_true", help="Appliquer le plan audité")
+    repair.add_argument(
+        "--copy-id", action="append", help="Limiter aux exemplaires indiqués"
+    )
     names = actions.add_parser(
         "names",
         help="Noms des éditions en plusieurs langues (TCGdex, une fois par édition)",
@@ -174,6 +182,11 @@ def main():
                     args.size,
                     expected_sha256=args.expected_sha256,
                 )
+        elif args.action == "repair-prices":
+            from .price_recovery import apply, candidates
+
+            plan = candidates(store, copy_ids=args.copy_id)
+            result = apply(store, plan) if args.apply else {"candidates": plan}
         elif args.action == "prices":
             from .pricing import PriceService
 

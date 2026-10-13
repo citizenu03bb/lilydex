@@ -47,6 +47,16 @@ def main():
             "present": bool(copies),
             "all_in_queue": bool(copies)
             and all(c["valuation"]["needs_review"] for c in copies),
+            "all_accounted_for": bool(copies)
+            and all(
+                c["valuation"]["needs_review"]
+                or (
+                    c["identification_status"] == "confirmed"
+                    and c["variant_confirmed"]
+                    and c["condition_confirmed"]
+                )
+                for c in copies
+            ),
         }
     report = {
         "observed_at": datetime.now(timezone.utc).isoformat(),
@@ -78,7 +88,7 @@ def main():
         ],
     }
     report["passed"] = report["queue_at_most_15_percent"] and all(
-        k["all_in_queue"] for k in known.values()
+        k["all_accounted_for"] for k in known.values()
     )
     output = json.dumps(report, ensure_ascii=False, indent=2) + "\n"
     if args.output:

@@ -92,7 +92,7 @@ def restore_backup(archive_path, destination):
                 ):
                     raise ValueError("Base restaurée incohérente.")
                 version = db.execute("PRAGMA user_version").fetchone()[0]
-                if version not in (1, 2, 3, 4, 5, 6, 7, 8, 9):
+                if version not in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10):
                     raise ValueError("Version de base incompatible.")
                 photos = [
                     row[0]
@@ -170,6 +170,11 @@ def export_csv(store):
         "identification_status",
         "condition",
         "condition_confirmed",
+        "finish",
+        "variant_confirmed",
+        "variant_verified_at",
+        "variant_verified_by",
+        "variant_observation",
         "photo",
         "photo_original",
         "back_photo",
@@ -252,6 +257,11 @@ def export_html(store):
                 "file": r["source_key"],
                 "condition": r["condition"],
                 "condition_confirmed": bool(r["condition_confirmed"]),
+                "finish": r["finish"],
+                "variant_confirmed": bool(r["variant_confirmed"]),
+                "variant_verified_at": r["variant_verified_at"],
+                "variant_verified_by": r["variant_verified_by"],
+                "variant_observation": r["variant_observation"],
                 "foil": bool(r["foil"]),
                 "stamp": r["stamp"],
                 "price_date": r["price_date"],

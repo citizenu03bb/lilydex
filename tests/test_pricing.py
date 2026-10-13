@@ -83,6 +83,7 @@ def client(tmp_path):
         if catalog_id == "offline-1":
             raise RuntimeError("TCGdex indisponible")
         card = copy.deepcopy(CARD)
+        card["id"] = catalog_id
         if catalog_id == "holo-1":  # Printed holo only, no reverse.
             card["variants"] = {"holo": True}
         return card
@@ -209,7 +210,7 @@ def test_stamp_is_a_searchable_variant_that_resets_the_reference(client):
 
     store = client.app.state.store
     with sqlite3.connect(store.database) as db:
-        assert db.execute("PRAGMA user_version").fetchone()[0] == 9
+        assert db.execute("PRAGMA user_version").fetchone()[0] == 10
     card = confirmed(client, foil=True, position=6, stamp="EX Fantômes Holon")
     assert card["stamp"] == "EX Fantômes Holon"
     priced = client.post(

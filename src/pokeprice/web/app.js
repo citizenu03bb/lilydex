@@ -362,11 +362,15 @@ async function loadCards() {
           `${card.condition || "État inconnu"}${card.foil ? " · Foil" : ""}${card.stamp ? " · Tampon" : ""}`,
         ),
       );
-      if (card.price_alerts)
+      if (card.variant_confirmed)
+        bottom.append(el("span", "Variante vérifiée", "badge"));
+      if (card.valuation?.is_valuable)
+        bottom.append(el("span", "Carte de valeur", "badge"));
+      if (card.price_alerts || card.variant_check || (card.variant_catalog_warning && card.variant_confirmed))
         bottom.append(
           el(
             "span",
-            `⚠ ${card.variant_check ? "Variante à vérifier" : `${card.price_alerts} alerte(s) prix`}`,
+            card.variant_check ? "⚠ Variante à vérifier" : card.variant_catalog_warning && card.variant_confirmed ? "Variante confirmée · catalogue discordant" : `${card.price_alerts} signal(aux) de prix`,
             "card-alert",
           ),
         );
@@ -590,20 +594,26 @@ function standardVariantHint(snapshot) {
     return "Relevez le prix pour savoir, selon TCGdex, si la version standard de cette carte est holo ou mate.";
   const standard =
     variants.holo && !variants.normal
-      ? "holo (illustration brillante d’origine)"
+      ? "holo d’origine (illustration et parfois cadre brillants)"
       : variants.normal
         ? "mate"
         : "inconnue";
   const reverse = variants.reverse ? " Une reverse existe." : "";
-  return `Selon TCGdex : ${snapshot.rarity || "rareté inconnue"}, version standard ${standard}.${reverse} Choisissez Foil seulement si votre carte brille davantage (reverse, illustration holo sur une carte normalement mate, tampon…).`;
+  return `Selon TCGdex : ${snapshot.rarity || "rareté inconnue"}, version standard ${standard}.${reverse} Standard comprend les Rare Holo, Prime et LV.X d’origine. Foil correspond à une reverse ou une holo spéciale d’une édition normalement mate. Le catalogue peut être incomplet : la confirmation physique reste prioritaire.`;
 }
 function renderPriceSnapshot(parent, card) {
   const section = el("section", undefined, "price-panel");
   section.setAttribute("aria-label", "Relevé de prix");
+  if (card.reference_cents != null && card.price_source && card.price_date && !card.valuation?.price_variant_issue)
+    section.append(el("p", `Référence enregistrée : ${money(card.reference_cents)} · ${card.price_source} · ${card.price_date.slice(0, 10)}`));
   if (card.valuation) {
     const value = card.valuation;
     section.append(el("p", `Tendance : ${money(value.trend_cents)} · Prudente : ${money(value.prudent_cents)} · Estimation de vente : ${money(value.sale_estimate_cents)}`));
     section.append(el("p", `Valeur en jeu : ${money(value.risk_cents)}${value.risk_incomplete ? " · prix incomplets" : ""} · seuil ${money(value.threshold_cents)}. Maximum prudent des variantes et éditions plausibles, sans décote d’état.`, "help"));
+    if (card.variant_confirmed && value.variant_catalog_warning)
+      section.append(el("p", "Variante confirmée physiquement ; TCGdex ne répertorie pas cette variante. La confirmation humaine est conservée.", "help"));
+    if (value.market_unstable)
+      section.append(el("p", "Marché instable : les moyennes divergent. Ce signal de prix ne remet pas en cause l’examen physique.", "help"));
     if (value.needs_review) {
       const reasons = el("ul", undefined, "price-warnings");
       for (const reason of value.reasons) reasons.append(el("li", reason.label));
@@ -627,7 +637,14 @@ function renderPriceSnapshot(parent, card) {
     );
     if (snapshot.warnings.length) {
       const list = el("ul", undefined, "price-warnings");
-      for (const warning of snapshot.warnings) list.append(el("li", warning));
+      for (const warning of snapshot.warnings) {
+        if (card.variant_confirmed && !card.valuation?.price_variant_issue && warning.startsWith("TCGdex ne connaît pas de version Foil")) continue;
+        if (card.variant_confirmed && !card.valuation?.price_variant_issue && warning.startsWith("L’autre variante cote")) {
+          list.append(el("li", warning.replace(" : une erreur de variante changerait fortement la valeur.", " · comparaison catalogue ; autre catégorie écartée après vérification physique.")));
+          continue;
+        }
+        list.append(el("li", warning));
+      }
       section.append(list);
     }
   } else
@@ -650,12 +667,21 @@ function renderPriceSnapshot(parent, card) {
     const refresh = el("button", "Relever le prix (TCGdex)");
     refresh.type = "button";
     refresh.addEventListener("click", async () => {
+      if (parent.elements && ["name", "set_name", "number", "language", "catalog_id", "identification_status", "stamp", "finish"].some((key) => (parent.elements[key]?.value || "") !== (card[key] || ""))) {
+        toast("Enregistrez d’abord les observations modifiées, puis relevez le prix.");
+        return;
+      }
+      if (parent.elements?.foil && !parent.elements.foil.disabled && (parent.elements.foil.value === "true") !== Boolean(card.foil)) {
+        toast("Enregistrez d’abord la catégorie manuelle, puis relevez le prix.");
+        return;
+      }
       refresh.disabled = true;
       try {
         await api(`/copies/${card.id}/price-refresh`, {
           method: "POST",
           body: JSON.stringify({ expected_version: card.version }),
         });
+        await refreshSummary();
         await openDetail(card.id);
         await loadCards();
         toast("Prix relevé. La référence reste une tendance, pas un prix de vente.");
@@ -1139,12 +1165,56 @@ async function openDetail(id) {
     ["PO", "PO"],
     ["NM/EX", "NM/EX"],
   ]);
-  field(row, "foil", "Variante", String(Boolean(c.foil)), "text", [
-    ["false", "Standard (telle qu’imprimée, Rare Holo comprise)"],
-    ["true", "Foil (plus brillante que la standard : reverse, holo tamponnée…)"],
-  ]);
-  form.append(el("p", standardVariantHint(c.price_snapshot), "help"));
   field(form, "stamp", "Tampon sur l’illustration", c.stamp).maxLength = 120;
+  const finish = field(form, "finish", "Finition observée sur la carte", c.finish || "", "text", [
+    ["", "À déterminer"],
+    ["non_holo", "Non holo (mate)"],
+    ["holo", "Holo dans l’illustration"],
+    ["holo_border", "Holo avec cadre brillant (Prime, LV.X…)"],
+    ["reverse", "Reverse (fond brillant)"],
+    ["special", "Autre finition / variante spéciale"],
+  ]);
+  const priceVariant = field(form, "foil", "Catégorie de prix", String(Boolean(c.foil)), "text", [
+    ["false", "Standard (version normale de l’édition, mate ou holo d’origine)"],
+    ["true", "Foil (reverse ou holo parallèle)"],
+  ]);
+  const categoryHint = el("p", undefined, "help");
+  form.append(categoryHint);
+  const displayCategory = (decision) => {
+    priceVariant.parentElement.firstChild.textContent = decision?.mode === "automatic" ? "Catégorie de prix calculée" : "Catégorie enregistrée · à vérifier";
+    priceVariant.disabled = decision?.mode === "automatic" || !editAllowed() || Boolean(c.deleted_at);
+    if (decision?.mode === "automatic") priceVariant.value = String(decision.foil);
+    categoryHint.textContent = decision?.mode === "automatic"
+      ? `Automatique · ${decision.reason}`
+      : `${decision?.reason || "Renseignez la finition observée."} La sélection manuelle est réservée aux cas particuliers.`;
+  };
+  displayCategory(c.price_category);
+  form.append(el("p", "Décrivez ce qui brille sur la carte. L’édition et le tampon permettent de calculer Standard ou Foil / reverse. Si plusieurs impressions restent possibles, précisez le produit dans les observations avant de confirmer.", "help"));
+  field(form, "variant_observation", "Observations de vérification (facultatif)", c.variant_observation || "", "textarea").maxLength = 1000;
+  const variantLabel = el("label", undefined, "check-label");
+  const variantCheck = el("input");
+  variantCheck.type = "checkbox";
+  variantCheck.name = "variant_confirmed";
+  variantCheck.checked = Boolean(c.variant_confirmed);
+  variantCheck.disabled = !editAllowed() || Boolean(c.deleted_at);
+  variantLabel.append(variantCheck, document.createTextNode("Variante et tampon vérifiés sur la carte physique"));
+  form.append(variantLabel);
+  if (c.variant_confirmed)
+    form.append(el("p", `Vérifiée par ${c.variant_verified_by} le ${new Date(c.variant_verified_at).toLocaleString("fr-FR")}.`, "help"));
+  for (const key of ["name", "set_name", "number", "language", "catalog_id", "identification_status", "foil", "stamp", "finish"])
+    form.elements[key].addEventListener("change", () => { variantCheck.checked = false; });
+  let categoryRequest = 0;
+  for (const key of ["finish", "stamp", "catalog_id", "identification_status", "number", "set_name", "language"])
+    form.elements[key].addEventListener("change", async () => {
+      const request = ++categoryRequest;
+      const fields = Object.fromEntries(["finish", "stamp", "catalog_id", "identification_status", "number", "set_name", "language"].map((name) => [name, form.elements[name].value || (name === "catalog_id" ? null : "")]));
+      try {
+        const decision = await api(`/copies/${id}/variant-preview`, { method: "POST", body: JSON.stringify(fields) });
+        if (request === categoryRequest) displayCategory(decision);
+      } catch (err) {
+        if (request === categoryRequest) { priceVariant.disabled = true; categoryHint.textContent = err.message; }
+      }
+    });
   const checkLabel = el("label", undefined, "check-label");
   const check = el("input");
   check.type = "checkbox";
@@ -1178,7 +1248,7 @@ async function openDetail(id) {
   const price = field(
     row,
     "reference_price_eur",
-    "Prix de référence (€)",
+    c.valuation?.price_variant_issue ? "Ancien prix de référence (€) · catégorie à corriger" : "Prix de référence (€)",
     c.reference_cents === null ? "" : c.reference_cents / 100,
     "number",
   );
@@ -1234,6 +1304,11 @@ async function openDetail(id) {
     hp: "PV",
     condition: "État",
     condition_confirmed: "État vérifié",
+    finish: "Finition observée",
+    variant_confirmed: "Variante vérifiée physiquement",
+    variant_verified_at: "Date de vérification de variante",
+    variant_verified_by: "Auteur de vérification de variante",
+    variant_observation: "Observations de variante",
     identification_status: "Identification",
     foil: "Foil",
     stamp: "Tampon",
@@ -1304,6 +1379,8 @@ async function openDetail(id) {
       "album_id",
       "notes",
       "stamp",
+      "finish",
+      "variant_observation",
     ]) {
       let value = data.get(key);
       if (key === "catalog_id" && !value) value = null;
@@ -1314,10 +1391,13 @@ async function openDetail(id) {
       const value = data.get(key) === "" ? null : Number(data.get(key));
       if (value !== c[key]) changes[key] = value;
     }
-    for (const key of ["foil", "condition_confirmed"]) {
-      const value = key === "foil" ? data.get(key) === "true" : data.has(key);
+    for (const key of ["foil", "condition_confirmed", "variant_confirmed"]) {
+      const value = key === "foil" ? priceVariant.value === "true" : data.has(key);
       if (value !== Boolean(c[key])) changes[key] = value;
     }
+    // An explicit re-check can accompany a changed identity/print in this save.
+    if (data.has("variant_confirmed") && ["name", "set_name", "number", "language", "catalog_id", "identification_status", "foil", "stamp", "finish"].some((key) => key in changes))
+      changes.variant_confirmed = true;
     const amount =
       data.get("reference_price_eur") === ""
         ? null

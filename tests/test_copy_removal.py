@@ -207,6 +207,14 @@ def test_schema_5_migration_preserves_all_copy_data(tmp_path):
         db.row_factory = sqlite3.Row
         db.execute("ALTER TABLE copies DROP COLUMN deleted_at")
         db.execute("ALTER TABLE copies DROP COLUMN stamp")
+        for column in (
+            "finish",
+            "variant_confirmed",
+            "variant_verified_at",
+            "variant_verified_by",
+            "variant_observation",
+        ):
+            db.execute("ALTER TABLE copies DROP COLUMN " + column)
         db.execute("PRAGMA user_version=5")
         for table in (
             "intake_drafts",
@@ -219,8 +227,16 @@ def test_schema_5_migration_preserves_all_copy_data(tmp_path):
         before = [dict(r) for r in db.execute("SELECT * FROM copies ORDER BY id")]
     migrated = Store(store.root)
     with migrated.connect() as db:
-        assert db.execute("PRAGMA user_version").fetchone()[0] == 9
+        assert db.execute("PRAGMA user_version").fetchone()[0] == 10
         after = [dict(r) for r in db.execute("SELECT * FROM copies ORDER BY id")]
-    added = ("deleted_at", "stamp")
+    added = (
+        "deleted_at",
+        "stamp",
+        "finish",
+        "variant_confirmed",
+        "variant_verified_at",
+        "variant_verified_by",
+        "variant_observation",
+    )
     assert [{k: v for k, v in c.items() if k not in added} for c in after] == before
     assert all(c["deleted_at"] == "" and c["stamp"] == "" for c in after)

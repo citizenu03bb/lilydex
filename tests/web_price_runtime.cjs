@@ -68,3 +68,59 @@ const cards = [
   console.error(error);
   process.exit(1);
 });
+
+// Detail price refresh must update the collection totals as well as the card.
+(async () => {
+  const makeElement = (tag, text) => ({
+    tag, text, children: [], handlers: {},
+    append(...children) { this.children.push(...children); },
+    setAttribute() {},
+    addEventListener(event, handler) { this.handlers[event] = handler; },
+  });
+  let storedPrice = null, total = null, detailPrice = null, listPrice = null;
+  const panelContext = vm.createContext({
+    el: makeElement,
+    money: (n) => n == null ? "Prix indisponible" : String(n),
+    editAllowed: () => true,
+    renderSaleEstimate: () => {},
+    api: async () => { storedPrice = 4200; },
+    refreshSummary: async () => { total = storedPrice; },
+    openDetail: async () => { detailPrice = storedPrice; },
+    loadCards: async () => { listPrice = storedPrice; },
+    toast: () => {},
+  });
+  vm.runInContext(source.slice(source.indexOf("function renderPriceSnapshot("), source.indexOf("function renderSaleEstimate(")), panelContext);
+  const parent = makeElement("div");
+  panelContext.renderPriceSnapshot(parent, {
+    id: "checked-prime", version: 3, identification_status: "confirmed", catalog_id: "hgss3-85", variant_confirmed: true,
+    price_snapshot: { metrics: {}, warnings: [
+      "TCGdex ne connaît pas de version Foil (reverse) de cette carte",
+      "L’autre variante cote 11,00 € : une erreur de variante changerait fortement la valeur.",
+    ] },
+  });
+  const descendants = (node) => [node, ...node.children.flatMap(descendants)];
+  const manual = makeElement("div");
+  panelContext.renderPriceSnapshot(manual, {
+    reference_cents: 5210, price_source: "Cardmarket · tendance", price_date: "2026-10-07",
+    valuation: { trend_cents: null, prudent_cents: null },
+  });
+  assert(descendants(manual).some((n) => n.text?.includes("Référence enregistrée : 5210 · Cardmarket · tendance · 2026-10-07")));
+  const nodes = descendants(parent);
+  assert(!nodes.some((n) => n.text?.startsWith("TCGdex ne connaît pas de version Foil")));
+  assert(nodes.some((n) => n.text?.includes("autre catégorie écartée après vérification physique")));
+  await nodes.find((n) => n.tag === "button" && n.text === "Relever le prix (TCGdex)").handlers.click();
+  assert.equal(total, 4200);
+  assert.equal(detailPrice, total);
+  assert.equal(listPrice, total);
+  storedPrice = null;
+  const unsaved = makeElement("form");
+  unsaved.elements = { finish: { value: "non_holo" } };
+  panelContext.renderPriceSnapshot(unsaved, {
+    id: "pending-finish", version: 4, finish: "holo", identification_status: "confirmed", catalog_id: "ex5-71",
+  });
+  await descendants(unsaved).find((n) => n.tag === "button" && n.text === "Relever le prix (TCGdex)").handlers.click();
+  assert.equal(storedPrice, null); // Do not price the saved print while showing unsaved observations.
+})().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});

@@ -12,6 +12,7 @@ from pathlib import Path
 
 from .library import normalized
 from .valuation import ESTIMATE_FIELDS, assess, candidates_from_evidence, totals
+from .variant_pricing import category, compatible_quote, pricing_issue
 
 
 def now():
@@ -92,7 +93,7 @@ class Store:
             version = db.execute("PRAGMA user_version").fetchone()[0]
             if version == 0:
                 db.executescript(SCHEMA)
-            elif version not in (1, 2, 3, 4, 5, 6, 7, 8, 9):
+            elif version not in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10):
                 raise ValueError("Version de base incompatible.")
             if db.execute("PRAGMA user_version").fetchone()[0] == 1:
                 db.executescript(
@@ -169,6 +170,18 @@ class Store:
                     CREATE TABLE catalog_lookups(key TEXT PRIMARY KEY, found INTEGER NOT NULL,
                         value TEXT, checked_at TEXT NOT NULL);
                     PRAGMA user_version=9;
+                    COMMIT;
+                """)
+            if db.execute("PRAGMA user_version").fetchone()[0] == 9:
+                db.executescript("""
+                    BEGIN IMMEDIATE;
+                    ALTER TABLE copies ADD COLUMN finish TEXT NOT NULL DEFAULT ''
+                        CHECK(finish IN ('','non_holo','holo','holo_border','reverse','special'));
+                    ALTER TABLE copies ADD COLUMN variant_confirmed INTEGER NOT NULL DEFAULT 0;
+                    ALTER TABLE copies ADD COLUMN variant_verified_at TEXT NOT NULL DEFAULT '';
+                    ALTER TABLE copies ADD COLUMN variant_verified_by TEXT NOT NULL DEFAULT '';
+                    ALTER TABLE copies ADD COLUMN variant_observation TEXT NOT NULL DEFAULT '';
+                    PRAGMA user_version=10;
                     COMMIT;
                 """)
             db.execute("PRAGMA journal_mode=WAL")
@@ -314,8 +327,30 @@ class Store:
         terms = normalized(query).split()
         for row in rows:
             snapshot = snapshots.get(row["id"]) or {}
-            row["price_alerts"] = len(snapshot.get("warnings") or [])
-            row["variant_check"] = bool(row["foil"] and snapshot.get("variant_check"))
+            metadata = self.category_metadata(row, valuation_context)
+            issue = pricing_issue(row, metadata)
+            row["price_category"] = category(row, metadata)
+            row["price_alerts"] = sum(
+                not (
+                    row["variant_confirmed"]
+                    and not issue
+                    and warning.startswith(
+                        (
+                            "TCGdex ne connaît pas de version Foil",
+                            "L’autre variante cote",
+                        )
+                    )
+                )
+                for warning in (snapshot.get("warnings") or [])
+            )
+            row["variant_catalog_warning"] = bool(
+                row["foil"]
+                and snapshot.get("catalog_id") == row["catalog_id"]
+                and snapshot.get("variant_check")
+            )
+            row["variant_check"] = bool(
+                row["variant_catalog_warning"] and not row["variant_confirmed"]
+            )
             # Edition names in several languages (TCGdex, fetched once): "Dracaufeu"
             # finds an English "Charizard" and the other way round.
             row["catalog_names"] = names.get(row["catalog_id"], "")
@@ -379,8 +414,16 @@ class Store:
                 r["stock_state"] == "available" and not r["deleted_at"]
                 for r in selected
             ),
-            "reference_total_cents": sum(r["reference_cents"] or 0 for r in selected),
-            "without_price": sum(r["reference_cents"] is None for r in selected),
+            "reference_total_cents": sum(
+                (r["reference_cents"] or 0)
+                for r in selected
+                if not r["valuation"]["price_variant_issue"]
+            ),
+            "without_price": sum(
+                r["reference_cents"] is None
+                or bool(r["valuation"]["price_variant_issue"])
+                for r in selected
+            ),
             "valuation_totals": totals(selected),
         }
 
@@ -401,6 +444,7 @@ class Store:
                 json.loads(event["after_json"]),
             )
         invalidated = {}
+        context["category_corrections"] = set()
         for event in db.execute(
             "SELECT id,copy_id,before_json,after_json FROM events WHERE kind='correction' ORDER BY id"
         ):
@@ -408,12 +452,22 @@ class Store:
                 json.loads(event["before_json"]),
                 json.loads(event["after_json"]),
             )
+            if before.get("foil") != after.get("foil"):
+                context["category_corrections"].add(event["copy_id"])
             if any(before.get(k) != after.get(k) for k in ESTIMATE_FIELDS):
                 invalidated[event["copy_id"]] = event["id"]
         for copy_id, (event_id, _) in list(context["sale-estimate"].items()):
             if invalidated.get(copy_id, 0) > event_id:
                 del context["sale-estimate"][copy_id]
         context["catalog"] = {}
+        context["variant-catalogue"] = {}
+        for row in db.execute(
+            "SELECT key,value FROM catalog_lookups WHERE found=1 AND key LIKE 'variant:%'"
+        ):
+            _, language, catalog_id = row["key"].split(":", 2)
+            metadata = json.loads(row["value"])
+            if metadata.get("catalog_id") == catalog_id:
+                context["variant-catalogue"][(catalog_id, language)] = metadata
         for card in db.execute("SELECT id,catalog_id,language,price_date FROM copies"):
             event_id, snapshot = context["price-snapshot"].get(card["id"], (0, {}))
             if (
@@ -425,6 +479,15 @@ class Store:
                 if event_id > context["catalog"].get(key, (0, {}))[0]:
                     context["catalog"][key] = (event_id, snapshot)
         return context
+
+    @staticmethod
+    def category_metadata(card, context):
+        snapshot = context["price-snapshot"].get(card["id"], (0, None))[1]
+        if snapshot and snapshot.get("catalog_id") == card.get("catalog_id"):
+            return snapshot
+        return context["variant-catalogue"].get(
+            (card.get("catalog_id"), card.get("language"))
+        )
 
     @staticmethod
     def valuation(card, context, source=None, *, threshold_cents=1000):
@@ -481,11 +544,15 @@ class Store:
                 candidate["price_snapshot"] = cached[1]
             priced[candidate["id"]] = candidate
         return assess(
-            card,
+            {
+                **card,
+                "category_was_changed": card["id"] in context["category_corrections"],
+            },
             context["price-snapshot"].get(card["id"], (0, None))[1],
             context["sale-estimate"].get(card["id"], (0, None))[1],
             list(priced.values()),
             threshold_cents=threshold_cents,
+            category_snapshot=Store.category_metadata(card, context),
         )
 
     def summary(self, threshold_cents=1000):
@@ -515,7 +582,10 @@ class Store:
                 ),
                 "confirmed_without_price": sum(
                     r["identification_status"] == "confirmed"
-                    and r["reference_cents"] is None
+                    and (
+                        r["reference_cents"] is None
+                        or bool(r["valuation"]["price_variant_issue"])
+                    )
                     for r in rows
                 ),
                 "available": sum(r["stock_state"] == "available" for r in rows),
@@ -562,7 +632,16 @@ class Store:
             return after
 
     def patch(
-        self, copy_id, changes, version, actor, reason, *, evidence=None, _db=None
+        self,
+        copy_id,
+        changes,
+        version,
+        actor,
+        reason,
+        *,
+        evidence=None,
+        _db=None,
+        _category_snapshot=None,
     ):
         allowed = {
             "name",
@@ -574,6 +653,9 @@ class Store:
             "identification_status",
             "condition",
             "condition_confirmed",
+            "finish",
+            "variant_confirmed",
+            "variant_observation",
             "foil",
             "stamp",
             "album_id",
@@ -618,10 +700,56 @@ class Store:
                 and after["catalog_id"] == before["catalog_id"]
             ):
                 after["catalog_id"] = None
-            if any(after[k] != before[k] for k in identity):
+            snapshot = _category_snapshot or self.category_snapshot(db, after)
+            decision = category(after, snapshot)
+            if decision["mode"] == "automatic":
+                after["foil"] = decision["foil"]
+            if (
+                after["foil"] != before["foil"]
+                and changes.get("reference_cents") is not None
+                and _category_snapshot is None
+            ):
+                raise ValueError(
+                    "La catégorie calculée change : enregistrez la finition puis relevez un nouveau prix pour cette catégorie."
+                )
+            if any(after[k] != before[k] for k in identity) or (
+                after["finish"] != before["finish"]
+                and not compatible_quote(before, after, snapshot)
+            ):
                 after.update(reference_cents=None, price_source="", price_date="")
+                # A price refresh supplies a new quote for the calculated category.
+                if _category_snapshot is not None:
+                    after.update(
+                        {
+                            k: changes[k]
+                            for k in ("reference_cents", "price_source", "price_date")
+                            if k in changes
+                        }
+                    )
             if after["identification_status"] != "confirmed":
                 after.update(reference_cents=None, price_source="", price_date="")
+            if changes.get("reference_cents") is not None and (
+                issue := pricing_issue(after, snapshot)
+            ):
+                raise ValueError(issue)
+            physical_identity = tuple(
+                k for k in identity if k != "foil" or decision["mode"] != "automatic"
+            )
+            variant_changed = any(
+                after[k] != before[k] for k in physical_identity
+            ) or any(
+                after[k] != before[k]
+                for k in ("finish", "photo", "photo_original", "identification_status")
+            )
+            if variant_changed and "variant_confirmed" not in changes:
+                after["variant_confirmed"] = False
+            self.validate_variant(after)
+            if after["variant_confirmed"] and (
+                variant_changed or not before["variant_confirmed"]
+            ):
+                after.update(variant_verified_at=now(), variant_verified_by=actor)
+            elif not after["variant_confirmed"]:
+                after.update(variant_verified_at="", variant_verified_by="")
             if (
                 after["condition"] != before["condition"]
                 and "condition_confirmed" not in changes
@@ -640,7 +768,16 @@ class Store:
             after["edition_id"] = self.edition(db, after)
             after["version"] = before["version"] + 1
             after["updated_at"] = now()
-            fields = sorted(allowed | {"edition_id", "version", "updated_at"})
+            fields = sorted(
+                allowed
+                | {
+                    "edition_id",
+                    "version",
+                    "updated_at",
+                    "variant_verified_at",
+                    "variant_verified_by",
+                }
+            )
             db.execute(
                 "UPDATE copies SET "
                 + ",".join(f"{k}=?" for k in fields)
@@ -674,6 +811,57 @@ class Store:
             ):
                 self.observe_price(db, after, actor)
             return self.get(db, copy_id)
+
+    @staticmethod
+    def validate_variant(card):
+        if card.get("finish", "") not in (
+            "",
+            "non_holo",
+            "holo",
+            "holo_border",
+            "reverse",
+            "special",
+        ):
+            raise ValueError("Finition inconnue.")
+        if not card.get("variant_confirmed"):
+            return
+        if card["identification_status"] != "confirmed" or not card.get("finish"):
+            raise ValueError(
+                "Confirmez l’identité et renseignez la finition observée avant de valider la variante."
+            )
+        if (card["finish"] == "non_holo" and card["foil"]) or (
+            card["finish"] == "reverse" and not card["foil"]
+        ):
+            raise ValueError(
+                "La catégorie de prix ne correspond pas à la finition observée (non holo : Standard ; reverse : Foil)."
+            )
+
+    @staticmethod
+    def category_snapshot(db, card):
+        """Use recorded catalogue metadata, never a client-supplied category."""
+        for row in db.execute(
+            "SELECT e.after_json FROM events e JOIN copies c ON c.id=e.copy_id "
+            "WHERE e.kind='price-snapshot' AND (c.id=? OR (c.catalog_id=? AND c.language=?)) ORDER BY e.id DESC",
+            (card.get("id", ""), card.get("catalog_id"), card.get("language")),
+        ):
+            snapshot = json.loads(row[0])
+            if (
+                card.get("catalog_id")
+                and snapshot.get("catalog_id") == card["catalog_id"]
+            ):
+                return snapshot
+        row = db.execute(
+            "SELECT value FROM catalog_lookups WHERE key=? AND found=1",
+            (f"variant:{card.get('language', '')}:{card.get('catalog_id', '')}",),
+        ).fetchone()
+        if row:
+            snapshot = json.loads(row[0])
+            if (
+                card.get("catalog_id")
+                and snapshot.get("catalog_id") == card["catalog_id"]
+            ):
+                return snapshot
+        return None
 
     @staticmethod
     def duplicates(db, values, exclude_id=""):
@@ -728,6 +916,11 @@ class Store:
             "identification_status": "review",
             "condition": "",
             "condition_confirmed": False,
+            "finish": "",
+            "variant_confirmed": False,
+            "variant_verified_at": "",
+            "variant_verified_by": "",
+            "variant_observation": "",
             "foil": False,
             "stamp": "",
             "notes": "",
@@ -757,6 +950,13 @@ class Store:
                 "SELECT 1 FROM albums WHERE id=?", (card["album_id"],)
             ).fetchone():
                 raise ValueError("Album inconnu.")
+            snapshot = self.category_snapshot(db, card)
+            decision = category(card, snapshot)
+            if decision["mode"] == "automatic":
+                card["foil"] = decision["foil"]
+            self.validate_variant(card)
+            card["variant_verified_at"] = now() if card["variant_confirmed"] else ""
+            card["variant_verified_by"] = actor if card["variant_confirmed"] else ""
             card["edition_id"] = self.edition(db, card)
             db.execute(
                 "INSERT INTO copies("

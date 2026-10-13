@@ -7,6 +7,12 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 from .inventory import Conflict, cents, now
+from .variant_pricing import (
+    category,
+    has_original_holo_and_reverse,
+    has_parallel_holo,
+    pricing_issue,
+)
 
 # Cardmarket filter codes; unknown values leave the filter out.
 CARDMARKET_LANGUAGES = {
@@ -33,8 +39,8 @@ SOURCE = "TCGdex · Cardmarket"
 MATERIAL_EUR = 2.0
 
 
-def fetch_card(catalog_id, language):
-    """Card JSON with pricing; the Cardmarket product is shared by all languages."""
+def fetch_catalogue_card(catalog_id, language, *, require_price=False):
+    """Edition metadata is useful even when no euro quote is available."""
     if not re.fullmatch(r"[A-Za-z0-9._-]{1,120}", catalog_id or ""):
         raise ValueError("Identifiant de catalogue invalide.")
     for lang in dict.fromkeys([language, "en"]):
@@ -47,11 +53,22 @@ def fetch_card(catalog_id, language):
                 data = json.loads(response.read())
         except Exception:  # noqa: BLE001, S112 - Try the next language; details are not useful.
             continue
-        if isinstance(data, dict) and (data.get("pricing") or {}).get("cardmarket"):
+        if (
+            isinstance(data, dict)
+            and data.get("id") == catalog_id
+            and (not require_price or (data.get("pricing") or {}).get("cardmarket"))
+        ):
             return data
-    raise RuntimeError(
-        "TCGdex indisponible ou sans prix Cardmarket pour cette carte. Réessayez plus tard."
-    )
+    if require_price:
+        raise RuntimeError(
+            "TCGdex indisponible ou sans prix Cardmarket pour cette carte. Un prix peut être relevé manuellement sur Cardmarket."
+        )
+    raise RuntimeError("TCGdex indisponible pour cette édition. Réessayez plus tard.")
+
+
+def fetch_card(catalog_id, language):
+    """Card JSON with pricing; the Cardmarket product is shared by all languages."""
+    return fetch_catalogue_card(catalog_id, language, require_price=True)
 
 
 def summarize(data, foil):
@@ -72,7 +89,14 @@ def summarize(data, foil):
     material = max(reference or 0, other or 0) >= MATERIAL_EUR
     variants = data.get("variants") or {}
     # Foil without any known reverse: holo stamp, promo, or a misread variant.
-    variant_check = bool(material and foil and variants and not variants.get("reverse"))
+    variant_check = bool(
+        material
+        and foil
+        and variants
+        and not variants.get("reverse")
+        and not has_parallel_holo({"variants": variants, "raw": data.get("pricing")})
+        and not has_original_holo_and_reverse({"raw": data.get("pricing")})
+    )
     if variant_check:
         warnings.append(
             "TCGdex ne connaît pas de version Foil (reverse) de cette carte"
@@ -328,6 +352,9 @@ class PriceService:
         """Record a sale estimate from pasted offers; the card itself is unchanged."""
         with self.store.connect() as db:
             card = self.store.get(db, copy_id)
+            metadata = self.store.category_snapshot(db, card)
+        if issue := pricing_issue(card, metadata):
+            raise ValueError(issue)
         offers = parse_offers(text)
         if not offers:
             raise ValueError(
@@ -373,9 +400,17 @@ class PriceService:
             raise Conflict("La fiche a changé. Rechargez-la avant de relever le prix.")
         # The network calls stay outside the write transaction.
         data = self.fetch(card["catalog_id"], card["language"])
+        if data.get("id") != card["catalog_id"]:
+            raise ValueError("Le catalogue retourné ne correspond pas à cette édition.")
+        decision = category(card, summarize(data, card["foil"]))
+        if decision["mode"] == "automatic":
+            card = {**card, "foil": decision["foil"]}
         snapshot = summarize(data, card["foil"])
+        if issue := pricing_issue(card, snapshot):
+            raise ValueError(issue)
         snapshot["observed_at"] = now()
         changes = {
+            "foil": bool(card["foil"]),
             "reference_cents": cents(snapshot["reference_eur"]),
             "price_source": f"{SOURCE} {snapshot['reference_field']}",
             "price_date": snapshot["updated"] or snapshot["observed_at"],
@@ -392,6 +427,7 @@ class PriceService:
                     actor,
                     "Relevé de prix TCGdex",
                     _db=db,
+                    _category_snapshot=snapshot,
                 )
             self.store.event(
                 db, copy_id, actor, "price-snapshot", "Relevé TCGdex", {}, snapshot

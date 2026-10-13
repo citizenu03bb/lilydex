@@ -64,6 +64,17 @@ montant réellement remboursé. Aucune annonce n'est publiée automatiquement.
 Le prix de référence n'est pas un prix de vente souhaité. Une correction
 d'identité ou de variante efface la référence courante devenue incertaine ; les
 anciens relevés restent dans l'historique. Un prix indisponible reste vide.
+Préciser une finition compatible avec l’identité, le tampon et la catégorie
+déjà cotés conserve la référence, sa source et sa date. Une catégorie modifiée
+ou encore ambiguë exige un nouveau relevé. La fiche affiche aussi la référence
+manuelle datée, même sans relevé détaillé ni moyenne permettant une valeur prudente.
+
+`pokeprice-manage repair-prices` audite les anciennes pertes causées par une
+précision compatible de finition. Après sauvegarde, `--apply` restaure uniquement
+les cotations sourcées et datées du plan, avec contrôle de version et auteur
+fixe `system:price-recovery`. `--copy-id` limite les exemplaires ; les confirmations
+humaines sont conservées. Aucun prix déjà présent ou explicitement supprimé
+sans changement de finition n’est remplacé.
 Les états importés restent à confirmer. Aucune décote automatique n'est appliquée.
 
 ### Relever le prix d'une carte
@@ -146,7 +157,8 @@ modifier la carte ni son prix de référence ; la plus récente s'affiche.
 
 ### Repérer les cartes à examiner
 
-Le filtre **Examen → À examiner** retient les cartes de valeur, les identités
+Le filtre **Examen → À examiner** retient les contrôles physiques restant à faire
+sur les cartes de valeur, les divergences de variante du catalogue, les identités
 incertaines et les prix prudents incomplets. Le **seuil de valeur** vaut 10 €
 par défaut et reste dans l’adresse avec le filtre et le tri Classeur. Les badges
 et les fiches précisent les motifs d’examen et la valeur en jeu : maximum du
@@ -163,7 +175,8 @@ Voir [les règles et la réception de M1](VALUATION.md).
 
 Le filtre **Variante** de la barre de recherche propose Standard, Foil et
 **Foil à vérifier** : les cartes Foil dont le dernier relevé signale que TCGdex
-ne connaît pas de reverse (à partir de 2 €). Les cartes concernées portent le
+ne connaît pas de reverse (à partir de 2 €), et dont la variante n’a pas encore
+été confirmée physiquement. Les cartes concernées portent le
 badge « ⚠ Variante à vérifier » ; les autres alertes de prix sont comptées sur
 la carte. Le filtre est conservé dans l'adresse de la page (`?variant=check`).
 
@@ -173,6 +186,79 @@ Parcours conseillé : filtre Foil, **Sélectionner les cartes affichées**,
 le motif saisi, puis un nouveau relevé de prix ; une carte déjà dans la variante
 choisie reste inchangée. Ajouter `&limit=200` à l'adresse affiche jusqu'à
 200 cartes par page.
+
+La fiche sépare **Finition observée sur la carte** (mate, holo, holo avec cadre
+brillant, reverse, spéciale) et **Catégorie de prix calculée** (Standard/Foil). La catégorie se déduit côté
+serveur de la finition, du tampon et des données de l’édition : mate → Standard,
+fond reverse → Foil, holo d’origine → Standard, illustration holo d’une édition
+mate avec reverse connue → Foil. Le menu calculé est verrouillé dans la fiche.
+Quand l’édition comporte explicitement une impression mate et une impression
+holo parallèle, avec deux tarifs distincts et aucune reverse, « Holo dans
+l’illustration » calcule Foil. C’est le cas de Manaphy 2/17 POP Série 9 ;
+Foil désigne alors l’impression holo parallèle, pas un fond reverse.
+Quand les tarifs décrivent explicitement une holo d’origine et une reverse,
+sans impression mate, ils permettent de résoudre des indicateurs de finition
+incomplets du catalogue. Baggaïd 74/99 Destinées Futures est ainsi Standard
+pour l’illustration holo et Foil pour la reverse, conformément à la
+[liste officielle Pokémon](https://assets.pokemon.com/assets/cms2/pdf/trading-card-game/checklist/bw4_web_cardlist_en.pdf).
+Les montants utilisés restent les cotations Cardmarket en euros.
+Une catégorie encore indéterminée est étiquetée « Catégorie enregistrée · à
+vérifier » et n’est pas présentée comme un calcul automatique.
+Une Prime
+comme Roigada 85/90 Indomptable a un cadre holo d’origine : finition « Holo avec
+cadre brillant », catégorie Standard. La [liste officielle Pokémon](https://assets.pokemon.com/assets/cms2/pdf/trading-card-game/checklist/hgss3_web_cardlist_en.pdf)
+classe cette édition parmi les Prime, et les numéros 81–90 n’existent qu’en
+une version brillante. Une holo tamponnée sur une carte normalement mate peut
+relever de Foil ; le tampon et les observations restent enregistrés séparément.
+Pour EX Deoxys n°16–95, une illustration holo avec le tampon de l’extension
+est la reverse/Foil. C’est notamment le cas de Barboach 54/107 en italien.
+Le [tableau officiel Pokémon](https://assets.pokemon.com/assets/cms/pdf/tcg/checklists/deoxys_checklist.pdf)
+documente les impressions mate et parallèle brillante de cette plage.
+
+**Standard signifie la version normale de l’édition**, qui peut être mate ou
+holo d’origine ; une finition holo ne suffit pas à choisir Standard. Pour
+Pikachu 78/110 EX Fantômes Holon, une illustration holo avec le tampon de
+l’extension est la parallèle commercialisée comme reverse/Foil, malgré son
+fond mat. La [liste officielle de l’extension](https://assets.pokemon.com/assets/cms/pdf/tcg/checklists/holonphantoms_checklist.pdf)
+donne deux impressions (mate et brillante) aux numéros 18–98. Le serveur calcule Foil pour cette finition tamponnée ; il applique aussi cette
+règle aux numéros 14–88 tamponnés EX Gardiens de Cristal, selon la
+[liste officielle](https://assets.pokemon.com/assets/cms/pdf/tcg/checklists/crystalguardians_checklist.pdf). Une ancienne combinaison
+incohérente conserve ses observations physiques, mais son prix est exclu des
+totaux et un motif demande d’appliquer la catégorie calculée. Un enregistrement ou un
+nouveau relevé de prix corrige cette catégorie avec historique et version
+attendue, en conservant la date et l’auteur de l’observation physique lorsqu’elle
+n’a pas changé. Un relevé ne crée jamais une confirmation humaine. Le prix prudent catalogue
+n’est pas une estimation de vente pour l’état PO ni pour une langue donnée.
+
+Cocher **Variante et tampon vérifiés sur la carte physique** clôt le contrôle,
+même lorsque la catégorie de prix reste identique. La date et l’auteur sont
+enregistrés par le serveur. Une divergence catalogue demeure informative et
+ne remet pas la carte dans « Foil à vérifier ». Une correction d’identité,
+de variante manuelle, de tampon, de finition ou du recto exige une nouvelle confirmation ;
+un relevé de prix conserve la confirmation. Les anciens imports et corrections
+ne sont jamais déclarés vérifiés automatiquement.
+
+Si le catalogue est incomplet ou admet plusieurs impressions, la fiche garde
+une sélection manuelle et demande de préciser le produit dans les observations
+avant tarification. La finition et sa confirmation physique peuvent être
+enregistrées même sans ces informations ; le prix reste exclu des valeurs
+tant que sa catégorie n’est pas déterminée.
+Les données de finition sont récupérées et mises en cache lors de la saisie
+d’une holo sans métadonnées locales, même si TCGdex ne fournit pas de prix
+Cardmarket. Celebi Promo Nintendo 029 est ainsi une holo d’origine en Standard,
+avec un prix en euros à relever séparément. Cette consultation ne modifie ni
+l’exemplaire, ni sa confirmation, ni son relevé de prix.
+Une ancienne correction de catégorie sans
+finition observée retourne dans « À examiner » ; elle n’est pas présumée erronée.
+L’audit en lecture seule `python scripts/audit_variant_categories.py` répertorie
+les catégories incohérentes, les observations ambiguës et ces corrections à
+reprendre. Il ne modifie aucune donnée de collection.
+
+La file « À examiner » montre les tâches restantes : identité, variante/tampon,
+état et prix à actualiser. Une carte de valeur dont l’examen physique et le prix
+prudent sont complets quitte la file ; elle garde le badge « Carte de valeur ».
+Après confirmation de la variante, la valeur en jeu exclut les autres variantes
+écartées. L’instabilité du marché reste une information de prix.
 
 La variante **Foil** signifie « plus brillante que la version standard de la
 carte » : reverse (fond de la carte holographique hors illustration, illustration mate) ou holo tamponnée d'une

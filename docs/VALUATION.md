@@ -17,8 +17,28 @@ reste zéro. La valeur en jeu est le maximum prudent des variantes et des
 éditions candidates plausibles ; elle sert à repérer les contrôles utiles.
 Les moyennes à 1 et 7 jours servent à signaler l’instabilité.
 
-Une correction d’identité ou de variante retire le relevé courant du calcul
-jusqu’au prochain relevé. Les données historiques restent conservées.
+Après confirmation physique de la variante, seule la catégorie de prix retenue
+reste une hypothèse plausible. Une autre variante plus chère ne maintient plus
+artificiellement la valeur en jeu de l’exemplaire.
+
+Exception : une catégorie de prix incompatible avec la finition observée n’est
+pas validée par la simple case de confirmation. Pour EX Fantômes Holon n°18–98,
+une illustration holo avec tampon de l’extension relève de la parallèle Foil,
+même si le fond est mat. Une ancienne confirmation en Standard reste conservée
+dans l’historique, mais son prix courant est exclu des valeurs et la carte
+revient dans la file avec « catégorie de prix à corriger ». Les cotations des
+deux catégories restent prises en compte pour le risque jusqu’à correction.
+Relevé et estimation de vente sont bloqués tant que la catégorie est incohérente.
+La confirmation de la finition physique reste enregistrable lorsque les
+métadonnées manquent ou que le produit de prix demeure indéterminé. Elle ne
+valide pas ce prix. Les métadonnées de finition mises en cache séparément
+permettent de calculer la catégorie sans cotation disponible ; elles ne sont
+jamais converties en prix ni en confirmation humaine.
+
+Une correction d’identité, de tampon ou de catégorie retire le relevé courant
+du calcul jusqu’au prochain relevé. Préciser une finition compatible avec le
+produit déjà coté conserve sa référence, sa source et sa date ; une finition
+ambiguë invalide le prix. Les données historiques restent conservées.
 
 Pour une identité incertaine, seule la dernière recherche qui correspond au
 nom, à la référence, à la langue et aux PV actuels fournit les candidats. Leurs
@@ -33,17 +53,28 @@ candidats restent séparés des références et des totaux de collection.
 
 ## File d’examen
 
-La file contient les cartes dont la valeur en jeu atteint le seuil, les
-identités incertaines et les prix prudents incomplets qui empêchent de décider.
-Une reverse connue mais sans prix reste à examiner. Une métrique partielle
+La file contient les identités incertaines, les prix prudents incomplets et les
+examens physiques restant à faire. Au-dessus du seuil, la variante/tampon et
+l’état doivent être confirmés. Une carte de valeur dont les vérifications sont
+terminées sort de la file ; son badge « Carte de valeur » reste visible.
+Une divergence de variante signalée par TCGdex exige une vérification physique,
+même sous le seuil, et disparaît des tâches après confirmation humaine.
+Une reverse plausible mais sans prix reste à examiner. Une métrique partielle
 connue sous le seuil ne suffit pas à imposer l’examen de cette variante : son
 minimum éventuel ne peut pas dépasser cette métrique.
 
-Les motifs expliquent le contrôle : carte de valeur, variante à forte prime
-(au moins ×3), reverse ou variante spéciale, marché instable (écart d’au moins
-×2 entre tendance et moyennes), identité incertaine, prix incomplet, état non
-validé. Les motifs d’état et de marché concernent les cartes de valeur : les
-états importés non validés ne remplissent pas à eux seuls toute la file.
+Les motifs distinguent identité, variante/tampon, état et prix à actualiser.
+Une prime de variante (au moins ×3) motive le contrôle tant que la variante
+n’est pas confirmée. Le marché instable (écart d’au moins ×2 entre tendance et
+moyennes) reste une information de prix : il ne rouvre pas l’examen physique.
+Les états importés non validés ne remplissent pas à eux seuls toute la file.
+
+La confirmation physique exige une identité confirmée et une finition décrite.
+La date et l’auteur viennent du serveur. Les changements d’identité, de langue,
+de catégorie de prix manuelle, de tampon, de finition ou de recto l’annulent, sauf nouvelle
+confirmation explicite dans la même correction. Déplacement, état, notes et
+relevés de prix la conservent. Aucune ancienne correction ne devient une
+confirmation physique par déduction.
 
 ## Trois totaux
 

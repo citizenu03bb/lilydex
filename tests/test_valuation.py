@@ -35,9 +35,9 @@ def test_prudent_value_uses_30_days_and_risk_uses_the_other_variant():
     assert {r["code"] for r in result["reasons"]} >= {
         "value",
         "variant_premium",
-        "unstable",
         "condition",
     }
+    assert result["market_unstable"]
     assert (
         assess(card(), summarize(CARD, False), threshold_cents=14016)["needs_review"]
         is False
@@ -136,6 +136,77 @@ def test_malformed_variant_metadata_does_not_hide_known_price_risk():
     snapshot = summarize(CARD, False)
     snapshot["variants"] = ["invalid"]
     assert assess(card(), snapshot)["risk_cents"] == 14015
+
+
+def test_physical_verification_closes_review_without_hiding_valuable_or_unstable_market():
+    c = card(
+        foil=True, finish="reverse", variant_confirmed=True, condition_confirmed=True
+    )
+    result = assess(c, summarize(CARD, True))
+    assert result["risk_cents"] == result["prudent_cents"] == 14015
+    assert result["is_valuable"] and result["market_unstable"]
+    assert not result["needs_review"]
+    c["condition_confirmed"] = False
+    assert {r["code"] for r in assess(c, summarize(CARD, True))["reasons"]} == {
+        "value",
+        "condition",
+    }
+
+
+def test_checked_standard_excludes_the_rejected_expensive_reverse():
+    result = assess(
+        card(variant_confirmed=True, condition_confirmed=True), summarize(CARD, False)
+    )
+    assert result["risk_cents"] == 625
+    assert not result["needs_review"] and not result["is_valuable"]
+    assert len(result["hypotheses"]) == 1
+
+
+def test_human_verification_does_not_invent_a_price_or_revive_invalidated_quote():
+    c = card(variant_confirmed=True, condition_confirmed=True, price_date="")
+    result = assess(c, summarize(CARD, False))
+    assert {r["code"] for r in result["reasons"]} == {"missing_price"}
+    assert result["prudent_cents"] is None
+
+
+def test_checked_standard_does_not_wait_for_a_nonexistent_reverse_quote():
+    snapshot = {
+        "catalog_id": "swsh7-077",
+        "variants": {"normal": True, "reverse": True},
+        "raw": {"cardmarket": {"trend": 1, "avg30": 0.5}},
+    }
+    result = assess(card(variant_confirmed=True), snapshot)
+    assert result["risk_cents"] == 50 and not result["risk_incomplete"]
+    assert not result["needs_review"]
+
+
+def test_catalogue_disagreement_does_not_override_physical_confirmation():
+    snapshot = summarize(CARD, True)
+    snapshot["variant_check"] = True
+    c = card(foil=True, variant_confirmed=True, condition_confirmed=True)
+    result = assess(c, snapshot)
+    assert result["variant_catalog_warning"] and not result["needs_review"]
+
+
+def test_stamped_holon_holo_cannot_be_valued_as_a_confirmed_nonfoil():
+    snapshot = summarize(CARD, False)
+    snapshot["catalog_id"] = "ex13-78"
+    c = card(
+        catalog_id="ex13-78",
+        stamp="EX Fantômes Holon",
+        finish="holo",
+        variant_confirmed=True,
+        condition_confirmed=True,
+    )
+    result = assess(c, snapshot)
+    assert result["price_variant_issue"] and result["needs_review"]
+    assert result["prudent_cents"] is None and result["trend_cents"] is None
+    assert result["risk_cents"] == 14015
+    assert {r["code"] for r in result["reasons"]} == {"price_variant", "missing_price"}
+    c["foil"] = True
+    result = assess(c, snapshot)
+    assert not result["price_variant_issue"] and not result["needs_review"]
+    assert result["prudent_cents"] == result["risk_cents"] == 14015
 
 
 @pytest.fixture

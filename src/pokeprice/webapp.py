@@ -25,7 +25,9 @@ from .intake import IntakeService, catalogue_candidates, normalize_photo, read_p
 from .inventory import Conflict, Store, cents, now
 from .inventory_backup import backup, export_csv, export_data, export_html
 from .photo_processing import parse_guide
-from .pricing import PriceService, cardmarket_url, fetch_card
+from .pricing import PriceService, cardmarket_url, fetch_card, fetch_catalogue_card
+from .variant_catalogue import VariantCatalogue
+from .variant_pricing import category
 
 
 class Model(BaseModel):
@@ -85,6 +87,11 @@ class CardFields(Model):
     condition: Literal["", "NM", "EX", "GD", "LP", "PL", "PO", "NM/EX"] | None = None
     condition_confirmed: bool | None = None
     foil: bool | None = None
+    finish: (
+        Literal["", "non_holo", "holo", "holo_border", "reverse", "special"] | None
+    ) = None
+    variant_confirmed: bool | None = None
+    variant_observation: str | None = Field(default=None, max_length=1000)
     stamp: str | None = Field(default=None, max_length=120)
     album_id: str | None = Field(default=None, min_length=1, max_length=120)
     page: int | None = Field(default=None, ge=1, le=1000)
@@ -298,6 +305,7 @@ def create_app(
     intake_lookup=None,
     condition_reader=None,
     price_fetch=None,
+    variant_fetch=None,
 ):
     store = Store(directory)
     if secure_cookie:
@@ -323,6 +331,16 @@ def create_app(
     app.state.conditions = conditions
     pricing = PriceService(store, price_fetch or fetch_card)
     app.state.pricing = pricing
+    variant_catalogue = VariantCatalogue(
+        store,
+        variant_fetch
+        or (
+            lambda *args: (
+                pricing.fetch(*args) if price_fetch else fetch_catalogue_card(*args)
+            )
+        ),
+    )
+    app.state.variant_catalogue = variant_catalogue
     app.add_middleware(
         TrustedHostMiddleware,
         allowed_hosts=allowed_hosts or ["127.0.0.1", "localhost", "testserver"],
@@ -637,6 +655,7 @@ def create_app(
             card["condition_assessments"] = assessment_rows(store, db, card)
             snapshot = pricing.latest(db, copy_id)
             card["price_snapshot"] = snapshot
+            card["price_category"] = category(card, store.category_snapshot(db, card))
             card["sale_estimate"] = pricing.latest(db, copy_id, "sale-estimate")
             card["valuation"] = store.valuation(
                 card,
@@ -652,9 +671,25 @@ def create_app(
                 (snapshot or {}).get("id_product"),
                 card["language"],
                 card["condition"],
-                card["foil"],
+                card["price_category"]["foil"]
+                if card["price_category"]["mode"] == "automatic"
+                else card["foil"],
             )
             return card
+
+    @app.post("/api/copies/{copy_id}/variant-preview")
+    def variant_preview(copy_id: str, values: CardFields, user=Depends(current_user)):
+        with store.connect() as db:
+            before = store.get(db, copy_id)
+            card = {**before, **values.model_dump(exclude_unset=True)}
+            if (
+                any(card[k] != before[k] for k in ("number", "set_name", "language"))
+                and card["catalog_id"] == before["catalog_id"]
+            ):
+                card["catalog_id"] = None
+        variant_catalogue.ensure(card)
+        with store.connect() as db:
+            return category(card, store.category_snapshot(db, card))
 
     @app.post("/api/copies/{copy_id}/sale-estimate", status_code=201)
     def sale_estimate(copy_id: str, values: OffersPaste, user=Depends(editor)):
@@ -685,6 +720,19 @@ def create_app(
                 changes["price_date"] = now()
             else:
                 changes.update(price_source="", price_date="")
+        # Network metadata lookup happens before the write transaction. It may
+        # fail; saving a physical observation must remain possible offline.
+        with store.connect() as db:
+            before = store.get(db, copy_id)
+        if before["version"] != values.expected_version:
+            raise Conflict("La fiche a changé. Rechargez-la avant de modifier.")
+        observed = {**before, **changes}
+        if (
+            any(observed[k] != before[k] for k in ("number", "set_name", "language"))
+            and observed["catalog_id"] == before["catalog_id"]
+        ):
+            observed["catalog_id"] = None
+        variant_catalogue.ensure(observed)
         return store.patch(
             copy_id, changes, values.expected_version, user["username"], values.reason
         )
@@ -706,6 +754,7 @@ def create_app(
             "language",
         ):
             changes[key] = getattr(values, key)
+        variant_catalogue.ensure(changes)
         return store.create_copy(
             changes,
             user["username"],

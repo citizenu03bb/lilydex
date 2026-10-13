@@ -3,6 +3,8 @@
 import math
 from decimal import Decimal, ROUND_HALF_UP
 
+from .variant_pricing import category, pricing_issue
+
 DEFAULT_THRESHOLD_CENTS = 1000
 IDENTITY_FIELDS = ("catalog_id", "name", "number", "set_name", "language")
 ESTIMATE_FIELDS = (*IDENTITY_FIELDS, "foil", "stamp", "condition")
@@ -81,8 +83,26 @@ def candidates_from_evidence(card, evidence):
     return search.get("candidates") or []
 
 
-def assess(card, snapshot=None, estimate=None, candidates=(), *, threshold_cents=1000):
+def assess(
+    card,
+    snapshot=None,
+    estimate=None,
+    candidates=(),
+    *,
+    threshold_cents=1000,
+    category_snapshot=None,
+):
     confirmed = card["identification_status"] == "confirmed"
+    physically_confirmed = bool(confirmed and card.get("variant_confirmed"))
+    metadata = category_snapshot or snapshot
+    decision = category(card, metadata)
+    issue = pricing_issue(card, metadata)
+    variant_confirmed = physically_confirmed and not issue
+    catalogue_warning = bool(
+        card["foil"]
+        and (snapshot or {}).get("catalog_id") == card.get("catalog_id")
+        and (snapshot or {}).get("variant_check")
+    )
     # Identity/variant corrections clear price_date. Never revive their old price.
     if (
         not confirmed
@@ -95,6 +115,14 @@ def assess(card, snapshot=None, estimate=None, candidates=(), *, threshold_cents
     if not isinstance(variants, dict):
         variants = {}
     current = next((v for v in values if v["foil"] == bool(card["foil"])), {})
+    if issue:
+        current = {}  # The stored category's quote does not price this physical print.
+    # Once the physical print is checked, rejected variants are no longer plausible.
+    plausible_values = (
+        [current]
+        if variant_confirmed and current
+        else ([] if variant_confirmed else values)
+    )
     hypotheses = [
         {
             **v,
@@ -103,7 +131,7 @@ def assess(card, snapshot=None, estimate=None, candidates=(), *, threshold_cents
             "observed_at": (snapshot or {}).get("updated")
             or (snapshot or {}).get("observed_at"),
         }
-        for v in values
+        for v in plausible_values
     ]
     if not confirmed:
         for candidate in candidates:
@@ -144,6 +172,22 @@ def assess(card, snapshot=None, estimate=None, candidates=(), *, threshold_cents
         or missing_candidates
     )
     reasons = []
+    if card.get("category_was_changed") and not card.get("finish"):
+        reasons.append(
+            {
+                "code": "variant",
+                "label": "Ancienne correction de catégorie : renseignez la finition observée pour la vérifier.",
+            }
+        )
+    if issue:
+        reasons.append(
+            {
+                "code": "price_variant"
+                if decision["mode"] == "automatic"
+                else "price_category",
+                "label": issue,
+            }
+        )
     if not confirmed:
         reasons.append({"code": "identity", "label": "Identité incertaine"})
     if (
@@ -151,34 +195,56 @@ def assess(card, snapshot=None, estimate=None, candidates=(), *, threshold_cents
         or material_unknown
         or (confirmed and current.get("prudent_cents") is None)
     ):
-        reasons.append({"code": "missing_price", "label": "Prix prudent incomplet"})
+        reasons.append(
+            {
+                "code": "missing_price",
+                "label": "Prix à actualiser : valeur prudente incomplète",
+            }
+        )
     if risk is not None and risk >= threshold_cents:
-        reasons.append({"code": "value", "label": "Carte de valeur"})
+        if not physically_confirmed or not card.get("condition_confirmed"):
+            reasons.append(
+                {
+                    "code": "value",
+                    "label": "Carte de valeur : examen physique à terminer",
+                }
+            )
         alternative = next((v for v in values if v["foil"] != bool(card["foil"])), {})
         other = alternative.get("prudent_cents")
         own = current.get("prudent_cents")
         if (
-            other is not None
+            not physically_confirmed
+            and other is not None
             and other >= threshold_cents
             and (own is None or other >= 3 * max(own, 1))
         ):
             reasons.append(
                 {"code": "variant_premium", "label": "Variante à forte prime"}
             )
-        if snapshot and (variants.get("reverse") or card["foil"]):
+        if not physically_confirmed:
             reasons.append(
-                {"code": "variant", "label": "Reverse ou variante spéciale à examiner"}
+                {
+                    "code": "variant",
+                    "label": "Variante et tampon à vérifier physiquement",
+                }
             )
-        if any(
-            h["unstable"] and (h["prudent_cents"] or 0) >= threshold_cents
-            for h in hypotheses
-        ):
-            reasons.append({"code": "unstable", "label": "Marché instable"})
         if not card.get("condition_confirmed"):
             reasons.append({"code": "condition", "label": "État non validé"})
+    if (
+        catalogue_warning
+        and not physically_confirmed
+        and not any(r["code"] == "variant" for r in reasons)
+    ):
+        reasons.append(
+            {
+                "code": "variant",
+                "label": "Variante à vérifier : catalogue incomplet ou discordant",
+            }
+        )
     sale = None
     if (
         confirmed
+        and not issue
         and estimate
         and all(
             estimate.get(k) == card.get(k) for k in ("language", "stamp", "condition")
@@ -196,6 +262,10 @@ def assess(card, snapshot=None, estimate=None, candidates=(), *, threshold_cents
         "risk_cents": risk,
         "risk_incomplete": risk is None or incomplete,
         "threshold_cents": threshold_cents,
+        "is_valuable": risk is not None and risk >= threshold_cents,
+        "market_unstable": any(h["unstable"] for h in hypotheses),
+        "variant_catalog_warning": catalogue_warning,
+        "price_variant_issue": issue,
         "needs_review": bool(reasons),
         "reasons": reasons,
         "hypotheses": hypotheses,
