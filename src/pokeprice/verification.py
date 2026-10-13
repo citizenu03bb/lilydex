@@ -169,8 +169,12 @@ def propose_variant(card, reading, snapshot=None, valuation=None):
             "reason": decision["reason"],
         }
     variants = (snapshot or {}).get("variants") or {}
+    # TCGdex misses reverses (Black & White sets, Clic 75/114): its "no reverse"
+    # only counts when the photo itself shows a flat card body.
     reverse_possible = (
-        not isinstance(variants, dict) or variants.get("reverse") is not False
+        not isinstance(variants, dict)
+        or variants.get("reverse") is not False
+        or reading["background_shine"] != "not_visible"
     )
     premium = foil_value(valuation)
     threshold = (valuation or {}).get("threshold_cents", 1000)
@@ -198,6 +202,27 @@ def propose_variant(card, reading, snapshot=None, valuation=None):
             else "TCGdex ne connaît pas de reverse pour cette carte."
         ),
     }
+
+
+def check_inputs(store, variant_catalogue, copy_id, threshold_cents=1000):
+    """Catalogue metadata and value at stake behind a variant proposal."""
+    with store.connect() as db:
+        card = store.get(db, copy_id)
+    # Fetch the edition's prints as for a holo reading, without assuming one.
+    variant_catalogue.ensure({**card, "finish": "holo", "stamp": ""})
+    with store.connect() as db:
+        snapshot = store.category_snapshot(db, card)
+        card["reference_resolution"] = store.reference.decision_for(db, card, snapshot)
+        source = db.execute(
+            "SELECT raw_json FROM sources WHERE copy_id=?", (copy_id,)
+        ).fetchone()
+        valuation = store.valuation(
+            card,
+            store.valuation_context(db),
+            json.loads(source[0]) if source else None,
+            threshold_cents=threshold_cents,
+        )
+    return snapshot, valuation
 
 
 def reading_conflicts(card, reading):
@@ -289,6 +314,10 @@ CARD_FIELDS = (
     "stamp_state",
     "variant_confirmed",
 )
+TRIGGERS = {
+    "manual": "Lecture de la finition demandée explicitement ; fiche inchangée",
+    "intake": "Lecture de la finition lancée automatiquement à la saisie ; fiche inchangée",
+}
 
 
 class VariantCheckService:
@@ -297,7 +326,16 @@ class VariantCheckService:
         self.lock = threading.Lock()
         self.running = set()
 
-    def evaluate(self, copy_id, version, actor, *, snapshot=None, valuation=None):
+    def evaluate(
+        self,
+        copy_id,
+        version,
+        actor,
+        *,
+        snapshot=None,
+        valuation=None,
+        trigger="manual",
+    ):
         with self.lock:
             if copy_id in self.running:
                 raise Conflict("Une lecture est déjà en cours pour cet exemplaire.")
@@ -357,10 +395,11 @@ class VariantCheckService:
                     copy_id,
                     actor,
                     "verification",
-                    "Lecture de la finition demandée explicitement ; fiche inchangée",
+                    TRIGGERS[trigger],
                     {},
                     {
                         "verification_id": check_id,
+                        "trigger": trigger,
                         "kind": "variant",
                         "source": self.reader.source,
                         "model": self.reader.model,
@@ -377,6 +416,47 @@ class VariantCheckService:
         finally:
             with self.lock:
                 self.running.discard(copy_id)
+
+    def evaluate_new_copy(self, copy_id, actor, inputs):
+        """Read a freshly saved copy once; a failure is logged, never raised.
+
+        ``inputs(copy_id)`` returns the catalogue snapshot and valuation. A copy
+        without a front photo, or already read on its current photo, is skipped.
+        """
+        try:
+            with self.store.connect() as db:
+                card = self.store.get(db, copy_id)
+                if (
+                    not card["photo"]
+                    or card["deleted_at"]
+                    or any(not row["stale"] for row in check_rows(db, card))
+                ):
+                    return None
+            snapshot, valuation = inputs(copy_id)
+            return self.evaluate(
+                copy_id,
+                card["version"],
+                actor,
+                snapshot=snapshot,
+                valuation=valuation,
+                trigger="intake",
+            )
+        except Exception as error:  # noqa: BLE001 - A background reading never breaks intake.
+            # Service errors are French messages written here; anything else
+            # (network, provider) is reduced to its type to keep secrets out.
+            known = isinstance(error, (Conflict, RuntimeError, ValueError, KeyError))
+            message = str(error) if known else type(error).__name__
+            with self.store.connect(write=True) as db:
+                self.store.event(
+                    db,
+                    copy_id,
+                    actor,
+                    "verification-failed",
+                    "Lecture automatique de la finition impossible ; demandez-la depuis la fiche",
+                    {},
+                    {"kind": "variant", "trigger": "intake", "error": message},
+                )
+            return None
 
     def confirm(self, copy_id, check_id, version, values, actor, reason, proposal):
         """Apply the human's decision; the reading is only its evidence."""

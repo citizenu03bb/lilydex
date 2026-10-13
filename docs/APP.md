@@ -352,6 +352,25 @@ Une lecture en désaccord avec la fiche (illustration holo contre fiche mate ou
 reverse, tampon contraire) place la carte dans « À examiner », même sous le
 seuil, jusqu’à une confirmation physique postérieure à cette lecture.
 
+**Lecture automatique à la saisie.** Avec `pokeprice-manage serve`, chaque
+nouvel exemplaire enregistré avec une photo du recto (saisie à l’unité ou en
+série) est lu une fois, juste après l’enregistrement, sans retarder la saisie.
+L’historique indique « lancée automatiquement à la saisie ». Si la lecture
+échoue (Gemini indisponible, photo refusée), l’historique le note et la carte
+reste à lire depuis la fiche. L’identification d’un exemplaire déjà en stock
+et le remplacement d’une photo ne déclenchent rien. `--no-auto-checks`
+désactive la lecture automatique (pas d’envoi à Gemini sans action explicite).
+
+**Non-régression.** `uv run python scripts/bench_recognition.py app` rejoue le
+banc d’essai à travers l’application, sur une copie de la base remise à l’état
+de saisie (variante non observée), en deux passages : chaque mesure est jugée
+sur le pire. Il échoue si une mesure passe sous son score du 7 octobre, ou si une proposition contredit une variante confirmée alors que
+la version Foil atteint le seuil ou n’a pas de prix connu.
+Une photo inexploitable (Gliscor, nom coupé) doit être refusée, pas lue.
+`app-check` rejoue hors ligne les lectures enregistrées avec les règles
+actuelles ; le test `tests/test_recognition_bench.py` en fait autant quand le
+banc local est présent.
+
 ## Supprimer ou restaurer un exemplaire
 
 Un administrateur ouvre la fiche et choisit **Supprimer cet exemplaire**, puis

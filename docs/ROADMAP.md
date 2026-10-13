@@ -297,6 +297,49 @@ d’entrée et 450 de sortie (raisonnement compris) par carte.
 Reste pour M2 : lecture automatique à la saisie, Tesseract (langue), DINOv2
 (édition), double source pour la contrefaçon, banc en test de non-régression.
 
+**Tranche 2, 13 octobre : lecture à la saisie, banc en non-régression.**
+Avec `pokeprice-manage serve`, tout nouvel exemplaire photographié (à l’unité
+ou en série) est lu une fois juste après l’enregistrement ; un échec est noté
+dans l’historique, la saisie n’attend pas. `bench_recognition.py app` rejoue le
+banc à travers l’application, sur une copie de la base remise à l’état de
+saisie : deux passages réels, chaque mesure jugée sur le pire des deux
+(décision du 13 octobre), échec sous le seuil.
+
+| Mesure | Seuil (7 oct.) | 1er passage | 2e passage |
+|---|---|---|---|
+| Numéro | 24/30 | 24/30 | 24/30 |
+| Langue | 30/30 | 30/30 | 30/30 |
+| Édition en 1er | 20/29 (13 oct.) | 20/29 | 21/29 |
+| Photo inexploitable refusée | 1/1 | 1/1 | 1/1 |
+| Holo ou mate, quand la lecture tranche | 21/21 | 18/18 | 21/21 |
+| Lecture tranchée (sinon examen) | 18/21 | 18/21 | 21/21 |
+| Tampon | 21/21 | 21/21 | 21/21 |
+| Proposition fausse, Foil au seuil ou sans prix | 0 | 0 | 0 |
+
+Gliscor 62/111 a le haut coupé : son nom n’est pas sur la photo. La lecture de
+saisie le refuse et demande une reprise, ce qui est le bon résultat ; le
+7 octobre, l’ancien protocole l’avait lu en devinant le nom. Le banc attend
+désormais ce refus, et les seuils de numéro, langue et édition sont ceux du
+7 octobre sans cette carte. Les autres écarts changent d’un passage à
+l’autre. Au pire des deux, l’édition donnait 20/29 pour 21/29 au 7 octobre : Celebi
+29/40 est lu « Celebi ☆ » une fois sur deux (l’étoile noire des promos, près
+du numéro, rattachée au nom ; aucune étoile n’est imprimée), et la recherche
+catalogue ne trouve alors rien ; Clic et PokéNav perdent leur numéro un
+passage sur deux. Le banc a
+aussi trouvé un trou de règle, corrigé : TCGdex ne répertorie pas certaines
+reverses (Clic 75/114), son « pas de reverse » ne vaut donc plus preuve quand
+la photo laisse le fond indéterminé. Une reverse sous le seuil proposée
+Standard reste tolérée (Clic à 0,77 €), comme le prévoit la règle.
+**Décision du 13 octobre : seuils de confort au niveau actuel, seuils de
+sécurité intouchables.** Une édition manquée renvoie la carte en « à vérifier » :
+elle coûte du temps, pas d’argent. Le seuil d’édition devient donc 20/29, le
+pire des deux passages de l’application ; le banc protège désormais contre un
+recul à partir de ce niveau. Les seuils qui empêchent une carte de valeur de
+passer en vrac (proposition fausse, holo ou mate tranché, tampon) ne baissent
+pas. Amélioration possible hors seuil : garder ☆, δ et les lettres de Zarbi dans
+le nom, et lire l’étoile noire des promos comme symbole d’extension (Celebi
+☆ ex14-100 est une autre carte que la promo np-29).
+
 ### M3 — Saisie à l'échelle des six classeurs (3 à 5 jours)
 
 - **Import d'un classeur depuis l'application** : photos de pages téléversées,
@@ -412,6 +455,7 @@ vérification : changer de modèle relève de la configuration, pas du code.
 - [ ] M1.1 — Référentiel des impressions : socle livré en audit ; preuves FR et de marché limitées à 2 jours ; ne bloque plus M2
 - [ ] M2 — Vérifications indépendantes branchées, banc en test de non-régression
   - [x] Tranche 1 : lecture de la finition, proposition Standard/Foil, validation humaine, désaccords dans la file (13 octobre)
+  - [x] Tranche 2 : lecture automatique à la saisie et banc rejoué sur l’application, pire de deux passages, seuils de sécurité inchangés (13 octobre)
 - [ ] M3 — Import de classeur dans l'application, série Android réceptionnée
 - [ ] M4 — Estimation par état, lots du vrac, calibration par les ventes
 - [ ] M5 — Hébergement, tests de bout en bout, restauration après déploiement

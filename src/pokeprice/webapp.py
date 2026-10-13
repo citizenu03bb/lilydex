@@ -14,7 +14,15 @@ from pathlib import Path
 from typing import Literal
 from urllib.parse import urlsplit
 
-from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
+from fastapi import (
+    BackgroundTasks,
+    Depends,
+    FastAPI,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+)
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from PIL import Image, ImageOps
 from pydantic import BaseModel, ConfigDict, Field, StrictBool
@@ -37,7 +45,12 @@ from .pricing import (
 )
 from .variant_catalogue import VariantCatalogue
 from .variant_pricing import category
-from .verification import VariantCheckService, check_rows, propose_variant
+from .verification import (
+    VariantCheckService,
+    check_inputs,
+    check_rows,
+    propose_variant,
+)
 
 
 class Model(BaseModel):
@@ -345,6 +358,7 @@ def create_app(
     intake_lookup=None,
     condition_reader=None,
     variant_reader=None,
+    auto_variant_checks=False,
     price_fetch=None,
     variant_fetch=None,
     market_fetch=None,
@@ -983,8 +997,10 @@ def create_app(
         return capture.patch(sid, user["id"], values.expected_version, changes)
 
     @app.post("/api/capture-sessions/{sid}/save", status_code=201)
-    def capture_save(sid: str, values: CaptureSave, user=Depends(editor)):
-        return capture.save(
+    def capture_save(
+        sid: str, values: CaptureSave, tasks: BackgroundTasks, user=Depends(editor)
+    ):
+        result = capture.save(
             sid,
             user["id"],
             user["username"],
@@ -995,6 +1011,8 @@ def create_app(
             values.human_confirmed,
             values.duplicate_acknowledgments,
         )
+        read_after_intake(tasks, result["card"], user)
+        return result
 
     @app.post("/api/photo-batches", status_code=201)
     def batch_preview(values: BatchPreview, user=Depends(editor)):
@@ -1138,10 +1156,23 @@ def create_app(
     def intake_catalogue(token: str, values: IntakeQuery, user=Depends(editor)):
         return intake.search(token, user["id"], values.model_dump())
 
+    def read_after_intake(tasks, card, user):
+        """A new photographed copy gets its finish read once, after the response."""
+        if auto_variant_checks and card.get("photo"):
+            tasks.add_task(
+                variant_checks.evaluate_new_copy,
+                card["id"],
+                user["username"],
+                variant_inputs,
+            )
+
     @app.post("/api/intake/{token}/save", status_code=201)
-    def intake_save(token: str, values: IntakeSave, user=Depends(editor)):
+    def intake_save(
+        token: str, values: IntakeSave, tasks: BackgroundTasks, user=Depends(editor)
+    ):
         data = intake_values(values)
-        return intake.save(
+        existing = intake.draft(token, user["id"])["existing"]
+        result = intake.save(
             token,
             user["id"],
             user["username"],
@@ -1150,6 +1181,9 @@ def create_app(
             values.human_confirmed,
             duplicate_acknowledgments=values.duplicate_acknowledgments,
         )
+        if not existing:  # Identifying a stored copy does not change its photo.
+            read_after_intake(tasks, result, user)
+        return result
 
     @app.post("/api/intake/{token}/duplicates")
     def intake_duplicates(token: str, values: IntakeSave, user=Depends(editor)):
@@ -1256,26 +1290,7 @@ def create_app(
         )
 
     def variant_inputs(copy_id, threshold_cents=1000):
-        """Catalogue metadata and value at stake behind a variant proposal."""
-        with store.connect() as db:
-            card = store.get(db, copy_id)
-        # Fetch the edition's prints as for a holo reading, without assuming one.
-        variant_catalogue.ensure({**card, "finish": "holo", "stamp": ""})
-        with store.connect() as db:
-            snapshot = store.category_snapshot(db, card)
-            card["reference_resolution"] = store.reference.decision_for(
-                db, card, snapshot
-            )
-            source = db.execute(
-                "SELECT raw_json FROM sources WHERE copy_id=?", (copy_id,)
-            ).fetchone()
-            valuation = store.valuation(
-                card,
-                store.valuation_context(db),
-                json.loads(source[0]) if source else None,
-                threshold_cents=threshold_cents,
-            )
-        return snapshot, valuation
+        return check_inputs(store, variant_catalogue, copy_id, threshold_cents)
 
     @app.post("/api/copies/{copy_id}/variant-checks", status_code=201)
     def check_variant(

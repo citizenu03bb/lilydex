@@ -57,6 +57,11 @@ def main():
     server.add_argument(
         "--allowed-host", action="append", help="Nom d’hôte autorisé derrière le proxy"
     )
+    server.add_argument(
+        "--no-auto-checks",
+        action="store_true",
+        help="Ne pas lire la finition (Gemini) automatiquement après chaque saisie photo",
+    )
     saver = actions.add_parser("backup", help="Sauvegarde SQLite cohérente et photos")
     saver.add_argument(
         "output", nargs="?", help="ZIP ; par défaut, archive datée dans data/backups"
@@ -170,6 +175,7 @@ def main():
                     secure_cookie=args.secure_cookie,
                     allowed_hosts=args.allowed_host
                     or ["127.0.0.1", "localhost", args.host],
+                    auto_variant_checks=not args.no_auto_checks,
                 ),
                 host=args.host,
                 port=args.port,

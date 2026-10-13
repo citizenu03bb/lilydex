@@ -4,9 +4,11 @@
     uv run python scripts/bench_recognition.py tesseract  # OCR: number, language, text
     uv run python scripts/bench_recognition.py gemini   # identification + verification
     uv run python scripts/bench_recognition.py report   # compare every runner
+    uv run python scripts/bench_recognition.py app      # the application, against minimum scores
+    uv run python scripts/bench_recognition.py app-check  # replay recorded app readings, offline
 
 The embedding runner (scripts/bench_embed.py) needs a PyTorch environment.
-Nothing here writes to the collection database.
+Nothing here writes to the collection database: the app run works on a copy.
 """
 
 import json
@@ -497,6 +499,282 @@ def run_agent(name):
     print(f"{len(results)}/{len(entries)} cartes notées")
 
 
+# --- The application, as a non-regression test -------------------------------
+
+# Photos the intake must refuse: reading them would be a guess, a retake is due.
+REFUSE = {
+    ("Gliscor E4", "62/111"): "haut coupé : le nom n’est pas sur la photo",
+}
+# Minimum scores per measure (ROADMAP M2): those of the 7 October 2026 bench,
+# without the photos to refuse (Gliscor: number and language read, edition not).
+# Edition is the app's own worst of two runs (13 October): a miss sends the card
+# to "à vérifier", it costs time, not money. Safety measures are never lowered.
+# Stored as a share, so that a rebuilt truth set keeps the same bar.
+APP_THRESHOLDS = {
+    "number_ok": (24, 30),
+    "language_ok": (30, 30),
+    "edition_ok": (20, 29),
+    "refused_ok": (1, 1),
+    "art_holo_ok": (21, 21),
+    # The app's protocol may answer "unclear" (the 7 October one could not):
+    # an abstention goes to a human. Minimum set by the first app run, 13 October.
+    "art_holo_read": (18, 21),
+    "stamp_ok": (21, 21),
+}
+APP_LABELS = {
+    "number_ok": "Numéro (lecture de saisie)",
+    "language_ok": "Langue (lecture de saisie)",
+    "edition_ok": "Édition en 1er (saisie + catalogue)",
+    "refused_ok": "Photo inexploitable refusée (à reprendre)",
+    "art_holo_ok": "Illustration holo ou mate, quand elle tranche",
+    "art_holo_read": "Illustration tranchée (sinon examen humain)",
+    "stamp_ok": "Tampon (lecture de finition)",
+}
+# Gemini answers differ from one run to the next: each measure is judged on the
+# worst of APP_RUNS live runs, so that a lucky run never hides a regression.
+APP_RUNS = 2
+# Proposals that contradict the owner's confirmed variant while the Foil print
+# is worth the threshold, or has no known price (S2): none is tolerated. Below
+# the threshold, a Standard proposal for a cheap reverse is the intended trade.
+MAX_WRONG_PROPOSALS = 0
+BLANK_VARIANT = {
+    "finish": "",
+    "foil": 0,
+    "stamp": "",
+    "stamp_state": "unobserved",
+    "variant_confirmed": 0,
+    "variant_verified_at": "",
+    "variant_verified_by": "",
+}
+
+
+def app_store(folder):
+    """A throwaway copy of the collection, as freshly entered: no observed variant."""
+    from pokeprice.inventory import Store
+
+    folder.mkdir(parents=True)
+    source = sqlite3.connect(f"file:{DB}?mode=ro", uri=True)
+    with sqlite3.connect(folder / "collection.sqlite3") as target:
+        source.backup(target)
+    source.close()
+    store = Store(folder)
+    store.photos = PHOTOS  # Read only: readings are written to the copy's database.
+    with store.connect(write=True) as db:
+        confirmed = {
+            r["id"]: {"finish": r["finish"], "foil": bool(r["foil"])}
+            for r in db.execute("SELECT id,finish,foil FROM copies WHERE variant_confirmed=1")
+        }
+        db.execute(
+            "UPDATE copies SET " + ",".join(f"{k}=?" for k in BLANK_VARIANT),
+            tuple(BLANK_VARIANT.values()),
+        )
+    return store, confirmed
+
+
+def app_runs():
+    """Recorded live runs, oldest first."""
+    return [json.loads(p.read_text()) for p in sorted(OUT.glob("result-app-*.json"))]
+
+
+def run_app(index=1):
+    """Run the application's own readers on every bench card; record everything."""
+    import tempfile
+
+    sys.path.insert(0, str(ROOT / "src"))
+    from pokeprice.intake import catalogue_candidates, read_photo
+    from pokeprice.pricing import fetch_catalogue_card
+    from pokeprice.variant_catalogue import VariantCatalogue
+    from pokeprice.verification import VariantCheckService, check_inputs
+
+    entries = json.loads((OUT / "truth.json").read_text())
+    with tempfile.TemporaryDirectory() as folder:
+        store, confirmed = app_store(Path(folder) / "inventory")
+        service = VariantCheckService(store)
+        catalogue = VariantCatalogue(store, fetch_catalogue_card)
+
+        def one(entry):
+            copy_id = entry["copy_id"]
+            record = {"confirmed_variant": confirmed.get(copy_id)}
+            try:
+                observation, raw = read_photo((OUT / entry["photo"]).read_bytes())
+                query = {k: observation[k] for k in ("name", "number", "language", "hp")}
+                candidates = catalogue_candidates(query)["candidates"]
+                record.update(
+                    observation=observation,
+                    raw_observation=raw,
+                    candidates=[c["id"] for c in candidates],
+                )
+            except Exception as error:  # noqa: BLE001 - A failed read scores as wrong.
+                record["observation_error"] = str(error)
+            try:
+                snapshot, valuation = check_inputs(store, catalogue, copy_id)
+                with store.connect() as db:
+                    version = store.get(db, copy_id)["version"]
+                check = service.evaluate(
+                    copy_id, version, "banc", snapshot=snapshot, valuation=valuation
+                )
+                record.update(
+                    card=check["card"],
+                    reading=check["result"],
+                    raw_reading=check["raw_response"],
+                    usage=check["usage"],
+                    snapshot=snapshot,
+                    valuation=valuation,
+                    proposal=check["proposal"],
+                )
+            except Exception as error:  # noqa: BLE001 - A failed read scores as wrong.
+                record["reading_error"] = str(error)
+            print(f"{entry['label']:<45} {record.get('proposal', {}).get('status', 'échec')}")
+            return copy_id, record
+
+        with ThreadPoolExecutor(4) as pool:
+            results = dict(pool.map(one, entries))
+    from pokeprice.intake import MODEL
+    from pokeprice.verification import FINISH_PROTOCOL
+
+    run = {
+        "date": time.strftime("%Y-%m-%d %H:%M"),
+        "model": MODEL,
+        "protocol": FINISH_PROTOCOL,
+        "cards": results,
+    }
+    (OUT / f"result-app-{index}.json").write_text(json.dumps(run, ensure_ascii=False, indent=1))
+    return run
+
+
+def replay(run):
+    """Recompute proposals from recorded readings with the current rules."""
+    sys.path.insert(0, str(ROOT / "src"))
+    from pokeprice.verification import propose_variant
+
+    for record in run["cards"].values():
+        if record.get("reading"):
+            record["proposal"] = propose_variant(
+                record["card"], record["reading"], record["snapshot"], record["valuation"]
+            )
+    return run
+
+
+def app_scores(entries, run):
+    """Per-card verdicts: True, False, or None when the truth does not say."""
+    sys.path.insert(0, str(ROOT / "src"))
+    from pokeprice.verification import foil_value
+
+    scores = {}
+    for entry in entries:
+        truth, record = entry["truth"], run["cards"].get(entry["copy_id"], {})
+        observation, reading = record.get("observation"), record.get("reading")
+        artwork = (reading or {}).get("artwork")
+        confirmed = record.get("confirmed_variant")
+        proposal = record.get("proposal") or {}
+        valuation = record.get("valuation") or {}
+        premium = foil_value(valuation)
+        contrary = (
+            proposal.get("status") == "proposed"
+            and confirmed is not None
+            and proposal.get("foil") != confirmed["foil"]
+        )
+        costly = premium is None or premium >= valuation.get("threshold_cents", 1000)
+        refuse = (entry["name"], entry["number"]) in REFUSE
+        scores[entry["copy_id"]] = {
+            "number_ok": None
+            if refuse
+            else bool(observation) and number_ok(observation["number"], entry["number"]),
+            "language_ok": None
+            if refuse
+            else bool(observation) and observation["language"] == truth["language"],
+            "edition_ok": None
+            if refuse or not truth["catalog_id"]
+            else (record.get("candidates") or [None])[0] == truth["catalog_id"],
+            "refused_ok": not observation if refuse else None,
+            "art_holo_ok": None
+            if truth["art_holo"] is None or artwork == "unclear"
+            else artwork == ("holo" if truth["art_holo"] else "matte"),
+            "art_holo_read": None
+            if truth["art_holo"] is None
+            else artwork in ("holo", "matte"),
+            "stamp_ok": None
+            if truth["stamp"] is None
+            else bool(reading) and bool(reading["stamp_text"].strip()) == truth["stamp"],
+            "wrong_proposal": contrary and costly,
+            "wrong_low_stakes": contrary and not costly,
+            "status": proposal.get("status", "échec"),
+        }
+    return scores
+
+
+def app_regressions(entries, runs):
+    """Measures whose worst run is below the minimum share; empty when all pass."""
+    all_scores = [app_scores(entries, run) for run in runs]
+    lines, failures = [], []
+    for key, (done, total) in APP_THRESHOLDS.items():
+        shares = []
+        for scores in all_scores:
+            values = [s[key] for s in scores.values() if s[key] is not None]
+            if values:
+                shares.append((sum(values), len(values)))
+        if not shares:  # No card of that kind in the truth set.
+            lines.append(f"{APP_LABELS[key]:<50} non mesuré")
+            continue
+        got, count = min(shares, key=lambda share: share[0] / share[1])
+        ok = got * total >= done * count
+        each = "  [" + ", ".join(f"{g}/{n}" for g, n in shares) + "]" if len(shares) > 1 else ""
+        lines.append(
+            f"{APP_LABELS[key]:<50} {got}/{count}  (minimum {done}/{total})  {'ok' if ok else 'RÉGRESSION'}{each}"
+        )
+        if not ok:
+            failures.append(lines[-1])
+
+    def labels(key):
+        return [e["label"] for e in entries if any(s[e["copy_id"]][key] for s in all_scores)]
+
+    wrong = labels("wrong_proposal")
+    lines.append(
+        f"{'Propositions contraires, Foil au seuil ou sans prix':<50} {len(wrong)}  (maximum {MAX_WRONG_PROPOSALS})"
+        + ("  ok" if len(wrong) <= MAX_WRONG_PROPOSALS else "  RÉGRESSION : " + ", ".join(wrong))
+    )
+    if len(wrong) > MAX_WRONG_PROPOSALS:
+        failures.append(lines[-1])
+    cheap = labels("wrong_low_stakes")
+    lines.append(
+        f"{'  dont sous le seuil (tolérées, Foil peu chère)':<50} {len(cheap)}"
+        + (f"  ({', '.join(cheap)})" if cheap else "")
+    )
+    for number, scores in enumerate(all_scores, 1):
+        statuses = [s["status"] for s in scores.values()]
+        lines.append(
+            f"Propositions, passage {number} : "
+            + ", ".join(f"{status} {statuses.count(status)}" for status in sorted(set(statuses)))
+        )
+    return failures, lines
+
+
+def run_app_check(live):
+    entries = json.loads((OUT / "truth.json").read_text())
+    if live:
+        for old in OUT.glob("result-app-*.json"):
+            old.unlink()
+        runs = [run_app(index) for index in range(1, APP_RUNS + 1)]
+    else:
+        runs = [replay(run) for run in app_runs()]
+    failures, lines = app_regressions(entries, runs)
+    tokens = [
+        r["usage"].get("total_tokens") or 0
+        for run in runs
+        for r in run["cards"].values()
+        if r.get("usage")
+    ]
+    print(
+        f"Application, {len(runs)} passage(s) du "
+        + ", ".join(run["date"] for run in runs)
+        + f" ({runs[0]['model']}, {runs[0]['protocol']}) : pire passage par mesure"
+    )
+    print("\n".join(lines))
+    if tokens:
+        print(f"Lecture de finition : {sum(tokens) / len(tokens):.0f} jetons par carte en moyenne")
+    sys.exit(1 if failures else 0)
+
+
 # --- Report -------------------------------------------------------------------
 
 
@@ -655,5 +933,7 @@ if __name__ == "__main__":
         "haiku": lambda: run_agent("haiku"),
         "sonnet": lambda: run_agent("sonnet"),
         "report": run_report,
+        "app": lambda: run_app_check(live=True),
+        "app-check": lambda: run_app_check(live=False),
     }
     commands[sys.argv[1]]()

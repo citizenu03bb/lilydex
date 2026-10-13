@@ -114,6 +114,14 @@ def test_matte_artwork_without_stakes_proposes_standard(snapshot, valuation, tex
     assert proposal["finish"] == "non_holo" and text in proposal["reason"]
 
 
+def test_tcgdex_without_reverse_is_no_proof_when_the_background_is_unclear():
+    # Clic 75/114 (Black & White): a confirmed reverse that TCGdex does not list.
+    proposal = propose_variant(
+        card(), reading(artwork="matte", background_shine="unclear"), ORIGINAL_HOLO
+    )
+    assert proposal["status"] == "examine" and "prix Foil inconnu" in proposal["reason"]
+
+
 def test_unclear_or_unusable_photo_proposes_nothing():
     for fields in ({"artwork": "unclear"}, {"photo_quality": "unusable"}):
         proposal = propose_variant(card(), reading(**fields), ORIGINAL_HOLO)
@@ -353,3 +361,119 @@ def test_failed_copy_leaves_the_database_unmigrated(app):
         Store(store.root)
     with sqlite3.connect(store.database) as db:
         assert db.execute("PRAGMA user_version").fetchone()[0] == 13
+
+
+@pytest.fixture
+def auto(tmp_path):
+    reader = Reader()
+    with TestClient(
+        create_app(
+            tmp_path / "inventory",
+            variant_reader=reader,
+            auto_variant_checks=True,
+            price_fetch=lambda catalog_id, *_: {**CARD, "id": catalog_id},
+        )
+    ) as client:
+        client.post(
+            "/api/setup", json={"username": "pat", "password": "Collection-test-2026!"}
+        )
+        client.post("/api/albums", json={"name": "Test"})
+        yield client, reader
+
+
+def intake_draft(client, color=(40, 90, 160)):
+    response = client.post("/api/intake/photo", content=picture(color))
+    assert response.status_code == 201, response.text
+    return response.json()["token"]
+
+
+def history(client, card, kind):
+    detail = client.get(f"/api/copies/{card['id']}").json()
+    return detail, [
+        json.loads(e["after_json"]) for e in detail["history"] if e["kind"] == kind
+    ]
+
+
+def test_new_photographed_copy_is_read_once_after_intake(auto):
+    client, reader = auto
+    token = intake_draft(client)
+    saved = client.post(f"/api/intake/{token}/save", json=values(client))
+    assert saved.status_code == 201, saved.text
+    card = saved.json()
+    detail, events = history(client, card, "verification")
+    assert len(reader.sent) == 1 and len(detail["variant_checks"]) == 1
+    assert events[0]["trigger"] == "intake"
+    assert detail["version"] == card["version"] and detail["finish"] == ""
+    # A retried save returns the same copy without paying for a second reading.
+    client.post(f"/api/intake/{token}/save", json=values(client)).raise_for_status()
+    assert len(reader.sent) == 1
+
+
+def test_failed_automatic_reading_is_recorded_and_intake_succeeds(auto):
+    client, reader = auto
+
+    def broken(photo):
+        reader.sent.append(photo)
+        raise RuntimeError("Lecture Gemini indisponible ou réponse invalide.")
+
+    client.app.state.variant_checks.reader = broken
+    token = intake_draft(client)
+    saved = client.post(f"/api/intake/{token}/save", json=values(client))
+    assert saved.status_code == 201, saved.text
+    detail, failures = history(client, saved.json(), "verification-failed")
+    assert detail["variant_checks"] == [] and len(reader.sent) == 1
+    assert failures == [
+        {
+            "kind": "variant",
+            "trigger": "intake",
+            "error": "Lecture Gemini indisponible ou réponse invalide.",
+        }
+    ]
+
+
+def test_no_automatic_reading_without_photo_or_for_an_existing_copy(auto):
+    client, reader = auto
+    blank = client.post("/api/intake/drafts").json()["token"]
+    client.post(
+        f"/api/intake/{blank}/save", json=values(client, position=2)
+    ).raise_for_status()
+    created = photographed(client, position=3)  # Attaching a photo is not intake.
+    existing = client.post(f"/api/copies/{created['id']}/intake")
+    assert existing.status_code == 201 and existing.json()["has_photo"]
+    client.post(
+        f"/api/intake/{existing.json()['token']}/save",
+        json=values(client, position=3),
+    ).raise_for_status()
+    assert reader.sent == []
+
+
+def test_series_capture_reads_the_saved_copy(auto):
+    client, reader = auto
+    data = values(client)
+    data.pop("reason")
+    session = client.post(
+        "/api/capture-sessions",
+        json={"album_id": data["album_id"], "slots": 9, "page": 1, "position": 1},
+    ).json()
+    session = client.patch(
+        "/api/capture-sessions/" + session["id"],
+        json={"expected_version": session["version"], "front_token": intake_draft(client)},
+    ).json()
+    saved = client.post(
+        f"/api/capture-sessions/{session['id']}/save",
+        json={
+            **values(client),
+            "token": session["data"]["front_token"],
+            "expected_version": session["version"],
+        },
+    )
+    assert saved.status_code == 201, saved.text
+    detail, events = history(client, saved.json()["card"], "verification")
+    assert len(reader.sent) == 1 and events[0]["trigger"] == "intake"
+
+
+def test_automatic_reading_is_off_unless_the_server_enables_it(app):
+    client, reader = app
+    token = intake_draft(client)
+    client.post(f"/api/intake/{token}/save", json=values(client)).raise_for_status()
+    assert reader.sent == []
