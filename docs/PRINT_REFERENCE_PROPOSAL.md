@@ -19,7 +19,9 @@ actuelle est un échantillon de départ, pas une limite de couverture. Une nouve
 moteur de classement.
 
 Je recommande de livrer ce socle avant M2. Les vérifications IA pourront ensuite
-comparer une observation aux impressions documentées. L’enrichissement du
+comparer une observation aux impressions documentées. *Décision du 13 octobre
+après revue : le socle est livré en audit, mais M1.1 ne bloque plus M2 ; voir
+la [roadmap](ROADMAP.md).* L’enrichissement du
 référentiel se poursuivra avec les imports de M3.
 
 ## État observé

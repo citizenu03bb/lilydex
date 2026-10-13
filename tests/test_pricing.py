@@ -210,7 +210,7 @@ def test_stamp_is_a_searchable_variant_that_resets_the_reference(client):
 
     store = client.app.state.store
     with sqlite3.connect(store.database) as db:
-        assert db.execute("PRAGMA user_version").fetchone()[0] == 12
+        assert db.execute("PRAGMA user_version").fetchone()[0] == 13
     card = confirmed(client, foil=True, position=6, stamp="EX Fantômes Holon")
     assert card["stamp"] == "EX Fantômes Holon"
     priced = client.post(

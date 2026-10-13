@@ -65,6 +65,18 @@ vérifié reste inconnu tant qu’aucune cotation liée n’est vérifiée.
 Le paquet initial ne certifie pas les références existantes et ne remplace pas
 encore le calcul de prix hérité : les preuves de marché restent à compléter.
 
+Pour une pièce justificative et après une mise à jour des règles :
+
+```bash
+uv run pokeprice-manage reference-archive capture.html
+uv run pokeprice-manage reference-recheck
+uv run pokeprice-manage reference-recheck --apply
+```
+
+La première commande range la pièce par SHA-256. `reference-recheck` liste les
+cotations liées devenues incompatibles ; `--apply` inscrit leur suspension au
+journal. Une suspension ne se lève que par une restauration explicite.
+
 Les sauvegardes emportent aussi les règles et moteurs enregistrés avec les
 décisions, les cotations liées et leurs événements, et les documents sources
 rangés une fois par SHA-256 dans `reference_documents/` (PDF, JSON ou HTML).

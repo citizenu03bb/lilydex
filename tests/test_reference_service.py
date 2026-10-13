@@ -5,6 +5,7 @@ import json
 import sqlite3
 import zipfile
 from contextlib import contextmanager
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -132,6 +133,7 @@ def test_readonly_audit_does_not_migrate_schema10_or_certify_legacy(client):
         db.execute("DROP TABLE reference_quotes")
         db.execute("DROP TABLE reference_decisions")
         db.execute("DROP TABLE reference_rulesets")
+        db.execute("DROP TABLE reference_engines")
         db.execute("PRAGMA user_version=10")
     before = store.database.read_bytes()
     audit = audit_directory(store.root)
@@ -295,7 +297,7 @@ def test_missing_historical_engine_reports_unreproducible_instead_of_new_engine_
     store = client.app.state.store
     recorded = store.reference.record(card["id"], card["version"], "pat", "Audit")
     with store.connect(write=True) as db:
-        db.execute("UPDATE reference_rulesets SET engine_version='unavailable'")
+        db.execute("UPDATE reference_engines SET engine_version='unavailable'")
     assert store.reference.replay(recorded["id"])["status"] == "unreproducible"
 
 
@@ -369,7 +371,7 @@ def test_schema11_observations_only_migrates_and_restores_without_losing_copy(
     assert state(restored, card["id"]) == before
     assert restored.summary()["copies"] == 1
     with restored.connect() as db:
-        assert db.execute("PRAGMA user_version").fetchone()[0] == 12
+        assert db.execute("PRAGMA user_version").fetchone()[0] == 13
         assert db.execute("SELECT count(*) FROM reference_quotes").fetchone()[0] == 0
 
 
@@ -382,7 +384,7 @@ def test_schema11_with_bound_journal_migrates_without_recreating_it(client):
     migrated = Store(store.root)
     assert state(migrated, card["id"]) == before
     with migrated.connect() as db:
-        assert db.execute("PRAGMA user_version").fetchone()[0] == 12
+        assert db.execute("PRAGMA user_version").fetchone()[0] == 13
 
 
 def test_readers_cannot_record_decisions_or_disputes(client):
@@ -409,3 +411,57 @@ def test_readers_cannot_record_decisions_or_disputes(client):
             },
         )
         assert response.status_code == 403
+
+
+def test_each_decision_names_its_own_engine(client):
+    from pokeprice.reference_service import engine_digest
+
+    card = create(client)
+    store = client.app.state.store
+    first = store.reference.record(card["id"], card["version"], "pat", "Audit")
+    with store.connect(write=True) as db:
+        # The ruleset row still holds an older engine from an earlier decision.
+        db.execute("UPDATE reference_rulesets SET engine_source='# previous engine'")
+        db.execute(
+            "UPDATE reference_decisions SET engine_sha256='0' || substr(engine_sha256, 2) WHERE id=?",
+            (first["id"],),
+        )
+    second = store.reference.record(card["id"], card["version"], "pat", "Audit")
+    assert store.reference.replay(second["id"])["status"] == "reproduced"
+    assert store.reference.replay(first["id"])["status"] == "unreproducible"
+    with store.connect() as db:
+        assert (
+            db.execute(
+                "SELECT engine_sha256 FROM reference_decisions WHERE id=?",
+                (second["id"],),
+            ).fetchone()[0]
+            == engine_digest()
+        )
+
+
+def test_schema12_decisions_receive_their_recorded_engine(client):
+    card = create(client)
+    store = client.app.state.store
+    recorded = store.reference.record(card["id"], card["version"], "pat", "Audit")
+    with store.connect(write=True) as db:
+        db.execute("DROP TABLE reference_engines")
+        db.execute("ALTER TABLE reference_decisions DROP COLUMN engine_sha256")
+        db.execute("PRAGMA user_version=12")
+    migrated = Store(store.root)
+    assert migrated.reference.replay(recorded["id"])["status"] == "reproduced"
+    with migrated.connect() as db:
+        assert db.execute("PRAGMA user_version").fetchone()[0] == 13
+
+
+def test_source_document_is_archived_once_by_content_hash(tmp_path):
+    from pokeprice.reference_service import archive_document
+
+    source = tmp_path / "capture.html"
+    source.write_bytes(b"<html>Cardmarket product page capture</html>")
+    first = archive_document(tmp_path / "data", source)
+    again = archive_document(tmp_path / "data", source)
+    assert first == again
+    path = Path(first["path"])
+    assert path.name == hashlib.sha256(source.read_bytes()).hexdigest() + ".html"
+    with pytest.raises(ValueError):
+        archive_document(tmp_path / "data", tmp_path / "notes.txt")

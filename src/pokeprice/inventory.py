@@ -99,7 +99,7 @@ class Store:
             version = db.execute("PRAGMA user_version").fetchone()[0]
             if version == 0:
                 db.executescript(SCHEMA)
-            elif version not in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12):
+            elif version not in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13):
                 raise ValueError("Version de base incompatible.")
             if db.execute("PRAGMA user_version").fetchone()[0] == 1:
                 db.executescript(
@@ -226,10 +226,51 @@ class Store:
                     PRAGMA user_version=12;
                     COMMIT;
                 """)
+            if db.execute("PRAGMA user_version").fetchone()[0] == 12:
+                self.attach_decision_engines(db)
             db.execute("PRAGMA journal_mode=WAL")
         from .reference_service import ReferenceService
 
         self.reference = ReferenceService(self)
+
+    @staticmethod
+    def attach_decision_engines(db):
+        """Schema 13: each decision names its engine, no longer its ruleset's first one.
+
+        Older decisions keep the only engine recorded for them, from their ruleset row.
+        """
+        import hashlib
+
+        db.execute("BEGIN IMMEDIATE")
+        try:
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS reference_engines(sha256 TEXT PRIMARY KEY,"
+                " engine_version TEXT NOT NULL, source TEXT NOT NULL, created_at TEXT NOT NULL)"
+            )
+            columns = {
+                r[1] for r in db.execute("PRAGMA table_info(reference_decisions)")
+            }
+            if "engine_sha256" not in columns:
+                db.execute(
+                    "ALTER TABLE reference_decisions ADD COLUMN engine_sha256 TEXT NOT NULL DEFAULT ''"
+                )
+            for row in db.execute(
+                "SELECT hash,engine_version,engine_source,created_at FROM reference_rulesets"
+            ).fetchall():
+                digest = hashlib.sha256(row[2].encode()).hexdigest()
+                db.execute(
+                    "INSERT OR IGNORE INTO reference_engines VALUES(?,?,?,?)",
+                    (digest, row[1], row[2], row[3]),
+                )
+                db.execute(
+                    "UPDATE reference_decisions SET engine_sha256=? WHERE rules_hash=? AND engine_sha256=''",
+                    (digest, row[0]),
+                )
+            db.execute("PRAGMA user_version=13")
+            db.execute("COMMIT")
+        except Exception:
+            db.execute("ROLLBACK")
+            raise
 
     @contextmanager
     def connect(self, *, write=False):

@@ -11,7 +11,7 @@ import unicodedata
 from dataclasses import dataclass
 from importlib.resources import files
 
-ENGINE_VERSION = "1"
+ENGINE_VERSION = "2"
 STATES = {"unobserved", "absent", "present"}
 FINISHES = {"non_holo", "holo", "holo_border", "reverse", "special"}
 OBSERVATIONS = {"finish", "stamp", "distribution"}
@@ -358,17 +358,24 @@ def load_ruleset(path=None):
 
 
 def copy_observations(card):
-    """Legacy text is not an attestation that a mark is present or absent."""
+    """Legacy text is not an attestation that a mark is present or absent.
+
+    A dated global confirmation required a described finish and is reset when
+    the finish changes, so it attests that finish only, labelled as legacy.
+    It never attests a stamp or a distribution mark.
+    """
     attested = bool(
         card.get("variant_confirmed")
         and card.get("variant_verified_by")
         and card.get("variant_verified_at")
+        and card.get("finish")
     )
     result = {
         "finish": {
             "state": "present" if card.get("finish") else "unobserved",
             "value": card.get("finish", ""),
             "human": attested,
+            "attestation": "legacy_global" if attested else None,
         }
     }
     provenance = json.loads(card.get("observation_provenance") or "{}")
@@ -380,19 +387,22 @@ def copy_observations(card):
             and finish_record.get("origin") == "human"
             and finish_record.get("text") == card.get("finish", "")
         )
+        result["finish"]["attestation"] = "field" if result["finish"]["human"] else None
         result["finish"]["provenance"] = finish_record
     for field in ("stamp", "distribution"):
         record = provenance.get(field, {})
+        human = bool(
+            record.get("actor")
+            and record.get("observed_at")
+            and record.get("origin", "human") == "human"
+            and record.get("state") == card.get(field + "_state", "unobserved")
+            and record.get("text") == card.get(field, "")
+        )
         result[field] = {
             "state": card.get(field + "_state", "unobserved"),
             "value": card.get(field, ""),
-            "human": bool(
-                record.get("actor")
-                and record.get("observed_at")
-                and record.get("origin", "human") == "human"
-                and record.get("state") == card.get(field + "_state", "unobserved")
-                and record.get("text") == card.get(field, "")
-            ),
+            "human": human,
+            "attestation": "field" if human else None,
             "provenance": record,
         }
     return result
@@ -570,13 +580,19 @@ def resolve(
         result["reason_codes"].append(
             "scope_uncovered" if not active else "observation_uncovered"
         )
-    elif unknown:
-        result["print_status"] = "uncovered"
-        result["reason_codes"].append("unknown_remainder")
-    elif len(candidates) == 1 and candidates[0]["print_status"] == "verified":
-        result["print_status"] = "identified"
     else:
-        result["print_status"] = "unobserved" if missing_print else "candidates"
+        # A partial list keeps its documented candidates beside an unknown remainder;
+        # `uncovered` is reserved for an identity or observation outside every rule.
+        if unknown:
+            result["reason_codes"].append("unknown_remainder")
+        if (
+            not unknown
+            and len(candidates) == 1
+            and candidates[0]["print_status"] == "verified"
+        ):
+            result["print_status"] = "identified"
+        else:
+            result["print_status"] = "unobserved" if missing_print else "candidates"
     closed_market = not unknown or (
         active
         and all(

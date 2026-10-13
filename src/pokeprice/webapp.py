@@ -755,39 +755,14 @@ def create_app(
 
     @app.post("/api/copies/{copy_id}/reference-dispute")
     def reference_dispute(copy_id: str, values: ReferenceDispute, user=Depends(editor)):
-        with store.connect(write=True) as db:
-            before = store.reference.disputes(db, copy_id)
-            card = store.get(db, copy_id)
-            if card["version"] != values.expected_version or card["deleted_at"]:
-                raise Conflict("La fiche a changé. Rechargez-la avant de contester.")
-            db.execute(
-                "UPDATE copies SET version=version+1,updated_at=? WHERE id=?",
-                (now(), copy_id),
-            )
-            card = store.get(db, copy_id)
-            record = {
-                "active": values.active,
-                "affects": values.affects,
-                "actor": user["username"],
-                "reason": values.reason,
-                "created_at": now(),
-                "copy_version": card["version"],
-            }
-            store.event(
-                db,
-                copy_id,
-                user["username"],
-                "reference-dispute",
-                values.reason,
-                before,
-                record,
-            )
-            return {
-                **card,
-                "reference_resolution": store.reference.decision(
-                    card, store.category_snapshot(db, card), [record]
-                ),
-            }
+        return store.reference.dispute(
+            copy_id,
+            values.expected_version,
+            values.active,
+            values.affects,
+            user["username"],
+            values.reason,
+        )
 
     @app.post("/api/copies/{copy_id}/sale-estimate", status_code=201)
     def sale_estimate(copy_id: str, values: OffersPaste, user=Depends(editor)):

@@ -1,0 +1,1022 @@
+{
+ "cases": [
+  {
+   "disputes": [],
+   "expected": {
+    "candidate_binding_keys": [
+     "binding:4c20b5297b8cf6550905c6ba550bec5907aa71050ac515c7a5c56c4848898585"
+    ],
+    "candidate_print_ids": [
+     "test:plain:synthetic-1"
+    ],
+    "candidates": [
+     {
+      "binding_key": "binding:4c20b5297b8cf6550905c6ba550bec5907aa71050ac515c7a5c56c4848898585",
+      "binding_status": "verified",
+      "evidence_ids": [
+       "market",
+       "print"
+      ],
+      "foil_projection": true,
+      "local_print_id": "plain",
+      "print_id": "test:plain:synthetic-1",
+      "print_status": "verified",
+      "rule_id": "test"
+     }
+    ],
+    "conflicts": [],
+    "engine_version": "2",
+    "evidence_ids": [
+     "closure",
+     "market",
+     "print"
+    ],
+    "foil_projection": true,
+    "market_status": "verified",
+    "missing_market_observations": [],
+    "missing_print_observations": [],
+    "pricing_eligible": true,
+    "print_status": "identified",
+    "provisional_binding_keys": [],
+    "reason_codes": [],
+    "rules_hash": "58f198cbb6641bc28db73838b2e20a273603f99b31ea2648907825efd9aa6f69",
+    "rules_version": "test.1",
+    "selected_binding_key": "binding:4c20b5297b8cf6550905c6ba550bec5907aa71050ac515c7a5c56c4848898585",
+    "unknown_remainder": false,
+    "warnings": []
+   },
+   "identity": {
+    "catalog_id": "synthetic-1",
+    "identification_status": "confirmed",
+    "language": "fr",
+    "number": "1/1"
+   },
+   "name": "identified_verified",
+   "observations": {
+    "stamp": {
+     "human": true,
+     "state": "absent"
+    }
+   },
+   "ruleset": "complete"
+  },
+  {
+   "disputes": [],
+   "expected": {
+    "candidate_binding_keys": [
+     "binding:76e5bb770134c9bf89b506ead565d333b16bdd07cbafb63ec640912c09b90488"
+    ],
+    "candidate_print_ids": [
+     "test:marked:synthetic-1"
+    ],
+    "candidates": [
+     {
+      "binding_key": "binding:76e5bb770134c9bf89b506ead565d333b16bdd07cbafb63ec640912c09b90488",
+      "binding_status": "verified",
+      "evidence_ids": [
+       "market",
+       "print"
+      ],
+      "foil_projection": true,
+      "local_print_id": "marked",
+      "print_id": "test:marked:synthetic-1",
+      "print_status": "verified",
+      "rule_id": "test"
+     }
+    ],
+    "conflicts": [],
+    "engine_version": "2",
+    "evidence_ids": [
+     "closure",
+     "market",
+     "print"
+    ],
+    "foil_projection": true,
+    "market_status": "verified",
+    "missing_market_observations": [],
+    "missing_print_observations": [],
+    "pricing_eligible": true,
+    "print_status": "identified",
+    "provisional_binding_keys": [],
+    "reason_codes": [],
+    "rules_hash": "58f198cbb6641bc28db73838b2e20a273603f99b31ea2648907825efd9aa6f69",
+    "rules_version": "test.1",
+    "selected_binding_key": "binding:76e5bb770134c9bf89b506ead565d333b16bdd07cbafb63ec640912c09b90488",
+    "unknown_remainder": false,
+    "warnings": []
+   },
+   "identity": {
+    "catalog_id": "synthetic-1",
+    "identification_status": "confirmed",
+    "language": "fr",
+    "number": "1/1"
+   },
+   "name": "marked_alias_verified",
+   "observations": {
+    "stamp": {
+     "human": true,
+     "state": "present",
+     "value": "EX Test"
+    }
+   },
+   "ruleset": "complete"
+  },
+  {
+   "disputes": [],
+   "expected": {
+    "candidate_binding_keys": [
+     "binding:4c20b5297b8cf6550905c6ba550bec5907aa71050ac515c7a5c56c4848898585",
+     "binding:76e5bb770134c9bf89b506ead565d333b16bdd07cbafb63ec640912c09b90488"
+    ],
+    "candidate_print_ids": [
+     "test:marked:synthetic-1",
+     "test:plain:synthetic-1"
+    ],
+    "candidates": [
+     {
+      "binding_key": "binding:76e5bb770134c9bf89b506ead565d333b16bdd07cbafb63ec640912c09b90488",
+      "binding_status": "verified",
+      "evidence_ids": [
+       "market",
+       "print"
+      ],
+      "foil_projection": true,
+      "local_print_id": "marked",
+      "print_id": "test:marked:synthetic-1",
+      "print_status": "verified",
+      "rule_id": "test"
+     },
+     {
+      "binding_key": "binding:4c20b5297b8cf6550905c6ba550bec5907aa71050ac515c7a5c56c4848898585",
+      "binding_status": "verified",
+      "evidence_ids": [
+       "market",
+       "print"
+      ],
+      "foil_projection": true,
+      "local_print_id": "plain",
+      "print_id": "test:plain:synthetic-1",
+      "print_status": "verified",
+      "rule_id": "test"
+     }
+    ],
+    "conflicts": [],
+    "engine_version": "2",
+    "evidence_ids": [
+     "closure",
+     "market",
+     "print"
+    ],
+    "foil_projection": null,
+    "market_status": "unobserved",
+    "missing_market_observations": [
+     "stamp"
+    ],
+    "missing_print_observations": [
+     "stamp"
+    ],
+    "pricing_eligible": false,
+    "print_status": "unobserved",
+    "provisional_binding_keys": [],
+    "reason_codes": [
+     "market_observation_missing"
+    ],
+    "rules_hash": "58f198cbb6641bc28db73838b2e20a273603f99b31ea2648907825efd9aa6f69",
+    "rules_version": "test.1",
+    "selected_binding_key": null,
+    "unknown_remainder": false,
+    "warnings": []
+   },
+   "identity": {
+    "catalog_id": "synthetic-1",
+    "identification_status": "confirmed",
+    "language": "fr",
+    "number": "1/1"
+   },
+   "name": "stamp_unobserved",
+   "observations": {},
+   "ruleset": "complete"
+  },
+  {
+   "disputes": [],
+   "expected": {
+    "candidate_binding_keys": [
+     "binding:4c20b5297b8cf6550905c6ba550bec5907aa71050ac515c7a5c56c4848898585",
+     "binding:76e5bb770134c9bf89b506ead565d333b16bdd07cbafb63ec640912c09b90488"
+    ],
+    "candidate_print_ids": [
+     "test:marked:synthetic-1",
+     "test:plain:synthetic-1"
+    ],
+    "candidates": [
+     {
+      "binding_key": "binding:76e5bb770134c9bf89b506ead565d333b16bdd07cbafb63ec640912c09b90488",
+      "binding_status": "verified",
+      "evidence_ids": [
+       "market",
+       "print"
+      ],
+      "foil_projection": true,
+      "local_print_id": "marked",
+      "print_id": "test:marked:synthetic-1",
+      "print_status": "verified",
+      "rule_id": "test"
+     },
+     {
+      "binding_key": "binding:4c20b5297b8cf6550905c6ba550bec5907aa71050ac515c7a5c56c4848898585",
+      "binding_status": "verified",
+      "evidence_ids": [
+       "market",
+       "print"
+      ],
+      "foil_projection": true,
+      "local_print_id": "plain",
+      "print_id": "test:plain:synthetic-1",
+      "print_status": "verified",
+      "rule_id": "test"
+     }
+    ],
+    "conflicts": [],
+    "engine_version": "2",
+    "evidence_ids": [
+     "closure",
+     "market",
+     "print"
+    ],
+    "foil_projection": null,
+    "market_status": "unobserved",
+    "missing_market_observations": [
+     "stamp"
+    ],
+    "missing_print_observations": [
+     "stamp"
+    ],
+    "pricing_eligible": false,
+    "print_status": "unobserved",
+    "provisional_binding_keys": [],
+    "reason_codes": [
+     "market_observation_missing"
+    ],
+    "rules_hash": "58f198cbb6641bc28db73838b2e20a273603f99b31ea2648907825efd9aa6f69",
+    "rules_version": "test.1",
+    "selected_binding_key": null,
+    "unknown_remainder": false,
+    "warnings": []
+   },
+   "identity": {
+    "catalog_id": "synthetic-1",
+    "identification_status": "confirmed",
+    "language": "fr",
+    "number": "1/1"
+   },
+   "name": "ai_stamp_cannot_eliminate",
+   "observations": {
+    "stamp": {
+     "human": false,
+     "state": "absent"
+    }
+   },
+   "ruleset": "complete"
+  },
+  {
+   "disputes": [],
+   "expected": {
+    "candidate_binding_keys": [
+     "binding:4c20b5297b8cf6550905c6ba550bec5907aa71050ac515c7a5c56c4848898585"
+    ],
+    "candidate_print_ids": [
+     "test:plain:synthetic-1"
+    ],
+    "candidates": [
+     {
+      "binding_key": "binding:4c20b5297b8cf6550905c6ba550bec5907aa71050ac515c7a5c56c4848898585",
+      "binding_status": "verified",
+      "evidence_ids": [
+       "market",
+       "print"
+      ],
+      "foil_projection": true,
+      "local_print_id": "plain",
+      "print_id": "test:plain:synthetic-1",
+      "print_status": "verified",
+      "rule_id": "test"
+     }
+    ],
+    "conflicts": [],
+    "engine_version": "2",
+    "evidence_ids": [
+     "market",
+     "print"
+    ],
+    "foil_projection": null,
+    "market_status": "uncovered",
+    "missing_market_observations": [],
+    "missing_print_observations": [],
+    "pricing_eligible": false,
+    "print_status": "candidates",
+    "provisional_binding_keys": [],
+    "reason_codes": [
+     "unknown_remainder"
+    ],
+    "rules_hash": "31ee355c56b2f68354623fe27d17c7e48f67db8a456f554e767b2bf72471e9c8",
+    "rules_version": "test.1",
+    "selected_binding_key": null,
+    "unknown_remainder": true,
+    "warnings": []
+   },
+   "identity": {
+    "catalog_id": "synthetic-1",
+    "identification_status": "confirmed",
+    "language": "fr",
+    "number": "1/1"
+   },
+   "name": "partial_singleton_candidates",
+   "observations": {
+    "stamp": {
+     "human": true,
+     "state": "absent"
+    }
+   },
+   "ruleset": "partial"
+  },
+  {
+   "disputes": [],
+   "expected": {
+    "candidate_binding_keys": [
+     "binding:4c20b5297b8cf6550905c6ba550bec5907aa71050ac515c7a5c56c4848898585",
+     "binding:76e5bb770134c9bf89b506ead565d333b16bdd07cbafb63ec640912c09b90488"
+    ],
+    "candidate_print_ids": [
+     "test:marked:synthetic-1",
+     "test:plain:synthetic-1"
+    ],
+    "candidates": [
+     {
+      "binding_key": "binding:76e5bb770134c9bf89b506ead565d333b16bdd07cbafb63ec640912c09b90488",
+      "binding_status": "verified",
+      "evidence_ids": [
+       "market",
+       "print"
+      ],
+      "foil_projection": true,
+      "local_print_id": "marked",
+      "print_id": "test:marked:synthetic-1",
+      "print_status": "verified",
+      "rule_id": "test"
+     },
+     {
+      "binding_key": "binding:4c20b5297b8cf6550905c6ba550bec5907aa71050ac515c7a5c56c4848898585",
+      "binding_status": "verified",
+      "evidence_ids": [
+       "market",
+       "print"
+      ],
+      "foil_projection": true,
+      "local_print_id": "plain",
+      "print_id": "test:plain:synthetic-1",
+      "print_status": "verified",
+      "rule_id": "test"
+     }
+    ],
+    "conflicts": [],
+    "engine_version": "2",
+    "evidence_ids": [
+     "market",
+     "print"
+    ],
+    "foil_projection": null,
+    "market_status": "uncovered",
+    "missing_market_observations": [
+     "stamp"
+    ],
+    "missing_print_observations": [
+     "stamp"
+    ],
+    "pricing_eligible": false,
+    "print_status": "unobserved",
+    "provisional_binding_keys": [],
+    "reason_codes": [
+     "unknown_remainder",
+     "market_observation_missing"
+    ],
+    "rules_hash": "31ee355c56b2f68354623fe27d17c7e48f67db8a456f554e767b2bf72471e9c8",
+    "rules_version": "test.1",
+    "selected_binding_key": null,
+    "unknown_remainder": true,
+    "warnings": []
+   },
+   "identity": {
+    "catalog_id": "synthetic-1",
+    "identification_status": "confirmed",
+    "language": "fr",
+    "number": "1/1"
+   },
+   "name": "partial_unobserved",
+   "observations": {},
+   "ruleset": "partial"
+  },
+  {
+   "disputes": [],
+   "expected": {
+    "candidate_binding_keys": [],
+    "candidate_print_ids": [],
+    "candidates": [],
+    "conflicts": [],
+    "engine_version": "2",
+    "evidence_ids": [],
+    "foil_projection": null,
+    "market_status": "uncovered",
+    "missing_market_observations": [],
+    "missing_print_observations": [],
+    "pricing_eligible": false,
+    "print_status": "uncovered",
+    "provisional_binding_keys": [],
+    "reason_codes": [
+     "scope_uncovered"
+    ],
+    "rules_hash": "58f198cbb6641bc28db73838b2e20a273603f99b31ea2648907825efd9aa6f69",
+    "rules_version": "test.1",
+    "selected_binding_key": null,
+    "unknown_remainder": true,
+    "warnings": []
+   },
+   "identity": {
+    "catalog_id": "synthetic-1",
+    "identification_status": "confirmed",
+    "language": "en",
+    "number": "1/1"
+   },
+   "name": "language_out_of_scope",
+   "observations": {
+    "stamp": {
+     "human": true,
+     "state": "absent"
+    }
+   },
+   "ruleset": "complete"
+  },
+  {
+   "disputes": [],
+   "expected": {
+    "candidate_binding_keys": [],
+    "candidate_print_ids": [],
+    "candidates": [],
+    "conflicts": [
+     {
+      "affects": "both",
+      "reason": "identity_number_conflict"
+     }
+    ],
+    "engine_version": "2",
+    "evidence_ids": [],
+    "foil_projection": null,
+    "market_status": "conflict",
+    "missing_market_observations": [],
+    "missing_print_observations": [],
+    "pricing_eligible": false,
+    "print_status": "conflict",
+    "provisional_binding_keys": [],
+    "reason_codes": [
+     "identity_number_conflict"
+    ],
+    "rules_hash": "58f198cbb6641bc28db73838b2e20a273603f99b31ea2648907825efd9aa6f69",
+    "rules_version": "test.1",
+    "selected_binding_key": null,
+    "unknown_remainder": true,
+    "warnings": []
+   },
+   "identity": {
+    "catalog_id": "synthetic-1",
+    "identification_status": "confirmed",
+    "language": "fr",
+    "number": "2/2"
+   },
+   "name": "number_conflict",
+   "observations": {
+    "stamp": {
+     "human": true,
+     "state": "absent"
+    }
+   },
+   "ruleset": "complete"
+  },
+  {
+   "disputes": [],
+   "expected": {
+    "candidate_binding_keys": [
+     "binding:4c20b5297b8cf6550905c6ba550bec5907aa71050ac515c7a5c56c4848898585"
+    ],
+    "candidate_print_ids": [
+     "test:plain:synthetic-1"
+    ],
+    "candidates": [
+     {
+      "binding_key": "binding:4c20b5297b8cf6550905c6ba550bec5907aa71050ac515c7a5c56c4848898585",
+      "binding_status": "verified",
+      "evidence_ids": [
+       "market",
+       "print"
+      ],
+      "foil_projection": true,
+      "local_print_id": "plain",
+      "print_id": "test:plain:synthetic-1",
+      "print_status": "verified",
+      "rule_id": "test"
+     }
+    ],
+    "conflicts": [],
+    "engine_version": "2",
+    "evidence_ids": [
+     "closure",
+     "market",
+     "print"
+    ],
+    "foil_projection": true,
+    "market_status": "verified",
+    "missing_market_observations": [],
+    "missing_print_observations": [],
+    "pricing_eligible": false,
+    "print_status": "identified",
+    "provisional_binding_keys": [],
+    "reason_codes": [
+     "identity_unconfirmed"
+    ],
+    "rules_hash": "58f198cbb6641bc28db73838b2e20a273603f99b31ea2648907825efd9aa6f69",
+    "rules_version": "test.1",
+    "selected_binding_key": "binding:4c20b5297b8cf6550905c6ba550bec5907aa71050ac515c7a5c56c4848898585",
+    "unknown_remainder": false,
+    "warnings": []
+   },
+   "identity": {
+    "catalog_id": "synthetic-1",
+    "identification_status": "review",
+    "language": "fr",
+    "number": "1/1"
+   },
+   "name": "identity_unconfirmed",
+   "observations": {
+    "stamp": {
+     "human": true,
+     "state": "absent"
+    }
+   },
+   "ruleset": "complete"
+  },
+  {
+   "disputes": [
+    {
+     "active": true,
+     "actor": "pat",
+     "affects": "market",
+     "created_at": "2026-01-01T00:00:00Z",
+     "reason": "fixture"
+    }
+   ],
+   "expected": {
+    "candidate_binding_keys": [
+     "binding:4c20b5297b8cf6550905c6ba550bec5907aa71050ac515c7a5c56c4848898585"
+    ],
+    "candidate_print_ids": [
+     "test:plain:synthetic-1"
+    ],
+    "candidates": [
+     {
+      "binding_key": "binding:4c20b5297b8cf6550905c6ba550bec5907aa71050ac515c7a5c56c4848898585",
+      "binding_status": "verified",
+      "evidence_ids": [
+       "market",
+       "print"
+      ],
+      "foil_projection": true,
+      "local_print_id": "plain",
+      "print_id": "test:plain:synthetic-1",
+      "print_status": "verified",
+      "rule_id": "test"
+     }
+    ],
+    "conflicts": [
+     {
+      "affects": "market",
+      "id": null,
+      "reason": "local_dispute"
+     }
+    ],
+    "engine_version": "2",
+    "evidence_ids": [
+     "closure",
+     "market",
+     "print"
+    ],
+    "foil_projection": null,
+    "market_status": "conflict",
+    "missing_market_observations": [],
+    "missing_print_observations": [],
+    "pricing_eligible": false,
+    "print_status": "identified",
+    "provisional_binding_keys": [],
+    "reason_codes": [
+     "conflict"
+    ],
+    "rules_hash": "58f198cbb6641bc28db73838b2e20a273603f99b31ea2648907825efd9aa6f69",
+    "rules_version": "test.1",
+    "selected_binding_key": null,
+    "unknown_remainder": false,
+    "warnings": []
+   },
+   "identity": {
+    "catalog_id": "synthetic-1",
+    "identification_status": "confirmed",
+    "language": "fr",
+    "number": "1/1"
+   },
+   "name": "market_dispute",
+   "observations": {
+    "stamp": {
+     "human": true,
+     "state": "absent"
+    }
+   },
+   "ruleset": "complete"
+  }
+ ],
+ "engine_version": "2",
+ "rulesets": {
+  "complete": {
+   "bindings": {
+    "A": {
+     "currency": "EUR",
+     "evidence": [
+      "market"
+     ],
+     "filters": {
+      "none": true
+     },
+     "foil_projection": true,
+     "market": "fixture",
+     "metric_family": {
+      "id": "fixture-eur-holo",
+      "metrics": {
+       "avg30": "avg30-holo",
+       "trend": "trend-holo"
+      },
+      "version": 1
+     },
+     "native_variant": {
+      "code": "parallel-holo"
+     },
+     "population": {
+      "condition": "aggregate",
+      "language": "aggregate"
+     },
+     "product_ref": "fixture:product-A",
+     "scope": {
+      "languages": [
+       "fr"
+      ],
+      "numbers": [
+       1,
+       1
+      ],
+      "set_id": "synthetic"
+     },
+     "status": "verified"
+    },
+    "B": {
+     "currency": "EUR",
+     "evidence": [
+      "market"
+     ],
+     "filters": {
+      "none": true
+     },
+     "foil_projection": true,
+     "market": "fixture",
+     "metric_family": {
+      "id": "fixture-eur-holo",
+      "metrics": {
+       "avg30": "avg30-holo",
+       "trend": "trend-holo"
+      },
+      "version": 1
+     },
+     "native_variant": {
+      "code": "parallel-holo"
+     },
+     "population": {
+      "condition": "aggregate",
+      "language": "aggregate"
+     },
+     "product_ref": "fixture:product-B",
+     "scope": {
+      "languages": [
+       "fr"
+      ],
+      "numbers": [
+       1,
+       1
+      ],
+      "set_id": "synthetic"
+     },
+     "status": "verified"
+    }
+   },
+   "content_version": "test.1",
+   "evidence": {
+    "closure": {
+     "accessed_at": "2026-01-01",
+     "claim": "Synthetic test fixture only",
+     "document_sha256": "5146ca17408a2808e5bb2fdc131f3e01c91c6254109abce05a8ffe87973765e3",
+     "kind": "closure",
+     "scope": {
+      "languages": [
+       "fr"
+      ],
+      "numbers": [
+       1,
+       1
+      ],
+      "set_id": "synthetic"
+     },
+     "source": "fixture:test",
+     "status": "verified"
+    },
+    "market": {
+     "accessed_at": "2026-01-01",
+     "claim": "Synthetic test fixture only",
+     "document_sha256": "5146ca17408a2808e5bb2fdc131f3e01c91c6254109abce05a8ffe87973765e3",
+     "kind": "market",
+     "scope": {
+      "languages": [
+       "fr"
+      ],
+      "numbers": [
+       1,
+       1
+      ],
+      "set_id": "synthetic"
+     },
+     "source": "fixture:test",
+     "status": "verified"
+    },
+    "print": {
+     "accessed_at": "2026-01-01",
+     "claim": "Synthetic test fixture only",
+     "document_sha256": "5146ca17408a2808e5bb2fdc131f3e01c91c6254109abce05a8ffe87973765e3",
+     "kind": "print",
+     "scope": {
+      "languages": [
+       "fr"
+      ],
+      "numbers": [
+       1,
+       1
+      ],
+      "set_id": "synthetic"
+     },
+     "source": "fixture:test",
+     "status": "verified"
+    }
+   },
+   "rules": [
+    {
+     "closure_evidence": [
+      "closure"
+     ],
+     "evidence": [
+      "print"
+     ],
+     "id": "test",
+     "market_coverage": "complete",
+     "print_coverage": "complete",
+     "prints": [
+      {
+       "binding": "A",
+       "evidence": [
+        "print"
+       ],
+       "id": "plain",
+       "observations": {
+        "stamp": [
+         "absent"
+        ]
+       },
+       "status": "verified"
+      },
+      {
+       "binding": "B",
+       "evidence": [
+        "print"
+       ],
+       "id": "marked",
+       "observations": {
+        "stamp": [
+         "present:EX Test",
+         "present:Test"
+        ]
+       },
+       "status": "verified"
+      }
+     ],
+     "scope": {
+      "languages": [
+       "fr"
+      ],
+      "numbers": [
+       1,
+       1
+      ],
+      "set_id": "synthetic"
+     }
+    }
+   ],
+   "schema_version": 1
+  },
+  "partial": {
+   "bindings": {
+    "A": {
+     "currency": "EUR",
+     "evidence": [
+      "market"
+     ],
+     "filters": {
+      "none": true
+     },
+     "foil_projection": true,
+     "market": "fixture",
+     "metric_family": {
+      "id": "fixture-eur-holo",
+      "metrics": {
+       "avg30": "avg30-holo",
+       "trend": "trend-holo"
+      },
+      "version": 1
+     },
+     "native_variant": {
+      "code": "parallel-holo"
+     },
+     "population": {
+      "condition": "aggregate",
+      "language": "aggregate"
+     },
+     "product_ref": "fixture:product-A",
+     "scope": {
+      "languages": [
+       "fr"
+      ],
+      "numbers": [
+       1,
+       1
+      ],
+      "set_id": "synthetic"
+     },
+     "status": "verified"
+    },
+    "B": {
+     "currency": "EUR",
+     "evidence": [
+      "market"
+     ],
+     "filters": {
+      "none": true
+     },
+     "foil_projection": true,
+     "market": "fixture",
+     "metric_family": {
+      "id": "fixture-eur-holo",
+      "metrics": {
+       "avg30": "avg30-holo",
+       "trend": "trend-holo"
+      },
+      "version": 1
+     },
+     "native_variant": {
+      "code": "parallel-holo"
+     },
+     "population": {
+      "condition": "aggregate",
+      "language": "aggregate"
+     },
+     "product_ref": "fixture:product-B",
+     "scope": {
+      "languages": [
+       "fr"
+      ],
+      "numbers": [
+       1,
+       1
+      ],
+      "set_id": "synthetic"
+     },
+     "status": "verified"
+    }
+   },
+   "content_version": "test.1",
+   "evidence": {
+    "closure": {
+     "accessed_at": "2026-01-01",
+     "claim": "Synthetic test fixture only",
+     "document_sha256": "5146ca17408a2808e5bb2fdc131f3e01c91c6254109abce05a8ffe87973765e3",
+     "kind": "closure",
+     "scope": {
+      "languages": [
+       "fr"
+      ],
+      "numbers": [
+       1,
+       1
+      ],
+      "set_id": "synthetic"
+     },
+     "source": "fixture:test",
+     "status": "verified"
+    },
+    "market": {
+     "accessed_at": "2026-01-01",
+     "claim": "Synthetic test fixture only",
+     "document_sha256": "5146ca17408a2808e5bb2fdc131f3e01c91c6254109abce05a8ffe87973765e3",
+     "kind": "market",
+     "scope": {
+      "languages": [
+       "fr"
+      ],
+      "numbers": [
+       1,
+       1
+      ],
+      "set_id": "synthetic"
+     },
+     "source": "fixture:test",
+     "status": "verified"
+    },
+    "print": {
+     "accessed_at": "2026-01-01",
+     "claim": "Synthetic test fixture only",
+     "document_sha256": "5146ca17408a2808e5bb2fdc131f3e01c91c6254109abce05a8ffe87973765e3",
+     "kind": "print",
+     "scope": {
+      "languages": [
+       "fr"
+      ],
+      "numbers": [
+       1,
+       1
+      ],
+      "set_id": "synthetic"
+     },
+     "source": "fixture:test",
+     "status": "verified"
+    }
+   },
+   "rules": [
+    {
+     "evidence": [
+      "print"
+     ],
+     "id": "test",
+     "market_coverage": "complete",
+     "print_coverage": "partial",
+     "prints": [
+      {
+       "binding": "A",
+       "evidence": [
+        "print"
+       ],
+       "id": "plain",
+       "observations": {
+        "stamp": [
+         "absent"
+        ]
+       },
+       "status": "verified"
+      },
+      {
+       "binding": "B",
+       "evidence": [
+        "print"
+       ],
+       "id": "marked",
+       "observations": {
+        "stamp": [
+         "present:EX Test",
+         "present:Test"
+        ]
+       },
+       "status": "verified"
+      }
+     ],
+     "scope": {
+      "languages": [
+       "fr"
+      ],
+      "numbers": [
+       1,
+       1
+      ],
+      "set_id": "synthetic"
+     }
+    }
+   ],
+   "schema_version": 1
+  }
+ }
+}

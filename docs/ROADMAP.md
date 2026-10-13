@@ -134,8 +134,9 @@ exclu des totaux, sans modifier les observations physiques enregistrées.
 
 ### M1.1 — Socle implémenté, audit actif, preuves marchandes à compléter
 
-Contrat v1 du 13 octobre 2026 : livrer avant M2 un moteur
-commun et des règles d’édition sourcées, versionnées et utilisables hors ligne.
+Contrat v1 du 13 octobre 2026 : livrer un moteur commun et des règles
+d’édition sourcées, versionnées et utilisables hors ligne. Depuis la revue
+du 13 octobre, M2 n’attend plus sa clôture (décision ci-dessous).
 La couverture doit accompagner les **six albums restant à scanner** ; la
 collection actuelle fournit le premier banc de régression. Une édition nouvelle
 doit pouvoir être ajoutée par des données, sans correctif du moteur, et son
@@ -162,6 +163,40 @@ remplace donc pas encore le calcul de prix hérité. Il reste à documenter les
 impressions dans les langues de la collection, les distributions particulières,
 les produits et métriques Cardmarket, puis à raccorder leur acquisition et
 activer la sélection vérifiée après audit. M1.1 reste ouvert.
+
+**Décision du 13 octobre, après revue : M1.1 ne bloque plus M2.** Sur la
+collection actuelle, le paquet ne résout encore aucune carte (404/404 hors
+périmètre à l’audit). La collection est multilingue (395 FR, 6 EN, 2 JA, 1 IT)
+et l’application vise un public international ; or les règles ne couvrent que
+l’anglais, et les 27 cartes des familles de régression sont françaises (26) ou
+italienne (1). Chaque langue demande donc ses propres preuves.
+M2 compare donc ses propositions à la catégorie de prix actuelle, puis aux
+candidats du référentiel là où une règle couvre la carte. Tant qu’une édition
+et une langue n’ont pas de correspondance vérifiée, **la tarification provisoire
+reste le calcul de M1** : références héritées datées, affichées avec leur
+provenance, jamais présentées comme vérifiées.
+
+Le travail de preuves restant est **limité à 2 jours effectifs**, réévalués
+après le premier des six classeurs, en commençant par les éditions où une
+erreur coûte le plus. Procédure pour chaque pièce :
+
+1. Enregistrer la source (liste officielle, page produit Cardmarket sauvegardée
+   en HTML ou PDF, base d’impressions) puis l’archiver :
+   `pokeprice-manage reference-archive capture.html` donne son SHA-256.
+2. Écrire le fait extrait dans `prints-v1.json` avec cette empreinte, le
+   localisateur, la date et le périmètre exact : édition, numéros et **langue**.
+   - Preuve de marché : identifiant produit Cardmarket, filtres affichés
+     (langue, reverse…), champs de prix relevés et devise.
+   - Preuve de langue : une pièce qui montre les impressions **dans cette
+     langue**. Une liste anglaise ne couvre jamais le français ; le validateur
+     refuse une règle FR appuyée sur une preuve limitée à l’anglais.
+     Sources officielles connues : l’encyclopédie des cartes de pokemon.com
+     par langue (FR, IT, EN…, depuis la série EX) et la recherche officielle
+     japonaise de pokemon-card.com (depuis l’ère XY seulement). Aucune ne
+     liste les reverses : la preuve de marché reste distincte.
+3. Après la mise à jour des règles : `pokeprice-manage reference-recheck`
+   liste les cotations liées devenues incompatibles ; `--apply` inscrit leur
+   suspension au journal.
 
 **Ordre :** vocabulaire d’observation avant les scans (dont tampon non examiné /
 absence constatée / présence constatée), moteur pur, règles sourcées sur les
@@ -297,6 +332,7 @@ vérification : changer de modèle relève de la configuration, pas du code.
   - [ ] Audit des variantes Foil (27 cartes signalées par le relevé, 84 sur 90 non vérifiées)
   - [x] Dépôt distant privé : GitHub `citizenu03bb/pokeprice`, historique sans données personnelles, bugs suivis en issues
 - [x] M1 — Valeur en jeu, file « À examiner », totaux prudents
+- [ ] M1.1 — Référentiel des impressions : socle livré en audit ; preuves FR et de marché limitées à 2 jours ; ne bloque plus M2
 - [ ] M2 — Vérifications indépendantes branchées, banc en test de non-régression
 - [ ] M3 — Import de classeur dans l'application, série Android réceptionnée
 - [ ] M4 — Estimation par état, lots du vrac, calibration par les ventes

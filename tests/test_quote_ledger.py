@@ -138,7 +138,11 @@ def test_c02_bound_stamp_alias_preserves_quote(client, reference):
     observed = acquisition(
         reference,
         **quote(reference, "B"),
-        source_payload={"product": "fixture:product-B", "trend-holo": 12},
+        source_payload={
+            "product": "fixture:product-B",
+            "trend-holo": 12,
+            "avg30-holo": 9,
+        },
     )
     result = select_acquisition(
         store,
@@ -265,44 +269,34 @@ def test_c15_deliberate_clear_prevents_restoration(priced):
 
 def test_c19_bound_valuation_only_combines_one_native_acquisition(priced, reference):
     store, card, _ = priced
-    average = acquisition(
-        reference, metric="avg30", native_metric="avg30-holo", amount_cents=900
-    )
-    result = select_acquisition(
-        store,
-        card["id"],
-        card["version"],
-        average,
-        "pat",
-        "Second metric from same native acquisition",
-    )
     valued = store.listing()["items"][0]["valuation"]
+    # One acquisition carries both metrics; the reference column stays the trend.
     assert valued["trend_cents"] == 1200 and valued["prudent_cents"] == 900
+    assert card["reference_cents"] == 1200
     newer = acquisition(
         reference,
         acquisition_id="batch-B",
-        metric="avg30",
-        native_metric="avg30-holo",
-        amount_cents=800,
         observed_at="2026-01-01",
+        source_payload={"trend-holo": 11.00, "avg30-holo": 8.00},
     )
     select_acquisition(
         store,
         card["id"],
-        result["card"]["version"],
+        card["version"],
         newer,
         "pat",
         "Different acquisition",
     )
     valued = store.listing()["items"][0]["valuation"]
-    assert valued["trend_cents"] is None and valued["prudent_cents"] is None
+    # Metrics of batch A and batch B are never mixed.
+    assert valued["trend_cents"] == 1100 and valued["prudent_cents"] == 800
 
 
 @pytest.mark.parametrize(
     "changes",
     [
         {"currency": "USD"},
-        {"native_metric": "trend"},
+        {"source_payload": {"trend-holo": 12.00}},
         {"population": {"language": "en"}},
         {"source_payload": {}},
     ],
@@ -348,7 +342,78 @@ def test_c20_price_acquired_before_concurrent_edit_is_rejected_atomically(
         )
     assert state(store, card["id"]) == changed
     with store.connect() as db:
-        assert db.execute("SELECT count(*) FROM reference_quotes").fetchone()[0] == 1
+        assert db.execute("SELECT count(*) FROM reference_quotes").fetchone()[0] == 2
         assert (
             db.execute("SELECT count(*) FROM reference_quote_events").fetchone()[0] == 1
         )
+
+
+def test_manual_price_after_revocation_survives_unrelated_edit(priced):
+    store, card, _ = priced
+    manual = store.patch(
+        card["id"],
+        {"reference_cents": 4200, "price_source": "Manuel", "price_date": "2026-10-13"},
+        card["version"],
+        "pat",
+        "Prix relevé à la main",
+    )
+    assert selected(store, manual)["state"] == "revoked"
+    noted = store.patch(
+        card["id"], {"notes": "Rangée"}, manual["version"], "pat", "Note"
+    )
+    assert noted["reference_cents"] == 4200 and noted["price_source"] == "Manuel"
+    assert selected(store, noted)["state"] == "revoked"
+
+
+def test_dispute_suspends_in_journal_and_withdrawal_does_not_resurrect(client, priced):
+    store, card, original_quote = priced
+
+    def dispute(version, active):
+        response = client.post(
+            f"/api/copies/{card['id']}/reference-dispute",
+            json={
+                "expected_version": version,
+                "reason": "Produit contesté",
+                "active": active,
+                "affects": "market",
+            },
+        )
+        assert response.status_code == 200, response.text
+        return response.json()
+
+    disputed = dispute(card["version"], True)
+    assert disputed["reference_cents"] is None
+    assert selected(store, disputed)["state"] == "suspended"
+    assert disputed["reference_resolution"]["price_selection"]["state"] == "suspended"
+    withdrawn = dispute(disputed["version"], False)
+    assert withdrawn["reference_cents"] is None
+    assert selected(store, withdrawn)["state"] == "suspended"
+    restored = restore_selection(
+        store,
+        card["id"],
+        withdrawn["version"],
+        original_quote["id"],
+        "pat",
+        "Contestation levée, correspondance vérifiée",
+    )
+    assert restored["reference_cents"] == original_quote["amount_cents"]
+
+
+def test_rules_update_suspension_is_listed_then_journaled(priced, reference):
+    from pokeprice.quote_ledger import recheck_all
+
+    store, card, _ = priced
+    changed = copy.deepcopy(reference)
+    changed["bindings"]["A"]["product_ref"] = "fixture:product-C"
+    store.reference = ReferenceService(store, validate_ruleset(changed))
+    assert store.reference.audit()["counts"]["recheck_needed"] == 1
+    listed = recheck_all(store, "system:test", "Nouvelle version")
+    assert [s["copy_id"] for s in listed["suspensions"]] == [card["id"]]
+    assert selected(store, card)["state"] == "active"
+    applied = recheck_all(store, "system:test", "Nouvelle version", apply=True)
+    assert applied["applied"] and selected(store, card)["state"] == "suspended"
+    # Reverting the rules does not revive the price by itself.
+    store.reference = ReferenceService(store, validate_ruleset(reference))
+    assert selected(store, card)["state"] == "suspended"
+    assert state(store, card["id"])["reference_cents"] is None
+    assert store.reference.audit()["counts"]["recheck_needed"] == 0

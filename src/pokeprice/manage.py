@@ -24,6 +24,19 @@ def main():
         "reference-audit",
         help="Audit local du référentiel et des références héritées ; aucune migration ou correction",
     )
+    recheck = actions.add_parser(
+        "reference-recheck",
+        help="Suspensions de cotations liées devenues incompatibles (après mise à jour des règles)",
+    )
+    recheck.add_argument(
+        "--apply", action="store_true", help="Inscrire les suspensions au journal"
+    )
+    recheck.add_argument("--reason", default="Mise à jour du référentiel")
+    archive = actions.add_parser(
+        "reference-archive",
+        help="Archiver une pièce justificative (PDF, HTML, JSON) par empreinte SHA-256",
+    )
+    archive.add_argument("document")
     user = actions.add_parser(
         "user", help="Créer un accès avec saisie confidentielle du mot de passe"
     )
@@ -109,6 +122,10 @@ def main():
         from .reference_service import audit_directory
 
         result = audit_directory(args.data)
+    elif args.action == "reference-archive":
+        from .reference_service import archive_document
+
+        result = archive_document(args.data, args.document)
     elif args.action == "restore":
         from .inventory_backup import restore_backup
 
@@ -121,6 +138,12 @@ def main():
             result = import_collection(store, args.manifest)
         elif args.action == "status":
             result = store.summary()
+        elif args.action == "reference-recheck":
+            from .quote_ledger import recheck_all
+
+            result = recheck_all(
+                store, "system:reference-recheck", args.reason, apply=args.apply
+            )
         elif args.action == "user":
             import getpass
 

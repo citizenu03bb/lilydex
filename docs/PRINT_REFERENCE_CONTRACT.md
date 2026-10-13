@@ -1,10 +1,11 @@
 # M1.1 — Contrat des observations, de la résolution et des cotations
 
-Version du contrat : **1**, 13 octobre 2026. **Implémentation partielle en mode
-audit ; M1.1 non réceptionné.** État et limites :
+Version du contrat : **1.1**, 13 octobre 2026 (révision après revue : §3, §5,
+§6, §7, §8). **Implémentation partielle en mode audit ; M1.1 non réceptionné.** État et limites :
 [PRINT_REFERENCE_IMPLEMENTATION.md](PRINT_REFERENCE_IMPLEMENTATION.md).
 
-Ce document définit le comportement à livrer avant M2. Il précise
+Ce document définit le comportement à livrer ; depuis la révision 1.1, M2
+n’attend plus sa réception. Il précise
 [la proposition M1.1](PRINT_REFERENCE_PROPOSAL.md) après la consultation
 `20261013-021806-b4b77c1f` (Claude Opus, Gemini, DeepSeek, Mistral).
 La consultation a revu le design ; elle n’a pas certifié les faits Pokémon
@@ -62,6 +63,15 @@ numéros exacts ou plages avec exclusions, langues couvertes et, lorsque cela
 change les impressions possibles, produit de distribution ou tirage.
 Une langue ou un numéro hors périmètre ne bénéficie pas de la règle. Aucune
 extension EN → FR/IT/JA n’est implicite.
+
+**Extension à une autre langue (1.1).** Elle est explicite : la règle ajoute la
+langue à son périmètre et s’appuie sur une preuve d’impression dont le périmètre
+contient cette langue. La pièce montre les impressions dans cette langue, par
+exemple une liste ou une base d’impressions française, ou des exemplaires
+photographiés de chaque impression, archivés par empreinte. Le fait extrait dit
+ce qu’elle établit (« mêmes numéros en versions mate et brillante en français »)
+et ses limites. Une preuve anglaise seule ne valide pas l’extension.
+Les correspondances marchandes suivent la même règle avec leur preuve de marché.
 
 Les preuves d’impression et de correspondance marchande ont chacune leur
 couverture : `complete`, `partial` ou `provisional`, sur leur périmètre exact.
@@ -158,6 +168,10 @@ reconnue sans produit coté de plusieurs impressions partageant un produit :
 | `provisional` | Seule une proposition catalogue est disponible |
 | `conflict` | Correspondance empêchée par un conflit de preuves ou une contestation active |
 
+Une liste partielle conserve ses candidats documentés : `candidates`, ou
+`unobserved` si un indice manque, avec le motif `unknown_remainder`.
+`uncovered` est réservé à une identité ou une observation hors de toute règle.
+
 Le résultat comporte aussi : `candidate_print_ids`, `unknown_remainder`,
 `candidate_binding_keys` et leur association par candidat, `missing_print_observations`,
 `missing_market_observations`, `selected_binding_key`, `foil_projection`,
@@ -198,6 +212,8 @@ Une contestation locale peut être enregistrée avec auteur authentifié, motif,
 date et version attendue. Elle suspend la décision concernée et alimente la
 file de couverture. Elle ne crée ni une nouvelle règle vérifiée ni un droit
 d’utiliser le prix d’un autre produit. Un relevé ne clôt pas cette contestation.
+Si elle bloque une cotation liée active, la suspension est inscrite au journal
+dans la même transaction ; retirer la contestation ne la lève pas.
 
 ## 6. Cotation conservée, sélectionnée ou suspendue
 
@@ -221,6 +237,14 @@ ne peut pas fournir la valeur prudente de l’exemplaire.
 | Nouveau relevé compatible | Sélectionner la nouvelle preuve avec sa date réelle ; ne pas redater l’ancienne |
 | Suppression explicite par l’utilisateur | Révoquer la sélection avec provenance ; aucun retour automatique d’un ancien prix |
 
+Une suspension est toujours inscrite au journal, quelle que soit sa cause :
+correction, contestation, mise à jour des règles ou pièce devenue indisponible.
+La disparition de cette cause ne la lève pas. Après une mise à jour des règles,
+`reference-recheck` liste les suspensions à inscrire, puis `--apply` les inscrit
+avec un acteur de maintenance, un motif et la version attendue de chaque fiche.
+Un prix saisi à la main après une révocation appartient à l’utilisateur : le
+journal ne le modifie plus.
+
 Un retour vers une ancienne correspondance ne réactive pas à lui seul un prix.
 Une restauration doit être auditable et versionnée : compatibilité complète,
 absence de révocation ou de relevé plus récent à respecter, source et date
@@ -229,6 +253,10 @@ réparation historique ; il ne devient pas une restauration générale sur un
 aller-retour de finition.
 La compatibilité ne certifie pas la fraîcheur du prix : une référence conservée
 ou restaurée garde sa date d’origine et n’est pas présentée comme un relevé nouveau.
+
+Un relevé natif fournit en une seule acquisition toutes les métriques de sa
+famille, chacune lue dans la même charge utile source. Un relevé incomplet est
+refusé. La colonne de référence de la fiche affiche la tendance.
 
 Une moyenne à 30 jours n’est jamais inventée à partir d’une référence manuelle.
 Le calcul prudent utilise tendance et moyenne à 30 jours de la même
@@ -253,8 +281,11 @@ non vide reste visible avec sa provenance ; il ne devient `present` que si une
 preuve humaine déjà enregistrée atteste ce tampon, avec une trace de migration
 vers le nouvel état. Le texte seul ne suffit pas. Sans cette preuve,
 `stamp_state` reste `unobserved`. Une ancienne attestation
-globale est conservée et présentée comme telle ; elle n’est pas transformée
-en attestations nouvelles par discriminant.
+globale est conservée et présentée comme telle (`legacy_global`).
+Révision 1.1 : une confirmation datée exigeait une finition décrite et est
+annulée par tout changement de finition ; elle atteste donc cette finition,
+et elle seule. Elle n’atteste jamais un tampon ou une marque de distribution,
+qui restent `unobserved` sans observation propre.
 
 Les anciens prix sans correspondance prouvée restent `legacy_unbound` ou
 `legacy_manual`, visibles et datés. Une règle nouvelle ne les certifie pas
@@ -297,7 +328,11 @@ et ne devient pas une preuve nouvelle par téléchargement non vérifié.
 Le contrôle de restauration vérifie le manifeste et rejoue une décision ancienne
 avec ses entrées et sa version, indépendamment de la version courante.
 Le rejeu utilise la version enregistrée du moteur ou un lecteur de compatibilité
-validé par les fixtures de cette version. Les éléments nécessaires sont conservés
+validé par les fixtures de cette version. Chaque décision nomme l’empreinte
+exacte de son moteur. Le code archivé n’est jamais exécuté : le rejeu exige un
+moteur courant de même `ENGINE_VERSION`, dont l’empreinte est enregistrée comme
+compatible après passage des vecteurs figés de cette version. Une modification
+de forme ajoute une empreinte ; une modification de sens crée une version. Les éléments nécessaires sont conservés
 dans l’archive de restauration. Une version non disponible ou non reproductible
 est signalée ; le moteur courant ne la remplace pas en prétendant avoir confirmé
 la décision ancienne.

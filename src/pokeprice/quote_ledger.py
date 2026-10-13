@@ -2,6 +2,7 @@
 
 The acquisition adapter must supply native metric/population evidence. Legacy
 TCGdex snapshots are not admitted here by inferring a binding from `foil`.
+A suspension is always journaled: it never lifts by itself when its cause goes.
 """
 
 import json
@@ -9,6 +10,7 @@ import uuid
 from datetime import date
 
 from .print_reference import binding_key, canonical, quote_selection
+from .valuation import amount
 
 
 def current(db, copy_id):
@@ -44,8 +46,28 @@ def journal(db, card, quote_id, state, resolution, actor, reason):
     )
 
 
+def suspend(store, db, before, selection, resolution, actor, reason):
+    """Journal a suspension and clear the reference columns in one version bump."""
+    from .inventory import now
+
+    db.execute(
+        "UPDATE copies SET reference_cents=NULL,price_source='',price_date='',version=version+1,updated_at=? WHERE id=?",
+        (now(), before["id"]),
+    )
+    after = store.get(db, before["id"])
+    journal(db, after, selection["quote"]["id"], "suspended", resolution, actor, reason)
+    store.event(
+        db, before["id"], actor, "bound-price-suspension", reason, before, after
+    )
+    return after
+
+
 def select_acquisition(store, copy_id, expected_version, acquisition, actor, reason):
-    """Server acquisition boundary, not a client-supplied binding override."""
+    """Server acquisition boundary, not a client-supplied binding override.
+
+    One native payload supplies every metric of the binding's family at once, so
+    trend and avg30 always come from the same acquisition.
+    """
     from .inventory import Conflict, now
 
     if not actor.strip() or not reason.strip():
@@ -62,31 +84,53 @@ def select_acquisition(store, copy_id, expected_version, acquisition, actor, rea
         key = resolution["selected_binding_key"]
         bindings = store.reference.ruleset.data["bindings"].values()
         binding = next(b for b in bindings if binding_key(b) == key)
-        metric = acquisition.get("metric")
+        payload = acquisition.get("source_payload")
         if (
             acquisition.get("binding_key") != key
             or acquisition.get("currency") != binding["currency"]
             or acquisition.get("population") != binding["population"]
-            or metric not in binding["metric_family"]["metrics"]
-            or acquisition.get("native_metric")
-            != binding["metric_family"]["metrics"][metric]
             or not acquisition.get("acquisition_id")
-            or not acquisition.get("source_payload")
+            or not isinstance(payload, dict)
+            or not payload
             or not acquisition.get("source")
-            or type(acquisition.get("amount_cents")) is not int
-            or not 0 <= acquisition["amount_cents"] <= 1000000000
         ):
             raise ValueError("Relevé incompatible ou sans preuve native de métrique.")
+        family = binding["metric_family"]["metrics"]
+        amounts = {
+            metric: amount(payload.get(native)) for metric, native in family.items()
+        }
+        if any(v is None or v > 1000000000 for v in amounts.values()):
+            raise ValueError(
+                "Relevé incomplet : chaque métrique de la famille doit venir du même relevé natif."
+            )
         # Reference columns and the legacy valuation are EUR-only.
         if binding["currency"] != "EUR":
             raise ValueError("Relevé hors EUR : sélection en euros interdite.")
         date.fromisoformat(acquisition.get("observed_at", "")[:10])
         store.reference.record(copy_id, expected_version, actor, reason, _db=db)
-        quote = {**acquisition, "id": str(uuid.uuid4()), "binding": binding}
-        db.execute(
-            "INSERT INTO reference_quotes VALUES(?,?,?,?,?)",
-            (quote["id"], copy_id, canonical(quote), actor, now()),
-        )
+        common = {
+            k: v
+            for k, v in acquisition.items()
+            if k not in ("id", "metric", "native_metric", "amount_cents")
+        }
+        quotes = [
+            {
+                **common,
+                "id": str(uuid.uuid4()),
+                "metric": metric,
+                "native_metric": family[metric],
+                "amount_cents": cents,
+                "binding": binding,
+            }
+            for metric, cents in sorted(amounts.items())
+        ]
+        for quote in quotes:
+            db.execute(
+                "INSERT INTO reference_quotes VALUES(?,?,?,?,?)",
+                (quote["id"], copy_id, canonical(quote), actor, now()),
+            )
+        # The reference column keeps its meaning: the trend when the family has one.
+        quote = next((q for q in quotes if q["metric"] == "trend"), quotes[0])
         db.execute(
             "UPDATE copies SET reference_cents=?,price_source=?,price_date=?,version=version+1,updated_at=? WHERE id=?",
             (
@@ -101,7 +145,7 @@ def select_acquisition(store, copy_id, expected_version, acquisition, actor, rea
         journal(db, after, quote["id"], "active", resolution, actor, reason)
         store.event(db, copy_id, actor, "bound-price-selection", reason, before, after)
         store.observe_price(db, after, actor)
-        return {"card": after, "quote": quote}
+        return {"card": after, "quote": quote, "quotes": quotes}
 
 
 def reconcile(store, db, before, after, changes, actor, reason):
@@ -117,14 +161,17 @@ def reconcile(store, db, before, after, changes, actor, reason):
     if "reference_cents" in changes:
         # A deliberate clear/replacement is a revocation, even if the amount matches.
         next_selection = {"state": "revoked"}
-    elif next_selection["state"] == "active":
-        after.update(
-            reference_cents=quote["amount_cents"],
-            price_source=quote["source"],
-            price_date=quote["observed_at"],
-        )
-    else:
-        after.update(reference_cents=None, price_source="", price_date="")
+    elif selection["state"] == "active":
+        if next_selection["state"] == "active":
+            after.update(
+                reference_cents=quote["amount_cents"],
+                price_source=quote["source"],
+                price_date=quote["observed_at"],
+            )
+        else:
+            after.update(reference_cents=None, price_source="", price_date="")
+    # A suspended or revoked selection no longer owns the reference columns:
+    # a manual price entered since then is the user's and stays untouched.
     if next_selection["state"] != selection["state"]:
         journal(
             db,
@@ -183,7 +230,7 @@ def restore_selection(store, copy_id, expected_version, quote_id, actor, reason)
 
 def recheck_selection(store, copy_id, expected_version, actor, reason):
     """Apply an audited rules change without transferring or reviving a quote."""
-    from .inventory import Conflict, now
+    from .inventory import Conflict
 
     if not actor.strip() or not reason.strip():
         raise ValueError("Auteur et motif requis.")
@@ -203,19 +250,33 @@ def recheck_selection(store, copy_id, expected_version, actor, reason):
         if next_selection["state"] == selection["state"]:
             return before
         store.reference.record(copy_id, expected_version, actor, reason, _db=db)
-        db.execute(
-            "UPDATE copies SET reference_cents=NULL,price_source='',price_date='',version=version+1,updated_at=? WHERE id=?",
-            (now(), copy_id),
-        )
-        after = store.get(db, copy_id)
-        journal(
-            db,
-            after,
-            selection["quote"]["id"],
-            next_selection["state"],
-            resolution,
-            actor,
-            reason,
-        )
-        store.event(db, copy_id, actor, "bound-price-suspension", reason, before, after)
-        return after
+        return suspend(store, db, before, selection, resolution, actor, reason)
+
+
+def recheck_all(store, actor, reason, *, apply=False):
+    """List, then on request journal, every active selection the rules now block."""
+    with store.connect() as db:
+        pending = []
+        for row in db.execute(
+            "SELECT DISTINCT copy_id FROM reference_quote_events ORDER BY copy_id"
+        ).fetchall():
+            card = store.get(db, row["copy_id"])
+            selection = current(db, card["id"])
+            if card["deleted_at"] or selection["state"] != "active":
+                continue
+            resolution = store.reference.decision_for(db, card)
+            if resolution["price_selection"]["state"] != "active":
+                pending.append(
+                    {
+                        "copy_id": card["id"],
+                        "expected_version": card["version"],
+                        "name": card["name"],
+                        "reason_codes": resolution["reason_codes"],
+                    }
+                )
+    if apply:
+        for item in pending:
+            recheck_selection(
+                store, item["copy_id"], item["expected_version"], actor, reason
+            )
+    return {"applied": apply, "suspensions": pending}

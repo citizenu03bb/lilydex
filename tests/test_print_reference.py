@@ -477,3 +477,73 @@ def test_duplicate_json_keys_are_rejected(tmp_path):
     path.write_text('{"schema_version":1,"schema_version":2}')
     with pytest.raises(InvalidReference, match="dupliquée"):
         load_ruleset(path)
+
+
+def test_partial_list_keeps_documented_candidates_instead_of_uncovered(reference):
+    reference["rules"][0]["print_coverage"] = "partial"
+    reference["rules"][0].pop("closure_evidence")
+    result = decision(reference, absent())
+    assert result["print_status"] == "candidates" and result["unknown_remainder"]
+    assert "unknown_remainder" in result["reason_codes"]
+    assert decision(reference)["print_status"] == "unobserved"
+
+
+def test_legacy_global_attestation_covers_the_finish_only_and_says_so():
+    card = {
+        "finish": "holo",
+        "stamp": "Old text",
+        "stamp_state": "present",
+        "variant_confirmed": True,
+        "variant_verified_by": "pat",
+        "variant_verified_at": "2026-10-12T10:00:00Z",
+    }
+    observations = copy_observations(card)
+    assert observations["finish"]["human"]
+    assert observations["finish"]["attestation"] == "legacy_global"
+    assert not observations["stamp"]["human"]
+    assert observations["stamp"]["attestation"] is None
+    assert not copy_observations({**card, "finish": ""})["finish"]["human"]
+
+
+def test_language_extension_needs_evidence_scoped_to_that_language(reference):
+    # An EN rule never covers FR implicitly; an FR scope needs FR-scoped proof.
+    for item in list(reference["evidence"].values()) + list(
+        reference["bindings"].values()
+    ):
+        item["scope"] = {**item["scope"], "languages": ["en"]}
+    reference["rules"][0]["scope"] = {
+        **reference["rules"][0]["scope"],
+        "languages": ["en", "fr"],
+    }
+    with pytest.raises(InvalidReference, match="hors périmètre"):
+        validate_ruleset(reference)
+
+
+def test_engine_matches_its_golden_vectors():
+    from pokeprice.print_reference import ENGINE_VERSION
+
+    vectors = json.loads(
+        (Path(__file__).parent / "fixtures" / "engine_vectors.json").read_text()
+    )
+    # A semantic change needs a new ENGINE_VERSION and new vectors.
+    assert vectors["engine_version"] == ENGINE_VERSION
+    rulesets = {k: validate_ruleset(v) for k, v in vectors["rulesets"].items()}
+    for case in vectors["cases"]:
+        result = resolve(
+            case["identity"],
+            case["observations"],
+            rulesets[case["ruleset"]],
+            case["disputes"],
+        )
+        assert result == case["expected"], case["name"]
+
+
+def test_engine_source_is_registered_for_its_version():
+    from pokeprice.print_reference import ENGINE_VERSION
+    from pokeprice.reference_service import ENGINE_SOURCES, engine_digest
+
+    assert engine_digest() in ENGINE_SOURCES[ENGINE_VERSION], (
+        "print_reference.py a changé. Si les vecteurs passent sans changement de "
+        "sémantique, ajoutez cette empreinte à ENGINE_SOURCES ; sinon, créez une "
+        "nouvelle ENGINE_VERSION et ses vecteurs : " + engine_digest()
+    )

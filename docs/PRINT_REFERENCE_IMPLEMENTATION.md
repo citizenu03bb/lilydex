@@ -1,7 +1,38 @@
 # Livraison du socle M1.1 — 13 octobre 2026
 
-**Mode audit. M1.1 reste ouvert.** Le contrat v1 reste la cible de réception.
-La couverture et la preuve de marché ne sont pas déduites de tests synthétiques.
+**Mode audit. M1.1 reste ouvert.** Le contrat (révision 1.1) reste la cible de
+réception. La couverture et la preuve de marché ne sont pas déduites de tests
+synthétiques.
+
+## Corrections après revue — 13 octobre 2026
+
+- **Prix manuel conservé.** Après le retrait d’une cotation liée, un prix saisi
+  à la main n’est plus effacé par une correction sans rapport (note, album…).
+- **Contestation.** Elle inscrit la suspension de la cotation liée au journal
+  dans sa propre transaction ; la retirer ne réactive pas le prix, qui exige une
+  restauration explicite.
+- **Mise à jour des règles.** `pokeprice-manage reference-recheck` liste les
+  cotations devenues incompatibles et `--apply` inscrit leur suspension.
+  L’audit compte `recheck_needed`.
+- **Relevé atomique.** Une acquisition fournit toutes les métriques de sa famille
+  depuis la même charge utile native ; un relevé incomplet est refusé. La colonne
+  de référence affiche la tendance, plus la dernière métrique relevée.
+- **Moteur par décision (schéma 13).** Chaque décision enregistre l’empreinte de
+  son moteur dans `reference_engines` ; auparavant, une décision héritait du
+  premier moteur enregistré pour son jeu de règles et devenait non reproductible
+  dès une modification du moteur. Les décisions existantes reçoivent ce premier
+  moteur, seule information disponible. Le rejeu exige une empreinte enregistrée
+  comme compatible avec `ENGINE_VERSION`, validée par
+  `tests/fixtures/engine_vectors.json`.
+- **Moteur version 2.** Une liste partielle donne `candidates` ou `unobserved`
+  avec le motif `unknown_remainder`, et non plus `uncovered`. La confirmation
+  globale datée atteste la finition seule, marquée `legacy_global`.
+- **Preuves.** `pokeprice-manage reference-archive` range une pièce par SHA-256
+  dans `reference_documents/`. Une extension FR exige une preuve de périmètre FR.
+
+La base réelle ne contenait aucune décision ni cotation liée : ces changements
+n’affectent aucun historique. Migration 12 → 13 vérifiée sur une copie de la
+collection (404 exemplaires, mêmes comptes d’audit). 369 tests réussis.
 
 ## Comportement disponible
 

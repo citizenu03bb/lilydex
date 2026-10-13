@@ -24,6 +24,22 @@ from .print_reference import (
 )
 
 
+# Engine sources whose semantics match the golden vectors of their version
+# (tests/fixtures/engine_vectors.json). A source edit that keeps the semantics
+# adds its digest here; a semantic change requires a new ENGINE_VERSION.
+ENGINE_SOURCES = {
+    "2": {"70126324f8cb088fa38685e371a1ee15832126aec15060f28ff204506911dbcc"},
+}
+
+
+def engine_source():
+    return files("pokeprice").joinpath("print_reference.py").read_text()
+
+
+def engine_digest(source=None):
+    return hashlib.sha256((source or engine_source()).encode()).hexdigest()
+
+
 def inputs_for(card, snapshot=None, disputes=(), available_documents=None):
     return {
         "identity": {
@@ -136,6 +152,53 @@ class ReferenceService:
             card, snapshot, self.disputes(db, card["id"]), current(db, card["id"])
         )
 
+    def dispute(self, copy_id, expected_version, active, affects, actor, reason):
+        """Record a dispute; a bound price it blocks is suspended in the journal."""
+        from .inventory import Conflict, now
+        from .quote_ledger import current, suspend
+
+        with self.store.connect(write=True) as db:
+            before = self.disputes(db, copy_id)
+            card = self.store.get(db, copy_id)
+            if card["version"] != expected_version or card["deleted_at"]:
+                raise Conflict("La fiche a changé. Rechargez-la avant de contester.")
+            record = {
+                "active": active,
+                "affects": affects,
+                "actor": actor,
+                "reason": reason,
+                "created_at": now(),
+                "copy_version": expected_version + 1,
+            }
+            selection = current(db, copy_id)
+            resolution = self.decision(card, disputes=[record])
+            if (
+                selection
+                and selection["state"] == "active"
+                and quote_selection(selection["quote"], resolution)["state"] != "active"
+            ):
+                after = suspend(
+                    self.store, db, card, selection, resolution, actor, reason
+                )
+            else:
+                db.execute(
+                    "UPDATE copies SET version=version+1,updated_at=? WHERE id=?",
+                    (now(), copy_id),
+                )
+                after = self.store.get(db, copy_id)
+            self.store.event(
+                db, copy_id, actor, "reference-dispute", reason, before, record
+            )
+            return {
+                **after,
+                "reference_resolution": self.decision(
+                    after,
+                    self.store.category_snapshot(db, after),
+                    [record],
+                    current(db, copy_id),
+                ),
+            }
+
     @staticmethod
     def disputes(db, copy_id):
         row = db.execute(
@@ -163,18 +226,25 @@ class ReferenceService:
                 self.available_documents(),
             )
             result = resolve(**inputs, ruleset=self.ruleset)
+            source = engine_source()
+            # The ruleset row keeps its first engine only for older readers; each
+            # decision names the exact engine that produced it.
             db.execute(
                 "INSERT OR IGNORE INTO reference_rulesets VALUES(?,?,?,?,?)",
                 (
                     self.ruleset.hash,
                     self.ruleset.content,
                     ENGINE_VERSION,
-                    files("pokeprice").joinpath("print_reference.py").read_text(),
+                    source,
                     now(),
                 ),
             )
+            db.execute(
+                "INSERT OR IGNORE INTO reference_engines VALUES(?,?,?,?)",
+                (engine_digest(source), ENGINE_VERSION, source, now()),
+            )
             cursor = db.execute(
-                "INSERT INTO reference_decisions(copy_id,copy_version,rules_hash,inputs_json,result_json,actor,reason,created_at) VALUES(?,?,?,?,?,?,?,?)",
+                "INSERT INTO reference_decisions(copy_id,copy_version,rules_hash,inputs_json,result_json,actor,reason,created_at,engine_sha256) VALUES(?,?,?,?,?,?,?,?,?)",
                 (
                     copy_id,
                     expected_version,
@@ -184,6 +254,7 @@ class ReferenceService:
                     actor,
                     reason,
                     now(),
+                    engine_digest(source),
                 ),
             )
             return {
@@ -195,15 +266,17 @@ class ReferenceService:
     def replay(self, decision_id):
         with self.store.connect() as db:
             row = db.execute(
-                "SELECT d.*,r.content_json,r.engine_version,r.engine_source FROM reference_decisions d JOIN reference_rulesets r ON r.hash=d.rules_hash WHERE d.id=?",
+                "SELECT d.*,r.content_json,e.engine_version FROM reference_decisions d JOIN reference_rulesets r ON r.hash=d.rules_hash LEFT JOIN reference_engines e ON e.sha256=d.engine_sha256 WHERE d.id=?",
                 (decision_id,),
             ).fetchone()
         if row is None:
             raise KeyError("Décision introuvable.")
+        # Archived code is never executed: only a registered compatible engine replays.
+        compatible = ENGINE_SOURCES.get(ENGINE_VERSION, set())
         if (
             row["engine_version"] != ENGINE_VERSION
-            or row["engine_source"]
-            != files("pokeprice").joinpath("print_reference.py").read_text()
+            or row["engine_sha256"] not in compatible
+            or engine_digest() not in compatible
         ):
             return {
                 "id": decision_id,
@@ -249,6 +322,14 @@ class ReferenceService:
             )
             state = result["price_selection"]["state"]
             quote = result["price_selection"]["quote"]
+            if has_quotes:
+                from .quote_ledger import current
+
+                journal = current(db, card["id"])
+                # A computed suspension not yet journaled: `reference-recheck --apply`.
+                counts["recheck_needed"] += bool(
+                    journal and journal["state"] == "active" and state != "active"
+                )
             if state == "active" and quote and quote.get("currency") == "EUR":
                 verified_amounts.append(quote["amount_cents"])
             counts[state] += 1
@@ -302,3 +383,19 @@ def audit_directory(directory, ruleset=None):
             ruleset=ruleset,
             archive_root=Path(directory).resolve() / "reference_documents",
         ).audit(db)
+
+
+def archive_document(directory, document):
+    """Store a source once by content hash, beside the collection and in its backups."""
+    source = Path(document)
+    if source.suffix not in (".pdf", ".json", ".html"):
+        raise ValueError("Pièce acceptée : PDF, HTML ou JSON.")
+    body = source.read_bytes()
+    checksum = hashlib.sha256(body).hexdigest()
+    target = Path(directory).resolve() / "reference_documents"
+    target.mkdir(parents=True, exist_ok=True, mode=0o700)
+    path = target / (checksum + source.suffix)
+    if not path.exists():
+        path.write_bytes(body)
+        path.chmod(0o600)
+    return {"document_sha256": checksum, "path": str(path), "bytes": len(body)}
