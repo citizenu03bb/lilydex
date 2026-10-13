@@ -15,7 +15,11 @@ from test_print_reference import SOURCE_DOCUMENT, reference_data
 from pokeprice.inventory import Conflict, Store
 from pokeprice.inventory_backup import backup, export_csv, export_data, restore_backup
 from pokeprice.print_reference import validate_ruleset
-from pokeprice.reference_service import ReferenceService, audit_directory
+from pokeprice.reference_service import (
+    ReferenceService,
+    archive_document,
+    audit_directory,
+)
 from pokeprice.webapp import create_app
 
 
@@ -465,3 +469,19 @@ def test_source_document_is_archived_once_by_content_hash(tmp_path):
     assert path.name == hashlib.sha256(source.read_bytes()).hexdigest() + ".html"
     with pytest.raises(ValueError):
         archive_document(tmp_path / "data", tmp_path / "notes.txt")
+
+
+def test_photographed_copy_is_archived_and_survives_backup(client, tmp_path):
+    store = client.app.state.store
+    photo = tmp_path / "copy.jpg"
+    photo.write_bytes(b"\xff\xd8 synthetic copy photo")
+    archived = archive_document(store.root, photo)
+    assert archived["path"].endswith(archived["document_sha256"] + ".jpg")
+    assert store.reference.available_documents() == [archived["document_sha256"]]
+    with pytest.raises(ValueError):
+        archive_document(store.root, tmp_path / "notes.txt")
+    path = tmp_path / "with-photo.zip"
+    backup(store, path)
+    restore_backup(path, tmp_path / "restored")
+    restored = Store(tmp_path / "restored")
+    assert restored.reference.available_documents() == [archived["document_sha256"]]

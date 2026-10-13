@@ -25,6 +25,7 @@ from .intake import IntakeService, catalogue_candidates, normalize_photo, read_p
 from .inventory import Conflict, Store, cents, now
 from .inventory_backup import backup, export_csv, export_data, export_html
 from .photo_processing import parse_guide
+from .quote_ledger import select_transcription
 from .market_product import MarketProducts, cached_set_code, fetch_tcgdex
 from .pricing import (
     PriceService,
@@ -61,6 +62,14 @@ class ConditionRequest(Model):
 class MarketVerdict(Model):
     expected_version: int = Field(ge=1)
     verdict: Literal["wrong", "verified", ""]
+    reason: str = Field(min_length=1, max_length=1000)
+
+
+class BoundQuote(Model):
+    expected_version: int = Field(ge=1)
+    metrics: dict[str, Decimal]
+    observed_on: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+    capture_sha256: str = Field(default="", pattern=r"^(?:[a-f0-9]{64})?$")
     reason: str = Field(min_length=1, max_length=1000)
 
 
@@ -713,6 +722,9 @@ def create_app(
                 if card["price_category"]["mode"] == "automatic"
                 else card["foil"],
             )
+            card["reference_binding"] = store.reference.selected_binding(
+                card["reference_resolution"]
+            )
             bound_quote = card["reference_resolution"]["price_selection"]["quote"] or {}
             if bound_quote.get("binding_key"):
                 card["cardmarket_url"] = binding_market_url(bound_quote["binding"])
@@ -802,6 +814,21 @@ def create_app(
             values.verdict,
             user["username"],
             values.reason,
+        )
+
+    @app.post("/api/copies/{copy_id}/bound-quote", status_code=201)
+    def bound_quote(copy_id: str, values: BoundQuote, user=Depends(editor)):
+        if any(v < 0 or v > 10000000 for v in values.metrics.values()):
+            raise ValueError("Montant hors limites.")
+        return select_transcription(
+            store,
+            copy_id,
+            values.expected_version,
+            values.metrics,
+            values.observed_on,
+            user["username"],
+            values.reason,
+            values.capture_sha256,
         )
 
     @app.post("/api/copies/{copy_id}/sale-estimate", status_code=201)

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "content_version": "2026-10-13.1",
+  "content_version": "2026-10-13.2",
   "mode": "audit",
   "evidence": {
     "ex8-checklist-en": {
@@ -107,9 +107,172 @@
       "document_sha256": "aa01055113de999de44d0e5185921b018d2b907063894624003625944b50dd9c",
       "locator": "page 1, légende ou entrée du numéro",
       "limitations": "Liste anglaise du jeu de base ; ne ferme pas les réimpressions ou distributions spéciales. Aucune correspondance Cardmarket attestée."
+    },
+    "ex13-78-fr-copy-photo": {
+      "kind": "print",
+      "status": "verified",
+      "scope": {
+        "set_id": "ex13",
+        "languages": [
+          "fr"
+        ],
+        "numbers": [
+          78,
+          78
+        ],
+        "exclusions": []
+      },
+      "claim": "Un exemplaire français n° 78/110 porte une illustration holo et le tampon « EX Fantômes Holon » dans l’illustration, sur un fond de carte mat.",
+      "source": "photo de l’exemplaire 3ca822c8-c325-5a3f-8350-3ee3bd2e46d0 (collection privée, album Platinium p. 24 pochette 4)",
+      "accessed_at": "2026-10-13",
+      "document_sha256": "7ebd7346873489fcf6be8588bfe51c8b77c6967395f39ed77010b4e67300c9b5",
+      "locator": "recto : texte français, tampon en bas à droite de l’illustration, reflet holo en haut à droite",
+      "limitations": "Un seul exemplaire : établit l’existence de cette impression en français, pas l’absence d’autres impressions. L’encyclopédie officielle française de pokemon.com ne contient aucune carte de cette extension (vérifié le 13 octobre 2026)."
+    },
+    "ex13-78-fr-tcgdex": {
+      "kind": "print",
+      "status": "provisional",
+      "scope": {
+        "set_id": "ex13",
+        "languages": [
+          "fr"
+        ],
+        "numbers": [
+          78,
+          78
+        ],
+        "exclusions": []
+      },
+      "claim": "TCGdex (fr) répertorie pour ex13-78 une version Normal sans tampon et une version Normal avec le tampon « Logo de la série ».",
+      "source": "https://api.tcgdex.net/v2/fr/cards/ex13-78",
+      "accessed_at": "2026-10-13",
+      "document_sha256": "b74023cc73f90f10fcc454bdc69a24396170a34854220a1f04804b246487490f",
+      "locator": "champ variants_detailed",
+      "limitations": "Base communautaire. Classe la version tamponnée en Normal, en désaccord avec l’exemplaire photographié (illustration holo) : ne sert que de preuve provisoire de l’impression mate française."
+    },
+    "ex13-78-tcgdex-cardmarket": {
+      "kind": "market",
+      "status": "provisional",
+      "scope": {
+        "set_id": "ex13",
+        "languages": [
+          "fr"
+        ],
+        "numbers": [
+          78,
+          78
+        ],
+        "exclusions": []
+      },
+      "claim": "TCGdex associe ex13-78 au produit Cardmarket 277048 et en recopie le guide de prix : série normale (trend, avg30) et série « -holo » (trend-holo, avg30-holo).",
+      "source": "https://api.tcgdex.net/v2/fr/cards/ex13-78",
+      "accessed_at": "2026-10-13",
+      "document_sha256": "b74023cc73f90f10fcc454bdc69a24396170a34854220a1f04804b246487490f",
+      "locator": "champs thirdParty.cardmarket et pricing.cardmarket",
+      "limitations": "Miroir communautaire du guide Cardmarket. La vue Cardmarket sans filtre Reverse n’a pas été capturée : la correspondance de l’impression mate reste provisoire."
+    },
+    "ex13-78-cardmarket-reverse-fr": {
+      "kind": "market",
+      "status": "verified",
+      "scope": {
+        "set_id": "ex13",
+        "languages": [
+          "fr"
+        ],
+        "numbers": [
+          78,
+          78
+        ],
+        "exclusions": []
+      },
+      "claim": "Cardmarket vend le Pikachu n° 78 d’EX Fantômes Holon sous le produit 277048 « Pikachu (HP 78) ». Filtrée sur le français et Reverse (isReverseHolo=Y), la page liste des offres décrivant la version tamponnée (« STAMP », « Stamp, ask photos »). Les seuls attributs d’offre sont Reverse, Signé, First Edition et Altérée : toute impression brillante de ce numéro se vend sous ce produit avec Reverse. Le cadre Info de cette vue donne la série Reverse : Tendance des prix 402,43 €, Prix moyen 30 jours 148,50 €, De 30,00 € pour 54 articles disponibles, toutes langues et tous états (les offres françaises filtrées commencent à 59,00 €).",
+      "source": "https://www.cardmarket.com/fr/Pokemon/Products/Singles/EX-Holon-Phantoms/Pikachu-HP78?language=2&minCondition=7&isReverseHolo=Y",
+      "accessed_at": "2026-10-13",
+      "document_sha256": "faf9c8311e8298a7fddb70c2a93a351ea4007f2e131e75343d98b78f9b91cf5a",
+      "locator": "fil d’Ariane et cadre Info (Tendance des prix, Prix moyen 30 jours) ; filtres Langue et Reverse ; tableau des offres",
+      "limitations": "Page enregistrée par le propriétaire le 13 octobre 2026 à 18 h 36, hors connexion à un compte. Les montants du cadre Info agrègent toutes les langues et tous les états ; ils ne sont pas un prix de vente du français en état PO. Les champs trend-holo et avg30-holo du guide de prix public (même produit, « De » = low-holo = 30 €) portent cette série."
     }
   },
-  "bindings": {},
+  "bindings": {
+    "cardmarket-277048-reverse": {
+      "market": "cardmarket",
+      "product_ref": "cardmarket:277048",
+      "native_variant": {
+        "reverse_holo": true
+      },
+      "filters": {
+        "isReverseHolo": "Y"
+      },
+      "metric_family": {
+        "id": "cardmarket-price-guide-reverse-holo",
+        "version": 1,
+        "metrics": {
+          "trend": "trend-holo",
+          "avg30": "avg30-holo"
+        }
+      },
+      "currency": "EUR",
+      "population": {
+        "language": "aggregate",
+        "condition": "aggregate"
+      },
+      "status": "verified",
+      "scope": {
+        "set_id": "ex13",
+        "languages": [
+          "fr"
+        ],
+        "numbers": [
+          78,
+          78
+        ],
+        "exclusions": []
+      },
+      "foil_projection": true,
+      "evidence": [
+        "ex13-78-cardmarket-reverse-fr"
+      ]
+    },
+    "cardmarket-277048-normal": {
+      "market": "cardmarket",
+      "product_ref": "cardmarket:277048",
+      "native_variant": {
+        "reverse_holo": false
+      },
+      "filters": {
+        "isReverseHolo": "N"
+      },
+      "metric_family": {
+        "id": "cardmarket-price-guide-normal",
+        "version": 1,
+        "metrics": {
+          "trend": "trend",
+          "avg30": "avg30"
+        }
+      },
+      "currency": "EUR",
+      "population": {
+        "language": "aggregate",
+        "condition": "aggregate"
+      },
+      "status": "provisional",
+      "scope": {
+        "set_id": "ex13",
+        "languages": [
+          "fr"
+        ],
+        "numbers": [
+          78,
+          78
+        ],
+        "exclusions": []
+      },
+      "foil_projection": false,
+      "evidence": [
+        "ex13-78-tcgdex-cardmarket"
+      ]
+    }
+  },
   "rules": [
     {
       "id": "ex8-base-en",
@@ -331,6 +494,67 @@
           "binding": null,
           "evidence": [
             "bw4-checklist-en"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ex13-78-fr",
+      "scope": {
+        "set_id": "ex13",
+        "languages": [
+          "fr"
+        ],
+        "numbers": [
+          78,
+          78
+        ],
+        "exclusions": []
+      },
+      "print_coverage": "partial",
+      "market_coverage": "complete",
+      "evidence": [
+        "ex13-78-fr-copy-photo",
+        "ex13-78-fr-tcgdex"
+      ],
+      "remainder_binding": "cardmarket-277048-reverse",
+      "remainder_evidence": [
+        "ex13-78-cardmarket-reverse-fr"
+      ],
+      "prints": [
+        {
+          "id": "parallel-stamped",
+          "status": "verified",
+          "observations": {
+            "finish": [
+              "holo"
+            ],
+            "stamp": [
+              "present:EX Fantômes Holon",
+              "present:Fantômes Holon",
+              "present:EX Holon Phantoms",
+              "present:Holon Phantoms"
+            ]
+          },
+          "binding": "cardmarket-277048-reverse",
+          "evidence": [
+            "ex13-78-fr-copy-photo"
+          ]
+        },
+        {
+          "id": "base-matte",
+          "status": "provisional",
+          "observations": {
+            "finish": [
+              "non_holo"
+            ],
+            "stamp": [
+              "absent"
+            ]
+          },
+          "binding": "cardmarket-277048-normal",
+          "evidence": [
+            "ex13-78-fr-tcgdex"
           ]
         }
       ]

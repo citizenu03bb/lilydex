@@ -362,8 +362,11 @@ def test_c15_no_automatic_resurrection(reference):
 
 def test_c17_packaged_rules_valid_and_incomplete_by_design():
     rules = load_ruleset()
-    assert len(rules.data["families"]) == 8 and len(rules.data["rules"]) == 5
-    assert not rules.data["bindings"]
+    assert len(rules.data["families"]) == 8 and len(rules.data["rules"]) == 6
+    # The only verified binding is the documented French EX Holon Phantoms 78.
+    assert [
+        k for k, b in rules.data["bindings"].items() if b["status"] == "verified"
+    ] == ["cardmarket-277048-reverse"]
     result = resolve(
         {
             "catalog_id": "ex8-54",
@@ -374,6 +377,60 @@ def test_c17_packaged_rules_valid_and_incomplete_by_design():
         rules,
     )
     assert not result["pricing_eligible"] and result["market_status"] == "uncovered"
+
+
+def holon_pikachu(language="fr", **observed):
+    observations = {
+        field: {"state": "present", "value": value, "human": True}
+        for field, value in observed.items()
+    }
+    if observed.get("stamp") == "absent":
+        observations["stamp"] = {"state": "absent", "human": True}
+    return resolve(
+        {
+            "catalog_id": "ex13-78",
+            "language": language,
+            "number": "78/110",
+            "identification_status": "confirmed",
+        },
+        observations,
+        load_ruleset(),
+    )
+
+
+def test_holon_pikachu_fr_stamped_holo_prices_under_cardmarket_reverse():
+    rules = load_ruleset()
+    reverse = binding_key(rules.data["bindings"]["cardmarket-277048-reverse"])
+    for observed in (
+        {"finish": "holo", "stamp": "EX Fantômes Holon"},
+        {"finish": "holo", "stamp": "ex fantomes holon"},
+        # Holo alone already rules out the matte print; the remainder sells as reverse.
+        {"finish": "holo"},
+    ):
+        result = holon_pikachu(**observed)
+        assert result["market_status"] == "verified" and result["pricing_eligible"]
+        assert result["selected_binding_key"] == reverse
+        assert result["foil_projection"] is True
+        # A partial list never names the print on its own.
+        assert result["print_status"] != "identified" and result["unknown_remainder"]
+
+
+def test_holon_pikachu_matte_other_languages_and_unstamped_stay_unpriced():
+    matte = holon_pikachu(finish="non_holo", stamp="absent")
+    assert not matte["pricing_eligible"] and matte["market_status"] == "provisional"
+    nothing = holon_pikachu()
+    assert nothing["market_status"] == "unobserved"
+    assert nothing["missing_market_observations"] == ["finish", "stamp"]
+    # An unstamped holo matches no documented print. The market proof covers the
+    # unknown remainder (any shiny print of this number sells as Reverse), so it
+    # prices, while still reporting the uncovered observation.
+    unstamped = holon_pikachu(finish="holo", stamp="absent")
+    assert unstamped["reason_codes"][0] == "observation_uncovered"
+    assert unstamped["candidate_print_ids"] == [] and unstamped["pricing_eligible"]
+    # French proof never covers Italian, nor the English base list a price.
+    for language in ("it", "en"):
+        other = holon_pikachu(language, finish="holo", stamp="EX Holon Phantoms")
+        assert not other["pricing_eligible"]
 
 
 def test_c18_canonical_order_and_no_clock(reference):

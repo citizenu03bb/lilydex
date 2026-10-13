@@ -417,3 +417,74 @@ def test_rules_update_suspension_is_listed_then_journaled(priced, reference):
     assert selected(store, card)["state"] == "suspended"
     assert state(store, card["id"])["reference_cents"] is None
     assert store.reference.audit()["counts"]["recheck_needed"] == 0
+
+
+def test_bound_quote_entry_from_card_records_one_acquisition(client, reference):
+    card = create(
+        client,
+        catalog_id="synthetic-1",
+        language="fr",
+        number="1/1",
+        identification_status="confirmed",
+        finish="holo",
+        stamp_state="absent",
+        foil=True,
+        variant_confirmed=True,
+        variant_observation="Synthetic fixture",
+    )
+    store = client.app.state.store
+    install_fixture_reference(store, reference)
+    detail = client.get(f"/api/copies/{card['id']}").json()
+    assert detail["reference_binding"]["product_ref"] == "fixture:product-A"
+    entry = {
+        "expected_version": detail["version"],
+        "metrics": {"trend": "12.00"},
+        "observed_on": "2026-01-02",
+        "reason": "Cardmarket page read",
+    }
+    incomplete = client.post(f"/api/copies/{card['id']}/bound-quote", json=entry)
+    assert incomplete.status_code == 422 and "ensemble" in incomplete.json()["detail"]
+    entry["metrics"]["avg30"] = "9.00"
+    future = client.post(
+        f"/api/copies/{card['id']}/bound-quote",
+        json={**entry, "observed_on": "2999-01-01"},
+    )
+    assert future.status_code == 422
+    response = client.post(
+        f"/api/copies/{card['id']}/bound-quote",
+        json={**entry, "capture_sha256": "a" * 64},
+    )
+    assert response.status_code == 201, response.text
+    quotes = response.json()["quotes"]
+    assert {q["metric"]: q["amount_cents"] for q in quotes} == {
+        "avg30": 900,
+        "trend": 1200,
+    }
+    assert len({q["acquisition_id"] for q in quotes}) == 1
+    assert quotes[0]["source_payload"] == {
+        "trend-holo": 12.0,
+        "avg30-holo": 9.0,
+        "entry": "transcription",
+        "capture_sha256": "a" * 64,
+    }
+    after = client.get(f"/api/copies/{card['id']}").json()
+    assert after["reference_cents"] == 1200 and after["price_date"] == "2026-01-02"
+    assert after["reference_resolution"]["price_selection"]["state"] == "active"
+    stale = client.post(f"/api/copies/{card['id']}/bound-quote", json=entry)
+    assert stale.status_code == 409
+
+
+def test_bound_quote_entry_refused_without_verified_binding(client):
+    card = create(client, catalog_id="synthetic-1", language="fr", number="1/1")
+    detail = client.get(f"/api/copies/{card['id']}").json()
+    assert detail["reference_binding"] is None
+    response = client.post(
+        f"/api/copies/{card['id']}/bound-quote",
+        json={
+            "expected_version": detail["version"],
+            "metrics": {"trend": "1", "avg30": "1"},
+            "observed_on": "2026-01-02",
+            "reason": "No binding",
+        },
+    )
+    assert response.status_code == 422

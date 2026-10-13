@@ -68,6 +68,56 @@ collection (404 exemplaires, mêmes comptes d’audit). 369 tests réussis.
   pièces sont signalées séparément. Un moteur incompatible est déclaré
   indisponible ; son code archivé n’est pas exécuté automatiquement.
 
+## Premier cas de bout en bout — EX Fantômes Holon 78 en français (13 octobre 2026)
+
+Version de contenu `2026-10-13.2`. Règle `ex13-78-fr`, périmètre **français,
+n° 78 seul** : une correspondance Cardmarket désigne un produit, donc un numéro.
+
+| Pièce | Type | Statut | Établit |
+|---|---|---|---|
+| Photo de l’exemplaire (`7ebd7346…`) | impression | vérifiée | Le Pikachu 78/110 français existe en illustration holo avec tampon « EX Fantômes Holon » |
+| TCGdex `fr/cards/ex13-78` (`b74023cc…`) | impression, marché | provisoire | Une version mate française ; produit 277048 et ses séries normale et `-holo` |
+| Page Cardmarket enregistrée (`faf9c831…`) | marché | vérifiée | Produit 277048 « Pikachu (HP 78) » ; offres françaises « Stamp » sous Reverse ; cadre Info de la série Reverse (tendance, moyenne 30 jours) |
+
+| Impression | Observations | Correspondance |
+|---|---|---|
+| `parallel-stamped` | holo + tampon présent (quatre graphies) | `cardmarket-277048-reverse`, vérifiée : filtre `isReverseHolo=Y`, métriques `trend-holo`/`avg30-holo`, EUR, toutes langues et tous états |
+| `base-matte` | mate + tampon absent | `cardmarket-277048-normal`, provisoire (vue sans filtre Reverse non capturée) |
+| reste inconnu | — | `cardmarket-277048-reverse` : la page ne propose que Reverse, Signé, First Edition et Altérée ; toute impression brillante de ce numéro s’y vend en Reverse |
+
+Résultat sur la collection : le Pikachu 78/110 FR (holo, tampon attesté)
+passe en `market_status=verified`, éligible au prix, projection Foil. Sans
+liste fermée, l’impression reste `candidates` (`unknown_remainder`). Une carte
+mate reste provisoire ; une autre langue reste hors périmètre.
+
+**Limite du moteur v2.** Le reste est rattaché à la règle, pas à l’observation.
+Une holo **sans** tampon, qui ne correspond à aucune impression documentée,
+reçoit donc le prix Reverse avec le motif `observation_uncovered`, et ne
+rejoint pas « Référentiel à compléter ». Restreindre le reste aux observations
+compatibles demandera un moteur version 3.
+
+**Saisie depuis la fiche.** Quand la résolution est éligible, la fiche
+propose « Saisir un relevé Cardmarket lié au référentiel » : les métriques de
+la famille (tendance et moyenne à 30 jours) se saisissent ensemble, avec la
+date, un motif et, en option, l’empreinte de la capture. Le serveur prend la
+correspondance dans sa propre résolution ; la saisie forme une seule
+acquisition (`entry: transcription`) passée à `select_acquisition`.
+Premier relevé saisi le 13 octobre, décision n° 1 rejouée à l’identique avec
+ses pièces. Il a été saisi inversé (tendance 148,50 €, moyenne 402,43 €) :
+le formulaire présentait la moyenne avant la tendance. L’ordre suit désormais
+le cadre Info de Cardmarket ; le relevé inversé se corrige par une nouvelle
+saisie, qui le remplace sans l’effacer.
+Les pièces photographiées (JPEG, PNG) s’archivent et se sauvegardent comme
+les PDF.
+
+**Coût réel d’une preuve.** Environ une heure de recherche, dont : aucune
+carte de cette extension dans l’encyclopédie officielle française de
+pokemon.com (l’anglaise les a) ; Poképédia ne décrit pas les versions ;
+Cardmarket bloque la capture automatisée (vérification anti-robot), d’où une
+page enregistrée par le propriétaire en deux minutes. Pour les éditions
+anciennes en français, la photo d’exemplaire et la page Cardmarket filtrée
+sont les pièces réalistes.
+
 ## Paquet initial et preuves
 
 `src/pokeprice/reference/prints-v1.json`, schéma 1, version de contenu

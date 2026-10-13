@@ -15,6 +15,7 @@ from pathlib import Path
 from .print_reference import (
     ENGINE_VERSION,
     InvalidReference,
+    binding_key,
     canonical,
     copy_observations,
     load_ruleset,
@@ -23,6 +24,9 @@ from .print_reference import (
     validate_ruleset,
 )
 
+
+# Photographed copies are print evidence too (contract §3), stored like documents.
+DOCUMENT_SUFFIXES = (".pdf", ".json", ".html", ".jpg", ".png")
 
 # Engine sources whose semantics match the golden vectors of their version
 # (tests/fixtures/engine_vectors.json). A source edit that keeps the semantics
@@ -93,7 +97,7 @@ class ReferenceService:
         paths = sorted(
             p
             for p in self.archive_root.iterdir()
-            if p.is_file() and p.suffix in (".pdf", ".json", ".html")
+            if p.is_file() and p.suffix in DOCUMENT_SUFFIXES
         )
         signature = tuple(
             (p.name, p.stat().st_size, p.stat().st_mtime_ns, p.stat().st_ctime_ns)
@@ -144,6 +148,19 @@ class ReferenceService:
             if selection
             else quote_selection(legacy_quote(card), result),
         }
+
+    def selected_binding(self, resolution):
+        """The verified binding a resolution allows pricing under, or None."""
+        if self.ruleset is None or not resolution.get("pricing_eligible"):
+            return None
+        return next(
+            (
+                b
+                for b in self.ruleset.data["bindings"].values()
+                if binding_key(b) == resolution["selected_binding_key"]
+            ),
+            None,
+        )
 
     def decision_for(self, db, card, snapshot=None):
         from .quote_ledger import current
@@ -388,8 +405,8 @@ def audit_directory(directory, ruleset=None):
 def archive_document(directory, document):
     """Store a source once by content hash, beside the collection and in its backups."""
     source = Path(document)
-    if source.suffix not in (".pdf", ".json", ".html"):
-        raise ValueError("Pièce acceptée : PDF, HTML ou JSON.")
+    if source.suffix not in DOCUMENT_SUFFIXES:
+        raise ValueError("Pièce acceptée : PDF, HTML, JSON, ou photo JPEG/PNG.")
     body = source.read_bytes()
     checksum = hashlib.sha256(body).hexdigest()
     target = Path(directory).resolve() / "reference_documents"

@@ -725,6 +725,7 @@ function renderPriceSnapshot(parent, card) {
   }
   if (actions.children.length) section.append(actions);
   renderMarketProduct(section, card);
+  renderBoundQuote(section, card);
   renderSaleEstimate(section, card);
   parent.append(section);
 }
@@ -799,6 +800,84 @@ function renderMarketProduct(parent, card) {
     details.append(label, buttons, error);
     box.append(details);
   }
+  parent.append(box);
+}
+// A proven market binding: the metrics of its family are read together on the
+// product page and recorded as one acquisition (trend and 30-day average).
+function renderBoundQuote(parent, card) {
+  const binding = card.reference_binding;
+  if (!binding || !editAllowed() || card.deleted_at) return;
+  const labels = { trend: "Tendance des prix", avg30: "Prix moyen 30 jours" };
+  const box = el("div", undefined, "bound-quote");
+  const details = el("details");
+  details.append(
+    el("summary", "Saisir un relevé Cardmarket lié au référentiel"),
+    el("p", `Produit ${binding.product_ref.split(":")[1]}, filtres ${Object.entries(binding.filters).map(([k, v]) => `${k}=${v}`).join(", ")}. Ouvrez « Voir les offres Cardmarket » et recopiez le cadre Info de cette page, toutes les valeurs ensemble.`, "help"),
+  );
+  const inputs = {};
+  // Same order as Cardmarket's Info box: the trend comes before the averages.
+  const order = ["trend", "avg30"];
+  const metrics = Object.keys(binding.metric_family.metrics).sort((a, b) => (order.indexOf(a) + 1 || 99) - (order.indexOf(b) + 1 || 99) || a.localeCompare(b));
+  for (const metric of metrics) {
+    const label = el("label", `${labels[metric] || metric} (€)`);
+    const input = el("input");
+    input.type = "number";
+    input.min = "0";
+    input.step = "0.01";
+    label.append(input);
+    inputs[metric] = input;
+    details.append(label);
+  }
+  const dayLabel = el("label", "Date du relevé");
+  const day = el("input");
+  day.type = "date";
+  day.value = new Date().toISOString().slice(0, 10);
+  dayLabel.append(day);
+  const captureLabel = el("label", "Empreinte de la capture archivée (facultatif)");
+  const capture = el("input");
+  capture.placeholder = "SHA-256 donné par reference-archive";
+  captureLabel.append(capture);
+  const reasonLabel = el("label", "Motif (obligatoire)");
+  const reason = el("input");
+  reason.maxLength = 1000;
+  reasonLabel.append(reason);
+  // Inside the detail form: no `required`, and Enter must not save the whole form.
+  for (const input of [...Object.values(inputs), day, capture, reason])
+    input.addEventListener("keydown", (event) => { if (event.key === "Enter") event.preventDefault(); });
+  const run = el("button", "Enregistrer le relevé lié");
+  run.type = "button";
+  const error = el("p", "", "error");
+  error.setAttribute("role", "alert");
+  run.addEventListener("click", async () => {
+    const missing = Object.values(inputs).find((input) => input.value === "");
+    if (missing || !reason.value.trim() || !day.value) {
+      error.textContent = "Saisissez toutes les valeurs, la date et le motif.";
+      return;
+    }
+    run.disabled = true;
+    error.textContent = "";
+    try {
+      await api(`/copies/${card.id}/bound-quote`, {
+        method: "POST",
+        body: JSON.stringify({
+          expected_version: card.version,
+          metrics: Object.fromEntries(Object.entries(inputs).map(([k, input]) => [k, input.value])),
+          observed_on: day.value,
+          capture_sha256: capture.value.trim(),
+          reason: reason.value.trim(),
+        }),
+      });
+      await refreshSummary();
+      await openDetail(card.id);
+      await loadCards();
+      toast("Relevé lié enregistré.");
+    } catch (e) {
+      run.disabled = false;
+      error.textContent = e.message;
+    }
+  });
+  details.append(dayLabel, captureLabel, reasonLabel, run, error);
+  box.append(details);
   parent.append(box);
 }
 // Asking prices pasted from Cardmarket: the server parses them and applies a

@@ -148,6 +148,54 @@ def select_acquisition(store, copy_id, expected_version, acquisition, actor, rea
         return {"card": after, "quote": quote, "quotes": quotes}
 
 
+def select_transcription(
+    store, copy_id, expected_version, metrics, observed_on, actor, reason, capture=""
+):
+    """Every metric of the selected binding, read together on the market page.
+
+    The values typed from one page view form the native payload of a single
+    acquisition; the binding comes from the server's resolution, never the client.
+    """
+    from .inventory import now
+
+    with store.connect() as db:
+        card = store.get(db, copy_id)
+        resolution = store.reference.decision(
+            card, disputes=store.reference.disputes(db, copy_id)
+        )
+    binding = store.reference.selected_binding(resolution)
+    if binding is None:
+        raise ValueError("Correspondance marchande non vérifiée.")
+    family = binding["metric_family"]["metrics"]
+    if set(metrics) != set(family):
+        raise ValueError(
+            "Relevé incomplet : saisissez ensemble " + ", ".join(sorted(family)) + "."
+        )
+    day = date.fromisoformat(observed_on)
+    if day > date.fromisoformat(now()[:10]):
+        raise ValueError("Date de relevé dans le futur.")
+    payload = {family[metric]: float(value) for metric, value in metrics.items()}
+    payload["entry"] = "transcription"
+    if capture:
+        payload["capture_sha256"] = capture
+    return select_acquisition(
+        store,
+        copy_id,
+        expected_version,
+        {
+            "binding_key": resolution["selected_binding_key"],
+            "currency": binding["currency"],
+            "population": binding["population"],
+            "acquisition_id": str(uuid.uuid4()),
+            "source": binding["market"].capitalize() + " · page produit (saisie)",
+            "observed_at": day.isoformat(),
+            "source_payload": payload,
+        },
+        actor,
+        reason,
+    )
+
+
 def reconcile(store, db, before, after, changes, actor, reason):
     """Called in the same copy correction transaction, after observation attestation."""
     selection = current(db, before["id"])

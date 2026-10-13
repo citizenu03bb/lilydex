@@ -184,10 +184,14 @@ On enrichit le référentiel ; on ne force pas la carte dans une case.
 
 - Le mécanisme est en place : observations, moteur, archivage des pièces,
   journal des prix et contestations.
-- Le contenu est mince : cinq règles anglaises partielles, sans tampon et
-  **sans aucune preuve de marché**. Aucune carte de la collection n’est
-  encore résolue.
-- Le prix affiché reste celui de M1 en attendant.
-- Premier cas de bout en bout visé : EX Fantômes Holon en français (règle
-  avec tampon, preuve française, capture Cardmarket). Voir la
-  [roadmap](ROADMAP.md).
+- Le contenu est mince : cinq règles anglaises partielles, sans tampon, et une
+  règle française pour le seul Pikachu 78/110 d’EX Fantômes Holon.
+- **Premier cas de bout en bout :** ce Pikachu, holo et tamponné, a une
+  correspondance Cardmarket prouvée (produit 277048, filtre Reverse). La fiche
+  permet d’y saisir un relevé lié. Preuves : photo de l’exemplaire et page
+  Cardmarket enregistrée. Détails dans
+  [l’implémentation](PRINT_REFERENCE_IMPLEMENTATION.md#premier-cas-de-bout-en-bout--ex-fantômes-holon-78-en-français-13-octobre-2026).
+- Pour les autres cartes, le prix affiché reste celui de M1.
+- L’encyclopédie officielle française ne contient aucune carte d’EX Fantômes
+  Holon : pour les éditions anciennes, une photo d’exemplaire sert de preuve
+  française.

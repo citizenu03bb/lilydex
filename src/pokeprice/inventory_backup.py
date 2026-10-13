@@ -34,7 +34,7 @@ def backup(store, destination):
         if documents.exists():
             for document in sorted(documents.iterdir()):
                 if not document.is_file() or not re.fullmatch(
-                    r"[a-f0-9]{64}\.(pdf|json|html)", document.name
+                    r"[a-f0-9]{64}\.(pdf|json|html|jpg|png)", document.name
                 ):
                     raise ValueError("Document de référence non qualifié.")
                 body = document.read_bytes()
@@ -92,7 +92,7 @@ def restore_backup(archive_path, destination):
                 and not (
                     len(parts) == 2
                     and parts[0] == "reference_documents"
-                    and re.fullmatch(r"[a-f0-9]{64}\.(pdf|json|html)", parts[1])
+                    and re.fullmatch(r"[a-f0-9]{64}\.(pdf|json|html|jpg|png)", parts[1])
                 )
             ):
                 raise ValueError("Chemin de sauvegarde interdit.")

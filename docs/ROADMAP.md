@@ -85,14 +85,19 @@ schéma 8. Tout le code est commité sur `master` (174 tests).
 | # | Étape | Pourquoi maintenant | Effort |
 |---|---|---|---|
 | 1 | ~~**Clore M0 : audit des variantes Foil** par observation de la finition et du tampon, en commençant par les 27 cartes signalées~~ **Fait le 13 octobre** | Peu coûteux ; M2 et le référentiel comparent leurs propositions à ces observations, elles doivent être justes | ½ jour |
-| 2 | **M1.1 : premier cas de bout en bout**, EX Fantômes Holon en français : règle FR avec tampon, preuve FR, capture Cardmarket, saisie d’un relevé lié à la correspondance | Valide le système de preuve sur le problème qui l’a motivé et mesure le coût réel d’une preuve | dans les 2 jours de M1.1 |
+| 2 | ~~**M1.1 : premier cas de bout en bout**, EX Fantômes Holon en français : règle FR avec tampon, preuve FR, capture Cardmarket, saisie d’un relevé lié à la correspondance~~ **Fait le 13 octobre** | Valide le système de preuve sur le problème qui l’a motivé et mesure le coût réel d’une preuve | dans les 2 jours de M1.1 |
 | 3 | **M2 : vérifications indépendantes** | Ne dépend plus de M1.1 ; nécessaire avant de saisir les six classeurs | 3 à 5 jours |
 | 4 | **M3 : saisie des six classeurs**, avec extension du référentiel par impact (éditions chères et nombreuses d’abord) | Les observations sont prêtes ; chaque classeur alimente la file « Référentiel à compléter » | 3 à 5 jours |
 | 5 | **M4 puis M5** | Inchangés | 3 à 6 jours |
 
-L’étape 2 demande un petit ajout de code : la saisie, depuis la fiche, d’un
-relevé Cardmarket lié à sa correspondance (tendance et moyenne à 30 jours
-ensemble). Aujourd’hui, ce chemin n’existe que dans les tests.
+**Étape 2, 13 octobre (soir) : règle, preuves et saisie livrées.** Le
+Pikachu 78/110 FR est la première carte à correspondance Cardmarket prouvée
+(produit 277048, Reverse). La fiche saisit tendance et moyenne à 30 jours
+ensemble, liées à cette correspondance. Constats : l’encyclopédie officielle
+française n’a aucune carte d’EX Fantômes Holon, et Cardmarket refuse la
+capture automatisée ; une preuve a coûté environ une heure, plus deux minutes
+d’enregistrement de page par le propriétaire. Détails et limite du moteur :
+[PRINT_REFERENCE_IMPLEMENTATION.md](PRINT_REFERENCE_IMPLEMENTATION.md#premier-cas-de-bout-en-bout--ex-fantômes-holon-78-en-français-13-octobre-2026).
 
 **Étape 1 close le 13 octobre (soir).** Les 8 Foil signalées par une alerte du
 relevé ont été confirmées une à une ; 14 autres Foil l’ont été dans la journée ;
