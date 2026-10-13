@@ -215,6 +215,22 @@ def test_variant_filter_lists_foil_cards_to_check_until_corrected(client):
         json={"expected_version": version, "reason": "Vérifiée", "foil": False},
     )
     assert ids("check") == {}
+    # Not physically confirmed: still in the M0 audit list, alert or not.
+    assert set(ids("unverified")) == set(ids("foil")) - {holo["id"]}
+    foil = confirmed(client, foil=True, position=6)
+    assert foil["id"] in ids("unverified")
+    version = client.get(f"/api/copies/{foil['id']}").json()["version"]
+    confirm = client.patch(
+        f"/api/copies/{foil['id']}",
+        json={
+            "expected_version": version,
+            "reason": "Reverse vue",
+            "finish": "reverse",
+            "variant_confirmed": True,
+        },
+    )
+    assert confirm.status_code == 200, confirm.text
+    assert foil["id"] not in ids("unverified")
 
 
 def test_stamp_is_a_searchable_variant_that_resets_the_reference(client):

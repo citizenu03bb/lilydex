@@ -507,6 +507,12 @@ class Store:
                     or (variant == "standard" and not row["foil"])
                     or (variant == "foil" and row["foil"])
                     or (variant == "check" and row["variant_check"])
+                    # M0 audit: Foil never checked by eye, with or without alert.
+                    or (
+                        variant == "unverified"
+                        and row["foil"]
+                        and not row["variant_confirmed"]
+                    )
                     or (variant == "stamped" and row["stamp"])
                 )
             ):
