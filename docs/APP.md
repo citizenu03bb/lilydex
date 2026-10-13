@@ -35,7 +35,42 @@ Il dépend du portable et des processus locaux ; l'hébergement permanent reste
 Le dossier persistant est `data/inventory/`, exclu de Git : base
 `collection.sqlite3` et sous-dossier `photos/`. Changer ce dossier avec
 `pokeprice-manage --data <dossier> ...`. Ne pas déplacer la base seule en oubliant
-les photos. Les versions de schéma 1 → 2 → 3 → 4 → 5 → 6 → 7 sont migrées explicitement.
+les photos et les documents de référence archivés. Les versions de schéma
+1 à 12 sont migrées explicitement. Sauvegarder avant de démarrer une nouvelle
+version qui migre la base.
+
+## Référentiel M1.1 en mode audit
+
+L’ajout et la correction permettent de saisir la finition observée, l’état du
+tampon (« non examiné », « absence constatée », « présent »), son texte original
+et une autre marque de distribution facultative. Les observations partielles
+restent sauvables sans catalogue ou prix. Auteur, date et motif sont attribués
+par le serveur ; la confirmation globale de la variante reste distincte.
+Les anciens champs vides et textes de tampon sont conservés avec l’état
+« non examiné » à la migration.
+
+Le filtre **Examen → Référentiel à compléter** conserve son état dans l’adresse,
+fonctionne dans les vues exemplaires/éditions et respecte le tri Classeur.
+Il expose les lacunes du référentiel séparément de l’examen physique.
+La fiche et son aperçu montrent l’état de correspondance marchande.
+
+```bash
+uv run pokeprice-manage reference-audit > outputs/reference-audit.json
+```
+
+Cet audit ouvre la base en lecture seule, sans migration, réseau ou correction.
+Il distingue les références héritées non liées, les références manuelles, les
+prix absents et les besoins de couverture par édition/langue. Le sous-total
+vérifié reste inconnu tant qu’aucune cotation liée n’est vérifiée.
+Le paquet initial ne certifie pas les références existantes et ne remplace pas
+encore le calcul de prix hérité : les preuves de marché restent à compléter.
+
+Les sauvegardes emportent aussi les règles et moteurs enregistrés avec les
+décisions, les cotations liées et leurs événements, et les documents sources
+rangés une fois par SHA-256 dans `reference_documents/` (PDF, JSON ou HTML).
+Une pièce manquante ou altérée est signalée ; aucun téléchargement automatique
+ne rétablit son statut de preuve.
+Voir [l’état détaillé et les limites de M1.1](PRINT_REFERENCE_IMPLEMENTATION.md).
 
 ## Ce qui fonctionne
 

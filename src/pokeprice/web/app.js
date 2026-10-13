@@ -667,7 +667,7 @@ function renderPriceSnapshot(parent, card) {
     const refresh = el("button", "Relever le prix (TCGdex)");
     refresh.type = "button";
     refresh.addEventListener("click", async () => {
-      if (parent.elements && ["name", "set_name", "number", "language", "catalog_id", "identification_status", "stamp", "finish"].some((key) => (parent.elements[key]?.value || "") !== (card[key] || ""))) {
+      if (parent.elements && ["name", "set_name", "number", "language", "catalog_id", "identification_status", "stamp", "stamp_state", "distribution", "distribution_state", "finish"].some((key) => (parent.elements[key]?.value || "") !== (card[key] || ""))) {
         toast("Enregistrez d’abord les observations modifiées, puis relevez le prix.");
         return;
       }
@@ -1165,7 +1165,16 @@ async function openDetail(id) {
     ["PO", "PO"],
     ["NM/EX", "NM/EX"],
   ]);
-  field(form, "stamp", "Tampon sur l’illustration", c.stamp).maxLength = 120;
+  const markStates = [["unobserved", "Non examiné"], ["absent", "Absence constatée"], ["present", "Présent sur la carte"]];
+  field(form, "stamp_state", "Observation du tampon", c.stamp_state || "unobserved", "text", markStates);
+  const stampText = field(form, "stamp", "Texte du tampon (conservé tel que lu)", c.stamp);
+  stampText.maxLength = 120;
+  form.append(el("p", "Un ancien texte ou un champ vide ne prouve pas la présence ou l’absence d’un tampon. Choisissez l’état après examen de la carte.", "help"));
+  const marks = el("details");
+  marks.append(el("summary", "Autre marque de distribution (facultatif)"));
+  field(marks, "distribution_state", "Observation d’une marque de produit", c.distribution_state || "unobserved", "text", markStates);
+  field(marks, "distribution", "Texte ou marque du produit", c.distribution || "").maxLength = 120;
+  form.append(marks);
   const finish = field(form, "finish", "Finition observée sur la carte", c.finish || "", "text", [
     ["", "À déterminer"],
     ["non_holo", "Non holo (mate)"],
@@ -1189,6 +1198,15 @@ async function openDetail(id) {
       : `${decision?.reason || "Renseignez la finition observée."} La sélection manuelle est réservée aux cas particuliers.`;
   };
   displayCategory(c.price_category);
+  const referenceHint = el("p", undefined, "help");
+  const displayReference = (resolution) => {
+    if (!resolution) { referenceHint.textContent = ""; return; }
+    const states = { verified: "correspondance marchande prouvée", uncovered: "périmètre à documenter", unmapped: "correspondance marchande à documenter", unobserved: "observation manquante", ambiguous: "plusieurs correspondances possibles", conflict: "correspondance contestée", provisional: "correspondance provisoire" };
+    referenceHint.textContent = `Audit du référentiel · ${states[resolution.market_status] || "à compléter"}. Les références héritées gardent leur source et leur date ; elles ne sont pas encore certifiées par cet audit.`;
+    if (resolution.diagnostic) referenceHint.textContent += ` ${resolution.diagnostic}`;
+  };
+  displayReference(c.reference_resolution);
+  form.append(referenceHint);
   form.append(el("p", "Décrivez ce qui brille sur la carte. L’édition et le tampon permettent de calculer Standard ou Foil / reverse. Si plusieurs impressions restent possibles, précisez le produit dans les observations avant de confirmer.", "help"));
   field(form, "variant_observation", "Observations de vérification (facultatif)", c.variant_observation || "", "textarea").maxLength = 1000;
   const variantLabel = el("label", undefined, "check-label");
@@ -1201,16 +1219,16 @@ async function openDetail(id) {
   form.append(variantLabel);
   if (c.variant_confirmed)
     form.append(el("p", `Vérifiée par ${c.variant_verified_by} le ${new Date(c.variant_verified_at).toLocaleString("fr-FR")}.`, "help"));
-  for (const key of ["name", "set_name", "number", "language", "catalog_id", "identification_status", "foil", "stamp", "finish"])
+  for (const key of ["name", "set_name", "number", "language", "catalog_id", "identification_status", "foil", "stamp", "stamp_state", "distribution", "distribution_state", "finish"])
     form.elements[key].addEventListener("change", () => { variantCheck.checked = false; });
   let categoryRequest = 0;
-  for (const key of ["finish", "stamp", "catalog_id", "identification_status", "number", "set_name", "language"])
+  for (const key of ["finish", "stamp", "stamp_state", "distribution", "distribution_state", "catalog_id", "identification_status", "number", "set_name", "language"])
     form.elements[key].addEventListener("change", async () => {
       const request = ++categoryRequest;
-      const fields = Object.fromEntries(["finish", "stamp", "catalog_id", "identification_status", "number", "set_name", "language"].map((name) => [name, form.elements[name].value || (name === "catalog_id" ? null : "")]));
+      const fields = Object.fromEntries(["finish", "stamp", "stamp_state", "distribution", "distribution_state", "catalog_id", "identification_status", "number", "set_name", "language"].map((name) => [name, form.elements[name].value || (name === "catalog_id" ? null : "")]));
       try {
         const decision = await api(`/copies/${id}/variant-preview`, { method: "POST", body: JSON.stringify(fields) });
-        if (request === categoryRequest) displayCategory(decision);
+        if (request === categoryRequest) { displayCategory(decision); displayReference(decision.reference_resolution); }
       } catch (err) {
         if (request === categoryRequest) { priceVariant.disabled = true; categoryHint.textContent = err.message; }
       }
@@ -1360,6 +1378,13 @@ async function openDetail(id) {
       ),
     );
   form.append(prices);
+  if (c.bound_quotes?.length) {
+    const history = el("details");
+    history.append(el("summary", "Cotations liées au référentiel (historique)"));
+    for (const q of c.bound_quotes)
+      history.append(el("p", `${money(q.amount_cents)} · ${q.metric} · ${q.source} · ${q.observed_at}`));
+    form.append(history);
+  }
   if (c.deleted_at)
     for (const input of form.querySelectorAll("input, select, textarea"))
       input.disabled = true;
@@ -1379,6 +1404,9 @@ async function openDetail(id) {
       "album_id",
       "notes",
       "stamp",
+      "stamp_state",
+      "distribution",
+      "distribution_state",
       "finish",
       "variant_observation",
     ]) {
@@ -1396,7 +1424,7 @@ async function openDetail(id) {
       if (value !== Boolean(c[key])) changes[key] = value;
     }
     // An explicit re-check can accompany a changed identity/print in this save.
-    if (data.has("variant_confirmed") && ["name", "set_name", "number", "language", "catalog_id", "identification_status", "foil", "stamp", "finish"].some((key) => key in changes))
+    if (data.has("variant_confirmed") && ["name", "set_name", "number", "language", "catalog_id", "identification_status", "foil", "stamp", "stamp_state", "distribution", "distribution_state", "finish"].some((key) => key in changes))
       changes.variant_confirmed = true;
     const amount =
       data.get("reference_price_eur") === ""
@@ -2164,6 +2192,10 @@ async function startIntake(existing = null, series = null) {
       "language",
       "hp",
       "stamp",
+      "stamp_state",
+      "finish",
+      "distribution",
+      "distribution_state",
       "album_id",
       "page",
       "position",
@@ -2375,6 +2407,7 @@ async function runIntake(analysis) {
         form.elements[key].value = result.observation[key] ?? "";
       // A printed stamp marks a promo variant: proposed, never silently dropped.
       form.elements.stamp.value = result.observation.stamp_text || "";
+      form.elements.stamp_state.value = "unobserved";
       form.elements.set_name.value = "";
     }
     showIntakeCandidates(result);

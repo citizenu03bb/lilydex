@@ -132,9 +132,9 @@ Le contrôle de cohérence couvre aussi les parallèles EX Fantômes Holon :
 Une ancienne combinaison incohérente revient dans la file, et son prix est
 exclu des totaux, sans modifier les observations physiques enregistrées.
 
-### M1.1 — Contrat précisé, référentiel à implémenter
+### M1.1 — Socle implémenté, audit actif, preuves marchandes à compléter
 
-Contrat v1 du 13 octobre 2026, non implémenté : livrer avant M2 un moteur
+Contrat v1 du 13 octobre 2026 : livrer avant M2 un moteur
 commun et des règles d’édition sourcées, versionnées et utilisables hors ligne.
 La couverture doit accompagner les **six albums restant à scanner** ; la
 collection actuelle fournit le premier banc de régression. Une édition nouvelle
@@ -146,6 +146,22 @@ le contrat retient un ensemble d’impressions candidates et une correspondance
 marchande explicite. Standard/Foil reste une projection ; la conservation du
 prix dépend du produit, des filtres, des métriques et de la population cotée.
 La résolution d’impression et la résolution de marché ont des états distincts.
+
+**Avancement du 13 octobre :** observations explicites et provenance serveur,
+moteur pur, identité marchande canonique, journal de cotations liées et
+restauration explicite implémentés. L’interface, l’aperçu, la liste, les exports
+et le CLI exposent le même audit. Schéma 12 testé sur restauration temporaire ;
+les valeurs et attestations héritées sont conservées. Les tests synthétiques
+couvrent les invariants du contrat, avec installation hors checkout sans réseau
+et reproduction de décisions après sauvegarde/restauration.
+
+Le premier paquet embarque cinq règles physiques anglaises de portée partielle,
+avec faits extraits et empreintes des listes officielles. Il suit les huit
+familles mais ne contient **aucune correspondance marchande vérifiée**. Il ne
+remplace donc pas encore le calcul de prix hérité. Il reste à documenter les
+impressions dans les langues de la collection, les distributions particulières,
+les produits et métriques Cardmarket, puis à raccorder leur acquisition et
+activer la sélection vérifiée après audit. M1.1 reste ouvert.
 
 **Ordre :** vocabulaire d’observation avant les scans (dont tampon non examiné /
 absence constatée / présence constatée), moteur pur, règles sourcées sur les
@@ -161,6 +177,7 @@ ne certifie pas les faits métier et ne constitue pas une livraison de M1.1.
 Comportement, migration et réception :
 [PRINT_REFERENCE_CONTRACT.md](PRINT_REFERENCE_CONTRACT.md).
 Contexte et enrichissement : [PRINT_REFERENCE_PROPOSAL.md](PRINT_REFERENCE_PROPOSAL.md).
+Livraison et limites : [PRINT_REFERENCE_IMPLEMENTATION.md](PRINT_REFERENCE_IMPLEMENTATION.md).
 
 ### M2 — Vérifications automatiques indépendantes (3 à 5 jours)
 

@@ -30,6 +30,17 @@ def backup(store, destination):
         # Include previous photos referenced in correction history as well.
         for photo in sorted(store.photos.glob("*.jpg")):
             files["photos/" + photo.name] = photo.read_bytes()
+        documents = store.root / "reference_documents"
+        if documents.exists():
+            for document in sorted(documents.iterdir()):
+                if not document.is_file() or not re.fullmatch(
+                    r"[a-f0-9]{64}\.(pdf|json|html)", document.name
+                ):
+                    raise ValueError("Document de référence non qualifié.")
+                body = document.read_bytes()
+                if hashlib.sha256(body).hexdigest() != document.stem:
+                    raise ValueError("Document de référence altéré.")
+                files["reference_documents/" + document.name] = body
         manifest = {
             "format": "pokeprice-inventory-v1",
             "created_at": now(),
@@ -71,12 +82,24 @@ def restore_backup(archive_path, destination):
             raise ValueError("Base absente.")
         for name, checksum in expected.items():
             parts = Path(name).parts
-            if name != "collection.sqlite3" and not (
-                len(parts) == 2 and parts[0] == "photos" and parts[1].endswith(".jpg")
+            if (
+                name != "collection.sqlite3"
+                and not (
+                    len(parts) == 2
+                    and parts[0] == "photos"
+                    and parts[1].endswith(".jpg")
+                )
+                and not (
+                    len(parts) == 2
+                    and parts[0] == "reference_documents"
+                    and re.fullmatch(r"[a-f0-9]{64}\.(pdf|json|html)", parts[1])
+                )
             ):
                 raise ValueError("Chemin de sauvegarde interdit.")
             if hashlib.sha256(archive.read(name)).hexdigest() != checksum:
                 raise ValueError("Somme de contrôle invalide.")
+            if parts[0] == "reference_documents" and Path(name).stem != checksum:
+                raise ValueError("Identité de document incohérente.")
         destination.parent.mkdir(parents=True, exist_ok=True)
         with tempfile.TemporaryDirectory(dir=destination.parent) as temporary:
             recovered = Path(temporary) / "restored"
@@ -92,7 +115,7 @@ def restore_backup(archive_path, destination):
                 ):
                     raise ValueError("Base restaurée incohérente.")
                 version = db.execute("PRAGMA user_version").fetchone()[0]
-                if version not in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10):
+                if version not in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12):
                     raise ValueError("Version de base incompatible.")
                 photos = [
                     row[0]
@@ -144,6 +167,10 @@ def export_data(store):
         "sale_events",
         "imports",
         "condition_assessments",
+        "reference_rulesets",
+        "reference_decisions",
+        "reference_quotes",
+        "reference_quote_events",
     )
     with store.connect() as db:
         db.execute("BEGIN")
@@ -181,6 +208,10 @@ def export_csv(store):
         "back_photo_original",
         "foil",
         "stamp",
+        "stamp_state",
+        "distribution",
+        "distribution_state",
+        "observation_provenance",
         "album",
         "page",
         "position",
@@ -191,6 +222,9 @@ def export_csv(store):
         "price_date",
         "notes",
         "version",
+        "reference_print_status",
+        "reference_market_status",
+        "reference_price_state",
     ]
     stream = io.StringIO(newline="")
     writer = csv.DictWriter(stream, fieldnames=fields)
@@ -202,6 +236,11 @@ def export_csv(store):
             if r["reference_cents"] is None
             else f"{r['reference_cents'] / 100:.2f}",
             "currency": "EUR",
+            "reference_print_status": r["reference_resolution"]["print_status"],
+            "reference_market_status": r["reference_resolution"]["market_status"],
+            "reference_price_state": r["reference_resolution"]["price_selection"][
+                "state"
+            ],
         }
         writer.writerow(
             {
@@ -264,6 +303,11 @@ def export_html(store):
                 "variant_observation": r["variant_observation"],
                 "foil": bool(r["foil"]),
                 "stamp": r["stamp"],
+                "stamp_state": r["stamp_state"],
+                "distribution": r["distribution"],
+                "distribution_state": r["distribution_state"],
+                "observation_provenance": json.loads(r["observation_provenance"]),
+                "reference_resolution": r["reference_resolution"],
                 "price_date": r["price_date"],
                 "price_source": r["price_source"],
                 "price_provider": "TCGdex / Cardmarket"

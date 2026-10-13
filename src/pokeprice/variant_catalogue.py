@@ -43,6 +43,16 @@ class VariantCatalogue:
                 "catalog_id": data["id"],
                 "variants": data["variants"],
                 "source": "TCGdex · finitions de l’édition",
+                "acquisition": data.get("_acquisition")
+                or {
+                    "provider": "TCGdex",
+                    "requested_language": card["language"],
+                    "served_language": None,
+                },
+                "requested_language": card["language"],
+                "served_language": (data.get("_acquisition") or {}).get(
+                    "served_language"
+                ),
                 "raw": {
                     "tcgplayer": {
                         k: {"productId": v.get("productId")}

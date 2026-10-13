@@ -174,6 +174,7 @@
               >Examen<select id="review-filter">
                 <option value="">Toutes les cartes</option>
                 <option value="needed">À examiner</option>
+                <option value="coverage">Référentiel à compléter</option>
               </select></label
             >
             <label
@@ -421,12 +422,33 @@
         <label
           >PV (facultatif)<input name="hp" type="number" min="0" max="5000"
         /></label>
+        <label>Finition observée<select name="finish">
+          <option value="">À déterminer</option>
+          <option value="non_holo">Non holo (mate)</option>
+          <option value="holo">Holo dans l’illustration</option>
+          <option value="holo_border">Holo avec cadre brillant</option>
+          <option value="reverse">Reverse (fond brillant)</option>
+          <option value="special">Autre finition / variante spéciale</option>
+        </select></label>
+        <label>Observation du tampon<select name="stamp_state">
+          <option value="unobserved">Non examiné</option>
+          <option value="absent">Absence constatée</option>
+          <option value="present">Présent sur la carte</option>
+        </select></label>
         <label
-          >Tampon sur l’illustration (facultatif)<input
+          >Texte du tampon (facultatif)<input
             name="stamp"
             maxlength="120"
             placeholder="Ex. EX Fantômes Holon"
         /></label>
+        <details><summary>Autre marque de distribution (facultatif)</summary>
+          <label>Observation d’une marque de produit<select name="distribution_state">
+            <option value="unobserved">Non examiné</option>
+            <option value="absent">Absence constatée</option>
+            <option value="present">Présente sur la carte</option>
+          </select></label>
+          <label>Texte ou marque du produit<input name="distribution" maxlength="120" /></label>
+        </details>
         <button type="button" id="intake-search">Rechercher l’extension</button>
         <p id="intake-catalogue-message" role="status"></p>
         <div

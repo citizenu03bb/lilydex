@@ -22,7 +22,7 @@ const controls = {
     options: ["name", "binder"].map((value) => ({ value })),
   },
   "display-mode": { value: "copies" },
-  "review-filter": { value: "", options: ["", "needed"].map((value) => ({ value })) },
+  "review-filter": { value: "", options: ["", "needed", "coverage"].map((value) => ({ value })) },
   "review-threshold": { value: "10" },
 };
 const state = {
@@ -121,6 +121,12 @@ assert.equal(new URLSearchParams(location.search).get("review"), "needed");
 controls["review-threshold"].value = "10";
 context.restoreLocation();
 assert.equal(controls["review-threshold"].value, "12.5");
+location.search = "?review=coverage&sort=binder&limit=200";
+context.restoreLocation();
+assert.equal(controls["review-filter"].value, "coverage");
+context.syncLocation();
+assert.equal(new URLSearchParams(location.search).get("review"), "coverage");
+assert.equal(new URLSearchParams(location.search).get("sort"), "binder");
 for (const value of ["", "-1", "NaN", "Infinity", "0", "10001", "1.001", "1e2"]) {
   location.search = `?review=invalid&threshold=${value}`;
   context.restoreLocation();

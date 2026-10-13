@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 from test_intake import values
 
 from pokeprice.inventory import Store
-from pokeprice.pricing import cardmarket_url, summarize
+from pokeprice.pricing import binding_market_url, cardmarket_url, summarize
 from pokeprice.webapp import create_app
 
 # Shape of a real TCGdex answer (ex13-78, 7 October 2026): a thin, volatile
@@ -210,7 +210,7 @@ def test_stamp_is_a_searchable_variant_that_resets_the_reference(client):
 
     store = client.app.state.store
     with sqlite3.connect(store.database) as db:
-        assert db.execute("PRAGMA user_version").fetchone()[0] == 10
+        assert db.execute("PRAGMA user_version").fetchone()[0] == 12
     card = confirmed(client, foil=True, position=6, stamp="EX Fantômes Holon")
     assert card["stamp"] == "EX Fantômes Holon"
     priced = client.post(
@@ -345,6 +345,21 @@ def test_sale_estimate_is_recorded_without_touching_the_card(client):
         f"/api/copies/{card['id']}/sale-estimate", json={"text": "rien à lire"}
     )
     assert empty.status_code == 422
+
+
+def test_bound_market_url_uses_native_filters_and_not_foil():
+    binding = {
+        "market": "cardmarket",
+        "product_ref": "cardmarket:277048",
+        "native_variant": {"code": "parallel-holo"},
+        "foil_projection": True,
+        "filters": {"none": True},
+    }
+    assert binding_market_url(binding).endswith("idProduct=277048")
+    assert "isReverseHolo" not in binding_market_url(binding)
+    binding["filters"] = {"isReverseHolo": "Y"}
+    binding["foil_projection"] = False
+    assert "isReverseHolo=Y" in binding_market_url(binding)
 
 
 def test_refresh_many_snapshots_confirmed_cards_and_reports_failures(client):

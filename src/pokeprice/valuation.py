@@ -272,6 +272,71 @@ def assess(
     }
 
 
+def assess_binding(card, resolution, quotes, *, threshold_cents=1000):
+    """Valuation of a bound selection never mixes in a legacy foil snapshot."""
+    from .print_reference import prudent_quote
+
+    selection = resolution["price_selection"]
+    selected = selection["quote"]
+    eligible = (
+        selection["state"] == "active"
+        and resolution["pricing_eligible"]
+        and selected["currency"] == "EUR"
+    )
+    current_quotes = [
+        q
+        for q in quotes
+        if eligible
+        and q.get("acquisition_id") == selected.get("acquisition_id")
+        and q.get("binding_key") == selected["binding_key"]
+        and q.get("currency") == "EUR"
+        and q.get("population") == selected["population"]
+    ]
+    trends = [q["amount_cents"] for q in current_quotes if q["metric"] == "trend"]
+    trend = trends[0] if len(trends) == 1 else None
+    prudent = (
+        prudent_quote(current_quotes, selected["binding"], resolution)
+        if eligible
+        else None
+    )
+    risk = prudent if prudent is not None else trend
+    reasons = []
+    if not eligible:
+        reasons.append(
+            {
+                "code": "binding",
+                "label": "Cotation suspendue ou retirée : correspondance marchande à résoudre",
+            }
+        )
+    if prudent is None:
+        reasons.append(
+            {
+                "code": "price",
+                "label": "Valeur prudente inconnue pour la correspondance sélectionnée",
+            }
+        )
+    if risk is not None and risk >= threshold_cents:
+        if not card.get("variant_confirmed"):
+            reasons.append({"code": "variant", "label": "Finition physique à examiner"})
+        if not card.get("condition_confirmed"):
+            reasons.append({"code": "condition", "label": "État physique à examiner"})
+    return {
+        "trend_cents": trend,
+        "prudent_cents": prudent,
+        "sale_estimate_cents": None,
+        "risk_cents": risk,
+        "risk_incomplete": prudent is None,
+        "threshold_cents": threshold_cents,
+        "is_valuable": risk is not None and risk >= threshold_cents,
+        "market_unstable": False,
+        "variant_catalog_warning": False,
+        "price_variant_issue": None if eligible else reasons[0]["label"],
+        "needs_review": bool(reasons),
+        "reasons": reasons,
+        "hypotheses": [],
+    }
+
+
 def totals(cards):
     """Known subtotals always carry coverage; an entirely missing total is null."""
     result = {}

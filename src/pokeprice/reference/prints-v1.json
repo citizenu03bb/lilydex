@@ -1,0 +1,413 @@
+{
+  "schema_version": 1,
+  "content_version": "2026-10-13.1",
+  "mode": "audit",
+  "evidence": {
+    "ex8-checklist-en": {
+      "kind": "print",
+      "status": "verified",
+      "scope": {
+        "set_id": "ex8",
+        "languages": [
+          "en"
+        ],
+        "numbers": [
+          16,
+          95
+        ],
+        "exclusions": []
+      },
+      "claim": "Les numéros 16 à 95 sont proposés en versions brillante et mate.",
+      "source": "https://assets.pokemon.com/assets/cms/pdf/tcg/checklists/deoxys_checklist.pdf",
+      "accessed_at": "2026-10-13",
+      "document_sha256": "995157f9b7cc5182e03843c660943fc0361b39070d8c5356e9cfa4e8779ab6ce",
+      "locator": "page 1, légende ou entrée du numéro",
+      "limitations": "Liste anglaise du jeu de base ; ne ferme pas les réimpressions ou distributions spéciales. Aucune correspondance Cardmarket attestée."
+    },
+    "ex13-checklist-en": {
+      "kind": "print",
+      "status": "verified",
+      "scope": {
+        "set_id": "ex13",
+        "languages": [
+          "en"
+        ],
+        "numbers": [
+          18,
+          98
+        ],
+        "exclusions": []
+      },
+      "claim": "Les numéros 18 à 98 sont proposés en versions brillante et mate.",
+      "source": "https://assets.pokemon.com/assets/cms/pdf/tcg/checklists/holonphantoms_checklist.pdf",
+      "accessed_at": "2026-10-13",
+      "document_sha256": "bbcbed1af62ca05d122f87f1dd43564ca6aabb04afdd577f614980e816a12d57",
+      "locator": "page 1, légende ou entrée du numéro",
+      "limitations": "Liste anglaise du jeu de base ; ne ferme pas les réimpressions ou distributions spéciales. Aucune correspondance Cardmarket attestée."
+    },
+    "ex14-checklist-en": {
+      "kind": "print",
+      "status": "verified",
+      "scope": {
+        "set_id": "ex14",
+        "languages": [
+          "en"
+        ],
+        "numbers": [
+          14,
+          88
+        ],
+        "exclusions": []
+      },
+      "claim": "Les numéros 14 à 88 sont proposés en versions brillante et mate.",
+      "source": "https://assets.pokemon.com/assets/cms/pdf/tcg/checklists/crystalguardians_checklist.pdf",
+      "accessed_at": "2026-10-13",
+      "document_sha256": "7c78471f5c9d23d04280810955b49daec888c8cd14305e8b6d62be10382d12e1",
+      "locator": "page 1, légende ou entrée du numéro",
+      "limitations": "Liste anglaise du jeu de base ; ne ferme pas les réimpressions ou distributions spéciales. Aucune correspondance Cardmarket attestée."
+    },
+    "hgss3-checklist-en": {
+      "kind": "print",
+      "status": "verified",
+      "scope": {
+        "set_id": "hgss3",
+        "languages": [
+          "en"
+        ],
+        "numbers": [
+          81,
+          90
+        ],
+        "exclusions": []
+      },
+      "claim": "Les numéros 81 à 90 ont une version brillante dans la liste ; le numéro 85 est Slowking Prime.",
+      "source": "https://assets.pokemon.com/assets/cms2/pdf/trading-card-game/checklist/hgss3_web_cardlist_en.pdf",
+      "accessed_at": "2026-10-13",
+      "document_sha256": "de180391432819fce088bba26257ca4027ae150b8df1750a5b6cbd3d12deae00",
+      "locator": "page 1, légende ou entrée du numéro",
+      "limitations": "Liste anglaise du jeu de base ; ne ferme pas les réimpressions ou distributions spéciales. Aucune correspondance Cardmarket attestée."
+    },
+    "bw4-checklist-en": {
+      "kind": "print",
+      "status": "verified",
+      "scope": {
+        "set_id": "bw4",
+        "languages": [
+          "en"
+        ],
+        "numbers": [
+          74,
+          74
+        ],
+        "exclusions": []
+      },
+      "claim": "Le numéro 74 Scrafty est rare Holo dans la liste du jeu de base.",
+      "source": "https://assets.pokemon.com/assets/cms2/pdf/trading-card-game/checklist/bw4_web_cardlist_en.pdf",
+      "accessed_at": "2026-10-13",
+      "document_sha256": "aa01055113de999de44d0e5185921b018d2b907063894624003625944b50dd9c",
+      "locator": "page 1, légende ou entrée du numéro",
+      "limitations": "Liste anglaise du jeu de base ; ne ferme pas les réimpressions ou distributions spéciales. Aucune correspondance Cardmarket attestée."
+    }
+  },
+  "bindings": {},
+  "rules": [
+    {
+      "id": "ex8-base-en",
+      "scope": {
+        "set_id": "ex8",
+        "languages": [
+          "en"
+        ],
+        "numbers": [
+          16,
+          95
+        ],
+        "exclusions": []
+      },
+      "print_coverage": "partial",
+      "market_coverage": "partial",
+      "evidence": [
+        "ex8-checklist-en"
+      ],
+      "prints": [
+        {
+          "id": "base-foil",
+          "status": "verified",
+          "observations": {
+            "finish": [
+              "holo",
+              "holo_border",
+              "reverse",
+              "special"
+            ]
+          },
+          "binding": null,
+          "evidence": [
+            "ex8-checklist-en"
+          ]
+        },
+        {
+          "id": "base-matte",
+          "status": "verified",
+          "observations": {
+            "finish": [
+              "non_holo"
+            ]
+          },
+          "binding": null,
+          "evidence": [
+            "ex8-checklist-en"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ex13-base-en",
+      "scope": {
+        "set_id": "ex13",
+        "languages": [
+          "en"
+        ],
+        "numbers": [
+          18,
+          98
+        ],
+        "exclusions": []
+      },
+      "print_coverage": "partial",
+      "market_coverage": "partial",
+      "evidence": [
+        "ex13-checklist-en"
+      ],
+      "prints": [
+        {
+          "id": "base-foil",
+          "status": "verified",
+          "observations": {
+            "finish": [
+              "holo",
+              "holo_border",
+              "reverse",
+              "special"
+            ]
+          },
+          "binding": null,
+          "evidence": [
+            "ex13-checklist-en"
+          ]
+        },
+        {
+          "id": "base-matte",
+          "status": "verified",
+          "observations": {
+            "finish": [
+              "non_holo"
+            ]
+          },
+          "binding": null,
+          "evidence": [
+            "ex13-checklist-en"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ex14-base-en",
+      "scope": {
+        "set_id": "ex14",
+        "languages": [
+          "en"
+        ],
+        "numbers": [
+          14,
+          88
+        ],
+        "exclusions": []
+      },
+      "print_coverage": "partial",
+      "market_coverage": "partial",
+      "evidence": [
+        "ex14-checklist-en"
+      ],
+      "prints": [
+        {
+          "id": "base-foil",
+          "status": "verified",
+          "observations": {
+            "finish": [
+              "holo",
+              "holo_border",
+              "reverse",
+              "special"
+            ]
+          },
+          "binding": null,
+          "evidence": [
+            "ex14-checklist-en"
+          ]
+        },
+        {
+          "id": "base-matte",
+          "status": "verified",
+          "observations": {
+            "finish": [
+              "non_holo"
+            ]
+          },
+          "binding": null,
+          "evidence": [
+            "ex14-checklist-en"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "hgss3-base-en",
+      "scope": {
+        "set_id": "hgss3",
+        "languages": [
+          "en"
+        ],
+        "numbers": [
+          81,
+          90
+        ],
+        "exclusions": []
+      },
+      "print_coverage": "partial",
+      "market_coverage": "partial",
+      "evidence": [
+        "hgss3-checklist-en"
+      ],
+      "prints": [
+        {
+          "id": "base-foil",
+          "status": "verified",
+          "observations": {
+            "finish": [
+              "holo",
+              "holo_border",
+              "reverse",
+              "special"
+            ]
+          },
+          "binding": null,
+          "evidence": [
+            "hgss3-checklist-en"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bw4-base-en",
+      "scope": {
+        "set_id": "bw4",
+        "languages": [
+          "en"
+        ],
+        "numbers": [
+          74,
+          74
+        ],
+        "exclusions": []
+      },
+      "print_coverage": "partial",
+      "market_coverage": "partial",
+      "evidence": [
+        "bw4-checklist-en"
+      ],
+      "prints": [
+        {
+          "id": "base-foil",
+          "status": "verified",
+          "observations": {
+            "finish": [
+              "holo",
+              "holo_border",
+              "reverse",
+              "special"
+            ]
+          },
+          "binding": null,
+          "evidence": [
+            "bw4-checklist-en"
+          ]
+        }
+      ]
+    }
+  ],
+  "families": [
+    {
+      "set_id": "ex5",
+      "status": "uncovered",
+      "missing": [
+        "local_language_evidence",
+        "market_binding_evidence",
+        "distribution_closure"
+      ]
+    },
+    {
+      "set_id": "ex8",
+      "status": "partial",
+      "missing": [
+        "local_language_evidence",
+        "market_binding_evidence",
+        "distribution_closure"
+      ]
+    },
+    {
+      "set_id": "ex13",
+      "status": "partial",
+      "missing": [
+        "local_language_evidence",
+        "market_binding_evidence",
+        "distribution_closure"
+      ]
+    },
+    {
+      "set_id": "ex14",
+      "status": "partial",
+      "missing": [
+        "local_language_evidence",
+        "market_binding_evidence",
+        "distribution_closure"
+      ]
+    },
+    {
+      "set_id": "hgss3",
+      "status": "partial",
+      "missing": [
+        "local_language_evidence",
+        "market_binding_evidence",
+        "distribution_closure"
+      ]
+    },
+    {
+      "set_id": "bw4",
+      "status": "partial",
+      "missing": [
+        "local_language_evidence",
+        "market_binding_evidence",
+        "distribution_closure"
+      ]
+    },
+    {
+      "set_id": "pop9",
+      "status": "uncovered",
+      "missing": [
+        "local_language_evidence",
+        "market_binding_evidence",
+        "distribution_closure"
+      ]
+    },
+    {
+      "set_id": "np",
+      "status": "uncovered",
+      "missing": [
+        "local_language_evidence",
+        "market_binding_evidence",
+        "distribution_closure"
+      ]
+    }
+  ]
+}

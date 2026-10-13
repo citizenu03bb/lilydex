@@ -11,7 +11,13 @@ from decimal import Decimal
 from pathlib import Path
 
 from .library import normalized
-from .valuation import ESTIMATE_FIELDS, assess, candidates_from_evidence, totals
+from .valuation import (
+    ESTIMATE_FIELDS,
+    assess,
+    assess_binding,
+    candidates_from_evidence,
+    totals,
+)
 from .variant_pricing import category, compatible_quote, pricing_issue
 
 
@@ -93,7 +99,7 @@ class Store:
             version = db.execute("PRAGMA user_version").fetchone()[0]
             if version == 0:
                 db.executescript(SCHEMA)
-            elif version not in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10):
+            elif version not in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12):
                 raise ValueError("Version de base incompatible.")
             if db.execute("PRAGMA user_version").fetchone()[0] == 1:
                 db.executescript(
@@ -184,7 +190,46 @@ class Store:
                     PRAGMA user_version=10;
                     COMMIT;
                 """)
+            if db.execute("PRAGMA user_version").fetchone()[0] == 10:
+                # No legacy text or global attestation proves a newly added mark state.
+                db.executescript("""
+                    BEGIN IMMEDIATE;
+                    ALTER TABLE copies ADD COLUMN stamp_state TEXT NOT NULL DEFAULT 'unobserved'
+                        CHECK(stamp_state IN ('unobserved','absent','present'));
+                    ALTER TABLE copies ADD COLUMN distribution TEXT NOT NULL DEFAULT '';
+                    ALTER TABLE copies ADD COLUMN distribution_state TEXT NOT NULL DEFAULT 'unobserved'
+                        CHECK(distribution_state IN ('unobserved','absent','present'));
+                    ALTER TABLE copies ADD COLUMN observation_provenance TEXT NOT NULL DEFAULT '{}';
+                    CREATE TABLE reference_rulesets(hash TEXT PRIMARY KEY, content_json TEXT NOT NULL,
+                        engine_version TEXT NOT NULL, engine_source TEXT NOT NULL, created_at TEXT NOT NULL);
+                    CREATE TABLE reference_decisions(id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        copy_id TEXT NOT NULL REFERENCES copies(id), copy_version INTEGER NOT NULL,
+                        rules_hash TEXT NOT NULL REFERENCES reference_rulesets(hash),
+                        inputs_json TEXT NOT NULL, result_json TEXT NOT NULL,
+                        actor TEXT NOT NULL, reason TEXT NOT NULL, created_at TEXT NOT NULL);
+                    CREATE INDEX reference_decisions_copy ON reference_decisions(copy_id,id);
+                    PRAGMA user_version=11;
+                    COMMIT;
+                """)
+            if db.execute("PRAGMA user_version").fetchone()[0] == 11:
+                # Also accept the development v11 databases which already had this journal.
+                db.executescript("""
+                    BEGIN IMMEDIATE;
+                    CREATE TABLE IF NOT EXISTS reference_quotes(id TEXT PRIMARY KEY, copy_id TEXT NOT NULL REFERENCES copies(id),
+                        payload_json TEXT NOT NULL, actor TEXT NOT NULL, created_at TEXT NOT NULL);
+                    CREATE TABLE IF NOT EXISTS reference_quote_events(id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        copy_id TEXT NOT NULL REFERENCES copies(id), quote_id TEXT REFERENCES reference_quotes(id),
+                        state TEXT NOT NULL CHECK(state IN ('active','suspended','revoked')),
+                        copy_version INTEGER NOT NULL, resolution_json TEXT NOT NULL,
+                        actor TEXT NOT NULL, reason TEXT NOT NULL, created_at TEXT NOT NULL);
+                    CREATE INDEX IF NOT EXISTS reference_quote_events_copy ON reference_quote_events(copy_id,id);
+                    PRAGMA user_version=12;
+                    COMMIT;
+                """)
             db.execute("PRAGMA journal_mode=WAL")
+        from .reference_service import ReferenceService
+
+        self.reference = ReferenceService(self)
 
     @contextmanager
     def connect(self, *, write=False):
@@ -310,6 +355,18 @@ class Store:
                     "SELECT catalog_id, group_concat(name, ' ') FROM catalog_names GROUP BY catalog_id"
                 )
             }
+            disputes = {
+                r["copy_id"]: [json.loads(r["after_json"])]
+                for r in db.execute(
+                    "SELECT copy_id,after_json FROM events WHERE kind='reference-dispute' ORDER BY id"
+                )
+            }
+            from .quote_ledger import current
+
+            quote_selections = {
+                r["id"]: current(db, r["id"])
+                for r in db.execute("SELECT id FROM copies")
+            }
             rows = [
                 dict(r)
                 for r in db.execute(
@@ -330,6 +387,12 @@ class Store:
             metadata = self.category_metadata(row, valuation_context)
             issue = pricing_issue(row, metadata)
             row["price_category"] = category(row, metadata)
+            row["reference_resolution"] = self.reference.decision(
+                row,
+                metadata,
+                disputes.get(row["id"], ()),
+                quote_selections.get(row["id"]),
+            )
             row["price_alerts"] = sum(
                 not (
                     row["variant_confirmed"]
@@ -390,7 +453,14 @@ class Store:
                 and (not album or row["album_id"] == album)
                 and (not stock or stock == "deleted" or row["stock_state"] == stock)
                 and (not status or row["identification_status"] == status)
-                and (not review or row["valuation"]["needs_review"])
+                and (
+                    not review
+                    or (
+                        row["reference_resolution"]["coverage_needed"]
+                        if review == "coverage"
+                        else row["valuation"]["needs_review"]
+                    )
+                )
                 and (
                     not variant
                     or (variant == "standard" and not row["foil"])
@@ -438,6 +508,13 @@ class Store:
         context = {
             kind: {} for kind in ("price-snapshot", "sale-estimate", "identification")
         }
+        context["bound-quotes"] = {}
+        for row in db.execute(
+            "SELECT copy_id,payload_json FROM reference_quotes ORDER BY rowid"
+        ):
+            context["bound-quotes"].setdefault(row["copy_id"], []).append(
+                json.loads(row["payload_json"])
+            )
         for event in latest:
             context[event["kind"]][event["copy_id"]] = (
                 event["id"],
@@ -491,6 +568,15 @@ class Store:
 
     @staticmethod
     def valuation(card, context, source=None, *, threshold_cents=1000):
+        resolution = card.get("reference_resolution") or {}
+        selected_quote = resolution.get("price_selection", {}).get("quote") or {}
+        if selected_quote.get("binding_key"):
+            return assess_binding(
+                card,
+                resolution,
+                context["bound-quotes"].get(card["id"], []),
+                threshold_cents=threshold_cents,
+            )
         source = source or {}
         evidence = context["identification"].get(card["id"], (0, {}))[1]
         if "searches" not in evidence:
@@ -658,6 +744,9 @@ class Store:
             "variant_observation",
             "foil",
             "stamp",
+            "stamp_state",
+            "distribution",
+            "distribution_state",
             "album_id",
             "page",
             "position",
@@ -739,17 +828,31 @@ class Store:
                 after[k] != before[k] for k in physical_identity
             ) or any(
                 after[k] != before[k]
-                for k in ("finish", "photo", "photo_original", "identification_status")
+                for k in (
+                    "finish",
+                    "stamp_state",
+                    "distribution",
+                    "distribution_state",
+                    "photo",
+                    "photo_original",
+                    "identification_status",
+                )
             )
             if variant_changed and "variant_confirmed" not in changes:
                 after["variant_confirmed"] = False
             self.validate_variant(after)
+            after["observation_provenance"] = self.mark_provenance(
+                after, before, changes, actor, reason
+            )
             if after["variant_confirmed"] and (
                 variant_changed or not before["variant_confirmed"]
             ):
                 after.update(variant_verified_at=now(), variant_verified_by=actor)
             elif not after["variant_confirmed"]:
                 after.update(variant_verified_at="", variant_verified_by="")
+            from .quote_ledger import reconcile
+
+            reconcile(self, db, before, after, changes, actor, reason)
             if (
                 after["condition"] != before["condition"]
                 and "condition_confirmed" not in changes
@@ -776,6 +879,7 @@ class Store:
                     "updated_at",
                     "variant_verified_at",
                     "variant_verified_by",
+                    "observation_provenance",
                 }
             )
             db.execute(
@@ -814,6 +918,15 @@ class Store:
 
     @staticmethod
     def validate_variant(card):
+        for field in ("stamp", "distribution"):
+            state = card.get(field + "_state", "unobserved")
+            value = (card.get(field) or "").strip()
+            if state not in ("unobserved", "absent", "present"):
+                raise ValueError("État d’observation inconnu.")
+            if (state == "present" and not value) or (state == "absent" and value):
+                raise ValueError(
+                    "Marque présente : précisez le texte ; marque absente : laissez le texte vide."
+                )
         if card.get("finish", "") not in (
             "",
             "non_holo",
@@ -835,6 +948,26 @@ class Store:
             raise ValueError(
                 "La catégorie de prix ne correspond pas à la finition observée (non holo : Standard ; reverse : Foil)."
             )
+
+    @staticmethod
+    def mark_provenance(card, before, changes, actor, reason):
+        provenance = json.loads(before.get("observation_provenance") or "{}")
+        for field in ("finish", "stamp", "distribution"):
+            if any(
+                k in changes and card.get(k) != before.get(k)
+                for k in (field, field + "_state")
+            ):
+                provenance[field] = {
+                    "actor": actor,
+                    "observed_at": now(),
+                    "reason": reason,
+                    "state": ("present" if card.get("finish") else "unobserved")
+                    if field == "finish"
+                    else card.get(field + "_state", "unobserved"),
+                    "text": card.get(field, ""),
+                    "origin": "maintenance" if actor.startswith("system:") else "human",
+                }
+        return json.dumps(provenance, ensure_ascii=False, sort_keys=True)
 
     @staticmethod
     def category_snapshot(db, card):
@@ -923,6 +1056,10 @@ class Store:
             "variant_observation": "",
             "foil": False,
             "stamp": "",
+            "stamp_state": "unobserved",
+            "distribution": "",
+            "distribution_state": "unobserved",
+            "observation_provenance": "{}",
             "notes": "",
             "photo": None,
             "photo_original": None,
@@ -955,6 +1092,9 @@ class Store:
             if decision["mode"] == "automatic":
                 card["foil"] = decision["foil"]
             self.validate_variant(card)
+            card["observation_provenance"] = self.mark_provenance(
+                card, {}, values, actor, reason
+            )
             card["variant_verified_at"] = now() if card["variant_confirmed"] else ""
             card["variant_verified_by"] = actor if card["variant_confirmed"] else ""
             card["edition_id"] = self.edition(db, card)

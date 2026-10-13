@@ -25,7 +25,13 @@ from .intake import IntakeService, catalogue_candidates, normalize_photo, read_p
 from .inventory import Conflict, Store, cents, now
 from .inventory_backup import backup, export_csv, export_data, export_html
 from .photo_processing import parse_guide
-from .pricing import PriceService, cardmarket_url, fetch_card, fetch_catalogue_card
+from .pricing import (
+    PriceService,
+    binding_market_url,
+    cardmarket_url,
+    fetch_card,
+    fetch_catalogue_card,
+)
 from .variant_catalogue import VariantCatalogue
 from .variant_pricing import category
 
@@ -93,6 +99,9 @@ class CardFields(Model):
     variant_confirmed: bool | None = None
     variant_observation: str | None = Field(default=None, max_length=1000)
     stamp: str | None = Field(default=None, max_length=120)
+    stamp_state: Literal["unobserved", "absent", "present"] | None = None
+    distribution: str | None = Field(default=None, max_length=120)
+    distribution_state: Literal["unobserved", "absent", "present"] | None = None
     album_id: str | None = Field(default=None, min_length=1, max_length=120)
     page: int | None = Field(default=None, ge=1, le=1000)
     position: int | None = Field(default=None, ge=1, le=100)
@@ -123,6 +132,11 @@ class CardCreate(CardFields):
 class CopyRemoval(Model):
     expected_version: int = Field(ge=1)
     reason: str = Field(min_length=1, max_length=1000)
+
+
+class ReferenceDispute(CopyRemoval):
+    active: bool
+    affects: Literal["print", "market", "both"] = "both"
 
 
 class AlbumCreate(Model):
@@ -586,7 +600,7 @@ def create_app(
         status: str = "",
         variant: Literal["", "standard", "foil", "check", "stamped"] = "",
         sort: Literal["name", "binder"] = "name",
-        review: Literal["", "needed"] = "",
+        review: Literal["", "needed", "coverage"] = "",
         threshold: float = Query(default=10, ge=0.01, le=10000),
         limit: int = Query(default=60, ge=1, le=200),
         offset: int = Query(default=0, ge=0),
@@ -656,6 +670,16 @@ def create_app(
             snapshot = pricing.latest(db, copy_id)
             card["price_snapshot"] = snapshot
             card["price_category"] = category(card, store.category_snapshot(db, card))
+            card["reference_resolution"] = store.reference.decision_for(
+                db, card, store.category_snapshot(db, card)
+            )
+            card["bound_quotes"] = [
+                json.loads(r[0])
+                for r in db.execute(
+                    "SELECT payload_json FROM reference_quotes WHERE copy_id=? ORDER BY rowid DESC",
+                    (copy_id,),
+                )
+            ]
             card["sale_estimate"] = pricing.latest(db, copy_id, "sale-estimate")
             card["valuation"] = store.valuation(
                 card,
@@ -675,6 +699,9 @@ def create_app(
                 if card["price_category"]["mode"] == "automatic"
                 else card["foil"],
             )
+            bound_quote = card["reference_resolution"]["price_selection"]["quote"] or {}
+            if bound_quote.get("binding_key"):
+                card["cardmarket_url"] = binding_market_url(bound_quote["binding"])
             return card
 
     @app.post("/api/copies/{copy_id}/variant-preview")
@@ -682,6 +709,21 @@ def create_app(
         with store.connect() as db:
             before = store.get(db, copy_id)
             card = {**before, **values.model_dump(exclude_unset=True)}
+            if any(
+                card.get(k) != before.get(k)
+                for k in (
+                    "finish",
+                    "stamp",
+                    "stamp_state",
+                    "distribution",
+                    "distribution_state",
+                    "catalog_id",
+                    "language",
+                    "number",
+                    "identification_status",
+                )
+            ):
+                card["variant_confirmed"] = False
             if (
                 any(card[k] != before[k] for k in ("number", "set_name", "language"))
                 and card["catalog_id"] == before["catalog_id"]
@@ -689,7 +731,63 @@ def create_app(
                 card["catalog_id"] = None
         variant_catalogue.ensure(card)
         with store.connect() as db:
-            return category(card, store.category_snapshot(db, card))
+            snapshot = store.category_snapshot(db, card)
+            return {
+                **category(card, snapshot),
+                "reference_resolution": store.reference.decision_for(
+                    db, card, snapshot
+                ),
+            }
+
+    @app.get("/api/reference-audit")
+    def reference_audit(user=Depends(current_user)):
+        return store.reference.audit()
+
+    @app.post("/api/copies/{copy_id}/reference-decision", status_code=201)
+    def reference_decision(copy_id: str, values: CopyRemoval, user=Depends(editor)):
+        return store.reference.record(
+            copy_id, values.expected_version, user["username"], values.reason
+        )
+
+    @app.get("/api/reference-decisions/{decision_id}/replay")
+    def reference_replay(decision_id: int, user=Depends(current_user)):
+        return store.reference.replay(decision_id)
+
+    @app.post("/api/copies/{copy_id}/reference-dispute")
+    def reference_dispute(copy_id: str, values: ReferenceDispute, user=Depends(editor)):
+        with store.connect(write=True) as db:
+            before = store.reference.disputes(db, copy_id)
+            card = store.get(db, copy_id)
+            if card["version"] != values.expected_version or card["deleted_at"]:
+                raise Conflict("La fiche a changé. Rechargez-la avant de contester.")
+            db.execute(
+                "UPDATE copies SET version=version+1,updated_at=? WHERE id=?",
+                (now(), copy_id),
+            )
+            card = store.get(db, copy_id)
+            record = {
+                "active": values.active,
+                "affects": values.affects,
+                "actor": user["username"],
+                "reason": values.reason,
+                "created_at": now(),
+                "copy_version": card["version"],
+            }
+            store.event(
+                db,
+                copy_id,
+                user["username"],
+                "reference-dispute",
+                values.reason,
+                before,
+                record,
+            )
+            return {
+                **card,
+                "reference_resolution": store.reference.decision(
+                    card, store.category_snapshot(db, card), [record]
+                ),
+            }
 
     @app.post("/api/copies/{copy_id}/sale-estimate", status_code=201)
     def sale_estimate(copy_id: str, values: OffersPaste, user=Depends(editor)):
@@ -770,7 +868,7 @@ def create_app(
         status: str = "",
         variant: Literal["", "standard", "foil", "check", "stamped"] = "",
         sort: Literal["name", "binder"] = "name",
-        review: Literal["", "needed"] = "",
+        review: Literal["", "needed", "coverage"] = "",
         threshold: float = Query(default=10, ge=0.01, le=10000),
         limit: int = Query(default=40, ge=1, le=200),
         offset: int = Query(default=0, ge=0),

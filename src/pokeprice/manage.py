@@ -20,6 +20,10 @@ def main():
     )
     importer.add_argument("manifest")
     actions.add_parser("status", help="Comptes et rapprochement de la collection")
+    actions.add_parser(
+        "reference-audit",
+        help="Audit local du référentiel et des références héritées ; aucune migration ou correction",
+    )
     user = actions.add_parser(
         "user", help="Créer un accès avec saisie confidentielle du mot de passe"
     )
@@ -101,7 +105,11 @@ def main():
     exporter.add_argument("format", choices=["csv", "json", "html"])
     exporter.add_argument("output")
     args = parser.parse_args()
-    if args.action == "restore":
+    if args.action == "reference-audit":
+        from .reference_service import audit_directory
+
+        result = audit_directory(args.data)
+    elif args.action == "restore":
         from .inventory_backup import restore_backup
 
         result = restore_backup(args.archive, args.data)

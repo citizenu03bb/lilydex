@@ -58,7 +58,15 @@ def fetch_catalogue_card(catalog_id, language, *, require_price=False):
             and data.get("id") == catalog_id
             and (not require_price or (data.get("pricing") or {}).get("cardmarket"))
         ):
-            return data
+            return {
+                **data,
+                "_acquisition": {
+                    "provider": "TCGdex",
+                    "requested_language": language,
+                    "served_language": lang,
+                    "source": request.full_url,
+                },
+            }
     if require_price:
         raise RuntimeError(
             "TCGdex indisponible ou sans prix Cardmarket pour cette carte. Un prix peut être relevé manuellement sur Cardmarket."
@@ -139,6 +147,12 @@ def summarize(data, foil):
         )
     return {
         "source": SOURCE,
+        "acquisition": data.get("_acquisition")
+        or {"provider": "TCGdex", "requested_language": None, "served_language": None},
+        "requested_language": (data.get("_acquisition") or {}).get(
+            "requested_language"
+        ),
+        "served_language": (data.get("_acquisition") or {}).get("served_language"),
         "catalog_id": data.get("id"),
         "variant": "holo/reverse" if foil else "normale",
         "updated": cardmarket.get("updated") or "",
@@ -153,6 +167,20 @@ def summarize(data, foil):
         "rarity": data.get("rarity") or "",
         "raw": data.get("pricing"),
     }
+
+
+def binding_market_url(binding):
+    """A bound product link uses its evidenced native filters, never `foil`."""
+    if binding.get("market") != "cardmarket":
+        return None
+    product = re.fullmatch(r"cardmarket:(\d+)", binding.get("product_ref", ""))
+    if not product:
+        return None
+    filters = binding.get("filters", {})
+    query = {"idProduct": product[1], **({} if filters == {"none": True} else filters)}
+    return "https://www.cardmarket.com/fr/Pokemon/Products?" + urlencode(
+        query, doseq=True
+    )
 
 
 def cardmarket_url(id_product, language="", condition="", foil=False):

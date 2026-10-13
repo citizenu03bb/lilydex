@@ -19,7 +19,9 @@ def test_finish_metadata_is_available_without_a_cardmarket_price(monkeypatch):
         return io.BytesIO(json.dumps(catalogue).encode())
 
     monkeypatch.setattr("pokeprice.pricing.urlopen", request)
-    assert fetch_catalogue_card("np-29", "fr") == catalogue
+    data = fetch_catalogue_card("np-29", "fr")
+    assert {k: v for k, v in data.items() if k != "_acquisition"} == catalogue
+    assert data["_acquisition"]["served_language"] == "fr"
     assert len(calls) == 1
     with pytest.raises(RuntimeError, match="sans prix Cardmarket"):
         fetch_card("np-29", "fr")
@@ -39,7 +41,10 @@ def test_price_lookup_still_uses_english_fallback_when_french_has_no_quote(monke
         return io.BytesIO(json.dumps(data).encode())
 
     monkeypatch.setattr("pokeprice.pricing.urlopen", request)
-    assert fetch_card("test-1", "fr")["pricing"]["cardmarket"]["trend"] == 1.2
+    data = fetch_card("test-1", "fr")
+    assert data["pricing"]["cardmarket"]["trend"] == 1.2
+    assert data["_acquisition"]["requested_language"] == "fr"
+    assert data["_acquisition"]["served_language"] == "en"
 
 
 def test_wrong_edition_metadata_is_rejected(monkeypatch):

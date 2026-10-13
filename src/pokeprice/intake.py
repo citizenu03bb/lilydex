@@ -502,6 +502,10 @@ class IntakeService:
                         "language",
                         "hp",
                         "stamp",
+                        "stamp_state",
+                        "finish",
+                        "distribution",
+                        "distribution_state",
                         "catalog_id",
                         "identification_status",
                     )

@@ -213,8 +213,16 @@ def test_schema_5_migration_preserves_all_copy_data(tmp_path):
             "variant_verified_at",
             "variant_verified_by",
             "variant_observation",
+            "stamp_state",
+            "distribution",
+            "distribution_state",
+            "observation_provenance",
         ):
             db.execute("ALTER TABLE copies DROP COLUMN " + column)
+        db.execute("DROP TABLE reference_quote_events")
+        db.execute("DROP TABLE reference_quotes")
+        db.execute("DROP TABLE reference_decisions")
+        db.execute("DROP TABLE reference_rulesets")
         db.execute("PRAGMA user_version=5")
         for table in (
             "intake_drafts",
@@ -227,7 +235,7 @@ def test_schema_5_migration_preserves_all_copy_data(tmp_path):
         before = [dict(r) for r in db.execute("SELECT * FROM copies ORDER BY id")]
     migrated = Store(store.root)
     with migrated.connect() as db:
-        assert db.execute("PRAGMA user_version").fetchone()[0] == 10
+        assert db.execute("PRAGMA user_version").fetchone()[0] == 12
         after = [dict(r) for r in db.execute("SELECT * FROM copies ORDER BY id")]
     added = (
         "deleted_at",
@@ -237,6 +245,10 @@ def test_schema_5_migration_preserves_all_copy_data(tmp_path):
         "variant_verified_at",
         "variant_verified_by",
         "variant_observation",
+        "stamp_state",
+        "distribution",
+        "distribution_state",
+        "observation_provenance",
     )
     assert [{k: v for k, v in c.items() if k not in added} for c in after] == before
     assert all(c["deleted_at"] == "" and c["stamp"] == "" for c in after)
