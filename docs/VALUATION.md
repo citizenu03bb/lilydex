@@ -92,6 +92,11 @@ Une prime de variante (au moins ×3) motive le contrôle tant que la variante
 n’est pas confirmée. Le marché instable (écart d’au moins ×2 entre tendance et
 moyennes) reste une information de prix : il ne rouvre pas l’examen physique.
 Les états importés non validés ne remplissent pas à eux seuls toute la file.
+Une lecture de finition (M2) en désaccord avec la finition ou le tampon notés
+ajoute le motif « Lecture de la finition en désaccord », quel que soit le seuil.
+Une confirmation physique postérieure à cette lecture le lève ; une nouvelle
+lecture toujours en désaccord le rétablit. Une lecture d’une ancienne photo du
+recto ne compte plus.
 
 La confirmation physique exige une identité confirmée et une finition décrite.
 La date et l’auteur viennent du serveur. Les changements d’identité, de langue,

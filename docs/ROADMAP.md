@@ -86,7 +86,7 @@ schéma 8. Tout le code est commité sur `master` (174 tests).
 |---|---|---|---|
 | 1 | ~~**Clore M0 : audit des variantes Foil** par observation de la finition et du tampon, en commençant par les 27 cartes signalées~~ **Fait le 13 octobre** | Peu coûteux ; M2 et le référentiel comparent leurs propositions à ces observations, elles doivent être justes | ½ jour |
 | 2 | ~~**M1.1 : premier cas de bout en bout**, EX Fantômes Holon en français : règle FR avec tampon, preuve FR, capture Cardmarket, saisie d’un relevé lié à la correspondance~~ **Fait le 13 octobre** | Valide le système de preuve sur le problème qui l’a motivé et mesure le coût réel d’une preuve | dans les 2 jours de M1.1 |
-| 3 | **M2 : vérifications indépendantes** | Ne dépend plus de M1.1 ; nécessaire avant de saisir les six classeurs | 3 à 5 jours |
+| 3 | **M2 : vérifications indépendantes** — tranche 1 (proposition de variante) livrée le 13 octobre | Ne dépend plus de M1.1 ; nécessaire avant de saisir les six classeurs | 3 à 5 jours |
 | 4 | **M3 : saisie des six classeurs**, avec extension du référentiel par impact (éditions chères et nombreuses d’abord) | Les observations sont prêtes ; chaque classeur alimente la file « Référentiel à compléter » | 3 à 5 jours |
 | 5 | **M4 puis M5** | Inchangés | 3 à 6 jours |
 
@@ -282,6 +282,21 @@ Livraison et limites : [PRINT_REFERENCE_IMPLEMENTATION.md](PRINT_REFERENCE_IMPLE
 le banc rejoué sur l'application atteint au moins les scores du tableau ci-dessus ;
 aucune décision de variante n'est appliquée sans validation humaine.
 
+**Tranche 1, 13 octobre : proposition de variante.** Table commune
+`verifications` (schéma 14) : chaque lecture garde sa source, son modèle, son
+protocole, la photo lue, la réponse brute et les jetons consommés. Un lecteur
+est un simple appelable ; Gemini est le premier, un autre modèle s’y branche
+sans changer le service. La fiche propose Standard ou Foil à partir de la
+lecture et de la règle de catégorie existante ; une illustration mate ne vaut
+jamais preuve de Standard quand une reverse possible a une prime au-dessus du
+seuil. Le choix humain s’applique avec la lecture en preuve ; un désaccord avec
+la fiche entre dans « À examiner ». Détails : [APP.md](APP.md#lire-la-finition-sur-la-photo-m2).
+Essai réel sur trois cartes confirmées à l’œil (holo tamponnée EX Deoxys, mate,
+reverse Noir & Blanc) : 3/3, tampon compris, pour environ 1 350 jetons
+d’entrée et 450 de sortie (raisonnement compris) par carte.
+Reste pour M2 : lecture automatique à la saisie, Tesseract (langue), DINOv2
+(édition), double source pour la contrefaçon, banc en test de non-régression.
+
 ### M3 — Saisie à l'échelle des six classeurs (3 à 5 jours)
 
 - **Import d'un classeur depuis l'application** : photos de pages téléversées,
@@ -332,7 +347,7 @@ mesure à la fin de M3, la sortie du MVP sur le premier des six classeurs après
 |---|---|---|
 | Seuil de valeur en jeu | **10 €** (≈ 10 % des cartes à examiner) | à revoir après le premier classeur |
 | Saisie des classeurs | **les deux : application et ligne de commande** | M3 construit un service d'import commun (découpe, lecture, vérifications, file d'examen) ; la CLI et l'application n'en sont que deux façades, testées sur le même cœur |
-| Second avis (Sonnet) | **à discuter** | options ci-dessous ; Gemini seul en attendant |
+| Second avis (Sonnet) | **Gemini seul pour M2** (13 octobre), derrière l’interface commune de vérification | un second lecteur se branche plus tard par configuration ; sans seconde source, pas d’alerte de contrefaçon, seulement un motif « à examiner » |
 | Hébergement | **aucun budget avant le mois prochain** : faire avec l'existant | portable à la maison ; accès distant gratuit et privé à mettre en place (M5) ; serveur ou domaine réexaminés le mois prochain |
 | Reverses | **éclairage adapté** : une surface foil montre une bande arc-en-ciel (photo de Drackhaus 64/132) | M3 : consigne d'éclairage rasant à la prise ; essai à deux images avec la lumière déplacée ; un comptage naïf des couleurs saturées ne suffit pas (zones de texte imprimées en couleur) |
 
@@ -349,6 +364,18 @@ mesure à la fin de M3, la sortie du MVP sur le premier des six classeurs après
 
 Dans tous les cas, le second avis passe par une interface commune de
 vérification : changer de modèle relève de la configuration, pas du code.
+
+Écartés ou à évaluer (13 octobre) :
+
+- **CLI Antigravity (`agy`) sur l’abonnement Google** : écarté pour la lecture
+  carte par carte. Essai sur une photo : 69 à 117 s, plus de 50 000 jetons
+  d’entrée et aucune réponse sans autoriser l’agent à exécuter des commandes.
+  Il propose aussi Claude Sonnet : piste possible pour un second avis groupé
+  sur la file d’un classeur, à mesurer.
+- **Modèles de décision locaux** (par exemple Liquid AI d1-3B, poids ouverts
+  publiés en octobre 2026) : réponses fermées avec probabilité, exécutables sur
+  le GPU local. Candidat de second avis sur holo/mate et tampon, à mesurer sur
+  le banc ; sans effet attendu sur les reverses, limitées par la prise de vue.
 
 ## Risques
 
@@ -384,6 +411,7 @@ vérification : changer de modèle relève de la configuration, pas du code.
 - [x] M1 — Valeur en jeu, file « À examiner », totaux prudents
 - [ ] M1.1 — Référentiel des impressions : socle livré en audit ; preuves FR et de marché limitées à 2 jours ; ne bloque plus M2
 - [ ] M2 — Vérifications indépendantes branchées, banc en test de non-régression
+  - [x] Tranche 1 : lecture de la finition, proposition Standard/Foil, validation humaine, désaccords dans la file (13 octobre)
 - [ ] M3 — Import de classeur dans l'application, série Android réceptionnée
 - [ ] M4 — Estimation par état, lots du vrac, calibration par les ventes
 - [ ] M5 — Hébergement, tests de bout en bout, restauration après déploiement

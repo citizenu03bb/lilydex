@@ -99,7 +99,7 @@ class Store:
             version = db.execute("PRAGMA user_version").fetchone()[0]
             if version == 0:
                 db.executescript(SCHEMA)
-            elif version not in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13):
+            elif version not in range(1, 15):
                 raise ValueError("Version de base incompatible.")
             if db.execute("PRAGMA user_version").fetchone()[0] == 1:
                 db.executescript(
@@ -228,6 +228,21 @@ class Store:
                 """)
             if db.execute("PRAGMA user_version").fetchone()[0] == 12:
                 self.attach_decision_engines(db)
+            if db.execute("PRAGMA user_version").fetchone()[0] == 13:
+                # Independent checks (M2): a reading and its proposal, never an applied change.
+                db.executescript("""
+                    BEGIN IMMEDIATE;
+                    CREATE TABLE IF NOT EXISTS verifications(id TEXT PRIMARY KEY,
+                        copy_id TEXT NOT NULL REFERENCES copies(id), kind TEXT NOT NULL,
+                        source TEXT NOT NULL, model TEXT NOT NULL, protocol TEXT NOT NULL,
+                        actor TEXT NOT NULL, created_at TEXT NOT NULL,
+                        photos_json TEXT NOT NULL, card_json TEXT NOT NULL,
+                        result_json TEXT NOT NULL, proposal_json TEXT NOT NULL,
+                        raw_response TEXT NOT NULL, usage_json TEXT NOT NULL);
+                    CREATE INDEX IF NOT EXISTS verifications_copy ON verifications(copy_id,kind,created_at);
+                    PRAGMA user_version=14;
+                    COMMIT;
+                """)
             db.execute("PRAGMA journal_mode=WAL")
         from .reference_service import ReferenceService
 
@@ -595,6 +610,9 @@ class Store:
             if invalidated.get(copy_id, 0) > event_id:
                 del context["sale-estimate"][copy_id]
         context["market-product"] = Store.market_verdicts(db)
+        from .verification import latest_conflicts
+
+        context["variant-readings"] = latest_conflicts(db)
         context["catalog"] = {}
         context["variant-catalogue"] = {}
         for row in db.execute(
@@ -627,6 +645,22 @@ class Store:
 
     @staticmethod
     def valuation(card, context, source=None, *, threshold_cents=1000):
+        result = Store.price_valuation(
+            card, context, source, threshold_cents=threshold_cents
+        )
+        conflicts = context.get("variant-readings", {}).get(card["id"])
+        if conflicts:
+            result["reasons"] = result["reasons"] + [
+                {
+                    "code": "variant_reading",
+                    "label": "Lecture de la finition en désaccord : " + conflicts[0],
+                }
+            ]
+            result["needs_review"] = True
+        return result
+
+    @staticmethod
+    def price_valuation(card, context, source=None, *, threshold_cents=1000):
         resolution = card.get("reference_resolution") or {}
         selected_quote = resolution.get("price_selection", {}).get("quote") or {}
         if selected_quote.get("binding_key"):
@@ -954,6 +988,7 @@ class Store:
             if evidence is not None:
                 photo_preparation = evidence.get("type") == "photo-preparation"
                 condition_validation = evidence.get("type") == "condition-validation"
+                variant_validation = evidence.get("type") == "variant-validation"
                 self.event(
                     db,
                     copy_id,
@@ -962,11 +997,15 @@ class Store:
                     if photo_preparation
                     else "condition-validation"
                     if condition_validation
+                    else "variant-validation"
+                    if variant_validation
                     else "identification",
                     "Préparation locale de la photo et validation humaine"
                     if photo_preparation
                     else "État proposé confronté à la carte et validé humainement"
                     if condition_validation
+                    else "Finition lue confrontée à la carte et décidée humainement"
+                    if variant_validation
                     else "Lecture assistée et confirmation humaine",
                     {},
                     evidence,

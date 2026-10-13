@@ -1206,6 +1206,206 @@ function renderConditionAssessment(parent, card, previous = null) {
   if (previous) previous.replaceWith(panel);
   else parent.append(panel);
 }
+const finishLabels = {
+  non_holo: "Non holo (mate)",
+  holo: "Holo dans l’illustration",
+  holo_border: "Holo avec cadre brillant (Prime, LV.X…)",
+  reverse: "Reverse (fond brillant)",
+  special: "Autre finition / variante spéciale",
+};
+function renderVariantCheck(parent, card, previous = null) {
+  const panel = el("section", undefined, "condition-panel");
+  panel.setAttribute("aria-label", "Vérification de la finition");
+  panel.append(el("h3", "Vérification de la finition"));
+  panel.append(
+    el(
+      "p",
+      `Fiche : ${finishLabels[card.finish] || "finition à déterminer"} · ${card.foil ? "Foil" : "Standard"} · ${card.variant_confirmed ? "vérifiée sur la carte" : "à confirmer"}`,
+    ),
+  );
+  const status = el("p", "", "help");
+  status.setAttribute("role", "status");
+  const error = el("p", "", "error");
+  error.setAttribute("role", "alert");
+  if (editAllowed()) {
+    panel.append(
+      el(
+        "p",
+        "Cette action transmet la photo du recto à Gemini. La lecture propose une finition ; elle ne modifie ni la fiche ni le prix.",
+        "help",
+      ),
+    );
+    const read = el("button", "Lire la finition", "primary");
+    read.type = "button";
+    read.disabled = !card.photo;
+    read.addEventListener("click", async () => {
+      read.disabled = true;
+      error.textContent = "";
+      status.textContent = "Lecture de la photo en cours…";
+      try {
+        const result = await api(
+          `/copies/${card.id}/variant-checks?threshold=${reviewThreshold()}`,
+          {
+            method: "POST",
+            body: JSON.stringify({ expected_version: card.version }),
+          },
+        );
+        // The server recomputes the proposal against the current copy on reload.
+        card.variant_checks = [
+          { ...result, current_proposal: result.proposal },
+          ...(card.variant_checks || []),
+        ];
+        if (panel.isConnected) renderVariantCheck(parent, card, panel);
+      } catch (e) {
+        error.textContent = e.message;
+        status.textContent = "La fiche est conservée.";
+      } finally {
+        read.disabled = !card.photo;
+      }
+    });
+    panel.append(read);
+  }
+  const check = card.variant_checks?.[0];
+  if (check) {
+    const reading = check.result;
+    const proposal = check.current_proposal || check.proposal;
+    const headline = {
+      proposed: `Proposition : ${finishLabels[proposal.finish]} · ${proposal.foil ? "Foil" : "Standard"}`,
+      examine: "Examen physique requis",
+      unreadable: "Lecture impossible",
+    }[proposal.status];
+    panel.append(el("h4", headline));
+    panel.append(
+      el(
+        "p",
+        `Illustration ${{ holo: "holo", matte: "mate", unclear: "indéterminée" }[reading.artwork]} · fond ${{ visible: "brillant", not_visible: "mat", unclear: "indéterminé" }[reading.background_shine]} · tampon ${reading.stamp_text ? `« ${reading.stamp_text} »` : "non lu"} · ${check.source} ${check.model} · ${new Date(check.created_at).toLocaleString("fr-FR")}`,
+        "help",
+      ),
+    );
+    panel.append(el("p", proposal.reason));
+    if (reading.notes) panel.append(el("p", reading.notes, "help"));
+    if (proposal.conflicts.length) {
+      const conflicts = el("ul", undefined, "price-warnings");
+      for (const conflict of proposal.conflicts)
+        conflicts.append(el("li", conflict));
+      panel.append(conflicts);
+    }
+    if (check.stale)
+      panel.append(
+        el(
+          "p",
+          "Lecture obsolète : la photo du recto a changé. Demandez une nouvelle lecture.",
+          "error",
+        ),
+      );
+    else if (editAllowed() && !card.deleted_at) {
+      const decision = el("form", undefined, "condition-validation");
+      const finishLabel = el("label", "Finition retenue après examen");
+      const finish = el("select");
+      finish.required = true;
+      finish.append(
+        new Option("Choisir une finition", ""),
+        ...Object.entries(finishLabels).map(
+          ([value, label]) => new Option(label, value),
+        ),
+      );
+      // Only a usable proposal pre-fills the choice; an examination starts blank.
+      finish.value =
+        proposal.status === "proposed" ? proposal.finish : card.finish || "";
+      finishLabel.append(finish);
+      const stampLabel = el("label", "Observation du tampon");
+      const stampState = el("select");
+      stampState.append(
+        new Option("Non examiné", "unobserved"),
+        new Option("Absence constatée", "absent"),
+        new Option("Présent sur la carte", "present"),
+      );
+      stampState.value =
+        card.stamp_state !== "unobserved"
+          ? card.stamp_state
+          : proposal.stamp
+            ? "present"
+            : "unobserved";
+      stampLabel.append(stampState);
+      const stampTextLabel = el("label", "Texte du tampon");
+      const stamp = el("input");
+      stamp.maxLength = 120;
+      stamp.value = card.stamp_state !== "unobserved" ? card.stamp : proposal.stamp;
+      stampTextLabel.append(stamp);
+      const confirmLabel = el("label", undefined, "check-label");
+      const confirmed = el("input");
+      confirmed.type = "checkbox";
+      confirmLabel.append(
+        confirmed,
+        document.createTextNode(
+          "J’ai examiné la carte en main (variante et tampon vérifiés).",
+        ),
+      );
+      const reasonLabel = el("label", "Motif");
+      const reason = el("input");
+      reason.required = true;
+      reason.maxLength = 1000;
+      reason.value = "Lecture de la finition comparée à la carte";
+      reasonLabel.append(reason);
+      const save = el("button", "Enregistrer la finition retenue", "primary");
+      decision.append(
+        finishLabel,
+        stampLabel,
+        stampTextLabel,
+        confirmLabel,
+        reasonLabel,
+        save,
+      );
+      decision.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        if (save.disabled) return;
+        save.disabled = true;
+        error.textContent = "";
+        try {
+          await api(
+            `/copies/${card.id}/variant-checks/${check.id}/confirm?threshold=${reviewThreshold()}`,
+            {
+              method: "POST",
+              body: JSON.stringify({
+                expected_version: card.version,
+                finish: finish.value,
+                stamp_state: stampState.value,
+                stamp: stampState.value === "present" ? stamp.value : "",
+                variant_confirmed: confirmed.checked,
+                reason: reason.value,
+              }),
+            },
+          );
+          await loadCards();
+          await openDetail(card.id);
+          toast("Finition enregistrée ; catégorie de prix recalculée.");
+        } catch (e) {
+          error.textContent = e.message;
+        } finally {
+          save.disabled = false;
+        }
+      });
+      panel.append(decision);
+    }
+    if (card.variant_checks.length > 1) {
+      const history = el("details");
+      history.append(
+        el("summary", `Lectures précédentes (${card.variant_checks.length - 1})`),
+      );
+      for (const past of card.variant_checks.slice(1))
+        history.append(
+          el(
+            "p",
+            `${new Date(past.created_at).toLocaleString("fr-FR")} : illustration ${past.result.artwork}${past.stale ? " · photo remplacée" : ""} — ${past.proposal.reason}`,
+          ),
+        );
+      panel.append(history);
+    }
+  } else panel.append(el("p", "Aucune lecture de finition enregistrée.", "help"));
+  panel.append(status, error);
+  if (previous) previous.replaceWith(panel);
+  else parent.append(panel);
+}
 async function openDetail(id) {
   const c = await api("/copies/" + id + "?threshold=" + reviewThreshold());
   state.detail = c;
@@ -1278,7 +1478,10 @@ async function openDetail(id) {
     });
     photo.append(identify);
   }
-  if (!c.deleted_at) renderConditionAssessment(photo, c);
+  if (!c.deleted_at) {
+    renderVariantCheck(photo, c);
+    renderConditionAssessment(photo, c);
+  }
   renderCopyRemoval(photo, c);
   form.append(
     el("h2", c.name),

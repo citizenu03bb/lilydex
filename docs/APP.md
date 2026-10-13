@@ -323,6 +323,35 @@ de l'exemplaire, son état ou meilleur (`minCondition`) et, pour une carte Foil,
 les reverse uniquement (`isReverseHolo=Y`). Ces filtres ont été vérifiés le
 7 octobre 2026. Les offres sont triées par prix : comparer celles de même état.
 
+### Lire la finition sur la photo (M2)
+
+Dans la fiche, **Lire la finition** transmet la photo du recto à Gemini, qui
+répond à trois questions : illustration holo ou mate, fond brillant hors de
+l’illustration (reverse), texte d’un tampon. La lecture est enregistrée avec la
+photo lue, le modèle, la version du protocole et les jetons consommés. Elle ne
+modifie ni la fiche ni le prix.
+
+La fiche en tire une **proposition**, recalculée à chaque ouverture avec la
+règle de catégorie habituelle (édition, tampon, versions TCGdex) :
+
+- illustration holo → Standard ou Foil selon l’édition et le tampon ;
+- illustration mate → Standard, **sauf** si une reverse est possible et que
+  sa version Foil vaut au moins le seuil (ou n’a pas de prix connu) : la
+  proposition devient « Examen physique requis ». Aucun modèle ne distingue
+  sûrement une reverse sur une photo de classeur ;
+- fond brillant signalé → reverse possible, à examiner sous un éclairage rasant ;
+- photo insuffisante → aucune proposition.
+
+Un tampon déjà observé par une personne (présent ou absent) prime sur le tampon
+lu. **Enregistrer la finition retenue** applique le choix humain (finition,
+tampon, et la case « carte examinée en main » pour confirmer la variante) ; la
+lecture et la proposition sont jointes à l’historique comme preuves. Une lecture
+devient obsolète dès que la photo du recto change.
+
+Une lecture en désaccord avec la fiche (illustration holo contre fiche mate ou
+reverse, tampon contraire) place la carte dans « À examiner », même sous le
+seuil, jusqu’à une confirmation physique postérieure à cette lecture.
+
 ## Supprimer ou restaurer un exemplaire
 
 Un administrateur ouvre la fiche et choisit **Supprimer cet exemplaire**, puis

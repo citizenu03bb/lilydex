@@ -37,6 +37,7 @@ from .pricing import (
 )
 from .variant_catalogue import VariantCatalogue
 from .variant_pricing import category
+from .verification import VariantCheckService, check_rows, propose_variant
 
 
 class Model(BaseModel):
@@ -80,6 +81,14 @@ class OffersPaste(Model):
 class ConditionConfirmation(ConditionRequest):
     condition: Literal["NM", "EX", "GD", "LP", "PL", "PO", "NM/EX"]
     human_confirmed: Literal[True]
+    reason: str = Field(min_length=1, max_length=1000)
+
+
+class VariantDecision(ConditionRequest):
+    finish: Literal["non_holo", "holo", "holo_border", "reverse", "special"]
+    stamp_state: Literal["unobserved", "absent", "present"]
+    stamp: str = Field(default="", max_length=120)
+    variant_confirmed: bool
     reason: str = Field(min_length=1, max_length=1000)
 
 
@@ -335,6 +344,7 @@ def create_app(
     intake_reader=None,
     intake_lookup=None,
     condition_reader=None,
+    variant_reader=None,
     price_fetch=None,
     variant_fetch=None,
     market_fetch=None,
@@ -361,6 +371,8 @@ def create_app(
     app.state.intake = intake
     conditions = ConditionService(store, condition_reader or read_condition)
     app.state.conditions = conditions
+    variant_checks = VariantCheckService(store, variant_reader)
+    app.state.variant_checks = variant_checks
     # An injected price source (tests) never reaches TCGdex for neighbours.
     market = MarketProducts(
         store, market_fetch or (fetch_tcgdex if price_fetch is None else None)
@@ -710,6 +722,16 @@ def create_app(
                 card["source"]["data"] if card["source"] else None,
                 threshold_cents=cents(threshold),
             )
+            card["variant_checks"] = check_rows(db, card)
+            if card["variant_checks"] and not card["variant_checks"][0]["stale"]:
+                latest = card["variant_checks"][0]
+                # The reading is fixed; the proposal follows the current copy.
+                latest["current_proposal"] = propose_variant(
+                    card,
+                    latest["result"],
+                    store.category_snapshot(db, card),
+                    card["valuation"],
+                )
             card["sale_estimate_stale"] = bool(
                 card["sale_estimate"]
                 and card["valuation"]["sale_estimate_cents"] is None
@@ -1231,6 +1253,72 @@ def create_app(
             values.condition,
             user["username"],
             values.reason,
+        )
+
+    def variant_inputs(copy_id, threshold_cents=1000):
+        """Catalogue metadata and value at stake behind a variant proposal."""
+        with store.connect() as db:
+            card = store.get(db, copy_id)
+        # Fetch the edition's prints as for a holo reading, without assuming one.
+        variant_catalogue.ensure({**card, "finish": "holo", "stamp": ""})
+        with store.connect() as db:
+            snapshot = store.category_snapshot(db, card)
+            card["reference_resolution"] = store.reference.decision_for(
+                db, card, snapshot
+            )
+            source = db.execute(
+                "SELECT raw_json FROM sources WHERE copy_id=?", (copy_id,)
+            ).fetchone()
+            valuation = store.valuation(
+                card,
+                store.valuation_context(db),
+                json.loads(source[0]) if source else None,
+                threshold_cents=threshold_cents,
+            )
+        return snapshot, valuation
+
+    @app.post("/api/copies/{copy_id}/variant-checks", status_code=201)
+    def check_variant(
+        copy_id: str,
+        values: ConditionRequest,
+        threshold: float = Query(default=10, ge=0.01, le=10000),
+        user=Depends(editor),
+    ):
+        snapshot, valuation = variant_inputs(copy_id, cents(threshold))
+        try:
+            return variant_checks.evaluate(
+                copy_id,
+                values.expected_version,
+                user["username"],
+                snapshot=snapshot,
+                valuation=valuation,
+            )
+        except RuntimeError as error:
+            raise HTTPException(502, str(error)) from None
+
+    @app.post("/api/copies/{copy_id}/variant-checks/{check_id}/confirm")
+    def confirm_variant(
+        copy_id: str,
+        check_id: str,
+        values: VariantDecision,
+        threshold: float = Query(default=10, ge=0.01, le=10000),
+        user=Depends(editor),
+    ):
+        snapshot, valuation = variant_inputs(copy_id, cents(threshold))
+        with store.connect() as db:
+            card = store.get(db, copy_id)
+            row = next((r for r in check_rows(db, card) if r["id"] == check_id), None)
+        proposal = (
+            propose_variant(card, row["result"], snapshot, valuation) if row else None
+        )
+        return variant_checks.confirm(
+            copy_id,
+            check_id,
+            values.expected_version,
+            values.model_dump(exclude={"expected_version", "reason"}),
+            user["username"],
+            values.reason,
+            proposal,
         )
 
     @app.get("/api/sales")
