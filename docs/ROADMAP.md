@@ -86,7 +86,7 @@ schéma 8. Tout le code est commité sur `master` (174 tests).
 |---|---|---|---|
 | 1 | ~~**Clore M0 : audit des variantes Foil** par observation de la finition et du tampon, en commençant par les 27 cartes signalées~~ **Fait le 13 octobre** | Peu coûteux ; M2 et le référentiel comparent leurs propositions à ces observations, elles doivent être justes | ½ jour |
 | 2 | ~~**M1.1 : premier cas de bout en bout**, EX Fantômes Holon en français : règle FR avec tampon, preuve FR, capture Cardmarket, saisie d’un relevé lié à la correspondance~~ **Fait le 13 octobre** | Valide le système de preuve sur le problème qui l’a motivé et mesure le coût réel d’une preuve | dans les 2 jours de M1.1 |
-| 3 | **M2 : vérifications indépendantes** — tranches 1 à 4 livrées les 13 et 14 octobre ; reste la double source pour la contrefaçon | Ne dépend plus de M1.1 ; nécessaire avant de saisir les six classeurs | 3 à 5 jours |
+| 3 | **M2 : vérifications indépendantes** — tranches 1 à 4 livrées les 13 et 14 octobre ; restent la double source pour la contrefaçon et la tranche 5 (DINOv2 à la saisie) | Ne dépend plus de M1.1 ; nécessaire avant de saisir les six classeurs | 3 à 5 jours |
 | 4 | **M3 : saisie des six classeurs**, avec extension du référentiel par impact (éditions chères et nombreuses d’abord) | Les observations sont prêtes ; chaque classeur alimente la file « Référentiel à compléter » | 3 à 5 jours |
 | 5 | **M4 puis M5** | Inchangés | 3 à 6 jours |
 
@@ -394,7 +394,45 @@ seuils. Un premier essai le même jour avait perdu 3 à 7 contrôles d’éditio
 sur des appels TCGdex échoués : l’image n’est pas en cause (DINOv2 rejoué
 seul : 22/27, 26/27, 14/26, comme le 13 octobre), mais ces échecs réseau
 font tomber les mesures sous leur seuil.
-Reste pour M2 : double source pour la contrefaçon.
+Reste pour M2 : double source pour la contrefaçon, puis la tranche 5.
+
+**Tranche 5, à faire : DINOv2 propose l’édition à la saisie quand le
+catalogue ne trouve rien.** Aujourd’hui, faute de numéro lu (ou mal lu), la
+recherche catalogue rend une liste vide et la saisie passe à la main. À la
+place, la fiche classerait la photo, par l’image seule, parmi toutes les
+impressions TCGdex qui portent le nom lu, dans la langue lue et en anglais.
+L’impression en tête serait proposée si son écart avec la deuxième atteint la
+marge du contrôle d’édition (0,05) ; en dessous, aucune proposition. Une
+personne confirme toujours l’édition, comme pour une proposition du
+catalogue. Ensuite le contrôle d’édition de la tranche 3 s’applique : ce
+n’est plus un avis indépendant pour cette carte, l’historique doit le dire.
+
+Mesure du 14 octobre, sur les lectures enregistrées des deux passages du banc
+(DINOv2 rejoué hors ligne, sans nouvel appel Gemini) :
+
+| Cartes sans résultat catalogue | 1er passage | 2e passage |
+|---|---|---|
+| Bonne édition proposée (écart ≥ 0,05) | 6/6 | 6/8 |
+| Bonne édition en tête, écart trop faible : pas de proposition | 0 | 1 (Clic, 0,007) |
+| Mauvaise édition en tête, écart trop faible : pas de proposition | 0 | 1 (PokéNav, 0,001 ; réimpression à l’illustration identique) |
+| Mauvaise édition proposée | 0 | 0 |
+
+Éditions retrouvées : Chamallot, Octillery, Barboach (italien), Zarbi K,
+Fossile Crâne, Méthode d’entraînement du Prof. Orme (écarts de 0,061 à
+0,300). Il faut une comparaison des noms tolérante : la recherche TCGdex
+exacte (`eq:`) distingue les majuscules et ne trouvait rien pour « Fossile
+crâne » ni pour « Zarbi [K] ». La mesure a donc utilisé une recherche par
+contenu, puis un filtre local qui ignore accents, casse, crochets et
+ponctuation. Même cause côté catalogue : `catalogue_candidates` compare les
+noms en distinguant les majuscules (« Fossile crâne » contre « Fossile
+Crâne »), à corriger dans la même tranche.
+
+À prévoir : la proposition à la saisie (avec l’option `vision`, sinon
+inchangé), la galerie par nom lu en partageant le code de `same_name_gallery`,
+une mesure « édition proposée par l’image » dans `bench_recognition.py app`
+(au moins 6/6 et 6/8, aucune mauvaise proposition), et des tests sur un nom lu
+avec une autre casse ou des crochets. Hors de portée : Baggiguane 10/12,
+dont la vraie impression (2013bw-10) n’a d’image nulle part.
 
 ### M3 — Saisie à l'échelle des six classeurs (3 à 5 jours)
 
