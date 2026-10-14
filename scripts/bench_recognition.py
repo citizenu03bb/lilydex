@@ -520,6 +520,11 @@ APP_THRESHOLDS = {
     # an abstention goes to a human. Minimum set by the first app run, 13 October.
     "art_holo_read": (18, 21),
     "stamp_ok": (21, 21),
+    # Printed text language from the finish reading (card-finish-v2), against
+    # the recorded language: replaces Tesseract (28/31 on 7 October, 3 false
+    # alarms). Minimum set by the first two app runs, 14 October: 31/31 each.
+    "text_language_ok": (31, 31),
+    "language_quiet": (31, 31),
     # Edition by image (DINOv2, deterministic), against every TCGdex print of the
     # same name, reprints with identical artwork included, at MARGIN 0.05.
     # Levels of 13 October; the 7 October gallery lacked those reprints.
@@ -535,6 +540,8 @@ APP_LABELS = {
     "art_holo_ok": "Illustration holo ou mate, quand elle tranche",
     "art_holo_read": "Illustration tranchée (sinon examen humain)",
     "stamp_ok": "Tampon (lecture de finition)",
+    "text_language_ok": "Langue du texte lue (lecture de finition)",
+    "language_quiet": "Langue de la fiche sans fausse alerte",
     "edition_image_ok": "Édition confirmée par l’image (DINOv2)",
     "edition_quiet": "Vraie édition sans fausse alerte",
     "edition_caught": "Édition voisine la plus proche signalée",
@@ -723,6 +730,13 @@ def app_scores(entries, run):
             "stamp_ok": None
             if truth["stamp"] is None
             else bool(reading) and bool(reading["stamp_text"].strip()) == truth["stamp"],
+            # Runs before card-finish-v2 did not read the text language.
+            "text_language_ok": None
+            if "text_language" not in (reading or {})
+            else reading["text_language"] == truth["language"],
+            "language_quiet": None
+            if "text_language" not in (reading or {})
+            else reading["text_language"] in (truth["language"], "unknown"),
             "wrong_proposal": contrary and costly,
             "wrong_low_stakes": contrary and not costly,
             "status": proposal.get("status", "échec"),

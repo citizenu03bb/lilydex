@@ -58,7 +58,7 @@ schéma 8. Tout le code est commité sur `master` (174 tests).
 | Question | Meilleure source | Résultat |
 |---|---|---|
 | Numéro de carte | Gemini | 25/31 (Tesseract : 4/31 sur découpes de 400 px) |
-| Langue | Gemini, Tesseract | 31/31 et 28/31 |
+| Langue | Gemini | 31/31 (Tesseract : 28/31, écarté le 14 octobre) |
 | Édition | Gemini + catalogue, rattrapé par DINOv2 | 21/30 seul ; DINOv2 retrouve la bonne parmi les cartes de même nom dans 24/27 cas |
 | Illustration holo ou mate | Gemini | 21/21 |
 | Tampon | Gemini | 21/21 |
@@ -86,7 +86,7 @@ schéma 8. Tout le code est commité sur `master` (174 tests).
 |---|---|---|---|
 | 1 | ~~**Clore M0 : audit des variantes Foil** par observation de la finition et du tampon, en commençant par les 27 cartes signalées~~ **Fait le 13 octobre** | Peu coûteux ; M2 et le référentiel comparent leurs propositions à ces observations, elles doivent être justes | ½ jour |
 | 2 | ~~**M1.1 : premier cas de bout en bout**, EX Fantômes Holon en français : règle FR avec tampon, preuve FR, capture Cardmarket, saisie d’un relevé lié à la correspondance~~ **Fait le 13 octobre** | Valide le système de preuve sur le problème qui l’a motivé et mesure le coût réel d’une preuve | dans les 2 jours de M1.1 |
-| 3 | **M2 : vérifications indépendantes** — tranche 1 (proposition de variante) livrée le 13 octobre | Ne dépend plus de M1.1 ; nécessaire avant de saisir les six classeurs | 3 à 5 jours |
+| 3 | **M2 : vérifications indépendantes** — tranches 1 à 4 livrées les 13 et 14 octobre ; reste la double source pour la contrefaçon | Ne dépend plus de M1.1 ; nécessaire avant de saisir les six classeurs | 3 à 5 jours |
 | 4 | **M3 : saisie des six classeurs**, avec extension du référentiel par impact (éditions chères et nombreuses d’abord) | Les observations sont prêtes ; chaque classeur alimente la file « Référentiel à compléter » | 3 à 5 jours |
 | 5 | **M4 puis M5** | Inchangés | 3 à 6 jours |
 
@@ -271,7 +271,9 @@ Livraison et limites : [PRINT_REFERENCE_IMPLEMENTATION.md](PRINT_REFERENCE_IMPLE
 - **Proposition de variante** : version standard selon TCGdex croisée avec
   l'illustration lue → Standard ou Foil proposé ; reverse possible et prime élevée
   → examen humain obligatoire.
-- Langue contrôlée par Tesseract ; désaccord → « à examiner ».
+- ~~Langue contrôlée par Tesseract~~ remplacé le 14 octobre par un contrôle de
+  cohérence : langue du texte imprimé lue avec la finition, comparée à la
+  fiche ; désaccord → « à examiner ».
 - Édition contrôlée par DINOv2 parmi les cartes de même nom, en tâche locale
   (GPU) ; désaccord avec le catalogue → « à examiner ».
 - Alerte de contrefaçon seulement si deux sources indépendantes concordent.
@@ -364,6 +366,35 @@ Piste : DINOv2 retrouve presque toutes les éditions que Gemini manque faute
 d’avoir lu le numéro (Fossile Crâne, Zarbi K, Octillery…) ; il pourrait
 proposer l’édition à la saisie quand le catalogue ne trouve rien.
 Reste pour M2 : Tesseract (langue), double source pour la contrefaçon.
+
+**Tranche 4, 14 octobre : Tesseract écarté, langue contrôlée par cohérence.**
+Une contre-expertise ne vaut que par les erreurs qu’elle rattrape. Gemini n’a
+manqué aucune langue au banc (31/31, puis 30/30 à chaque passage dans
+l’application) ; Tesseract (28/31) n’aurait rien rattrapé et aurait envoyé
+3 cartes françaises sur 31 dans « À examiner » sans raison (Clic, Octillery,
+Transfert, lues italien, anglais ou rien), souvent gagnant d’une seule voix
+quand il avait raison, sans japonais, et au prix d’une dépendance système.
+La recherche catalogue, stricte sur la langue, arrête déjà la plupart des
+erreurs : un nom français ne se trouve pas dans le catalogue anglais. Reste
+le cas des noms identiques d’une langue à l’autre. La lecture de finition
+(protocole `card-finish-v2`, déjà faite à chaque saisie) lit donc aussi la
+langue du texte imprimé hors nom ; un désaccord avec la fiche entre dans
+« À examiner » jusqu’à correction ou décision de garder la langue. Ce n’est
+pas une source indépendante (même modèle, autre appel, autre question), mais
+le contrôle ne coûte qu’environ 100 jetons de plus par carte (1 930 contre
+1 820 à 1 860). Détails : [APP.md](APP.md#lire-la-finition-sur-la-photo-m2).
+
+| Mesure (banc rejoué sur l’application, 14 oct.) | 1er passage | 2e passage |
+|---|---|---|
+| Langue du texte lue juste | 31/31 | 31/31 |
+| Langue de la fiche sans fausse alerte | 31/31 | 31/31 |
+
+Seuils fixés à ce niveau. Les autres mesures restent au-dessus de leurs
+seuils. Un premier essai le même jour avait perdu 3 à 7 contrôles d’édition
+sur des appels TCGdex échoués : l’image n’est pas en cause (DINOv2 rejoué
+seul : 22/27, 26/27, 14/26, comme le 13 octobre), mais ces échecs réseau
+font tomber les mesures sous leur seuil.
+Reste pour M2 : double source pour la contrefaçon.
 
 ### M3 — Saisie à l'échelle des six classeurs (3 à 5 jours)
 

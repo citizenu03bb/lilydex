@@ -106,7 +106,7 @@ class VariantDecision(ConditionRequest):
     reason: str = Field(min_length=1, max_length=1000)
 
 
-class EditionKeep(ConditionRequest):
+class KeepRecorded(ConditionRequest):
     reason: str = Field(min_length=1, max_length=1000)
 
 
@@ -758,6 +758,13 @@ def create_app(
                     store.category_snapshot(db, card),
                     card["valuation"],
                 )
+                latest["language_kept"] = any(
+                    json.loads(e[0]).get("verification_id") == latest["id"]
+                    for e in db.execute(
+                        "SELECT after_json FROM events WHERE copy_id=? AND kind='language-validation'",
+                        (copy_id,),
+                    )
+                )
             card["edition_checks"] = check_rows(db, card, "edition")
             card["edition_check_available"] = edition_checks.available
             if card["edition_checks"] and not card["edition_checks"][0]["stale"]:
@@ -1364,6 +1371,14 @@ def create_app(
             proposal,
         )
 
+    @app.post("/api/copies/{copy_id}/variant-checks/{check_id}/keep-language")
+    def keep_language(
+        copy_id: str, check_id: str, values: KeepRecorded, user=Depends(editor)
+    ):
+        return variant_checks.keep_language(
+            copy_id, check_id, values.expected_version, user["username"], values.reason
+        )
+
     @app.post("/api/copies/{copy_id}/edition-checks", status_code=201)
     def check_edition(copy_id: str, values: ConditionRequest, user=Depends(editor)):
         if not edition_checks.available:
@@ -1380,7 +1395,7 @@ def create_app(
 
     @app.post("/api/copies/{copy_id}/edition-checks/{check_id}/keep")
     def keep_edition(
-        copy_id: str, check_id: str, values: EditionKeep, user=Depends(editor)
+        copy_id: str, check_id: str, values: KeepRecorded, user=Depends(editor)
     ):
         return edition_checks.keep(
             copy_id, check_id, values.expected_version, user["username"], values.reason

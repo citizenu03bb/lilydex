@@ -12,7 +12,11 @@ from test_pricing import CARD
 
 from pokeprice.inventory import Store
 from pokeprice.inventory_backup import export_data
-from pokeprice.verification import propose_variant, reading_conflicts
+from pokeprice.verification import (
+    language_conflicts,
+    propose_variant,
+    reading_conflicts,
+)
 from pokeprice.webapp import create_app
 
 
@@ -21,6 +25,7 @@ def reading(**fields):
         "artwork": "holo",
         "background_shine": "not_visible",
         "stamp_text": "",
+        "text_language": "en",
         "photo_quality": "adequate",
         "notes": "Motif holographique visible dans l’illustration.",
         **fields,
@@ -149,8 +154,24 @@ def test_conflicts_compare_the_reading_with_recorded_observations():
     )
 
 
+def test_language_conflict_needs_two_known_languages_that_differ():
+    assert language_conflicts(card(language="en"), reading(text_language="fr")) == [
+        "Le texte imprimé est lu en français ; la fiche indique anglais."
+    ]
+    assert not language_conflicts(card(language="fr"), reading(text_language="fr"))
+    assert not language_conflicts(card(language="en"), reading(text_language="unknown"))
+    assert not language_conflicts(card(language="unknown"), reading(text_language="fr"))
+    old = reading()
+    del old["text_language"]  # card-finish-v1 did not read the text language.
+    assert not language_conflicts(card(language="en"), old)
+    proposal = propose_variant(
+        card(language="en"), reading(text_language="ja"), ORIGINAL_HOLO
+    )
+    assert proposal["language_conflicts"] and not proposal["conflicts"]
+
+
 class Reader:
-    source, model, protocol = "fake", "fake-model", "card-finish-v1"
+    source, model, protocol = "fake", "fake-model", "card-finish-v2"
 
     def __init__(self):
         self.result, self.sent = reading(), []
@@ -305,6 +326,57 @@ def test_disagreement_enters_the_review_queue_until_a_later_confirmation(app):
     ).raise_for_status()
     row = client.get("/api/copies").json()["items"][0]
     assert "variant_reading" not in [r["code"] for r in row["valuation"]["reasons"]]
+
+
+def test_language_disagreement_enters_review_until_kept_or_corrected(app):
+    client, reader = app
+    card = photographed(client)  # Recorded in English.
+    reader.result = reading(text_language="fr")
+    result = check(client, card)
+    assert result["proposal"]["language_conflicts"]
+    row = client.get("/api/copies").json()["items"][0]
+    reasons = [r["code"] for r in row["valuation"]["reasons"]]
+    assert "language_reading" in reasons and "variant_reading" not in reasons
+    kept = client.post(
+        f"/api/copies/{card['id']}/variant-checks/{result['id']}/keep-language",
+        json={"expected_version": card["version"], "reason": "Texte anglais vérifié"},
+    )
+    assert kept.status_code == 200, kept.text
+    detail = client.get(f"/api/copies/{card['id']}").json()
+    assert detail["variant_checks"][0]["language_kept"]
+    event = next(e for e in detail["history"] if e["kind"] == "language-validation")
+    assert json.loads(event["after_json"])["verification_id"] == result["id"]
+    row = client.get("/api/copies").json()["items"][0]
+    assert "language_reading" not in [r["code"] for r in row["valuation"]["reasons"]]
+    # A newer reading that still disagrees raises it again; correcting settles it.
+    result = check(client, detail)
+    row = client.get("/api/copies").json()["items"][0]
+    assert "language_reading" in [r["code"] for r in row["valuation"]["reasons"]]
+    client.patch(
+        f"/api/copies/{card['id']}",
+        json={
+            "expected_version": detail["version"],
+            "reason": "Langue corrigée",
+            "language": "fr",
+        },
+    ).raise_for_status()
+    row = client.get("/api/copies").json()["items"][0]
+    assert "language_reading" not in [r["code"] for r in row["valuation"]["reasons"]]
+
+
+def test_replaced_photo_drops_the_language_disagreement(app):
+    client, reader = app
+    card = photographed(client)
+    reader.result = reading(text_language="fr")
+    result = check(client, card)
+    card = attach(client, card, (200, 30, 30))
+    row = client.get("/api/copies").json()["items"][0]
+    assert "language_reading" not in [r["code"] for r in row["valuation"]["reasons"]]
+    response = client.post(
+        f"/api/copies/{card['id']}/variant-checks/{result['id']}/keep-language",
+        json={"expected_version": card["version"], "reason": "Texte anglais vérifié"},
+    )
+    assert response.status_code == 409
 
 
 def test_reader_role_cannot_request_a_reading(app):

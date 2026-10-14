@@ -1356,6 +1356,81 @@ function renderEditionCheck(parent, card, previous = null) {
   if (previous) previous.replaceWith(panel);
   else parent.append(panel);
 }
+const languageNames = {
+  fr: "français",
+  en: "anglais",
+  ja: "japonais",
+  de: "allemand",
+  es: "espagnol",
+  it: "italien",
+  pt: "portugais",
+  ko: "coréen",
+  zh: "chinois",
+};
+function renderLanguageCheck(panel, card, check, proposal, error) {
+  // Readings made before card-finish-v2 do not report the text language.
+  if (!check.result.text_language) return;
+  panel.append(el("h4", "Langue du texte"));
+  panel.append(
+    el(
+      "p",
+      `Texte imprimé (hors nom) : ${languageNames[check.result.text_language] || "langue non lue"}`,
+      "help",
+    ),
+  );
+  const conflicts = proposal.language_conflicts || [];
+  if (!conflicts.length || check.stale) return;
+  if (check.language_kept) {
+    panel.append(
+      el("p", "Langue de la fiche conservée après examen de la carte.", "help"),
+    );
+    return;
+  }
+  const list = el("ul", undefined, "price-warnings");
+  for (const conflict of conflicts) list.append(el("li", conflict));
+  panel.append(list);
+  if (!editAllowed() || card.deleted_at) return;
+  const keep = el("form", undefined, "condition-validation");
+  const reasonLabel = el("label", "Motif");
+  const reason = el("input");
+  reason.required = true;
+  reason.maxLength = 1000;
+  reason.value = "Langue vérifiée sur la carte malgré la lecture";
+  reasonLabel.append(reason);
+  const save = el("button", "Garder la langue de la fiche");
+  keep.append(
+    el(
+      "p",
+      "Pour corriger la langue, modifiez la fiche ; le contrôle sera recalculé.",
+      "help",
+    ),
+    reasonLabel,
+    save,
+  );
+  keep.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (save.disabled) return;
+    save.disabled = true;
+    error.textContent = "";
+    try {
+      await api(`/copies/${card.id}/variant-checks/${check.id}/keep-language`, {
+        method: "POST",
+        body: JSON.stringify({
+          expected_version: card.version,
+          reason: reason.value,
+        }),
+      });
+      await loadCards();
+      await openDetail(card.id);
+      toast("Langue conservée ; la carte quitte « À examiner ».");
+    } catch (e) {
+      error.textContent = e.message;
+    } finally {
+      save.disabled = false;
+    }
+  });
+  panel.append(keep);
+}
 const finishLabels = {
   non_holo: "Non holo (mate)",
   holo: "Holo dans l’illustration",
@@ -1365,8 +1440,8 @@ const finishLabels = {
 };
 function renderVariantCheck(parent, card, previous = null) {
   const panel = el("section", undefined, "condition-panel");
-  panel.setAttribute("aria-label", "Vérification de la finition");
-  panel.append(el("h3", "Vérification de la finition"));
+  panel.setAttribute("aria-label", "Vérification de la finition et de la langue");
+  panel.append(el("h3", "Vérification de la finition et de la langue"));
   panel.append(
     el(
       "p",
@@ -1381,7 +1456,7 @@ function renderVariantCheck(parent, card, previous = null) {
     panel.append(
       el(
         "p",
-        "Cette action transmet la photo du recto à Gemini. La lecture propose une finition ; elle ne modifie ni la fiche ni le prix.",
+        "Cette action transmet la photo du recto à Gemini. La lecture propose une finition et contrôle la langue du texte ; elle ne modifie ni la fiche ni le prix.",
         "help",
       ),
     );
@@ -1537,6 +1612,7 @@ function renderVariantCheck(parent, card, previous = null) {
       });
       panel.append(decision);
     }
+    renderLanguageCheck(panel, card, check, proposal, error);
     if (card.variant_checks.length > 1) {
       const history = el("details");
       history.append(

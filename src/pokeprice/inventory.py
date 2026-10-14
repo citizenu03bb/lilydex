@@ -638,9 +638,10 @@ class Store:
                 del context["sale-estimate"][copy_id]
         context["market-product"] = Store.market_verdicts(db)
         from .edition_check import edition_conflicts
-        from .verification import latest_conflicts
+        from .verification import latest_conflicts, latest_language_conflicts
 
         context["variant-readings"] = latest_conflicts(db)
+        context["language-readings"] = latest_language_conflicts(db)
         context["edition-readings"] = edition_conflicts(db)
         context["catalog"] = {}
         context["variant-catalogue"] = {}
@@ -692,6 +693,15 @@ class Store:
                 {
                     "code": "edition_reading",
                     "label": "Contrôle de l’édition en désaccord : " + conflicts[0],
+                }
+            ]
+            result["needs_review"] = True
+        conflicts = context.get("language-readings", {}).get(card["id"])
+        if conflicts:
+            result["reasons"] = result["reasons"] + [
+                {
+                    "code": "language_reading",
+                    "label": "Langue du texte en désaccord : " + conflicts[0],
                 }
             ]
             result["needs_review"] = True

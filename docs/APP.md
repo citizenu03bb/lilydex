@@ -326,8 +326,9 @@ les reverse uniquement (`isReverseHolo=Y`). Ces filtres ont été vérifiés le
 ### Lire la finition sur la photo (M2)
 
 Dans la fiche, **Lire la finition** transmet la photo du recto à Gemini, qui
-répond à trois questions : illustration holo ou mate, fond brillant hors de
-l’illustration (reverse), texte d’un tampon. La lecture est enregistrée avec la
+répond à quatre questions : illustration holo ou mate, fond brillant hors de
+l’illustration (reverse), texte d’un tampon, langue du texte imprimé (attaques,
+talents, description, hors nom de la carte). La lecture est enregistrée avec la
 photo lue, le modèle, la version du protocole et les jetons consommés. Elle ne
 modifie ni la fiche ni le prix.
 
@@ -351,6 +352,17 @@ devient obsolète dès que la photo du recto change.
 Une lecture en désaccord avec la fiche (illustration holo contre fiche mate ou
 reverse, tampon contraire) place la carte dans « À examiner », même sous le
 seuil, jusqu’à une confirmation physique postérieure à cette lecture.
+
+**Langue du texte.** Si la langue lue diffère de celle de la fiche (« Le texte
+imprimé est lu en français ; la fiche indique anglais »), la carte entre dans
+« À examiner ». Corriger la langue de la fiche lève l’alerte ; **Garder la
+langue de la fiche** la lève pour cette lecture, avec un motif inscrit à
+l’historique. Une langue non lue (texte illisible, énergie de base) ne
+déclenche rien, pas plus que les lectures antérieures à ce contrôle
+(protocole `card-finish-v1`). Ce contrôle compare deux lectures Gemini
+distinctes, ou une langue saisie à la main : il vise surtout les noms
+identiques d’une langue à l’autre (Pikachu), que la recherche catalogue,
+stricte sur la langue, ne départage pas.
 
 **Lecture automatique à la saisie.** Avec `pokeprice-manage serve`, chaque
 nouvel exemplaire enregistré avec une photo du recto (saisie à l’unité ou en
