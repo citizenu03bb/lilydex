@@ -262,8 +262,11 @@ class GeminiVisionProvider:
 
             logging.getLogger("google_genai").setLevel(logging.ERROR)
             from google import genai
+            from google.genai import types
 
-            self.client = genai.Client()
+            # Without a timeout, a stalled upload blocks the scan forever
+            # (15 October); a timed-out reading is retried like any failure.
+            self.client = genai.Client(http_options=types.HttpOptions(timeout=120_000))
         except ImportError:
             raise ImportError(
                 "google-genai is not installed. Run 'uv pip install google-genai python-dotenv' to use cloud backend."

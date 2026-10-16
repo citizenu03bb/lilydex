@@ -368,3 +368,16 @@ def test_cover_does_not_take_a_page_number(tmp_path, monkeypatch, client_factory
     df = read_report(args.output)
     assert list(zip(df.Page, df.Fichier_Image)) == [(1, "1-first.png"), (2, "2-second.png")]
 
+
+def test_progress_line_after_each_photo(tmp_path, monkeypatch, client_factory, capsys):
+    args = scan_args(tmp_path)
+    provider = SimpleNamespace(model="mock", extract_card=lambda im: known())
+    stub_setup(monkeypatch, provider, client_factory([card("set-1", "Pikachu", 1, 100, 50)]))
+    assert cli.cmd_scan(args) == 0
+    line = next(l for l in capsys.readouterr().out.splitlines() if l.startswith("⏱️"))
+    assert "1/1 photos, 4 lectures, 0 énergies sans lecture" in line and "reste ~0 min" in line
+
+
+def test_duration_format():
+    assert cli.duration(42) == "1 min"
+    assert cli.duration(3 * 3600 + 5 * 60) == "3 h 05 min"

@@ -202,6 +202,7 @@ def cmd_scan(args):
         }
 
     interrupted = False
+    started, readings, skipped = time.monotonic(), 0, 0
     try:
         covers = 0
         for index, path in enumerate(images, 1):
@@ -248,7 +249,9 @@ def cmd_scan(args):
                 gated = gate.check(crop) if gate else None
                 if gated:
                     result = gated_result(gated)
+                    skipped += 1
                 for attempt in range(0 if gated else getattr(args, "retries", 2) + 1):
+                    readings += 1
                     try:
                         result = provider.extract_card(crop)
                     except Exception as exc:
@@ -332,6 +335,13 @@ def cmd_scan(args):
                 print(
                     f"  #{pos} {result.name or 'À identifier'} : {record.get('verification_note', '')}"
                 )
+            elapsed = time.monotonic() - started
+            left = elapsed / index * (len(images) - index)
+            print(
+                f"⏱️  {index}/{len(images)} photos, {readings} lectures, "
+                f"{skipped} énergies sans lecture, {duration(elapsed)} écoulées, "
+                f"reste ~{duration(left)}"
+            )
     except KeyboardInterrupt:
         interrupted = True
         print("Scan interrompu : résultats partiels conservés.")
@@ -444,6 +454,11 @@ def cmd_library(args):
         f"Bibliothèque : {stats['copies']} exemplaires, {stats['editions']} éditions identifiées, {stats['albums']} albums."
     )
     print(f"HTML : {args.output}.html")
+
+
+def duration(seconds):
+    minutes = round(seconds / 60)
+    return f"{minutes // 60} h {minutes % 60:02d} min" if minutes >= 60 else f"{minutes} min"
 
 
 def main():
@@ -606,6 +621,9 @@ def main():
     )
     library_p.set_defaults(func=cmd_library)
 
+    # Progress must reach a redirected log as it happens, not at exit.
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(line_buffering=True)
     args = parser.parse_args()
     sys.exit(args.func(args) or 0)
 
