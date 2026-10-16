@@ -44,6 +44,7 @@ from .pricing import (
     fetch_catalogue_card,
 )
 from .listings import Listings, Storefront
+from .reservations import Reservations
 from .variant_catalogue import VariantCatalogue
 from .variant_pricing import category
 from .edition_check import EditionCheckService, propose_edition
@@ -112,7 +113,8 @@ class KeepRecorded(ConditionRequest):
 
 
 class Credentials(Model):
-    username: str = Field(min_length=1, max_length=80, pattern=r"^[\w.@-]+$")
+    # E-mail addresses serve as client usernames, "+" included.
+    username: str = Field(min_length=1, max_length=254, pattern=r"^[\w.@+-]+$")
     password: str = Field(min_length=10, max_length=256)
 
 
@@ -264,6 +266,31 @@ def intake_values(values):
     for key in ("name", "number", "set_name", "language", "reason"):
         data[key] = getattr(values, key)
     return data
+
+
+class Signup(Model):
+    email: str = Field(min_length=3, max_length=254)
+    display_name: str = Field(min_length=1, max_length=80)
+    password: str = Field(min_length=10, max_length=256)
+    consent: Literal[True]
+
+
+class RequestCreate(Model):
+    listing_ids: list[str] = Field(min_length=1, max_length=50)
+    message: str = Field(default="", max_length=1000)
+
+
+class RequestVersion(Model):
+    expected_version: int = Field(ge=1)
+
+
+class RequestAccept(RequestVersion):
+    listing_ids: list[str] = Field(min_length=1, max_length=50)
+
+
+class ClientPatch(Model):
+    status: Literal["active", "refused"]
+    disabled: bool = False
 
 
 class ListingPrice(Model):
@@ -506,6 +533,11 @@ def create_app(
             raise HTTPException(403, "Ce compte n'a pas accès à la gestion.")
         return user
 
+    def client(user=Depends(current_user)):
+        if user["role"] != "client":
+            raise HTTPException(403, "Espace réservé aux comptes clients.")
+        return user
+
     def editor(user=Depends(staff)):
         if user["role"] not in ("admin", "editor"):
             raise HTTPException(403, "Ce compte permet uniquement la consultation.")
@@ -582,6 +614,69 @@ def create_app(
         _=Depends(public_rate),
     ):
         return storefront.search(q, language, cents(max_eur), sort, limit, offset)
+
+    reservations = Reservations(store, storefront)
+    signups = {}
+
+    @app.post("/api/public/signup", status_code=202)
+    def signup(values: Signup, request: Request, _=Depends(public_rate)):
+        key = request.client.host if request.client else "local"
+        timestamp = time.monotonic()
+        with public_lock:
+            recent = [t for t in signups.get(key, []) if timestamp - t < 3600]
+            if len(recent) >= 5:
+                raise HTTPException(429, "Trop d’inscriptions depuis cette adresse. Réessayez plus tard.")
+            signups[key] = recent + [timestamp]
+        # Same answer and same hashing cost whether the address is known or not.
+        reservations.signup(values.email, values.display_name, password_hash(values.password))
+        return {
+            "detail": "Inscription enregistrée. Le vendeur valide chaque compte : "
+            "vous pourrez vous connecter une fois le vôtre activé."
+        }
+
+    @app.get("/api/me")
+    def me(user=Depends(client)):
+        with store.connect() as db:
+            row = db.execute(
+                "SELECT email,display_name FROM users WHERE id=?", (user["id"],)
+            ).fetchone()
+        return dict(row)
+
+    @app.get("/api/me/requests")
+    def my_requests(user=Depends(client)):
+        return reservations.mine(user["id"])
+
+    @app.post("/api/me/requests", status_code=201)
+    def request_create(values: RequestCreate, user=Depends(client)):
+        return reservations.create(user["id"], values.listing_ids, values.message)
+
+    @app.post("/api/me/requests/{request_id}/cancel")
+    def request_cancel(request_id: str, values: RequestVersion, user=Depends(client)):
+        return reservations.cancel(user["id"], request_id, values.expected_version)
+
+    @app.get("/api/clients")
+    def client_index(user=Depends(admin)):
+        return reservations.clients()
+
+    @app.patch("/api/clients/{client_id}")
+    def client_patch(client_id: str, values: ClientPatch, user=Depends(admin)):
+        return reservations.set_client(client_id, values.status, values.disabled)
+
+    @app.get("/api/requests")
+    def request_index(user=Depends(staff)):
+        return reservations.all()
+
+    @app.post("/api/requests/{request_id}/accept")
+    def request_accept(request_id: str, values: RequestAccept, user=Depends(editor)):
+        return reservations.accept(
+            request_id, values.expected_version, values.listing_ids, user["username"]
+        )
+
+    @app.post("/api/requests/{request_id}/refuse")
+    def request_refuse(request_id: str, values: CopyRemoval, user=Depends(editor)):
+        return reservations.refuse(
+            request_id, values.expected_version, user["username"], values.reason
+        )
 
     @app.get("/api/public/listings/{listing_id}")
     def public_listing(listing_id: str, _=Depends(public_rate)):
@@ -677,7 +772,8 @@ def create_app(
             return [
                 dict(r)
                 for r in db.execute(
-                    "SELECT id,username,role,disabled,created_at FROM users ORDER BY username"
+                    # Storefront clients have their own screen (/api/clients).
+                    "SELECT id,username,role,disabled,created_at FROM users WHERE role!='client' ORDER BY username"
                 )
             ]
 
@@ -692,7 +788,9 @@ def create_app(
     @app.patch("/api/users/{user_id}")
     def user_patch(user_id: str, values: UserPatch, user=Depends(admin)):
         with store.connect(write=True) as db:
-            row = db.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
+            row = db.execute(
+                "SELECT * FROM users WHERE id=? AND role!='client'", (user_id,)
+            ).fetchone()
             if not row:
                 raise KeyError("Compte introuvable.")
             if (

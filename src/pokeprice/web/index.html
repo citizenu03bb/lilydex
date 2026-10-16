@@ -232,6 +232,14 @@
               Créer un lot
             </button>
           </div>
+          <section class="panel storefront-requests">
+            <h2>Demandes de la vitrine <small id="requests-count"></small></h2>
+            <p class="help">
+              Une demande ne bloque rien : accepter les cartes cochées crée un
+              lot réservé, puis contactez le client par e-mail.
+            </p>
+            <div id="requests-list"></div>
+          </section>
           <div id="sales-list" class="sales-list"></div>
         </section>
         <section id="settings-view" hidden>
@@ -280,6 +288,14 @@
                 <p id="user-message" role="status"></p>
               </form>
               <div id="users-list"></div>
+            </section>
+            <section class="panel">
+              <h2>Comptes clients de la vitrine</h2>
+              <p>
+                Un client inscrit attend votre validation avant de pouvoir
+                envoyer une demande de réservation.
+              </p>
+              <div id="clients-list"></div>
             </section>
             <section class="panel">
               <h2>Nouvel album</h2>

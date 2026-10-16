@@ -10,6 +10,7 @@ from test_condition_assessment import picture
 from test_intake import values
 from test_pricing import CARD
 
+from pokeprice.inventory import SCHEMA_VERSION
 from pokeprice.inventory import Store
 from pokeprice.inventory_backup import export_data
 from pokeprice.verification import (
@@ -413,13 +414,13 @@ def test_migration_keeps_a_copy_of_the_previous_schema(app):
     store = client.app.state.store
     schema13(store)
     Store(store.root)
-    backups = list((store.root.parent / "backups").glob("before-schema16-from13-*"))
+    backups = list((store.root.parent / "backups").glob(f"before-schema{SCHEMA_VERSION}-from13-*"))
     assert len(backups) == 1 and backups[0].stat().st_mode & 0o777 == 0o600
     with sqlite3.connect(backups[0]) as db:
         assert db.execute("PRAGMA user_version").fetchone()[0] == 13
         assert db.execute("SELECT version FROM copies").fetchone()[0] == card["version"]
     with store.connect() as db:
-        assert db.execute("PRAGMA user_version").fetchone()[0] == 16
+        assert db.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
     Store(store.root)  # Already current: no further copy.
     assert len(list((store.root.parent / "backups").glob("before-*"))) == 1
 

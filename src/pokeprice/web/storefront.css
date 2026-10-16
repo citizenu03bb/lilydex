@@ -204,3 +204,76 @@ dialog::backdrop {
   border-top: 1px solid var(--line);
   margin-top: 12px;
 }
+.account {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.account button,
+.detail-action button,
+.stack button,
+.lines button,
+.request button {
+  min-height: 38px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--green);
+  background: #fff;
+  color: var(--green);
+  cursor: pointer;
+}
+button.primary {
+  background: var(--green);
+  color: #fff;
+}
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.stack {
+  display: grid;
+  gap: 12px;
+}
+.stack textarea {
+  width: 100%;
+  font: inherit;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.check {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--ink);
+}
+.check input {
+  width: auto;
+  min-height: 0;
+}
+.help {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.notice {
+  color: var(--green);
+  font-weight: 600;
+}
+.lines {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.lines li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+.request + .request {
+  border-top: 1px solid var(--line);
+  margin-top: 12px;
+}

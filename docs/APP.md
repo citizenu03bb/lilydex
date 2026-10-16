@@ -501,6 +501,34 @@ vitrine et de ses photos. Les lectures anonymes sont limitées à 300 requêtes 
 minute et par adresse. La page porte `noindex` tant que l'indexation par les
 moteurs de recherche n'est pas décidée.
 
+### Inscription des clients et demandes de réservation
+
+Sur la vitrine, **Créer un compte** demande un nom, un e-mail, un mot de passe
+(10 caractères au moins) et l'accord sur l'utilisation des données. Le compte
+reste **en attente** : l'administrateur le valide ou le refuse dans **Gestion →
+Comptes et albums → Comptes clients de la vitrine**, où il peut aussi le
+désactiver. La réponse à l'inscription est la même qu'une adresse soit déjà
+connue ou non ; cinq inscriptions par heure et par adresse au plus. Un client
+se connecte avec son e-mail ; il n'apparaît jamais dans la liste des comptes de
+l'équipe et ne peut pas recevoir un rôle de gestion.
+
+Un client connecté ajoute des cartes à **Ma demande** (gardée dans son
+navigateur), écrit un message (envoi, remise en main propre) et l'envoie. **Une
+demande ne bloque rien.** Il suit ses demandes dans **Mes demandes** et peut
+annuler une demande encore en attente ; dix demandes en attente au plus par
+client ; une demande sans réponse expire au bout de 7 jours.
+
+Dans **Ventes**, le panneau **Demandes de la vitrine** liste les demandes,
+celles en attente d'abord, avec l'e-mail, le message et les exemplaires.
+**Accepter les cartes cochées** crée un lot « Vitrine · nom du client »,
+canal Vitrine, au prix figé lors de la demande, et le réserve aussitôt ; les
+cartes non cochées sont « non retenues ». Si un exemplaire vient d'être réservé
+ailleurs, l'acceptation échoue sans laisser de brouillon. **Refuser la
+demande** demande un motif, visible par le client. Ensuite, contacter le client
+depuis sa boîte mail pour le paiement et l'envoi : le lot suit le circuit
+habituel, et le client voit son statut (réservée, vendue, expédiée…). Chaque
+décision est inscrite à l'historique des exemplaires.
+
 ## Saisie assistée par photo
 
 Depuis **Ajouter une carte**, utiliser **Prendre une photo** ou **Téléverser une

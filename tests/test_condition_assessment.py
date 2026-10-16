@@ -10,6 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 from PIL import Image, ImageDraw
 
+from pokeprice.inventory import SCHEMA_VERSION
 from pokeprice.condition_assessment import ConditionService, read_condition
 from pokeprice.inventory import Conflict, Store
 from pokeprice.inventory_backup import backup, export_data, export_html, restore_backup
@@ -346,7 +347,7 @@ def test_schema4_migration_preserves_existing_copy(collection):
         db.execute("PRAGMA user_version=4")
     migrated = Store(app.state.store.root)
     with migrated.connect() as db:
-        assert db.execute("PRAGMA user_version").fetchone()[0] == 16
+        assert db.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
         new = migrated.get(db, card["id"])
         assert all(
             new[k] == v

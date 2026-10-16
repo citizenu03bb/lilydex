@@ -6,6 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 from test_intake import values
 
+from pokeprice.inventory import SCHEMA_VERSION
 from pokeprice import pricing
 from pokeprice.inventory import Store
 from pokeprice.pricing import (
@@ -240,7 +241,7 @@ def test_stamp_is_a_searchable_variant_that_resets_the_reference(client):
 
     store = client.app.state.store
     with sqlite3.connect(store.database) as db:
-        assert db.execute("PRAGMA user_version").fetchone()[0] == 16
+        assert db.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
     card = confirmed(client, foil=True, position=6, stamp="EX Fantômes Holon")
     assert card["stamp"] == "EX Fantômes Holon"
     priced = client.post(

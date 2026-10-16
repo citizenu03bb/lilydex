@@ -177,11 +177,11 @@ def test_schema_16_adds_listings_without_touching_the_collection(tmp_path):
         before = db.execute("SELECT id,version FROM copies ORDER BY id").fetchall()
     Store(store.root)
     with sqlite3.connect(store.database) as db:
-        assert db.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION == 16
+        assert db.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION >= 16
         assert db.execute("SELECT id,version FROM copies ORDER BY id").fetchall() == before
         db.execute("INSERT INTO listings(id,price_cents,price_mode,published_at,published_by,updated_at) VALUES('a',60,'manual','t','pat','t')")
         db.execute("INSERT INTO listings(id,price_cents,price_mode,published_at,published_by,updated_at) VALUES('b',60,'manual','t','pat','t')")
         db.execute("INSERT INTO listing_items(listing_id,copy_id) VALUES('a',?)", before[0][:1])
         with pytest.raises(sqlite3.IntegrityError):
             db.execute("INSERT INTO listing_items(listing_id,copy_id) VALUES('b',?)", before[0][:1])
-    assert list((tmp_path / "backups").glob("before-schema16-from15-*.sqlite3"))
+    assert list((tmp_path / "backups").glob("before-schema*-from15-*.sqlite3"))

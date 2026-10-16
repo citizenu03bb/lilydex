@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 from test_intake import values
 from test_print_reference import SOURCE_DOCUMENT, reference_data
 
+from pokeprice.inventory import SCHEMA_VERSION
 from pokeprice.inventory import Conflict, Store
 from pokeprice.inventory_backup import backup, export_csv, export_data, restore_backup
 from pokeprice.print_reference import validate_ruleset
@@ -421,7 +422,7 @@ def test_schema11_observations_only_migrates_and_restores_without_losing_copy(
     assert state(restored, card["id"]) == before
     assert restored.summary()["copies"] == 1
     with restored.connect() as db:
-        assert db.execute("PRAGMA user_version").fetchone()[0] == 16
+        assert db.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
         assert db.execute("SELECT count(*) FROM reference_quotes").fetchone()[0] == 0
 
 
@@ -434,7 +435,7 @@ def test_schema11_with_bound_journal_migrates_without_recreating_it(client):
     migrated = Store(store.root)
     assert state(migrated, card["id"]) == before
     with migrated.connect() as db:
-        assert db.execute("PRAGMA user_version").fetchone()[0] == 16
+        assert db.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
 
 
 def test_readers_cannot_record_decisions_or_disputes(client):
@@ -500,7 +501,7 @@ def test_schema12_decisions_receive_their_recorded_engine(client):
     migrated = Store(store.root)
     assert migrated.reference.replay(recorded["id"])["status"] == "reproduced"
     with migrated.connect() as db:
-        assert db.execute("PRAGMA user_version").fetchone()[0] == 16
+        assert db.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
 
 
 def test_source_document_is_archived_once_by_content_hash(tmp_path):

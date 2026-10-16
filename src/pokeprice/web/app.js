@@ -2148,7 +2148,133 @@ async function openDetail(id) {
   $("detail-body").append(layout);
   if (!$("detail-dialog").open) $("detail-dialog").showModal();
 }
+// Storefront requests: nothing is reserved until a person accepts some cards.
+async function loadRequests() {
+  const box = $("requests-list");
+  let requests;
+  try {
+    requests = await api("/requests");
+  } catch (e) {
+    box.replaceChildren(el("p", e.message, "error"));
+    return;
+  }
+  box.replaceChildren();
+  const open = requests.filter((r) => r.status === "sent");
+  $("requests-count").textContent = open.length
+    ? `${open.length} en attente`
+    : "Aucune demande en attente";
+  for (const request of requests) {
+    const card = el("article", undefined, "sale-card");
+    card.append(
+      el("h3", `${request.display_name || request.email} · ${money(request.total_cents)} · ${request.status_label}`),
+      el("p", `${request.email} · le ${new Date(request.created_at).toLocaleDateString("fr-FR")}`, "sale-meta"),
+    );
+    if (request.message) card.append(el("p", `Message : ${request.message}`));
+    if (request.decision) card.append(el("p", `Réponse : ${request.decision}`, "sale-meta"));
+    const list = el("ul", undefined, "request-lines");
+    const checks = [];
+    const outcomes = { pending: "en attente", accepted: "acceptée", refused: "non retenue", unavailable: "plus disponible" };
+    const stocks = { available: "", reserved: " (réservée)", sold: " (vendue)" };
+    for (const item of request.items) {
+      const line = el("li");
+      const copies = item.copies
+        .map((c) => `${c.name} ${c.number}${stocks[c.stock_state] ?? ""}`)
+        .join(", ");
+      if (request.status === "sent" && editAllowed()) {
+        const label = el("label", undefined, "check-label"),
+          check = el("input");
+        check.type = "checkbox";
+        check.checked = item.available;
+        check.disabled = !item.available;
+        check.value = item.listing_id;
+        checks.push(check);
+        label.append(check, document.createTextNode(`${item.label} · ${money(item.price_cents)}${item.available ? "" : " · plus disponible"}`));
+        line.append(label, el("small", copies));
+      } else {
+        line.append(el("span", `${item.label} · ${money(item.price_cents)} · ${outcomes[item.outcome]}`), el("small", copies));
+      }
+      list.append(line);
+    }
+    card.append(list);
+    if (request.status === "sent" && editAllowed()) {
+      const accept = el("button", "Accepter les cartes cochées", "primary"),
+        refuse = el("button", "Refuser la demande");
+      accept.type = refuse.type = "button";
+      accept.addEventListener("click", async () => {
+        const chosen = checks.filter((c) => c.checked).map((c) => c.value);
+        if (!chosen.length) return toast("Cochez au moins une carte.");
+        try {
+          await api(`/requests/${request.id}/accept`, {
+            method: "POST",
+            body: JSON.stringify({ expected_version: request.version, listing_ids: chosen }),
+          });
+          toast(`Demande acceptée : lot réservé. Contactez ${request.email} pour le paiement et l’envoi.`);
+          await loadSales();
+        } catch (e) {
+          toast(e.message);
+          await loadRequests();
+        }
+      });
+      refuse.addEventListener("click", async () => {
+        const reason = prompt("Motif du refus, visible par le client :");
+        if (!reason) return;
+        try {
+          await api(`/requests/${request.id}/refuse`, {
+            method: "POST",
+            body: JSON.stringify({ expected_version: request.version, reason }),
+          });
+          await loadRequests();
+        } catch (e) {
+          toast(e.message);
+        }
+      });
+      card.append(accept, refuse);
+    }
+    box.append(card);
+  }
+}
+async function loadClients() {
+  const box = $("clients-list");
+  let clients;
+  try {
+    clients = await api("/clients");
+  } catch (e) {
+    box.replaceChildren(el("p", e.message, "error"));
+    return;
+  }
+  box.replaceChildren();
+  if (!clients.length) box.append(el("p", "Aucune inscription pour l’instant.", "help"));
+  const labels = { pending: "en attente", active: "actif", refused: "refusé" };
+  for (const client of clients) {
+    const row = el("div", undefined, "user-access");
+    row.append(
+      el("strong", client.display_name || client.email),
+      el("span", ` · ${client.email} · ${client.disabled ? "désactivé" : labels[client.status]} · inscrit le ${new Date(client.created_at).toLocaleDateString("fr-FR")}`),
+    );
+    const act = (text, status, disabled) => {
+      const button = el("button", text);
+      button.type = "button";
+      button.addEventListener("click", async () => {
+        try {
+          await api("/clients/" + client.id, {
+            method: "PATCH",
+            body: JSON.stringify({ status, disabled }),
+          });
+          await loadClients();
+        } catch (e) {
+          toast(e.message);
+        }
+      });
+      row.append(button);
+    };
+    if (client.status !== "active" || client.disabled) act("Valider", "active", false);
+    if (client.status === "pending") act("Refuser", "refused", false);
+    if (client.status === "active" && !client.disabled) act("Désactiver", "active", true);
+    box.append(row);
+  }
+}
 async function loadSales() {
+  await loadRequests();
   const sales = await api("/sales");
   $("sales-list").replaceChildren();
   if (!sales.length) {
@@ -2344,6 +2470,7 @@ async function loadSales() {
 async function loadUsers() {
   if (typeof Workflows !== "undefined") await Workflows.backupStatus();
   const users = await api("/users");
+  await loadClients();
   $("users-list").replaceChildren();
   for (const u of users) {
     const row = el("form", undefined, "user-access");

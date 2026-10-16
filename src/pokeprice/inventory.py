@@ -20,7 +20,7 @@ from .valuation import (
 )
 from .variant_pricing import category, compatible_quote, pricing_issue
 
-SCHEMA_VERSION = 16
+SCHEMA_VERSION = 17
 
 
 def now():
@@ -269,6 +269,28 @@ class Store:
                         active INTEGER NOT NULL DEFAULT 1, PRIMARY KEY(listing_id,copy_id));
                     CREATE UNIQUE INDEX IF NOT EXISTS single_listing ON listing_items(copy_id) WHERE active=1;
                     PRAGMA user_version=16;
+                    COMMIT;
+                """)
+            if db.execute("PRAGMA user_version").fetchone()[0] == 16:
+                # Storefront reservation requests; an accepted one points to its lot.
+                db.executescript("""
+                    BEGIN IMMEDIATE;
+                    CREATE TABLE IF NOT EXISTS requests(id TEXT PRIMARY KEY,
+                        client_id TEXT NOT NULL REFERENCES users(id),
+                        status TEXT NOT NULL DEFAULT 'sent' CHECK(status IN
+                            ('sent','accepted','partially_accepted','refused','expired','cancelled')),
+                        message TEXT NOT NULL DEFAULT '', decision TEXT NOT NULL DEFAULT '',
+                        sale_id TEXT REFERENCES sales(id),
+                        created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+                        expires_at TEXT NOT NULL, version INTEGER NOT NULL DEFAULT 1);
+                    CREATE TABLE IF NOT EXISTS request_items(request_id TEXT NOT NULL REFERENCES requests(id),
+                        listing_id TEXT NOT NULL REFERENCES listings(id),
+                        price_cents INTEGER NOT NULL CHECK(price_cents>=0),
+                        outcome TEXT NOT NULL DEFAULT 'pending' CHECK(outcome IN
+                            ('pending','accepted','unavailable','refused')),
+                        PRIMARY KEY(request_id,listing_id));
+                    CREATE INDEX IF NOT EXISTS requests_client ON requests(client_id,created_at);
+                    PRAGMA user_version=17;
                     COMMIT;
                 """)
             db.execute("PRAGMA journal_mode=WAL")

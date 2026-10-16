@@ -164,6 +164,15 @@ lot créé.
    au navigateur en largeur ordinateur et téléphone sur une base temporaire.
 4. **Inscription et demandes** : signup, validation des comptes, demandes,
    acceptation transactionnelle vers `create_sale`, concurrence testée.
+   *Livrée le 16 octobre (branche `vitrine-tranche-4`)* : migration 17
+   (`requests`, `request_items`) ; `reservations.py` ; inscription en attente
+   sans révéler les adresses connues, limitée à 5 par heure et par adresse ;
+   routes `/api/me/*` (rôle client) et `/api/clients`, `/api/requests`
+   (équipe) ; acceptation partielle vers `create_sale` puis réservation, le
+   brouillon annulé si un exemplaire est pris entre-temps ; expiration à 7 jours
+   à la lecture ; clients exclus de `/api/users`. Vitrine : compte, « Ma
+   demande », « Mes demandes » ; gestion : comptes clients et demandes. Parcours
+   complet essayé au navigateur sur une base temporaire.
 5. **Finitions** : expiration, page confidentialité, multilingue, essai de bout
    en bout sur une copie de la base, puis déploiement sur lilydex après
    sauvegarde rapatriée.

@@ -1777,3 +1777,18 @@ dialog.card-viewer::backdrop {
     display: none;
   }
 }
+
+/* Storefront requests and client accounts. */
+.storefront-requests {
+  margin-bottom: 16px;
+}
+.request-lines {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.request-lines small {
+  display: block;
+  color: var(--muted);
+}
