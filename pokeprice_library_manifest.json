@@ -8,6 +8,7 @@
     {"id":"zygarde","name":"Zygarde","report":"pokedex_zygarde_report.csv","photos":"~/Downloads/Pokedex - Zygarde"},
     {"id":"darkrai","name":"Darkrai","report":"pokedex_darkrai_report.csv","photos":"~/Downloads/Pokedex - Darkrai"},
     {"id":"dp-great-encounters","name":"Diamond & Pearl Great Encounters","report":"pokedex_dp_great_encounters_report.csv","photos":"~/Downloads/Pokedex - Diamond & Pearl Great Encounters"},
-    {"id":"platinum-rising-rivals","name":"Platinum Rising Rivals","report":"pokedex_platinum_rising_rivals_report.csv","photos":"~/Downloads/Pokedex - Platinum Rising Rivals"}
+    {"id":"platinum-rising-rivals","name":"Platinum Rising Rivals","report":"pokedex_platinum_rising_rivals_report.csv","photos":"~/Downloads/Pokedex - Platinum Rising Rivals"},
+    {"id":"c84214a0-1e9f-4142-9f45-4dd0afb5fe43","name":"Gotta catch 'em all!","report":"pokedex_gotta_catch_em_all_report.csv","photos":"~/Downloads/Pokedex - Gotta catch em all","first_page":51}
   ]
 }

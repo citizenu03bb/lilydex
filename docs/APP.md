@@ -598,7 +598,10 @@ correction de l'application. Des changements dans les sources sont signalés par
 `source_changed`, sans fusion automatique. Un nouveau nom de fichier ou nouvel
 identifiant d'album produit une nouvelle clé d'origine : ne pas réimporter un
 album rephotographié sans établir la correspondance avec ses exemplaires actuels.
-Les nouveaux albums peuvent être ajoutés au manifeste puis importés.
+Les nouveaux albums peuvent être ajoutés au manifeste puis importés. Pour un
+classeur rempli à partir d'une page ultérieure, `"first_page": 51` dans son
+entrée numérote la première photo de cartes page 51 ; le rapport du scan, lui,
+reste numéroté à partir de 1.
 
 Pour exporter les **corrections actuelles**, utiliser l'application ou les
 commandes `pokeprice-manage export`, plutôt que la commande historique `library`,

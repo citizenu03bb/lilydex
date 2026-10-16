@@ -67,6 +67,11 @@ def load_manifest(path):
             album[field] = (p if p.is_absolute() else path.parent / p).resolve()
         if album["id"] in ids or album["report"] in reports:
             raise ValueError("Album ou rapport dupliqué dans le manifeste.")
+        first_page = entry.get("first_page", 1)
+        if type(first_page) is not int or first_page < 1:
+            raise ValueError(f"first_page invalide pour {album['name']}.")
+        # An album filled from a later page keeps its physical page numbers.
+        album["first_page"] = first_page
         ids.add(album["id"])
         reports.add(album["report"])
         if not album["report"].is_file() or not album["photos"].is_dir():
@@ -91,6 +96,7 @@ def consolidate(albums, output_dir, *, include_images=True):
             if include_images
             else [{} for _ in range(len(frame))]
         )
+        frame["Page"] = frame["Page"].astype(int) + album.get("first_page", 1) - 1
         frame["Album_ID"] = album["id"]
         frame["Album"] = album["name"]
         frame["Rapport_Source"] = str(album["report"])

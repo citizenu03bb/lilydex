@@ -157,6 +157,24 @@ def test_duplicate_reports_rejected_and_source_not_overwritten(tmp_path):
     assert (tmp_path / "a.csv").read_bytes() == before
 
 
+def test_first_page_shifts_pages_of_an_album_filled_later(tmp_path):
+    manifest = inputs(tmp_path)
+    payload = json.loads(manifest.read_text())
+    payload["albums"][1]["first_page"] = 51
+    manifest.write_text(json.dumps(payload))
+    df, data = consolidate(load_manifest(manifest), tmp_path, include_images=False)
+    assert set(df[df.Album_ID == "a"].Page) == {1}
+    assert set(df[df.Album_ID == "b"].Page) == {51}
+    pages = {
+        (c["album_id"], c["page"]) for g in data["groups"] for c in g["copies"]
+    }
+    assert pages == {("a", 1), ("b", 51)}
+    payload["albums"][1]["first_page"] = 0
+    manifest.write_text(json.dumps(payload))
+    with pytest.raises(ValueError, match="first_page"):
+        load_manifest(manifest)
+
+
 def test_manual_editions_and_unresolved_pockets_are_not_merged(tmp_path):
     manifest = inputs(tmp_path)
     frame = pd.read_csv(tmp_path / "a.csv")
