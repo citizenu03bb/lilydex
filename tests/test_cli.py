@@ -350,3 +350,21 @@ def test_verified_hp_preserves_ocr_and_removes_false_anomaly(
     assert df.loc[0, "PV"] == 60 and df.loc[0, "PV_Verifie"] == 50
     assert df.loc[0, "Statut_Identification"] == "confirmed"
     assert df.loc[0, "Statut_Revision"] == "Simulation disponible"
+
+
+def test_cover_does_not_take_a_page_number(tmp_path, monkeypatch, client_factory):
+    args = scan_args(tmp_path)
+    args.grid = "auto"
+    folder = tmp_path / "album"
+    (folder / "page.png").rename(folder / "0-cover.png")
+    for name in ("1-first.png", "2-second.png"):
+        Image.new("RGB", (400, 600)).save(folder / name)
+    layouts = iter(["cover", "single", "single"])
+    provider = SimpleNamespace(
+        model="mock", detect_layout=lambda im: next(layouts), extract_card=lambda im: known()
+    )
+    stub_setup(monkeypatch, provider, client_factory([card("set-1", "Pikachu", 1, 100, 50)]))
+    assert cli.cmd_scan(args) == 0
+    df = read_report(args.output)
+    assert list(zip(df.Page, df.Fichier_Image)) == [(1, "1-first.png"), (2, "2-second.png")]
+

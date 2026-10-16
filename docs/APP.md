@@ -123,6 +123,14 @@ les cotations sourcées et datées du plan, avec contrôle de version et auteur
 fixe `system:price-recovery`. `--copy-id` limite les exemplaires ; les confirmations
 humaines sont conservées. Aucun prix déjà présent ou explicitement supprimé
 sans changement de finition n’est remplacé.
+
+`pokeprice-manage repair-pages` audite les pages des classeurs Diamond & Pearl
+et Platinium, dont la photo de couverture avait été comptée comme page 1. Après
+sauvegarde, `--apply` retire une page aux exemplaires encore à leur emplacement
+d’import, avec contrôle de version et auteur fixe `system:page-shift`. Un
+exemplaire dont la page ou l’album a été modifié depuis l’import n’est pas
+touché. Appliqué le 14 octobre 2026 (210 exemplaires). Le scan ne compte plus
+la couverture : la première page de cartes est la page 1.
 Les états importés restent à confirmer. Aucune décote automatique n'est appliquée.
 
 ### Relever le prix d'une carte

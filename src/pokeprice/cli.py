@@ -190,14 +190,18 @@ def cmd_scan(args):
 
     interrupted = False
     try:
-        for page, path in enumerate(images, 1):
-            print(f"📄 Page {page}/{len(images)} : {path.name}")
+        covers = 0
+        for index, path in enumerate(images, 1):
+            # A cover is not a page: the first card page stays page 1.
+            page = index - covers
+            print(f"📄 Photo {index}/{len(images)} : {path.name}")
             try:
                 with Image.open(path) as image:
                     oriented = normalize_orientation(image, args.rotate)
                     if args.grid == "auto":
                         layout = provider.detect_layout(oriented)
                         if layout == "cover":
+                            covers += 1
                             continue
                         rows, cols = detect_grid_layout(oriented, layout)
                     else:

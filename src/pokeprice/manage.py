@@ -114,6 +114,11 @@ def main():
     repair.add_argument(
         "--copy-id", action="append", help="Limiter aux exemplaires indiqués"
     )
+    pages = actions.add_parser(
+        "repair-pages",
+        help="Auditer les pages décalées par une couverture comptée comme page 1",
+    )
+    pages.add_argument("--apply", action="store_true", help="Appliquer le plan audité")
     names = actions.add_parser(
         "names",
         help="Noms des éditions en plusieurs langues (TCGdex, une fois par édition)",
@@ -223,6 +228,11 @@ def main():
             from .price_recovery import apply, candidates
 
             plan = candidates(store, copy_ids=args.copy_id)
+            result = apply(store, plan) if args.apply else {"candidates": plan}
+        elif args.action == "repair-pages":
+            from .page_shift import apply, candidates
+
+            plan = candidates(store)
             result = apply(store, plan) if args.apply else {"candidates": plan}
         elif args.action == "prices":
             from .market_product import MarketProducts
