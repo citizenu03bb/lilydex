@@ -9,6 +9,8 @@ import hashlib
 import sqlite3
 from contextlib import nullcontext
 from collections import Counter
+from functools import partial
+from types import SimpleNamespace
 from importlib.resources import files
 from pathlib import Path
 
@@ -116,7 +118,19 @@ class ReferenceService:
             )
         return self._document_cache[1].copy()
 
-    def decision(self, card, snapshot=None, disputes=(), selection=None):
+    def decider(self):
+        """decision() for one pass over the collection: the archive is listed and
+        checked, and the ruleset parsed, once instead of once per copy.
+
+        resolve() only reads the parsed rules, so the copies can share them. A
+        document added or altered afterwards is seen by the next decider().
+        """
+        if self.ruleset is None:
+            return self.decision
+        rules = SimpleNamespace(data=self.ruleset.data, hash=self.ruleset.hash)
+        return partial(self.decision, _context=(self.available_documents(), rules))
+
+    def decision(self, card, snapshot=None, disputes=(), selection=None, _context=None):
         if self.ruleset is None:
             return {
                 "mode": "audit",
@@ -134,9 +148,9 @@ class ReferenceService:
                     selection["state"] if selection else "active",
                 ),
             }
+        documents, rules = _context or (self.available_documents(), self.ruleset)
         result = resolve(
-            **inputs_for(card, snapshot, disputes, self.available_documents()),
-            ruleset=self.ruleset,
+            **inputs_for(card, snapshot, disputes, documents), ruleset=rules
         )
         return {
             **result,

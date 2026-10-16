@@ -239,6 +239,52 @@ def test_preview_listing_export_and_detail_share_the_same_resolution(client):
     assert client.get("/api/editions?review=coverage").status_code == 200
 
 
+def test_listing_reads_the_archive_once_per_call_and_sees_later_documents(
+    client, reference
+):
+    card = create(
+        client,
+        catalog_id="synthetic-1",
+        language="fr",
+        number="1/1",
+        identification_status="confirmed",
+        finish="holo",
+        stamp_state="absent",
+        variant_confirmed=True,
+    )
+    create(client, position=2)
+    store = client.app.state.store
+    store.reference = ReferenceService(store, validate_ruleset(reference))
+
+    def listed():
+        items = client.get("/api/copies").json()["items"]
+        assert len(items) == 2
+        (item,) = (i for i in items if i["id"] == card["id"])
+        return item["reference_resolution"]
+
+    def detail():
+        return client.get(f"/api/copies/{card['id']}").json()["reference_resolution"]
+
+    calls = []
+    original = store.reference.available_documents
+    store.reference.available_documents = lambda: calls.append(1) or original()
+    assert "proof_unavailable" in listed()["reason_codes"]
+    assert len(calls) == 1
+    # Added between two listings, by the same service: picked up by the next one.
+    archive = store.root / "reference_documents"
+    archive.mkdir(exist_ok=True)
+    path = archive / (hashlib.sha256(SOURCE_DOCUMENT).hexdigest() + ".json")
+    path.write_bytes(SOURCE_DOCUMENT)
+    proved = listed()
+    assert "proof_unavailable" not in proved["reason_codes"]
+    assert proved["market_status"] == "verified" and proved == detail()
+    # Same name, altered content: the integrity check still applies per listing.
+    path.write_bytes(SOURCE_DOCUMENT + b" altered")
+    tampered = listed()
+    assert "proof_unavailable" in tampered["reason_codes"]
+    assert tampered["market_status"] == "provisional" and tampered == detail()
+
+
 def test_dispute_is_attributed_versioned_and_not_closed_by_metadata(client, reference):
     card = create(
         client,

@@ -487,12 +487,13 @@ class Store:
             ]
         selected = []
         terms = normalized(query).split()
+        decide = self.reference.decider()
         for row in rows:
             snapshot = snapshots.get(row["id"]) or {}
             metadata = self.category_metadata(row, valuation_context)
             issue = pricing_issue(row, metadata)
             row["price_category"] = category(row, metadata)
-            row["reference_resolution"] = self.reference.decision(
+            row["reference_resolution"] = decide(
                 row,
                 metadata,
                 disputes.get(row["id"], ()),
