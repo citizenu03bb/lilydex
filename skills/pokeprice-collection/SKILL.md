@@ -29,6 +29,27 @@ les décisions et procédures sont dans le projet, pas dans ce skill.
   leur photo originale reste dans l'archive. Une identité non résolue reste
   distincte ; son candidat catalogue et son prix ne sont pas des valeurs confirmées.
 
+## Photos et identités lues
+
+Procédure et outils : `docs/AUDIT-PHOTOS.md` (`scripts/audit_photo_crops.py`,
+`scripts/audit_photo_identity.py`).
+
+- Une identité lue sur une photo dépend de son découpage. Après un redécoupage
+  ou une nouvelle photo, revérifier nom, numéro et PV avant de la tenir pour acquise.
+- La correspondance `exact` de l'import ne prouve rien : l'OCR peut lire un
+  numéro qui existe au catalogue sans être celui de la carte (Ouisticram
+  57/100 enregistré, 97/147 sur la photo).
+- Vérification locale sans Gemini : listes d'extensions TCGdex en cache
+  (`catalog_lookups`, le numéro lu doit donner le nom lu), DINOv2 contre l'image
+  de la référence, revue visuelle sur planches.
+- Proposer une référence ne la confirme pas : le statut reste « À vérifier »
+  (`review`) jusqu'à la validation du propriétaire. Pas d'`evidence` dont le
+  libellé affirmerait une confirmation humaine.
+- « À identifier » signifie souvent un dos visible. Signaler à part les cartes
+  face cachée ou tête en bas, sans patch : on les corrige dans le classeur.
+- La langue s'observe carte par carte : beaucoup d'énergies anglaises étaient
+  enregistrées sous un nom français.
+
 ## Prix et photos
 
 - Conserver référence, langue, PV, variante, état et validation humaine séparés.
