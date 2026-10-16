@@ -65,7 +65,10 @@ class Listings:
             ),
         )
 
-    def publish(self, copy_ids, actor, *, price_cents=None, title="", lot=False):
+    def publish(
+        self, copy_ids, actor, *, price_cents=None, title="", lot=False,
+        price_mode="manual", price_source="Prix fixé à la main",
+    ):
         """Publish one copy, or several copies as one lot at a single price.
 
         A copy alone takes its computed price unless a manual price is given; a lot
@@ -80,8 +83,9 @@ class Listings:
         if lot and price_cents is None:
             raise ValueError("Fixez le prix du lot.")
         cards = self.cards(copy_ids)
+        # An imposed price keeps its origin, e.g. a trend to review later.
         override = (
-            {"amount_cents": price_cents, "mode": "manual", "source": "Prix fixé à la main"}
+            {"amount_cents": price_cents, "mode": price_mode, "source": price_source}
             if price_cents is not None
             else None
         )
@@ -104,8 +108,8 @@ class Listings:
             raise ValueError(f"Un lot se vend au moins {euros(FLOOR_CENTS / 100)}.")
         chosen = proposals[copy_ids[0]] if not lot else {
             "price_cents": price_cents,
-            "mode": "manual",
-            "source": "Prix fixé à la main",
+            "mode": price_mode,
+            "source": price_source,
             "date": now(),
         }
         timestamp = now()

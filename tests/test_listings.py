@@ -185,3 +185,17 @@ def test_schema_16_adds_listings_without_touching_the_collection(tmp_path):
         with pytest.raises(sqlite3.IntegrityError):
             db.execute("INSERT INTO listing_items(listing_id,copy_id) VALUES('b',?)", before[0][:1])
     assert list((tmp_path / "backups").glob("before-schema*-from15-*.sqlite3"))
+
+
+def test_an_imposed_price_keeps_its_source_for_a_later_review(shop):
+    _, store, cards = shop
+    from pokeprice.listings import Listings
+
+    copy_id = confirmed(cards)[0]
+    listing = Listings(store).publish(
+        [copy_id], "claude", price_cents=50, price_mode="trend",
+        price_source="À réviser : état à confirmer",
+    )
+    assert (listing["price_mode"], listing["price_source"], listing["price_cents"]) == (
+        "trend", "À réviser : état à confirmer", 50,
+    )
