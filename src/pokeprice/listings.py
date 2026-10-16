@@ -234,3 +234,125 @@ class Listings:
                         "price_date": card.get("price_date") or "",
                     }
         return listings
+
+
+# The storefront shows only these fields, built one by one: nothing private
+# (notes, provenance, history, album place, copy ids, raw prices) can leak.
+FINISHES = {
+    "non_holo": "Normale",
+    "holo": "Holo",
+    "holo_border": "Holo, cadre brillant",
+    "reverse": "Reverse",
+    "special": "Spéciale",
+}
+PUBLIC_SORTS = {
+    "recent": "l.published_at DESC",
+    "price": "l.price_cents, l.published_at DESC",
+    "price_desc": "l.price_cents DESC, l.published_at DESC",
+}
+
+
+def public_item(index, card):
+    return {
+        "index": index,
+        "name": card["name"],
+        "set_name": card["set_name"],
+        "number": card["number"],
+        "language": card["language"],
+        # An estimated condition is never shown as a fact.
+        "condition": card["condition"] if card["condition_confirmed"] else None,
+        "finish": FINISHES.get(card["finish"] or ""),
+        "stamp": card["stamp"] if card["stamp_state"] == "present" else None,
+        "distribution": (
+            card["distribution"] if card["distribution_state"] == "present" else None
+        ),
+        "photos": [
+            side for side, key in (("front", "photo"), ("back", "back_photo")) if card[key]
+        ],
+    }
+
+
+class Storefront:
+    """Read-only view of online publications whose copies are all available."""
+
+    def __init__(self, store):
+        self.store = store
+
+    def rows(self, db, listing_id=None):
+        rows = db.execute(
+            "SELECT l.id,l.title,l.price_cents,l.price_date,l.published_at FROM listings l "
+            "WHERE l.state='online' AND (? IS NULL OR l.id=?) AND NOT EXISTS ("
+            " SELECT 1 FROM listing_items i JOIN copies c ON c.id=i.copy_id"
+            " WHERE i.listing_id=l.id AND i.active=1"
+            " AND (c.stock_state!='available' OR c.deleted_at!=''))",
+            (listing_id, listing_id),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    def cards(self, db, listing_id):
+        return [
+            dict(r)
+            for r in db.execute(
+                "SELECT c.* FROM listing_items i JOIN copies c ON c.id=i.copy_id "
+                "WHERE i.listing_id=? AND i.active=1 ORDER BY i.rowid",
+                (listing_id,),
+            )
+        ]
+
+    def public(self, row, cards):
+        return {
+            "id": row["id"],
+            "title": row["title"],
+            "price_cents": row["price_cents"],
+            "price_date": (row["price_date"] or row["published_at"])[:10],
+            "items": [public_item(i, c) for i, c in enumerate(cards)],
+        }
+
+    def search(self, query="", language="", max_cents=None, sort="recent", limit=48, offset=0):
+        from .inventory import normalized
+
+        terms = normalized(query).split()
+        with self.store.connect() as db:
+            order = PUBLIC_SORTS.get(sort, PUBLIC_SORTS["recent"])
+            rows = db.execute(
+                "SELECT l.id FROM listings l WHERE l.state='online' ORDER BY " + order
+            ).fetchall()
+            found = []
+            for (listing_id,) in rows:
+                for row in self.rows(db, listing_id):
+                    cards = self.cards(db, listing_id)
+                    text = normalized(
+                        " ".join(
+                            f"{c['name']} {c['set_name']} {c['number']}" for c in cards
+                        )
+                        + " "
+                        + row["title"]
+                    )
+                    if (
+                        all(t in text for t in terms)
+                        and (not language or any(c["language"] == language for c in cards))
+                        and (max_cents is None or row["price_cents"] <= max_cents)
+                    ):
+                        found.append(self.public(row, cards))
+        if sort == "name":
+            found.sort(key=lambda l: normalized(l["title"] or l["items"][0]["name"]))
+        return {"items": found[offset : offset + limit], "total": len(found)}
+
+    def get(self, listing_id):
+        with self.store.connect() as db:
+            rows = self.rows(db, listing_id)
+            if not rows:
+                raise KeyError("Carte absente de la vitrine.")
+            return self.public(rows[0], self.cards(db, listing_id))
+
+    def photo(self, listing_id, index, side, size):
+        with self.store.connect() as db:
+            if not self.rows(db, listing_id):
+                raise KeyError("Carte absente de la vitrine.")
+            cards = self.cards(db, listing_id)
+        if not 0 <= index < len(cards):
+            raise KeyError("Photo absente.")
+        name = cards[index]["photo" if side == "front" else "back_photo"]
+        if not name:
+            raise KeyError("Photo absente.")
+        return self.store.thumbnail(name) if size == "thumb" else self.store.photos / name

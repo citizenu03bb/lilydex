@@ -43,7 +43,7 @@ from .pricing import (
     fetch_card,
     fetch_catalogue_card,
 )
-from .listings import Listings
+from .listings import Listings, Storefront
 from .variant_catalogue import VariantCatalogue
 from .variant_pricing import category
 from .edition_check import EditionCheckService, propose_edition
@@ -542,8 +542,62 @@ def create_app(
         return static.joinpath("index.html").read_text()
 
     @app.get("/assets/{name}")
-    def assets(name: Literal["app.js", "media.js", "workflows.js", "gallery.js", "style.css"]):
+    def assets(
+        name: Literal[
+            "app.js", "media.js", "workflows.js", "gallery.js", "style.css",
+            "storefront.js", "storefront.css",
+        ],
+    ):
         return FileResponse(static / name)
+
+    storefront = Storefront(store)
+    public_hits = {}
+    public_lock = threading.Lock()
+
+    def public_rate(request: Request):
+        """Anonymous storefront reads: at most 300 requests a minute per address."""
+        key = request.client.host if request.client else "local"
+        timestamp = time.monotonic()
+        with public_lock:
+            recent = [t for t in public_hits.get(key, []) if timestamp - t < 60]
+            if len(recent) >= 300:
+                raise HTTPException(429, "Trop de requêtes. Réessayez dans une minute.")
+            public_hits[key] = recent + [timestamp]
+            if len(public_hits) > 10000:  # Forget idle addresses.
+                for address in [a for a, hits in public_hits.items() if timestamp - hits[-1] >= 60]:
+                    del public_hits[address]
+
+    @app.get("/vitrine", response_class=HTMLResponse)
+    def storefront_page():
+        return static.joinpath("storefront.html").read_text()
+
+    @app.get("/api/public/listings")
+    def public_listings(
+        q: str = Query(default="", max_length=200),
+        language: str = Query(default="", pattern=r"^(?:[a-z]{2,3})?$"),
+        max_eur: Decimal | None = Query(default=None, ge=0, le=10000000),
+        sort: Literal["recent", "price", "price_desc", "name"] = "recent",
+        limit: int = Query(default=48, ge=1, le=96),
+        offset: int = Query(default=0, ge=0, le=100000),
+        _=Depends(public_rate),
+    ):
+        return storefront.search(q, language, cents(max_eur), sort, limit, offset)
+
+    @app.get("/api/public/listings/{listing_id}")
+    def public_listing(listing_id: str, _=Depends(public_rate)):
+        return storefront.get(listing_id)
+
+    @app.get("/api/public/listings/{listing_id}/photo")
+    def public_photo(
+        listing_id: str,
+        item: int = Query(default=0, ge=0, le=500),
+        side: Literal["front", "back"] = "front",
+        size: Literal["full", "thumb"] = "thumb",
+        _=Depends(public_rate),
+    ):
+        return FileResponse(
+            storefront.photo(listing_id, item, side, size), media_type="image/jpeg"
+        )
 
     @app.get("/api/setup")
     def setup_state():

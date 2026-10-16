@@ -455,8 +455,8 @@ charger la nouvelle interface, y compris depuis le lien Cloudflare.
 
 ## Publier en vitrine
 
-La vitrine publique n'est pas encore ouverte (tranche 3, voir
-[CATALOGUE.md](CATALOGUE.md)) ; on prépare dès maintenant ce qu'elle montrera.
+La vitrine publique est à l'adresse `/vitrine` (par exemple
+<https://lilydex.duckdns.org/vitrine> une fois déployée), visible sans compte.
 La fiche d'un exemplaire affiche, sous le prix, un bloc **Vitrine** :
 
 - **Prix de vitrine proposé**, puis **Publier à ce prix**. La proposition suit
@@ -482,6 +482,24 @@ récent est seulement signalé dans la liste des publications. Le filtre
 **Stock → Publiés en vitrine** montre les exemplaires en ligne. Un compte de
 consultation voit les publications sans pouvoir publier ; un compte client
 n'accède à aucune de ces actions.
+
+### Ce que voit un visiteur
+
+La page `/vitrine` est séparée de la gestion : elle ne charge aucun code de
+gestion et n'ouvre aucune session. Elle liste les publications en ligne dont
+tous les exemplaires sont disponibles, avec une recherche (nom, extension,
+numéro), un filtre de langue, un prix maximum et un tri (récentes, prix, nom).
+Une fiche montre le recto et le verso, l'extension, le numéro, la langue, l'état
+**s'il est confirmé** (sinon « état visible sur les photos »), la finition, le
+tampon et la distribution, le prix et sa date.
+
+Les réponses publiques sont construites champ par champ : jamais de notes, de
+provenance, d'historique, de prix bruts, d'emplacement dans les classeurs ni
+d'identifiant d'exemplaire ; les photos passent par l'identifiant de la
+publication. Une carte retirée, réservée, vendue ou supprimée disparaît de la
+vitrine et de ses photos. Les lectures anonymes sont limitées à 300 requêtes par
+minute et par adresse. La page porte `noindex` tant que l'indexation par les
+moteurs de recherche n'est pas décidée.
 
 ## Saisie assistée par photo
 

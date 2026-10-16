@@ -13,6 +13,7 @@ from pokeprice.webapp import create_app, password_hash
 PUBLIC = {
     ("GET", "/"),
     ("GET", "/assets/{name}"),
+    ("GET", "/vitrine"),
     ("GET", "/health"),
     ("GET", "/api/setup"),
     ("POST", "/api/setup"),

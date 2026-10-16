@@ -130,7 +130,7 @@ lot créé.
   finalité, durée de conservation, droit d'accès et de suppression ; suppression
   d'un compte client par l'administrateur.
 - Expiration des demandes non traitées (7 jours) par une tâche quotidienne.
-- `robots.txt` : vitrine indexable ou non, à décider avant ouverture.
+- Indexation : la page porte `noindex` ; vitrine indexable ou non, à décider avant ouverture.
 
 ## Tranches
 
@@ -156,6 +156,12 @@ lot créé.
 3. **Vitrine publique** : routes `/api/public/*`, page `storefront`, photos par
    publication, limitation de débit, test « aucun champ privé dans les
    réponses publiques ».
+   *Livrée le 16 octobre (branche `vitrine-tranche-3`)* : `Storefront` dans
+   `listings.py` (liste blanche de champs, état seulement s'il est confirmé),
+   `/vitrine` avec `storefront.html/js/css` séparés de la gestion, recherche,
+   langue, prix maximum, tri, fiche recto-verso, lots ; 300 lectures par minute
+   et par adresse ; `noindex` en attendant la décision sur l'indexation ; essai
+   au navigateur en largeur ordinateur et téléphone sur une base temporaire.
 4. **Inscription et demandes** : signup, validation des comptes, demandes,
    acceptation transactionnelle vers `create_sale`, concurrence testée.
 5. **Finitions** : expiration, page confidentialité, multilingue, essai de bout
