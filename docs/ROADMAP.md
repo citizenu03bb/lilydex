@@ -582,7 +582,7 @@ vérification : changer de modèle relève de la configuration, pas du code.
 - Pilotage par agents IA : identité d'agent, contrat d'API, simulations
   générales, traitements réessayables, adaptateur MCP (jalons A1 à A5 détaillés
   dans l'[archive](archive/ROADMAP-2026-10-05.md)).
-- Catalogue public : un client s'inscrit, consulte une sélection explicite de cartes et de champs, et demande une réservation ; l'administrateur l'accepte, ce qui crée un lot réservé. Le client ne voit ni notes, ni provenance, ni historique, ni acheteurs. Prix affiché selon la décision du 16 octobre. Restent à trancher : réservation bloquante dès la demande ou à l'acceptation, et vérification de l'e-mail. Intégrations autorisées aux plateformes de vente ensuite.
+- Catalogue public ([plan](CATALOGUE.md)) : vitrine ouverte, visible sans compte (décision du 16 octobre) ; elle montre une sélection explicite de cartes et de champs. Un client s'inscrit pour demander une réservation ; l'administrateur l'accepte, ce qui crée un lot réservé. Le client ne voit ni notes, ni provenance, ni historique, ni acheteurs. Prix affiché selon la décision du 16 octobre. Décidé le 16 octobre : pas de service d'e-mail au départ ; un compte client reste en attente jusqu'à sa validation par un administrateur ; une demande ne bloque les cartes qu'à son acceptation ; le contact (paiement, envoi) se fait depuis la boîte du vendeur. Service d'envoi (Brevo ou Mailjet, domaine deSEC pour SPF/DKIM) quand le volume ou les mots de passe oubliés le justifient. Intégrations autorisées aux plateformes de vente ensuite.
 - Calibration de l'aide à l'évaluation de l'état sur les ventes réelles.
 - PostgreSQL seulement si plusieurs serveurs ou de nombreuses écritures
   simultanées deviennent nécessaires.
