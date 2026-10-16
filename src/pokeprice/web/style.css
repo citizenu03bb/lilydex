@@ -1792,3 +1792,9 @@ dialog.card-viewer::backdrop {
   display: block;
   color: var(--muted);
 }
+
+.access-note {
+  margin-top: 16px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}

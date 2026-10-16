@@ -2,8 +2,11 @@
 
 import hashlib
 import hmac
+import html
 import io
 import json
+import os
+import re
 import secrets
 import sqlite3
 import threading
@@ -485,6 +488,9 @@ def create_app(
         if secure_cookie:
             # Behind HTTPS only: browsers then refuse plain HTTP for a year.
             response.headers["Strict-Transport-Security"] = "max-age=31536000"
+        if request.url.path.startswith(("/gestion", "/api/")):
+            # The seller's login and data never belong in a search engine.
+            response.headers["X-Robots-Tag"] = "noindex, nofollow"
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "no-referrer"
@@ -579,6 +585,21 @@ def create_app(
             # Former management links (/?view=sales, filters) keep working.
             return RedirectResponse("/gestion?" + request.url.query, status_code=301)
         return static.joinpath("storefront.html").read_text()
+
+    # The seller's contact comes from the server's environment, never from the
+    # public repository.
+    contact_email = os.environ.get("POKEPRICE_CONTACT_EMAIL", "").strip()
+    if not re.fullmatch(r"[^@\s<>\"']+@[^@\s<>\"']+\.[a-z]{2,}", contact_email, re.I):
+        contact_email = ""
+
+    @app.get("/a-propos", response_class=HTMLResponse)
+    def about():
+        contact = (
+            f'<a href="mailto:{html.escape(contact_email)}">{html.escape(contact_email)}</a>'
+            if contact_email
+            else "L’adresse de contact sera bientôt indiquée ici."
+        )
+        return static.joinpath("about.html").read_text().replace("{{contact}}", contact)
 
     @app.get("/gestion", response_class=HTMLResponse)
     def index():

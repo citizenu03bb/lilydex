@@ -281,3 +281,26 @@ button:disabled {
   color: var(--muted);
   font-size: 0.85rem;
 }
+.unofficial {
+  padding: 10px 12px;
+  border-left: 4px solid var(--green);
+  background: var(--card);
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+.unofficial a,
+.brand a {
+  color: var(--green);
+}
+.brand a {
+  text-decoration: none;
+}
+.about {
+  max-width: 760px;
+  padding-bottom: 40px;
+  line-height: 1.55;
+}
+.about h2 {
+  font-size: 1.2rem;
+  margin-top: 26px;
+}

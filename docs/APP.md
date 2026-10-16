@@ -504,6 +504,16 @@ vitrine et de ses photos. Les lectures anonymes sont limitées à 300 requêtes 
 minute et par adresse. La page porte `noindex` tant que l'indexation par les
 moteurs de recherche n'est pas décidée.
 
+### Confiance et contact
+
+La vitrine affiche qu'il s'agit d'un site personnel non officiel, sans paiement
+en ligne ni téléchargement, et renvoie à la page `/a-propos` (qui vend, comment
+se passe un achat, données conservées, contact, code source). L'adresse de
+contact vient de `POKEPRICE_CONTACT_EMAIL` dans l'environnement du serveur ;
+sans elle, la page l'annonce « bientôt ». L'inscription rappelle de choisir un
+mot de passe propre à Lilydex. La gestion (`/gestion`) et l'API portent
+`X-Robots-Tag: noindex, nofollow`.
+
 ### Inscription des clients et demandes de réservation
 
 Sur la vitrine, **Créer un compte** demande un nom, un e-mail, un mot de passe

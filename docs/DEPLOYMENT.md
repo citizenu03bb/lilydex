@@ -8,6 +8,7 @@ Configuration d'hébergement permanent avec isolation stricte des secrets. Un [t
 - **HTTPS direct sans frais de domaine :** Caddy en frontal sur les ports `80`/`443` avec un sous-domaine gratuit pointant en `A` vers l'IP publique OCI ([deSEC.io](https://desec.io) en `.dedyn.io` ou [DuckDNS](https://www.duckdns.org) en `.duckdns.org`), et certificat Let's Encrypt automatique.
 - **Cloisonnement des secrets :**
   - **Aucun jeton OAuth Google Drive (`rclone.conf`) ni identifiant de dossier Drive (`POKEPRICE_DRIVE_FOLDER`)** n'est copié sur le serveur cloud.
+  - L'adresse de contact affichée sur la page « À propos » (`POKEPRICE_CONTACT_EMAIL`) est lue dans ce même fichier : elle n'est jamais versionnée dans le dépôt public.
   - Seule la clé `GEMINI_API_KEY` (ou `GOOGLE_API_KEY`) et `POKEPRICE_HOST` résident sur le serveur dans `/etc/pokeprice/pokeprice.env` (`root:pokeprice`, mode `0640`), transférés de machine à machine par flux SSH chiffré sans jamais s'afficher en clair.
   - Le serveur exécute `backup-daily` chaque nuit à 03 h (`Europe/Paris`) dans `/srv/pokeprice/backups` (avec restauration de contrôle et rétention des 7 derniers ZIP). Le portable rapatrie les sauvegardes via SSH (`deploy/oci-pull-backup.sh`) et conserve l'exclusivité de la copie Google Drive.
 

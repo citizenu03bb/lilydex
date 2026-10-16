@@ -114,3 +114,25 @@ def test_https_deployments_ask_browsers_to_stay_on_https(shop):
     assert "strict-transport-security" not in visitor.get("/health").headers
     with TestClient(create_app(store.root, secure_cookie=True), base_url="https://testserver") as secure:
         assert secure.get("/health").headers["strict-transport-security"] == "max-age=31536000"
+
+
+def test_about_page_shows_the_configured_contact_only(shop, monkeypatch):
+    _, visitor, store, *_ = shop
+    page = visitor.get("/a-propos")
+    assert page.status_code == 200 and "non officiel" in page.text.lower() and "mailto:" not in page.text
+    monkeypatch.setenv("POKEPRICE_CONTACT_EMAIL", "vendeur@example.org")
+    with TestClient(create_app(store.root)) as other:
+        assert 'href="mailto:vendeur@example.org"' in other.get("/a-propos").text
+    monkeypatch.setenv("POKEPRICE_CONTACT_EMAIL", '"><script>alert(1)</script>@x.org')
+    with TestClient(create_app(store.root)) as other:
+        text = other.get("/a-propos").text
+        assert "<script>" not in text and "mailto:" not in text
+
+
+def test_only_the_storefront_may_be_indexed(shop):
+    _, visitor, *_ = shop
+    assert "x-robots-tag" not in visitor.get("/").headers
+    assert visitor.get("/gestion").headers["x-robots-tag"] == "noindex, nofollow"
+    assert visitor.get("/api/public/listings").headers["x-robots-tag"] == "noindex, nofollow"
+    assert "Site personnel et non officiel" in visitor.get("/").text
+    assert "Lilydex" in visitor.get("/gestion").text and "Poképrice" not in visitor.get("/gestion").text
