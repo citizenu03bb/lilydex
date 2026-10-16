@@ -346,7 +346,7 @@ def test_schema4_migration_preserves_existing_copy(collection):
         db.execute("PRAGMA user_version=4")
     migrated = Store(app.state.store.root)
     with migrated.connect() as db:
-        assert db.execute("PRAGMA user_version").fetchone()[0] == 14
+        assert db.execute("PRAGMA user_version").fetchone()[0] == 15
         new = migrated.get(db, card["id"])
         assert all(
             new[k] == v

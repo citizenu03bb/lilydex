@@ -136,6 +136,13 @@ lot créé.
 
 1. **Rôles et garde-fou** : migration 15 (rôle `client`, statut, e-mail),
    séparation `staff`/`client`, test de couverture des routes. Aucun écran.
+   *Livrée le 16 octobre (branche `vitrine-tranche-1`)* : `users` reconstruite
+   avec contrôle des clés étrangères dans la transaction ; 11 routes de gestion
+   passées de « connecté » à `staff` ; un compte `pending` n'obtient pas de
+   session (« compte en attente de validation », dit seulement après un mot de
+   passe juste), un compte `refused` est traité comme inconnu ; une session
+   cesse dès que le compte n'est plus actif. Sur 69 routes, seules 8 restent
+   hors `staff`, listées dans `tests/test_storefront_access.py`.
 2. **Publication et prix** : tables `listings`, `display_price`, actions de
    publication dans la gestion, tests du calcul et du plancher.
 3. **Vitrine publique** : routes `/api/public/*`, page `storefront`, photos par

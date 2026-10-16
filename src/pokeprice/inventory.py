@@ -20,7 +20,7 @@ from .valuation import (
 )
 from .variant_pricing import category, compatible_quote, pricing_issue
 
-SCHEMA_VERSION = 14
+SCHEMA_VERSION = 15
 
 
 def now():
@@ -251,10 +251,51 @@ class Store:
                     PRAGMA user_version=14;
                     COMMIT;
                 """)
+            if db.execute("PRAGMA user_version").fetchone()[0] == 14:
+                self.migrate_users_for_clients(db)
             db.execute("PRAGMA journal_mode=WAL")
         from .reference_service import ReferenceService
 
         self.reference = ReferenceService(self)
+
+    @staticmethod
+    def migrate_users_for_clients(db):
+        """Schema 15: storefront clients and their signup fields on users.
+
+        A CHECK constraint only changes by rebuilding the table: foreign keys are
+        suspended, checked inside the transaction, and any mismatch rolls back.
+        """
+        db.commit()
+        db.execute("PRAGMA foreign_keys=OFF")
+        try:
+            db.execute("BEGIN IMMEDIATE")
+            db.execute(
+                """CREATE TABLE users_v15(id TEXT PRIMARY KEY,
+                    username TEXT NOT NULL UNIQUE COLLATE NOCASE,
+                    password_hash TEXT NOT NULL,
+                    role TEXT NOT NULL CHECK(role IN ('admin','editor','reader','client')),
+                    created_at TEXT NOT NULL, disabled INTEGER NOT NULL DEFAULT 0,
+                    email TEXT UNIQUE COLLATE NOCASE,
+                    display_name TEXT NOT NULL DEFAULT '',
+                    status TEXT NOT NULL DEFAULT 'active'
+                        CHECK(status IN ('pending','active','refused')),
+                    consent_at TEXT NOT NULL DEFAULT '')"""
+            )
+            db.execute(
+                "INSERT INTO users_v15(id,username,password_hash,role,created_at,disabled) "
+                "SELECT id,username,password_hash,role,created_at,disabled FROM users"
+            )
+            db.execute("DROP TABLE users")
+            db.execute("ALTER TABLE users_v15 RENAME TO users")
+            if db.execute("PRAGMA foreign_key_check").fetchall():
+                raise ValueError("Clés étrangères incohérentes après la migration des comptes.")
+            db.execute("PRAGMA user_version=15")
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.execute("PRAGMA foreign_keys=ON")
 
     def snapshot_before_migration(self, db, version):
         """Keep the database as it was; a failed copy stops the migration."""

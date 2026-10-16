@@ -481,19 +481,25 @@ def create_app(
         hashed = hashlib.sha256(token.encode()).hexdigest()
         with store.connect() as db:
             row = db.execute(
-                "SELECT u.id,u.username,u.role FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>? AND u.disabled=0",
+                "SELECT u.id,u.username,u.role FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>? AND u.disabled=0 AND u.status='active'",
                 (hashed, int(time.time())),
             ).fetchone()
         if not row:
             raise HTTPException(401, "Connectez-vous pour consulter la collection.")
         return dict(row)
 
-    def editor(user=Depends(current_user)):
+    def staff(user=Depends(current_user)):
+        # Storefront clients never reach the management routes, even read-only ones.
+        if user["role"] not in ("admin", "editor", "reader"):
+            raise HTTPException(403, "Ce compte n'a pas accès à la gestion.")
+        return user
+
+    def editor(user=Depends(staff)):
         if user["role"] not in ("admin", "editor"):
             raise HTTPException(403, "Ce compte permet uniquement la consultation.")
         return user
 
-    def admin(user=Depends(current_user)):
+    def admin(user=Depends(staff)):
         if user["role"] != "admin":
             raise HTTPException(403, "Administration requise.")
         return user
@@ -570,8 +576,11 @@ def create_app(
             valid = password_valid(
                 values.password, row["password_hash"] if row else dummy_hash
             )
-            if not valid or not row or row["disabled"]:
+            if not valid or not row or row["disabled"] or row["status"] == "refused":
                 raise HTTPException(401, "Identifiants incorrects.")
+            if row["status"] == "pending":
+                # Only said after a correct password: it reveals nothing to a guesser.
+                raise HTTPException(403, "Compte en attente de validation.")
             user = {k: row[k] for k in ("id", "username", "role")}
             issue_session(db, user, response)
         with login_lock:
@@ -640,7 +649,7 @@ def create_app(
     @app.get("/api/summary")
     def summary(
         threshold: float = Query(default=10, ge=0.01, le=10000),
-        user=Depends(current_user),
+        user=Depends(staff),
     ):
         return store.summary(threshold_cents=cents(threshold))
 
@@ -665,7 +674,7 @@ def create_app(
         threshold: float = Query(default=10, ge=0.01, le=10000),
         limit: int = Query(default=60, ge=1, le=200),
         offset: int = Query(default=0, ge=0),
-        user=Depends(current_user),
+        user=Depends(staff),
     ):
         if stock == "deleted" and user["role"] != "admin":
             raise HTTPException(403, "La corbeille est réservée à l’administration.")
@@ -698,7 +707,7 @@ def create_app(
     def detail(
         copy_id: str,
         threshold: float = Query(default=10, ge=0.01, le=10000),
-        user=Depends(current_user),
+        user=Depends(staff),
     ):
         with store.connect() as db:
             card = store.get(db, copy_id)
@@ -814,7 +823,7 @@ def create_app(
             return card
 
     @app.post("/api/copies/{copy_id}/variant-preview")
-    def variant_preview(copy_id: str, values: CardFields, user=Depends(current_user)):
+    def variant_preview(copy_id: str, values: CardFields, user=Depends(staff)):
         with store.connect() as db:
             before = store.get(db, copy_id)
             card = {**before, **values.model_dump(exclude_unset=True)}
@@ -849,7 +858,7 @@ def create_app(
             }
 
     @app.get("/api/reference-audit")
-    def reference_audit(user=Depends(current_user)):
+    def reference_audit(user=Depends(staff)):
         return store.reference.audit()
 
     @app.post("/api/copies/{copy_id}/reference-decision", status_code=201)
@@ -859,7 +868,7 @@ def create_app(
         )
 
     @app.get("/api/reference-decisions/{decision_id}/replay")
-    def reference_replay(decision_id: int, user=Depends(current_user)):
+    def reference_replay(decision_id: int, user=Depends(staff)):
         return store.reference.replay(decision_id)
 
     @app.post("/api/copies/{copy_id}/reference-dispute")
@@ -981,7 +990,7 @@ def create_app(
         threshold: float = Query(default=10, ge=0.01, le=10000),
         limit: int = Query(default=40, ge=1, le=200),
         offset: int = Query(default=0, ge=0),
-        user=Depends(current_user),
+        user=Depends(staff),
     ):
         if stock == "deleted" and user["role"] != "admin":
             raise HTTPException(403, "La corbeille est réservée à l’administration.")
@@ -1131,7 +1140,7 @@ def create_app(
         }
 
     @app.get("/api/intake/{token}/photo")
-    def intake_preview(token: str, user=Depends(current_user)):
+    def intake_preview(token: str, user=Depends(staff)):
         draft = intake.draft(token, user["id"])
         if draft["photo"] is None:
             raise HTTPException(404, "Photo absente.")
@@ -1242,7 +1251,7 @@ def create_app(
         copy_id: str,
         side: Literal["front", "back"] = "front",
         size: Literal["full", "thumb"] = "full",
-        user=Depends(current_user),
+        user=Depends(staff),
     ):
         with store.connect() as db:
             card = store.get(db, copy_id)
@@ -1404,7 +1413,7 @@ def create_app(
         )
 
     @app.get("/api/sales")
-    def sales(user=Depends(current_user)):
+    def sales(user=Depends(staff)):
         return store.sales()
 
     @app.post("/api/sales", status_code=201)
@@ -1464,7 +1473,7 @@ def create_app(
         )
 
     @app.get("/api/export/{kind}")
-    def export(kind: Literal["csv", "json", "html"], user=Depends(current_user)):
+    def export(kind: Literal["csv", "json", "html"], user=Depends(staff)):
         body = {
             "csv": export_csv,
             "json": lambda s: json.dumps(export_data(s), ensure_ascii=False, indent=2),
