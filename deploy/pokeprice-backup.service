@@ -1,13 +1,16 @@
 [Unit]
-Description=Sauvegarde de la collection Pokemon
+Description=Sauvegarde quotidienne verifiee de la collection Pokemon
 
 [Service]
 Type=oneshot
 User=pokeprice
 Group=pokeprice
 WorkingDirectory=/opt/pokeprice
-ExecStart=/opt/pokeprice/.venv/bin/python -m pokeprice.manage --data /srv/pokeprice/inventory backup
+Environment=HOME=/srv/pokeprice
+Environment=XDG_CONFIG_HOME=/srv/pokeprice/.config
+ExecStart=/opt/pokeprice/.venv/bin/python -m pokeprice.manage --data /srv/pokeprice/inventory backup-daily
 UMask=0077
+TimeoutStartSec=10min
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict

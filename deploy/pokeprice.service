@@ -7,7 +7,9 @@ Type=simple
 User=pokeprice
 Group=pokeprice
 WorkingDirectory=/opt/pokeprice
-EnvironmentFile=/etc/pokeprice.env
+Environment=HOME=/srv/pokeprice
+Environment=XDG_CONFIG_HOME=/srv/pokeprice/.config
+EnvironmentFile=/etc/pokeprice/pokeprice.env
 ExecStart=/opt/pokeprice/.venv/bin/python -m pokeprice.manage --data /srv/pokeprice/inventory serve --secure-cookie --allowed-host ${POKEPRICE_HOST}
 Restart=on-failure
 RestartSec=5
