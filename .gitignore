@@ -40,6 +40,8 @@ ENV/
 *.checkpoint.json.tmp
 outputs/
 *.html
+# Pages of the web app are source files, unlike generated reports.
+!src/pokeprice/web/*.html
 !tests/fixtures/*.csv
 .~lock.*
 !src/pokeprice/library_template.html

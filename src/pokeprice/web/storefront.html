@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <!-- Not indexed until the owner decides otherwise (docs/CATALOGUE.md). -->
+    <meta name="robots" content="noindex" />
+    <title>Lilydex · Vitrine</title>
+    <link rel="stylesheet" href="/assets/storefront.css" />
+  </head>
+  <body>
+    <header class="top">
+      <p class="brand">Lilydex</p>
+      <h1>Cartes Pokémon à vendre</h1>
+      <p class="intro">
+        Chaque carte est photographiée telle quelle. Le prix suit la tendance
+        Cardmarket ou un prix fixé à la main ; sa date est indiquée.
+      </p>
+    </header>
+    <main>
+      <form id="filters" class="filters" role="search">
+        <label class="search"
+          >Rechercher<input
+            id="q"
+            type="search"
+            maxlength="200"
+            placeholder="Nom, extension, numéro…"
+            autocomplete="off"
+        /></label>
+        <label
+          >Langue<select id="language">
+            <option value="">Toutes</option>
+            <option value="fr">Français</option>
+            <option value="en">Anglais</option>
+            <option value="es">Espagnol</option>
+            <option value="it">Italien</option>
+            <option value="de">Allemand</option>
+            <option value="ja">Japonais</option>
+          </select></label
+        >
+        <label
+          >Prix maximum<input id="max" type="number" min="0" step="1" placeholder="€"
+        /></label>
+        <label
+          >Trier<select id="sort">
+            <option value="recent">Les plus récentes</option>
+            <option value="price">Prix croissant</option>
+            <option value="price_desc">Prix décroissant</option>
+            <option value="name">Par nom</option>
+          </select></label
+        >
+      </form>
+      <p id="count" class="count" aria-live="polite"></p>
+      <p id="error" class="error" role="alert" hidden></p>
+      <ul id="grid" class="grid"></ul>
+      <p class="more"><button id="more" type="button" hidden>Afficher plus</button></p>
+    </main>
+    <footer class="foot">
+      <p>
+        Pour réserver des cartes, l’inscription arrive bientôt. Les cartes
+        restent disponibles jusqu’à la confirmation d’une réservation par le
+        vendeur.
+      </p>
+    </footer>
+    <dialog id="detail" aria-labelledby="detail-title">
+      <form method="dialog"><button class="close" aria-label="Fermer">×</button></form>
+      <div id="detail-body"></div>
+    </dialog>
+    <script src="/assets/storefront.js"></script>
+  </body>
+</html>
