@@ -131,3 +131,9 @@ cartes vérifiées. Ses résultats guident la roadmap.
 | [DEPLOYMENT.md](docs/DEPLOYMENT.md), [TUNNEL.md](docs/TUNNEL.md) | Déploiement préparé et tunnel de développement |
 | [EVALUATION.md](docs/EVALUATION.md) | Évaluation des logiciels existants (octobre 2026) |
 | [archive/](docs/archive/) | Roadmap et journal du 5 octobre 2026 |
+
+## Licence
+
+Code publié sous [licence MIT](LICENSE). Les noms, images et marques Pokémon
+appartiennent à leurs détenteurs ; les données de catalogue et de prix
+viennent de [TCGdex](https://tcgdex.dev) et de Cardmarket.

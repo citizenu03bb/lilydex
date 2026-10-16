@@ -3,6 +3,7 @@ name = "pokeprice"
 version = "0.1.0"
 description = "Automated Pokemon card album scanning and Cardmarket EUR valuation pipeline powered by local Gemma 4 E4B vision"
 readme = "README.md"
+license = "MIT"
 requires-python = ">=3.10"
 dependencies = [
     "pillow>=10.0.0",

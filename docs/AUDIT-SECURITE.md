@@ -65,7 +65,7 @@ Corrigé le 16 octobre :
 
 ## Avant de rendre le dépôt public
 
-1. Choisir une licence (sans licence, le code reste « tous droits réservés »).
+1. Licence : MIT, choisie le 16 octobre (`LICENSE`, au nom de `citizen-lambda`).
 2. Une fois public, activer les avis de sécurité privés (Settings → Security)
    pour que `SECURITY.md` fonctionne.
 3. Faire pointer le dépôt local vers `lilydex` (`git remote set-url origin …`)
