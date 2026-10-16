@@ -14,6 +14,7 @@ PUBLIC = {
     ("GET", "/"),
     ("GET", "/assets/{name}"),
     ("GET", "/vitrine"),
+    ("GET", "/gestion"),
     ("GET", "/health"),
     ("GET", "/api/setup"),
     ("POST", "/api/setup"),

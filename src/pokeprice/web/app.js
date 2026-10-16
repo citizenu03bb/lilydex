@@ -215,7 +215,7 @@ function syncLocation(mode = "replace") {
   if (state.limit === 40) query.delete("limit");
   if (state.view !== "collection") query.set("view", state.view);
   if ($("display-mode")?.value === "editions") query.set("display", "editions");
-  const url = "/" + (query.size ? "?" + query.toString() : "");
+  const url = "/gestion" + (query.size ? "?" + query.toString() : "");
   if (location.pathname + location.search !== url)
     history[mode === "push" ? "pushState" : "replaceState"]({}, "", url);
 }

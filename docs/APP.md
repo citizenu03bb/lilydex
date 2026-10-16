@@ -13,7 +13,7 @@ uv run --extra web pokeprice-manage import pokeprice_library_manifest.json
 uv run --extra web pokeprice-manage serve
 ```
 
-Ouvrir [http://127.0.0.1:3820](http://127.0.0.1:3820). Au premier accès, choisir
+Ouvrir [http://127.0.0.1:3820/gestion](http://127.0.0.1:3820/gestion) (la racine est la vitrine publique). Au premier accès, choisir
 son compte administrateur et un mot de passe d'au moins dix caractères. Aucun
 mot de passe par défaut n'est livré pour la collection réelle. Le serveur reste
 sur cet appareil. Pour utiliser le téléphone sur le même Wi-Fi, écouter sur
@@ -23,7 +23,7 @@ l'adresse IPv4 Wi-Fi du portable :
 uv run --extra web pokeprice-manage serve --host <adresse-wifi>
 ```
 
-Ouvrir alors `http://<adresse-wifi>:3820` depuis le téléphone. L'adresse peut
+Ouvrir alors `http://<adresse-wifi>:3820/gestion` depuis le téléphone. L'adresse peut
 changer avec le DHCP ; cette consultation locale utilise HTTP. Le téléphone
 utilisera l'adresse HTTPS après déploiement Internet.
 
@@ -455,8 +455,11 @@ charger la nouvelle interface, y compris depuis le lien Cloudflare.
 
 ## Publier en vitrine
 
-La vitrine publique est à l'adresse `/vitrine` (par exemple
-<https://lilydex.duckdns.org/vitrine> une fois déployée), visible sans compte.
+La vitrine publique est la page d'accueil du site
+(<https://lilydex.duckdns.org/>), visible sans compte ; la gestion est à
+`/gestion`, avec la même connexion. Les anciens liens de gestion (`/?view=…`)
+et `/vitrine` sont redirigés ; un lien discret « Espace vendeur » mène à la
+gestion, et un compte de l'équipe qui se connecte sur la vitrine y est renvoyé.
 La fiche d'un exemplaire affiche, sous le prix, un bloc **Vitrine** :
 
 - **Prix de vitrine proposé**, puis **Publier à ce prix**. La proposition suit
@@ -485,7 +488,7 @@ n'accède à aucune de ces actions.
 
 ### Ce que voit un visiteur
 
-La page `/vitrine` est séparée de la gestion : elle ne charge aucun code de
+La page d'accueil est séparée de la gestion : elle ne charge aucun code de
 gestion et n'ouvre aucune session. Elle liste les publications en ligne dont
 tous les exemplaires sont disponibles, avec une recherche (nom, extension,
 numéro), un filtre de langue, un prix maximum et un tri (récentes, prix, nom).

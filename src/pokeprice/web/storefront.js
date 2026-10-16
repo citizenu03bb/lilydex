@@ -324,7 +324,8 @@ $("login-form").addEventListener("submit", async (event) => {
     });
     await whoAmI();
     if (!state.me) {
-      formError(form, "Ce compte sert à la gestion : ouvrez la page d’accueil du site.");
+      // A seller account: its place is the management application.
+      location.href = "/gestion";
       return;
     }
     form.reset();

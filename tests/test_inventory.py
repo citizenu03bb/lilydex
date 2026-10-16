@@ -603,7 +603,7 @@ def test_browser_api_link_keeps_filters_without_changing_json_api(inventory):
             follow_redirects=False,
         )
         assert browser.status_code == 303
-        assert browser.headers["location"] == "/?" + query
+        assert browser.headers["location"] == "/gestion?" + query
         assert visitor.get(browser.headers["location"]).status_code == 200
         assert (
             visitor.get(

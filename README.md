@@ -21,7 +21,8 @@ uv sync --extra web --extra dev
 uv run --extra web pokeprice-manage serve
 ```
 
-Ouvrir <http://127.0.0.1:3820> et créer le compte administrateur au premier
+Ouvrir <http://127.0.0.1:3820/gestion> (la racine est la vitrine publique) et
+créer le compte administrateur au premier
 démarrage. Pour une installation neuve, importer d'abord les albums scannés :
 
 ```bash

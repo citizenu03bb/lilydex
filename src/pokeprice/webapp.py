@@ -479,7 +479,7 @@ def create_app(
             and "text/html" in request.headers.get("accept", "")
             and request.headers.get("sec-fetch-dest", "") in ("", "document")
         ):
-            response = RedirectResponse("/?" + request.url.query, status_code=303)
+            response = RedirectResponse("/gestion?" + request.url.query, status_code=303)
         else:
             response = await call_next(request)
         response.headers["X-Content-Type-Options"] = "nosniff"
@@ -569,7 +569,15 @@ def create_app(
             path="/",
         )
 
+    # The public storefront is the home page; management lives at /gestion.
     @app.get("/", response_class=HTMLResponse)
+    def home(request: Request):
+        if request.url.query:
+            # Former management links (/?view=sales, filters) keep working.
+            return RedirectResponse("/gestion?" + request.url.query, status_code=301)
+        return static.joinpath("storefront.html").read_text()
+
+    @app.get("/gestion", response_class=HTMLResponse)
     def index():
         return static.joinpath("index.html").read_text()
 
@@ -599,9 +607,9 @@ def create_app(
                 for address in [a for a, hits in public_hits.items() if timestamp - hits[-1] >= 60]:
                     del public_hits[address]
 
-    @app.get("/vitrine", response_class=HTMLResponse)
+    @app.get("/vitrine")
     def storefront_page():
-        return static.joinpath("storefront.html").read_text()
+        return RedirectResponse("/", status_code=301)
 
     @app.get("/api/public/listings")
     def public_listings(

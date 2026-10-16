@@ -32,7 +32,7 @@ const state = {
   offset: 0,
 };
 const location = {
-  pathname: "/",
+  pathname: "/gestion",
   search:
     "?q=Zarbi+%3F&album=album-1&stock=available&status=confirmed&variant=check&sort=binder&limit=40&offset=80",
 };
@@ -65,6 +65,7 @@ assert.equal(controls["variant-filter"].value, "check");
 assert.equal(controls["sort-order"].value, "binder");
 assert.equal(state.offset, 80);
 context.syncLocation();
+assert.equal(location.pathname, "/gestion"); // the storefront owns "/"
 assert(location.search.includes("variant=check"));
 assert(location.search.includes("sort=binder"));
 assert(!location.search.includes("limit="));

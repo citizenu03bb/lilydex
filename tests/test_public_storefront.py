@@ -86,7 +86,7 @@ def test_withdrawn_or_reserved_publications_leave_the_storefront(shop):
 
 def test_the_storefront_page_is_separate_and_not_indexed(shop):
     _, visitor, *_ = shop
-    page = visitor.get("/vitrine")
+    page = visitor.get("/")
     assert page.status_code == 200 and 'name="robots" content="noindex"' in page.text
     assert "/assets/storefront.js" in page.text and "/assets/app.js" not in page.text
     assert visitor.get("/assets/storefront.js").status_code == 200
@@ -97,3 +97,13 @@ def test_anonymous_reads_are_rate_limited(shop):
     _, visitor, *_ = shop
     statuses = [visitor.get("/api/public/listings/absent").status_code for _ in range(301)]
     assert set(statuses[:300]) == {404} and statuses[300] == 429
+
+
+def test_the_storefront_is_home_and_management_has_its_own_address(shop):
+    _, visitor, *_ = shop
+    assert "/assets/app.js" in visitor.get("/gestion").text
+    assert 'href="/gestion"' in visitor.get("/").text  # discreet seller link
+    old_link = visitor.get("/?view=sales&q=Zarbi", follow_redirects=False)
+    assert old_link.status_code == 301 and old_link.headers["location"] == "/gestion?view=sales&q=Zarbi"
+    former = visitor.get("/vitrine", follow_redirects=False)
+    assert former.status_code == 301 and former.headers["location"] == "/"

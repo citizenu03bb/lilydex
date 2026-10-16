@@ -277,3 +277,7 @@ button:disabled {
   border-top: 1px solid var(--line);
   margin-top: 12px;
 }
+.seller a {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
