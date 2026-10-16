@@ -45,6 +45,16 @@ uv run ./pokeprice.py scan ./photos_album/ --grid 3x3 -o album.csv
 Ajouter l'album au manifeste et l'importer. Un réimport n'ajoute aucun doublon
 et n'écrase aucune correction faite dans l'application.
 
+Avec `--energy-gate data/inventory` (extra `vision`), une pochette reconnue par
+l'image comme énergie de base n'est pas lue par Gemini : DINOv2 la compare aux
+exemplaires de la collection et ne la retient que si l'énergie de base la plus
+proche devance toute autre carte d'au moins 0,10 (162 énergies sur 164 sur les
+classeurs du 14 octobre, aucune autre carte ; une Double Énergie Incolore passe
+encore à 0,08). La carte arrive « Énergie de base », non identifiée, type
+proposé à confirmer, sans prix ; l'écart est conservé dans la lecture. Une
+énergie spéciale encore absente de la collection peut passer la porte : elle
+reste alors dans la file à examiner, jamais confirmée ni cotée.
+
 **Saisir des cartes une à une ou en série** (Collection → Ajouter une carte, ou
 Saisie en série) : photo, lecture Gemini, choix de l'édition, recto et verso.
 Sur ordinateur, la caméra affiche une mire de cadrage ; un téléphone peut servir

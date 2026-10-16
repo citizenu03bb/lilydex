@@ -24,6 +24,7 @@ except ImportError:
 
 from pokeprice.slicer import normalize_orientation, detect_grid_layout, slice_grid
 from pokeprice.ocr import get_ocr_provider, CardOCRResult, failed_result
+from pokeprice.energy_gate import gated_note, gated_result
 from pokeprice.tcgdex import TCGdexClient, CardPriceInfo
 from pokeprice.report import (
     build_dataframe,
@@ -69,6 +70,16 @@ def cmd_scan(args):
     checkpoint = csv_path.with_suffix(".checkpoint.json")
     provider = get_ocr_provider(backend=args.backend, model=args.model)
     model = getattr(provider, "model", args.model)
+    gate = None
+    if getattr(args, "energy_gate", None):
+        from pokeprice.energy_gate import MARGIN, PROTOCOL, from_store
+        from pokeprice.inventory import Store
+
+        if not (Path(args.energy_gate) / "collection.sqlite3").is_file():
+            raise ValueError(f"Collection introuvable : {args.energy_gate}")
+        gate = from_store(Store(args.energy_gate))
+        if not gate.ready:
+            raise ValueError("Trop peu d’énergies de base dans la collection pour la porte.")
     corrections = []
     if getattr(args, "corrections", None):
         corrections = json.loads(Path(args.corrections).read_text())
@@ -125,6 +136,8 @@ def cmd_scan(args):
         "condition": args.condition,
         "corrections": corrections,
     }
+    if gate:
+        settings["energy_gate"] = {"protocol": PROTOCOL, "margin": MARGIN}
     records, completed = [], set()
     if getattr(args, "resume", False):
         payload = json.loads(checkpoint.read_text())
@@ -231,7 +244,11 @@ def cmd_scan(args):
                     )
                     crop.save(crop_path)
                 result = None
-                for attempt in range(getattr(args, "retries", 2) + 1):
+                # A basic Energy recognised by image needs no Gemini reading.
+                gated = gate.check(crop) if gate else None
+                if gated:
+                    result = gated_result(gated)
+                for attempt in range(0 if gated else getattr(args, "retries", 2) + 1):
                     try:
                         result = provider.extract_card(crop)
                     except Exception as exc:
@@ -247,6 +264,10 @@ def cmd_scan(args):
                 record = record_for(page, path.name, pos, result, rows, cols, crop_path)
                 if result.status == "failed":
                     record.update(match_status="failed", verification_note=result.error)
+                elif gated:
+                    record.update(
+                        match_status="unresolved", verification_note=gated_note(gated)
+                    )
                 elif not result.name:
                     record.update(
                         match_status="unresolved",
@@ -506,6 +527,12 @@ def main():
         default=2,
         choices=range(0, 6),
         help="Réessais OCR après échec (défaut: 2)",
+    )
+    scan_p.add_argument(
+        "--energy-gate",
+        metavar="DONNEES",
+        default=None,
+        help="Dossier de la collection (ex. data/inventory) : les énergies de base reconnues par l'image ne sont pas lues par Gemini",
     )
     scan_p.add_argument(
         "--corrections",
