@@ -11,7 +11,7 @@ Sur un périmètre documenté, une carte décrite « illustration holo + tampon
 EX Deoxys » doit être reconnue comme une parallèle reverse et utiliser sa
 correspondance de prix vérifiée, sans nouvelle exception dans le code.
 Une holo d’origine utilise Standard lorsque cette correspondance est établie.
-Les observations physiques et leur confirmation restent attribuées à Pat.
+Les observations physiques et leur confirmation restent attribuées au propriétaire.
 
 Le moteur doit accompagner les **six albums restant à scanner**. La collection
 actuelle est un échantillon de départ, pas une limite de couverture. Une nouvelle
@@ -152,7 +152,7 @@ Un outil de préparation récupère les sources disponibles et produit un brouil
 de règles. L’extraction d’un PDF ou les données TCGdex ne publient pas
 automatiquement une règle vérifiée. Les faits, les limites de numéros, les
 langues et les correspondances de marché sont contrôlés avant intégration.
-Ce travail se fait par lot d’éditions, hors du parcours de scan de Pat.
+Ce travail se fait par lot d’éditions, hors du parcours de scan du propriétaire.
 
 Ajouter une édition nécessite une entrée de données et sa validation. Les
 modifications du moteur sont réservées à une caractéristique physique ou
