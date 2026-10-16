@@ -107,3 +107,10 @@ def test_the_storefront_is_home_and_management_has_its_own_address(shop):
     assert old_link.status_code == 301 and old_link.headers["location"] == "/gestion?view=sales&q=Zarbi"
     former = visitor.get("/vitrine", follow_redirects=False)
     assert former.status_code == 301 and former.headers["location"] == "/"
+
+
+def test_https_deployments_ask_browsers_to_stay_on_https(shop):
+    admin, visitor, store, *_ = shop
+    assert "strict-transport-security" not in visitor.get("/health").headers
+    with TestClient(create_app(store.root, secure_cookie=True), base_url="https://testserver") as secure:
+        assert secure.get("/health").headers["strict-transport-security"] == "max-age=31536000"

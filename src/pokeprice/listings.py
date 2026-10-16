@@ -313,31 +313,47 @@ class Storefront:
         }
 
     def search(self, query="", language="", max_cents=None, sort="recent", limit=48, offset=0):
+        """Two queries for the whole storefront, whatever its size (anonymous traffic)."""
         from .inventory import normalized
 
         terms = normalized(query).split()
+        order = PUBLIC_SORTS.get(sort, PUBLIC_SORTS["recent"])
         with self.store.connect() as db:
-            order = PUBLIC_SORTS.get(sort, PUBLIC_SORTS["recent"])
-            rows = db.execute(
-                "SELECT l.id FROM listings l WHERE l.state='online' ORDER BY " + order
-            ).fetchall()
-            found = []
-            for (listing_id,) in rows:
-                for row in self.rows(db, listing_id):
-                    cards = self.cards(db, listing_id)
-                    text = normalized(
-                        " ".join(
-                            f"{c['name']} {c['set_name']} {c['number']}" for c in cards
-                        )
-                        + " "
-                        + row["title"]
-                    )
-                    if (
-                        all(t in text for t in terms)
-                        and (not language or any(c["language"] == language for c in cards))
-                        and (max_cents is None or row["price_cents"] <= max_cents)
-                    ):
-                        found.append(self.public(row, cards))
+            rows = [
+                dict(r)
+                for r in db.execute(
+                    "SELECT l.id,l.title,l.price_cents,l.price_date,l.published_at FROM listings l "
+                    "WHERE l.state='online' AND NOT EXISTS ("
+                    " SELECT 1 FROM listing_items i JOIN copies c ON c.id=i.copy_id"
+                    " WHERE i.listing_id=l.id AND i.active=1"
+                    " AND (c.stock_state!='available' OR c.deleted_at!=''))"
+                    " ORDER BY " + order
+                )
+            ]
+            cards = {}
+            for row in db.execute(
+                "SELECT i.listing_id, c.* FROM listing_items i JOIN copies c ON c.id=i.copy_id "
+                "JOIN listings l ON l.id=i.listing_id WHERE i.active=1 AND l.state='online' "
+                "ORDER BY i.rowid"
+            ):
+                card = dict(row)
+                cards.setdefault(card.pop("listing_id"), []).append(card)
+        found = []
+        for row in rows:
+            items = cards.get(row["id"], [])
+            if not items:
+                continue
+            text = normalized(
+                " ".join(f"{c['name']} {c['set_name']} {c['number']}" for c in items)
+                + " "
+                + row["title"]
+            )
+            if (
+                all(t in text for t in terms)
+                and (not language or any(c["language"] == language for c in items))
+                and (max_cents is None or row["price_cents"] <= max_cents)
+            ):
+                found.append(self.public(row, items))
         if sort == "name":
             found.sort(key=lambda l: normalized(l["title"] or l["items"][0]["name"]))
         return {"items": found[offset : offset + limit], "total": len(found)}

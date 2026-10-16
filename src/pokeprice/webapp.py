@@ -482,6 +482,9 @@ def create_app(
             response = RedirectResponse("/gestion?" + request.url.query, status_code=303)
         else:
             response = await call_next(request)
+        if secure_cookie:
+            # Behind HTTPS only: browsers then refuse plain HTTP for a year.
+            response.headers["Strict-Transport-Security"] = "max-age=31536000"
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "no-referrer"
