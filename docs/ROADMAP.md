@@ -482,10 +482,35 @@ premières ventes.
 
 ### M5 — Exploitation (1 à 3 jours selon l'hébergement)
 
-- Sans budget : l'application reste sur le portable ; accès distant privé et
-  gratuit par réseau maillé (Tailscale, offre personnelle) à la place du tunnel
-  rapide instable, sans exposition publique ni nom de domaine. Serveur ou tunnel
-  nommé avec domaine réexaminés quand un budget existe.
+- Hébergement : en ligne depuis le 16 octobre sur Oracle Cloud Always Free
+  (0 €), <https://lilydex.duckdns.org>, Caddy et Let's Encrypt
+  ([DEPLOYMENT.md](DEPLOYMENT.md)). Le serveur fait foi depuis le 16 octobre
+  à 21 h 11, après le remplacement de sa base par celle du portable. Ce n'était
+  possible sans perte que parce que 22 tables sur 24 étaient identiques à la
+  sauvegarde d'origine ; seuls les comptes et les sessions avaient changé, et ils
+  ont été conservés.
+- Synchronisation portable ↔ lilydex : aujourd'hui, deux bases peuvent diverger
+  sans que rien ne le signale, et il n'existe aucune fusion. À construire :
+  - **Une seule base fait foi**, celle du serveur. Le portable reste le poste de
+    numérisation (photos, OCR, scan) et rapatrie les sauvegardes du serveur
+    (`deploy/oci-pull-backup.sh`).
+  - **Envoi du travail du portable sans remplacer la base** : un nouvel album
+    (rapport, photos, entrée de manifeste) est transféré puis importé *sur le
+    serveur* (`pokeprice-manage import`, sans doublon ni écrasement des
+    corrections). Les corrections passent par l'API du serveur, avec version
+    attendue, auteur et motif.
+  - **Copie locale en lecture seule** : une base restaurée depuis le serveur
+    refuse les écritures et affiche la date de sa sauvegarde, pour qu'aucune
+    correction ne s'y perde.
+  - **Contrôle de divergence** (`sync-check`) : comptes par table, dernier
+    événement et comptes utilisateurs des deux côtés, avant toute bascule ou
+    tout import.
+  - **Bascule exceptionnelle documentée** : remplacer une base uniquement si la
+    cible n'a aucun événement depuis la sauvegarde dont elle provient. Conserver
+    les comptes et les sessions de la cible, et garder l'ancienne base de côté.
+
+  **Terminé lorsque :** un classeur numérisé sur le portable arrive sur lilydex
+  sans remplacer la base, et une écriture dans une copie locale est refusée.
 - Script de contrôle unique : tests Python et JavaScript, lint des fichiers modifiés.
 - Tests de bout en bout (Playwright sur copie temporaire de la base) : saisie,
   relevé, estimation, série, lot.
@@ -504,7 +529,8 @@ mesure à la fin de M3, la sortie du MVP sur le premier des six classeurs après
 | Seuil de valeur en jeu | **10 €** (≈ 10 % des cartes à examiner) | à revoir après le premier classeur |
 | Saisie des classeurs | **les deux : application et ligne de commande** | M3 construit un service d'import commun (découpe, lecture, vérifications, file d'examen) ; la CLI et l'application n'en sont que deux façades, testées sur le même cœur |
 | Second avis (Sonnet) | **Gemini seul pour M2** (13 octobre), derrière l’interface commune de vérification | un second lecteur se branche plus tard par configuration ; sans seconde source, pas d’alerte de contrefaçon, seulement un motif « à examiner » |
-| Hébergement | **aucun budget avant le mois prochain** : faire avec l'existant | portable à la maison ; accès distant gratuit et privé à mettre en place (M5) ; serveur ou domaine réexaminés le mois prochain |
+| Hébergement | **aucun budget avant le mois prochain** : faire avec l'existant | 16 octobre : Oracle Cloud Always Free (0 €), <https://lilydex.duckdns.org> ; le serveur fait foi, synchronisation avec le portable en M5 |
+| Prix de vente affiché | **tendance Cardmarket, plancher 0,50 €** (16 octobre) | seulement pour les cartes NM/EX dont l'état et la variante sont confirmés, arrondi, affiché avec sa date, modifiable à la main ; sous le plancher, les cartes partent en cadeaux ou en lots ; les cartes abîmées et celles à 10 € ou plus reçoivent un prix fixé à la main ou tiré des offres au même état (pas de décote automatique) |
 | Reverses | **éclairage adapté** : une surface foil montre une bande arc-en-ciel (photo de Drackhaus 64/132) | M3 : consigne d'éclairage rasant à la prise ; essai à deux images avec la lumière déplacée ; un comptage naïf des couleurs saturées ne suffit pas (zones de texte imprimées en couleur) |
 
 **Second avis — options à trancher :**
@@ -543,6 +569,10 @@ vérification : changer de modèle relève de la configuration, pas du code.
   fiable. Parade : file d'examen humain dès que la prime le justifie.
 - **Machine unique** : code et données sur un seul portable. Parade : dépôt
   distant (M0) et sauvegardes Drive déjà en place pour les données.
+- **Deux bases qui divergent** : le portable et lilydex ont chacun leur base.
+  Le 16 octobre, une journée de travail (import de 65 cartes, 51 identifications,
+  832 relevés, 680 photos) n'existait que sur le portable. Parade : le serveur
+  fait foi, et la synchronisation est prévue en M5.
 - **Travaux concurrents** : plusieurs agents (Claude, Codex) modifient le dépôt.
   Parade : commits fréquents, contrôles avant commit, formatage limité aux fichiers
   modifiés.
@@ -552,7 +582,7 @@ vérification : changer de modèle relève de la configuration, pas du code.
 - Pilotage par agents IA : identité d'agent, contrat d'API, simulations
   générales, traitements réessayables, adaptateur MCP (jalons A1 à A5 détaillés
   dans l'[archive](archive/ROADMAP-2026-10-05.md)).
-- Catalogue public éventuel, intégrations autorisées aux plateformes de vente.
+- Catalogue public : un client s'inscrit, consulte une sélection explicite de cartes et de champs, et demande une réservation ; l'administrateur l'accepte, ce qui crée un lot réservé. Le client ne voit ni notes, ni provenance, ni historique, ni acheteurs. Prix affiché selon la décision du 16 octobre. Restent à trancher : réservation bloquante dès la demande ou à l'acceptation, et vérification de l'e-mail. Intégrations autorisées aux plateformes de vente ensuite.
 - Calibration de l'aide à l'évaluation de l'état sur les ventes réelles.
 - PostgreSQL seulement si plusieurs serveurs ou de nombreuses écritures
   simultanées deviennent nécessaires.
