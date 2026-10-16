@@ -36,7 +36,7 @@ ssh "$REMOTE_HOST" "if command -v chcon >/dev/null 2>&1 && command -v getenforce
 fi"
 
 echo "[4/6] Initialisation de la collection si /srv/pokeprice/inventory est vide..."
-if ! ssh "$REMOTE_HOST" "sudo test -f /srv/pokeprice/inventory/inventory.sqlite"; then
+if ! ssh "$REMOTE_HOST" "sudo test -f /srv/pokeprice/inventory/collection.sqlite3"; then
     echo "Création/vérification d'une archive quotidienne fraîche sur le portable..."
     .venv/bin/python -m pokeprice.manage backup-daily
     LATEST_ZIP="$(ls -1t data/backups/daily-*.zip | head -n 1)"
@@ -50,7 +50,7 @@ if ! ssh "$REMOTE_HOST" "sudo test -f /srv/pokeprice/inventory/inventory.sqlite"
         sudo -u pokeprice env HOME=/srv/pokeprice /opt/pokeprice/.venv/bin/python -m pokeprice.manage \
             --data /srv/pokeprice/inventory backup-daily"
 else
-    echo "Base existante détectée dans /srv/pokeprice/inventory/inventory.sqlite (conservée)."
+    echo "Base existante détectée dans /srv/pokeprice/inventory/collection.sqlite3 (conservée)."
 fi
 
 echo "[5/6] Installation des unités systemd et configuration de Caddy pour ${DOMAIN}..."
