@@ -120,7 +120,8 @@ const CardMedia = (() => {
       const large = node("img");
       large.alt = source.alt;
       large.draggable = false;
-      const original = source.currentSrc || source.src;
+      // Grid thumbnails name their full-size photo for the enlarged view.
+      const original = source.dataset.full || source.currentSrc || source.src;
       large.src = original.startsWith("https://assets.tcgdex.net/")
         ? original.replace(/\/low\.webp$/, "/high.webp")
         : original;

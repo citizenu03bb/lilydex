@@ -89,6 +89,10 @@ PRAGMA user_version=1;
 """
 
 
+# Grid cards are about 280 px wide; the card ratio is 63 × 88 mm.
+THUMBNAIL_SIZE = (280, 392)
+
+
 class Store:
     def __init__(self, directory):
         self.root = Path(directory).resolve()
@@ -382,6 +386,24 @@ class Store:
             temporary.write_bytes(payload)
             temporary.replace(target)
         return name
+
+    def thumbnail(self, name):
+        """Small copy of a stored photo for the grid, cached outside photos/.
+
+        The cache is derived data: backups skip it and it rebuilds on demand.
+        """
+        from PIL import Image
+
+        target = self.root / "thumbnails" / name
+        if not target.exists():
+            target.parent.mkdir(exist_ok=True)
+            with Image.open(self.photos / name) as image:
+                image = image.convert("RGB")
+                image.thumbnail(THUMBNAIL_SIZE)
+                temporary = target.parent / (str(uuid.uuid4()) + ".tmp")
+                image.save(temporary, "JPEG", quality=82, optimize=True)
+            temporary.replace(target)
+        return target
 
     @staticmethod
     def event(db, copy_id, actor, kind, reason, before, after):

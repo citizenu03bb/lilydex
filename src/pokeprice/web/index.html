@@ -9,6 +9,7 @@
     <script src="/assets/media.js" defer></script>
     <script src="/assets/app.js" defer></script>
     <script src="/assets/workflows.js" defer></script>
+    <script src="/assets/gallery.js" defer></script>
   </head>
   <body>
     <section id="access" class="access" hidden>
@@ -194,7 +195,15 @@
             >
             <p id="result-count" aria-live="polite"></p>
             <span id="result-value"></span>
+            <button id="open-viewer" type="button" aria-keyshortcuts="V">
+              Visionneuse
+            </button>
           </div>
+          <p class="help keyboard-help" id="keyboard-help">
+            Clavier dans la grille : flèches, Début/Fin, Pg↑/Pg↓ (page),
+            Ctrl+Début/Fin (tout), Entrée (fiche), Espace (sélection),
+            V (visionneuse).
+          </p>
           <section id="result-values" class="valuation-grid" aria-label="Valeurs des résultats filtrés"></section>
           <button id="batch-photos" hidden>
             Préparer les photos sélectionnées
@@ -300,6 +309,22 @@
         ><button id="prepare-sale" class="primary">Créer le lot</button>
       </div>
     </div>
+    <dialog id="viewer-dialog" class="card-viewer" aria-labelledby="viewer-title">
+      <figure id="viewer-photo" class="viewer-photo" tabindex="-1"></figure>
+      <button id="viewer-previous" class="viewer-step previous" type="button" aria-label="Carte précédente">‹</button>
+      <button id="viewer-next" class="viewer-step next" type="button" aria-label="Carte suivante">›</button>
+      <div class="viewer-top">
+        <h2 id="viewer-title" class="visually-hidden">Visionneuse</h2>
+        <p id="viewer-position" aria-live="polite"></p>
+        <button id="viewer-flip" type="button" aria-keyshortcuts="R">Verso</button>
+        <button id="viewer-strip-toggle" type="button" aria-keyshortcuts="T" aria-pressed="false" aria-label="Bande des cartes de la page">▦</button>
+        <button id="viewer-info-toggle" type="button" aria-keyshortcuts="I" aria-pressed="false" aria-controls="viewer-info" aria-label="Informations de la carte">i</button>
+        <button data-close="viewer-dialog" class="close" aria-label="Fermer la visionneuse">×</button>
+      </div>
+      <div id="viewer-caption" class="viewer-caption"></div>
+      <div id="viewer-strip" class="viewer-strip" aria-label="Cartes de la page"></div>
+      <aside id="viewer-info" class="viewer-info" aria-label="Informations de la carte"></aside>
+    </dialog>
     <dialog id="detail-dialog">
       <div class="dialog-header">
         <span class="eyebrow">FICHE D’EXEMPLAIRE</span

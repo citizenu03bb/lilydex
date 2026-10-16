@@ -524,7 +524,7 @@ def create_app(
         return static.joinpath("index.html").read_text()
 
     @app.get("/assets/{name}")
-    def assets(name: Literal["app.js", "media.js", "workflows.js", "style.css"]):
+    def assets(name: Literal["app.js", "media.js", "workflows.js", "gallery.js", "style.css"]):
         return FileResponse(static / name)
 
     @app.get("/api/setup")
@@ -1241,6 +1241,7 @@ def create_app(
     def photo(
         copy_id: str,
         side: Literal["front", "back"] = "front",
+        size: Literal["full", "thumb"] = "full",
         user=Depends(current_user),
     ):
         with store.connect() as db:
@@ -1248,7 +1249,8 @@ def create_app(
         name = card["photo" if side == "front" else "back_photo"]
         if not name:
             raise HTTPException(404, "Photo absente.")
-        return FileResponse(store.photos / name, media_type="image/jpeg")
+        path = store.thumbnail(name) if size == "thumb" else store.photos / name
+        return FileResponse(path, media_type="image/jpeg")
 
     @app.put("/api/copies/{copy_id}/photo")
     async def upload(

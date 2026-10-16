@@ -491,6 +491,33 @@ les deux images de la comparaison gardent leurs déplacements indépendants.
 Les images se superposent verticalement sur petit écran. La fermeture ou Échap
 rend la main à la saisie sans effacer ses champs ni confirmer l'édition.
 
+## Parcourir au clavier
+
+Dans la grille, une carte qui a le focus est entourée. Les flèches passent à
+la carte voisine (gauche/droite franchissent les pages de résultats),
+Début/Fin vont à la première ou dernière carte de la page, Pg↑/Pg↓ changent de
+page en gardant la même place, Ctrl+Début/Fin vont au tout début ou à la toute
+fin. Entrée ouvre la fiche, Espace coche la carte pour la sélection ou le lot.
+
+**V** ou le bouton **Visionneuse** ouvre la carte en plein écran : la photo
+occupe tout l'écran, sur ordinateur comme sur téléphone, avec une ligne pour le
+nom, l'extension, le prix prudent et l'emplacement. **I** (ou le bouton i)
+affiche le détail de la carte, à droite sur ordinateur et en bas sur
+téléphone ; **T** épingle la bande des cartes de la page, qui apparaît aussi
+quand la souris approche du bas de l'écran. Ces deux choix sont mémorisés
+sur l'appareil. ←/→ enchaînent les cartes sur
+tous les résultats ; Pg↑/Pg↓ sautent de 10 cartes, ou d'une page de classeur
+avec **Trier → Classeur** ; Début/Fin vont aux extrémités des résultats ;
+**R** (ou le bouton Verso) retourne la carte, Entrée ouvre la fiche, Espace la sélectionne, Échap
+ou **V** ramènent à la grille sur la carte vue en dernier. Sur téléphone, un
+glissement horizontal sur la photo change de carte. Une touche de déplacement
+pressée pendant un chargement de page est jouée ensuite.
+
+La grille charge une vignette (280 × 392 px au plus) au lieu de la photo
+complète ; l'agrandissement et la visionneuse gardent la photo d'origine. Les
+vignettes sont recalculées à la demande dans `data/inventory/thumbnails/` et ne
+font pas partie des sauvegardes.
+
 ## Préparer la photo
 
 L'aperçu propose trois réglages locaux, sans appel Gemini : recadrage automatique,

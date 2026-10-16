@@ -1,6 +1,7 @@
 import io
 import json
 import time
+import zipfile
 from concurrent.futures import ThreadPoolExecutor
 
 import pytest
@@ -510,3 +511,28 @@ def test_capture_guide_is_kept_for_photo_options_and_validated(client):
         "/api/intake/photo", content=photo(), headers={"X-Card-Guide": "1,1,1,1"}
     )
     assert bad.status_code == 422
+
+
+def test_grid_thumbnail_is_small_cached_and_left_out_of_backups(client, tmp_path):
+    output = io.BytesIO()
+    Image.new("RGB", (800, 1100), "purple").save(output, format="JPEG")
+    token = client.post("/api/intake/photo", content=output.getvalue()).json()["token"]
+    client.post(f"/api/intake/{token}/analyze")
+    card = client.post(
+        f"/api/intake/{token}/save",
+        json=values(client, chosen_catalog_id=CANDIDATE["id"], human_confirmed=True),
+    ).json()
+    full = client.get(f"/api/copies/{card['id']}/photo")
+    thumb = client.get(f"/api/copies/{card['id']}/photo?size=thumb")
+    assert thumb.status_code == 200 and thumb.headers["content-type"] == "image/jpeg"
+    width, height = Image.open(io.BytesIO(thumb.content)).size
+    assert width <= 280 and height <= 392 and len(thumb.content) < len(full.content)
+    assert client.get(f"/api/copies/{card['id']}/photo?size=huge").status_code == 422
+    store = client.app.state.store
+    assert [p.name for p in (store.root / "thumbnails").iterdir()] == [
+        client.get(f"/api/copies/{card['id']}").json()["photo"]
+    ]
+    archive = tmp_path / "backup.zip"
+    backup(store, archive)
+    with zipfile.ZipFile(archive) as bundle:
+        assert not any("thumbnails" in n for n in bundle.namelist())

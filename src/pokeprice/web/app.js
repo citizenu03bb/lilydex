@@ -9,6 +9,7 @@ const state = {
   selected: new Map(),
   lotMode: false,
   visibleCards: [],
+  total: 0,
   detail: null,
   request: 0,
   view: "collection",
@@ -265,6 +266,7 @@ async function loadCards() {
   const grouped = $("display-mode")?.value === "editions";
   const data = await api((grouped ? "/editions?" : "/copies?") + query);
   if (generation !== state.request) return;
+  state.total = data.total;
   state.visibleCards = grouped
     ? data.items.flatMap((g) => g.copies)
     : data.items;
@@ -273,6 +275,9 @@ async function loadCards() {
   $("result-value").textContent =
     `${data.valuation_totals.review_count} à examiner · seuil ${money(Math.round(reviewThreshold() * 100))}`;
   renderValuationTotals($("result-values"), data.valuation_totals);
+  // A re-render keeps keyboard focus on the same copy when it is still shown.
+  const focused = document.activeElement?.closest?.("#cards .card")?.dataset
+    .copyId;
   $("cards").replaceChildren();
   $("cards").classList.toggle("edition-list", grouped);
   for (const entry of data.items) {
@@ -333,7 +338,8 @@ async function loadCards() {
       const image = el("div", undefined, "card-image");
       if (card.photo) {
         const img = el("img");
-        img.src = `/api/copies/${card.id}/photo?v=${card.version}`;
+        img.src = `/api/copies/${card.id}/photo?size=thumb&v=${card.version}`;
+        img.dataset.full = `/api/copies/${card.id}/photo?v=${card.version}`;
         img.alt = card.name;
         img.loading = "lazy";
         img.decoding = "async";
@@ -424,6 +430,7 @@ async function loadCards() {
     : "0 résultat";
   selectionBar();
   if (typeof Workflows !== "undefined") Workflows.selection();
+  if (typeof Gallery !== "undefined") Gallery.rendered(focused);
 }
 function selectionBar() {
   if (typeof Workflows !== "undefined") Workflows.selection();

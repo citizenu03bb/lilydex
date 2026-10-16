@@ -122,3 +122,20 @@ def test_valuation_totals_show_coverage_and_keep_missing_prices_unknown():
         capture_output=True,
         text=True,
     )
+
+
+def test_gallery_keys_find_the_card_below_and_the_page_of_a_position():
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("Node.js is required")
+    root = Path(__file__).resolve().parents[1]
+    subprocess.run(
+        [
+            node,
+            str(root / "tests/web_gallery_runtime.cjs"),
+            str(root / "src/pokeprice/web/gallery.js"),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
