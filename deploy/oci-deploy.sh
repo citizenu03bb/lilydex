@@ -61,6 +61,7 @@ ssh "$REMOTE_HOST" "sudo cp /opt/pokeprice/deploy/pokeprice.service /etc/systemd
     sudo sed 's/cards.example.com/${DOMAIN}/g' /opt/pokeprice/deploy/Caddyfile.example | sudo tee /etc/caddy/Caddyfile >/dev/null && \
     sudo systemctl daemon-reload && \
     sudo systemctl enable --now pokeprice.service pokeprice-backup.timer && \
+    sudo systemctl restart pokeprice.service && \
     sudo systemctl reload-or-restart caddy"
 
 echo "[6/6] Vérification de l'état local et HTTPS du service..."
