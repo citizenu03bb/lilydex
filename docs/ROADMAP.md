@@ -399,40 +399,59 @@ Reste pour M2 : double source pour la contrefaçon, puis la tranche 5.
 **Tranche 5, à faire : DINOv2 propose l’édition à la saisie quand le
 catalogue ne trouve rien.** Aujourd’hui, faute de numéro lu (ou mal lu), la
 recherche catalogue rend une liste vide et la saisie passe à la main. À la
-place, la fiche classerait la photo, par l’image seule, parmi toutes les
-impressions TCGdex qui portent le nom lu, dans la langue lue et en anglais.
-L’impression en tête serait proposée si son écart avec la deuxième atteint la
-marge du contrôle d’édition (0,05) ; en dessous, aucune proposition. Une
-personne confirme toujours l’édition, comme pour une proposition du
-catalogue. Ensuite le contrôle d’édition de la tranche 3 s’applique : ce
-n’est plus un avis indépendant pour cette carte, l’historique doit le dire.
+place :
 
-Mesure du 14 octobre, sur les lectures enregistrées des deux passages du banc
-(DINOv2 rejoué hors ligne, sans nouvel appel Gemini) :
+1. galerie : toutes les impressions TCGdex qui portent le nom lu, dans la
+   langue lue et en anglais, noms comparés sans accents, casse, crochets ni
+   ponctuation ;
+2. filtre par le numéro, même mal lu : on garde les impressions dont le
+   numéro ou le nombre de cartes de l’extension correspond (« 68/97 » garde
+   l’extension à 97 cartes) ; sans numéro lu, pas de filtre ;
+3. DINOv2 classe la photo dans ce qui reste ; l’impression en tête est
+   proposée si son écart avec la deuxième atteint 0,05 (ou si elle reste
+   seule). Pas de proposition si le filtre a écarté des impressions sans
+   image : la vraie peut être parmi elles ;
+4. une personne confirme, avec la photo à côté de l’image TCGdex proposée.
+   Le contrôle d’édition de la tranche 3, sur la galerie complète, joue
+   ensuite le rôle de second avis ; l’historique doit dire qu’il ne s’agit
+   pas d’un avis indépendant.
 
-| Cartes sans résultat catalogue | 1er passage | 2e passage |
+**Évaluation du 14 octobre**, sur les lectures enregistrées des deux passages
+du banc (DINOv2 rejoué hors ligne, sans nouvel appel Gemini). Sur les seules
+cartes sans résultat catalogue, l’échantillon est trop petit pour conclure ;
+on a donc aussi simulé la règle sur toutes les cartes (29 par passage).
+
+| Règle | Cartes sans résultat catalogue (6 puis 8) | Toutes les cartes (58 lectures) |
 |---|---|---|
-| Bonne édition proposée (écart ≥ 0,05) | 6/6 | 6/8 |
-| Bonne édition en tête, écart trop faible : pas de proposition | 0 | 1 (Clic, 0,007) |
-| Mauvaise édition en tête, écart trop faible : pas de proposition | 0 | 1 (PokéNav, 0,001 ; réimpression à l’illustration identique) |
-| Mauvaise édition proposée | 0 | 0 |
+| Nom seul, écart ≥ 0,05 | 6/6 puis 6/8 justes, aucune fausse | 30 justes, **4 fausses**, 24 sans proposition |
+| Nom puis filtre par numéro, écart ≥ 0,05 | 6/6 puis **7/8** justes, aucune fausse | **48 justes**, 1 fausse, 9 sans proposition |
 
-Éditions retrouvées : Chamallot, Octillery, Barboach (italien), Zarbi K,
-Fossile Crâne, Méthode d’entraînement du Prof. Orme (écarts de 0,061 à
-0,300). Il faut une comparaison des noms tolérante : la recherche TCGdex
-exacte (`eq:`) distingue les majuscules et ne trouvait rien pour « Fossile
-crâne » ni pour « Zarbi [K] ». La mesure a donc utilisé une recherche par
-contenu, puis un filtre local qui ignore accents, casse, crochets et
-ponctuation. Même cause côté catalogue : `catalogue_candidates` compare les
-noms en distinguant les majuscules (« Fossile crâne » contre « Fossile
-Crâne »), à corriger dans la même tranche.
+Sans filtre, deux erreurs reviennent aux deux passages. Solochi : confusion
+avec une impression récente, écart 0,075. Baggiguane 10/12 : la vraie
+impression n’a pas d’image, DINOv2 en choisit forcément une autre. Monter la
+marge ne les sépare pas des bonnes propositions, qui ont aussi des écarts de
+0,061 et 0,075. Le numéro, même partiel, les règle. Il départage aussi Clic
+(« 89/114 ») et Chamallot (écart de 0,075 à 0,241), et récupère Zarbi K
+(« 58/105 »), Fossile Crâne et Méthode d’entraînement du Prof. Orme. La seule
+erreur restante est PokéNav lu « 88/109 », numéro d’une autre impression
+existante (ex1-88) : le catalogue faisait déjà la même erreur, et son
+illustration est identique à la vraie, donc l’image ne peut pas trancher.
+Risque restant : sans aucun numéro lu, une vraie impression sans image
+(promos, comme Baggiguane) laisse passer une mauvaise proposition. La
+proposition doit alors signaler les impressions de ce nom qui n’ont pas
+d’image.
+
+Côté catalogue, même cause : `catalogue_candidates` compare les noms en
+distinguant les majuscules (« Fossile crâne » contre « Fossile Crâne »), à
+corriger dans la même tranche.
 
 À prévoir : la proposition à la saisie (avec l’option `vision`, sinon
 inchangé), la galerie par nom lu en partageant le code de `same_name_gallery`,
-une mesure « édition proposée par l’image » dans `bench_recognition.py app`
-(au moins 6/6 et 6/8, aucune mauvaise proposition), et des tests sur un nom lu
-avec une autre casse ou des crochets. Hors de portée : Baggiguane 10/12,
-dont la vraie impression (2013bw-10) n’a d’image nulle part.
+le nombre de cartes par extension (TCGdex `/sets`, en cache), une mesure
+« édition proposée par l’image » dans `bench_recognition.py app` (justes au
+moins 6/6 et 7/8 sur les cartes sans résultat catalogue, aucune fausse), et
+des tests : nom lu avec une autre casse ou des crochets, numéro partiel,
+impressions sans image.
 
 ### M3 — Saisie à l'échelle des six classeurs (3 à 5 jours)
 
