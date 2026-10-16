@@ -43,6 +43,7 @@ from .pricing import (
     fetch_card,
     fetch_catalogue_card,
 )
+from .listings import Listings
 from .variant_catalogue import VariantCatalogue
 from .variant_pricing import category
 from .edition_check import EditionCheckService, propose_edition
@@ -263,6 +264,17 @@ def intake_values(values):
     for key in ("name", "number", "set_name", "language", "reason"):
         data[key] = getattr(values, key)
     return data
+
+
+class ListingPrice(Model):
+    # Without a price, the copy takes its computed storefront price.
+    price_eur: Decimal | None = Field(default=None, ge=0, le=10000000, decimal_places=2)
+
+
+class ListingCreate(ListingPrice):
+    copy_ids: list[str] = Field(min_length=1, max_length=401)
+    lot: bool = False
+    title: str = Field(default="", max_length=256)
 
 
 class SaleCreate(Model):
@@ -1410,6 +1422,64 @@ def create_app(
     ):
         return edition_checks.keep(
             copy_id, check_id, values.expected_version, user["username"], values.reason
+        )
+
+    listings = Listings(store)
+
+    @app.get("/api/listings")
+    def listing_index(
+        state: Literal["online", "offline", ""] = "online", user=Depends(staff)
+    ):
+        return listings.all(state)
+
+    @app.post("/api/listings", status_code=201)
+    def listing_create(values: ListingCreate, user=Depends(editor)):
+        price = cents(values.price_eur)
+        if values.lot:
+            return [
+                listings.publish(
+                    values.copy_ids, user["username"], price_cents=price,
+                    title=values.title, lot=True,
+                )
+            ]
+        # A selection: each card is published alone, at its own price.
+        published, refused = [], []
+        for copy_id in values.copy_ids:
+            try:
+                published.append(
+                    listings.publish([copy_id], user["username"], price_cents=price)
+                )
+            except (ValueError, Conflict) as error:
+                refused.append({"copy_id": copy_id, "reason": str(error)})
+        return {"published": published, "refused": refused}
+
+    @app.get("/api/copies/{copy_id}/listing")
+    def copy_listing(copy_id: str, user=Depends(staff)):
+        with store.connect() as db:
+            current = listings.active(db, copy_id)
+            current = listings.get(db, current["id"]) if current else None
+        return {"listing": current, "proposal": listings.proposal(copy_id)}
+
+    @app.put("/api/copies/{copy_id}/listing")
+    def copy_publish(copy_id: str, values: ListingPrice, user=Depends(editor)):
+        return listings.publish(
+            [copy_id], user["username"], price_cents=cents(values.price_eur)
+        )
+
+    @app.delete("/api/copies/{copy_id}/listing")
+    def copy_unpublish(copy_id: str, user=Depends(editor)):
+        with store.connect() as db:
+            current = listings.active(db, copy_id)
+        if not current:
+            raise KeyError("Cet exemplaire n’est pas publié.")
+        return listings.unpublish(
+            current["id"], current["version"], user["username"], "Retrait de la vitrine"
+        )
+
+    @app.post("/api/listings/{listing_id}/unpublish")
+    def listing_unpublish(listing_id: str, values: CopyRemoval, user=Depends(editor)):
+        return listings.unpublish(
+            listing_id, values.expected_version, user["username"], values.reason
         )
 
     @app.get("/api/sales")

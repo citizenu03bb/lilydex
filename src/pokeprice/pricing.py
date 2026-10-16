@@ -335,6 +335,100 @@ def estimate_sale(offers, condition, *, stamp=""):
     }
 
 
+FLOOR_CENTS = 50  # Below this, a card goes into a lot or is given away.
+HIGH_VALUE_CENTS = 1000  # From here, a trend alone is not a selling price.
+TREND_CONDITIONS = {"MT", "NM", "EX", "NM/EX"}
+
+
+def round_up_tenth(amount_cents):
+    return -(-amount_cents // 10) * 10
+
+
+def display_price(card, valuation, override=None):
+    """Storefront price for one copy, or the reasons it cannot be published alone.
+
+    Decisions of 16 October: a manual price wins, then an estimate from offers in
+    the same condition, then the Cardmarket trend rounded up to the next tenth for
+    checked NM/EX cards under 10 €. No condition discount is ever applied; below
+    the 0.50 € floor the card belongs in a lot or is given away.
+    """
+    result = {
+        "publishable": False,
+        "price_cents": None,
+        "mode": None,
+        "source": "",
+        "date": "",
+        "reasons": [],
+        "suggestion": None,
+    }
+    reasons = result["reasons"]
+    if card.get("deleted_at"):
+        reasons.append("Exemplaire supprimé de la collection.")
+    if card.get("stock_state", "available") != "available":
+        reasons.append("Exemplaire déjà réservé ou vendu.")
+    if card.get("identification_status") != "confirmed":
+        reasons.append("Identité à confirmer avant de publier.")
+    if reasons:
+        return result
+    manual = (valuation or {}).get("manual_price")
+    raw = None
+    if override:
+        raw = override["amount_cents"]
+        result.update(
+            price_cents=override["amount_cents"],
+            mode=override.get("mode", "manual"),
+            source=override.get("source") or "Prix fixé à la main",
+            date=override.get("date") or now(),
+        )
+    elif not card.get("condition_confirmed"):
+        reasons.append("État à confirmer, ou prix à fixer à la main.")
+    elif (valuation or {}).get("sale_estimate_cents") is not None:
+        raw = valuation["sale_estimate_cents"]
+        result.update(
+            price_cents=round_up_tenth(valuation["sale_estimate_cents"]),
+            mode="offers",
+            source="Estimation sur les offres Cardmarket au même état",
+        )
+    elif manual:
+        raw = manual["amount_cents"]
+        result.update(
+            price_cents=round_up_tenth(manual["amount_cents"]),
+            mode="manual",
+            source=manual["source"],
+            date=manual["observed_at"],
+        )
+    elif not card.get("variant_confirmed") or (valuation or {}).get("price_variant_issue"):
+        reasons.append("Variante à vérifier sur la carte avant un prix automatique.")
+    elif card.get("condition") not in TREND_CONDITIONS:
+        reasons.append(
+            f"État {card.get('condition') or 'inconnu'} : pas de tendance pour un état "
+            "inférieur à EX, fixez le prix à la main."
+        )
+    elif (valuation or {}).get("trend_cents") is None:
+        reasons.append("Aucune tendance relevée : relevez le prix ou fixez-le à la main.")
+    elif valuation["trend_cents"] >= HIGH_VALUE_CENTS:
+        reasons.append(
+            "10 € ou plus : estimez le prix sur les offres au même état, ou fixez-le à la main."
+        )
+    else:
+        raw = valuation["trend_cents"]
+        result.update(
+            price_cents=round_up_tenth(valuation["trend_cents"]),
+            mode="trend",
+            source=SOURCE + " (tendance)",
+            date=card.get("price_date") or "",
+        )
+    # The floor is checked before rounding: 0.41 € stays a card for a lot.
+    if result["price_cents"] is not None and raw < FLOOR_CENTS:
+        reasons.append(
+            f"Sous le plancher de {euros(FLOOR_CENTS / 100)} ({euros(raw / 100)}) : "
+            "à mettre dans un lot ou à offrir."
+        )
+        result["suggestion"] = "lot"
+    result["publishable"] = result["price_cents"] is not None and not reasons
+    return result
+
+
 class PriceService:
     def __init__(self, store, fetch=fetch_card, market=None):
         self.store, self.fetch, self.market = store, fetch, market

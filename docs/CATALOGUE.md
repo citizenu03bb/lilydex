@@ -145,6 +145,14 @@ lot créé.
    hors `staff`, listées dans `tests/test_storefront_access.py`.
 2. **Publication et prix** : tables `listings`, `display_price`, actions de
    publication dans la gestion, tests du calcul et du plancher.
+   *Livrée le 16 octobre (branche `vitrine-tranche-2`)* : migration 16
+   (`listings`, `listing_items`, index `single_listing` : un exemplaire dans
+   une seule publication en ligne) ; `display_price` dans `pricing.py`, plancher
+   comparé avant arrondi, cartes à 10 € ou plus renvoyées aux offres ou au prix
+   manuel ; module `listings.py` et routes de gestion (`editor` pour publier,
+   `staff` pour consulter) ; bloc **Vitrine** de la fiche, **Publier en
+   vitrine** et **Publier en lot** sur la sélection, filtre **Publiés en
+   vitrine**. Le détail est dans [APP.md](APP.md#publier-en-vitrine).
 3. **Vitrine publique** : routes `/api/public/*`, page `storefront`, photos par
    publication, limitation de débit, test « aucun champ privé dans les
    réponses publiques ».

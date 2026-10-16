@@ -443,6 +443,8 @@ function selectionBar() {
       (c) => c.stock_state === "available" && !c.deleted_at,
     );
   $("prepare-sale").disabled = !saleReady;
+  $("publish-selection").disabled = !saleReady;
+  $("publish-lot").disabled = !saleReady || state.selected.size < 2;
   $("finish-lot").disabled = !saleReady;
   $("change-variant").disabled = !state.selected.size || state.priceRun;
   if (!state.priceRun) {
@@ -734,6 +736,7 @@ function renderPriceSnapshot(parent, card) {
   renderMarketProduct(section, card);
   renderBoundQuote(section, card);
   renderSaleEstimate(section, card);
+  renderStorefront(section, card);
   parent.append(section);
 }
 // TCGdex may give two cards of a set one Cardmarket product (Darkrai GE 3/4).
@@ -948,6 +951,92 @@ function renderSaleEstimate(parent, card) {
     box.append(details);
   }
   if (box.children.length) parent.append(box);
+}
+// Storefront publication: the computed price, or why the card cannot go alone.
+function renderStorefront(parent, card) {
+  const box = el("div", undefined, "storefront");
+  box.append(el("p", "Vitrine : chargement…", "help"));
+  parent.append(box);
+  const publish = async (body) => {
+    await api(`/copies/${card.id}/listing`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    });
+    await openDetail(card.id);
+  };
+  api(`/copies/${card.id}/listing`)
+    .then(({ listing, proposal }) => {
+      box.replaceChildren();
+      const error = el("p", "", "error");
+      error.setAttribute("role", "alert");
+      const guarded = (action) => async () => {
+        error.textContent = "";
+        try {
+          await action();
+        } catch (e) {
+          error.textContent = e.message;
+        }
+      };
+      const lot = listing && listing.items.length > 1;
+      if (listing && listing.state === "online") {
+        box.append(
+          el(
+            "p",
+            `En vitrine à ${money(listing.price_cents)}` +
+              (lot ? ` (lot de ${listing.items.length} cartes)` : "") +
+              ` · ${listing.price_source}` +
+              (listing.available ? "" : " · hors vitrine : un exemplaire est réservé, vendu ou supprimé"),
+            "storefront-value",
+          ),
+        );
+        if (editAllowed()) {
+          const remove = el("button", lot ? "Retirer le lot de la vitrine" : "Retirer de la vitrine");
+          remove.type = "button";
+          remove.addEventListener(
+            "click",
+            guarded(async () => {
+              await api(`/copies/${card.id}/listing`, { method: "DELETE" });
+              await openDetail(card.id);
+            }),
+          );
+          box.append(remove);
+        }
+      } else if (proposal.publishable) {
+        box.append(
+          el("p", `Prix de vitrine proposé : ${money(proposal.price_cents)} · ${proposal.source}`, "storefront-value"),
+        );
+        if (editAllowed()) {
+          const go = el("button", "Publier à ce prix");
+          go.type = "button";
+          go.addEventListener("click", guarded(() => publish({})));
+          box.append(go);
+        }
+      } else {
+        box.append(el("p", "Pas de prix de vitrine automatique :", "help"));
+        const list = el("ul", undefined, "price-warnings");
+        for (const reason of proposal.reasons) list.append(el("li", reason));
+        box.append(list);
+      }
+      if (editAllowed() && !lot && card.stock_state === "available" && !card.deleted_at) {
+        const details = el("details");
+        details.append(el("summary", listing?.state === "online" ? "Changer le prix de vitrine" : "Publier à un prix fixé à la main"));
+        const amount = el("input");
+        amount.type = "number";
+        amount.min = "0.50";
+        amount.step = "0.10";
+        amount.setAttribute("aria-label", "Prix de vitrine en euros");
+        const go = el("button", "Publier à ce prix");
+        go.type = "button";
+        go.addEventListener(
+          "click",
+          guarded(() => (amount.value ? publish({ price_eur: amount.value }) : null)),
+        );
+        details.append(amount, go);
+        box.append(details);
+      }
+      box.append(error);
+    })
+    .catch((e) => box.replaceChildren(el("p", e.message, "error")));
 }
 function renderCopyRemoval(parent, card) {
   if (state.user?.role !== "admin") return;
@@ -2513,6 +2602,45 @@ $("cancel-lot").addEventListener("click", () => {
   selectionBar();
 });
 $("prepare-sale").addEventListener("click", prepareLot);
+$("publish-selection").addEventListener("click", async () => {
+  const button = $("publish-selection");
+  button.disabled = true;
+  try {
+    const result = await api("/listings", {
+      method: "POST",
+      body: JSON.stringify({ copy_ids: [...state.selected.keys()] }),
+    });
+    const parts = [`${result.published.length} publiée(s) en vitrine`];
+    if (result.refused.length)
+      parts.push(`${result.refused.length} refusée(s) : ${result.refused[0].reason}`);
+    toast(parts.join(" · "));
+    await loadCards();
+  } catch (e) {
+    toast(e.message);
+  } finally {
+    selectionBar();
+  }
+});
+$("publish-lot").addEventListener("click", async () => {
+  const price = prompt(
+    `Prix du lot de ${state.selected.size} cartes, en euros (au moins 0,50 €) :`,
+  );
+  if (!price) return;
+  try {
+    await api("/listings", {
+      method: "POST",
+      body: JSON.stringify({
+        copy_ids: [...state.selected.keys()],
+        lot: true,
+        price_eur: price.replace(",", "."),
+      }),
+    });
+    toast(`Lot de ${state.selected.size} cartes publié en vitrine.`);
+    await loadCards();
+  } catch (e) {
+    toast(e.message);
+  }
+});
 $("finish-lot").addEventListener("click", prepareLot);
 $("sale-form").addEventListener("submit", async (e) => {
   e.preventDefault();

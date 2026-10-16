@@ -1411,7 +1411,8 @@ dialog::backdrop {
   color: var(--amber);
   font-weight: 600;
 }
-.sale-estimate {
+.sale-estimate,
+.storefront {
   border-top: 1px solid var(--line);
   margin-top: 10px;
   padding-top: 8px;
@@ -1420,7 +1421,8 @@ dialog::backdrop {
   width: 100%;
   font: inherit;
 }
-.sale-estimate-value {
+.sale-estimate-value,
+.storefront-value {
   font-weight: 600;
 }
 

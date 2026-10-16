@@ -31,6 +31,8 @@ for (const lotMode of [false, true]) {
       "prepare-sale",
       "refresh-prices",
       "change-variant",
+      "publish-selection",
+      "publish-lot",
       "finish-lot",
       "select-visible",
       "selection-count",
@@ -93,6 +95,8 @@ for (const lotMode of [false, true]) {
   );
   assert.equal(controls["lot-selected"].children.length, 0);
   assert.equal(controls["prepare-sale"].disabled, true);
+  assert.equal(controls["publish-selection"].disabled, true);
+  assert.equal(controls["publish-lot"].disabled, true);
   assert.equal(controls["finish-lot"].disabled, true);
   assert.equal(controls["select-visible"].disabled, false);
   assert.equal(controls["selection-bar"].hidden, !lotMode);

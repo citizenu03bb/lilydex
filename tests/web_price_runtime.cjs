@@ -83,6 +83,7 @@ const cards = [
     money: (n) => n == null ? "Prix indisponible" : String(n),
     editAllowed: () => true,
     renderSaleEstimate: () => {},
+    renderStorefront: () => {},
     api: async () => { storedPrice = 4200; },
     refreshSummary: async () => { total = storedPrice; },
     openDetail: async () => { detailPrice = storedPrice; },

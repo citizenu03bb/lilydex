@@ -453,6 +453,36 @@ consultation ne peut pas créer de lot.
 Ce parcours a été rendu explicite le 5 octobre 2026. Actualiser la page pour
 charger la nouvelle interface, y compris depuis le lien Cloudflare.
 
+## Publier en vitrine
+
+La vitrine publique n'est pas encore ouverte (tranche 3, voir
+[CATALOGUE.md](CATALOGUE.md)) ; on prépare dès maintenant ce qu'elle montrera.
+La fiche d'un exemplaire affiche, sous le prix, un bloc **Vitrine** :
+
+- **Prix de vitrine proposé**, puis **Publier à ce prix**. La proposition suit
+  la décision du 16 octobre : un prix fixé à la main d'abord, puis une
+  estimation sur les offres au même état, puis la tendance Cardmarket arrondie
+  au dixième supérieur, seulement pour une carte NM/EX dont l'identité, l'état
+  et la variante sont confirmés, et sous 10 €. Aucune décote selon l'état.
+- Sinon, les motifs (état à confirmer, variante à vérifier, état inférieur à
+  EX, 10 € ou plus, pas de tendance). **Publier à un prix fixé à la main** reste
+  possible pour une carte identifiée et disponible.
+- **Plancher de 0,50 €**, comparé au montant avant arrondi : une carte à 0,41 €
+  va dans un lot ou se donne.
+- Une carte publiée affiche son prix et sa source ; **Changer le prix de
+  vitrine** met à jour la même publication, **Retirer de la vitrine** la retire
+  avec un motif inscrit à l'historique.
+
+Depuis une sélection, **Publier en vitrine** publie chaque carte à son propre
+prix et signale les refus ; **Publier en lot** demande un prix unique pour
+l'ensemble (au moins 0,50 €). Un exemplaire n'appartient qu'à une publication
+en ligne. Une publication dont un exemplaire est réservé, vendu ou supprimé
+sort de la vitrine. Le prix publié ne change jamais tout seul : un relevé plus
+récent est seulement signalé dans la liste des publications. Le filtre
+**Stock → Publiés en vitrine** montre les exemplaires en ligne. Un compte de
+consultation voit les publications sans pouvoir publier ; un compte client
+n'accède à aucune de ces actions.
+
 ## Saisie assistée par photo
 
 Depuis **Ajouter une carte**, utiliser **Prendre une photo** ou **Téléverser une

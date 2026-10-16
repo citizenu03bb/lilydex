@@ -236,7 +236,7 @@ def test_schema_5_migration_preserves_all_copy_data(tmp_path):
         before = [dict(r) for r in db.execute("SELECT * FROM copies ORDER BY id")]
     migrated = Store(store.root)
     with migrated.connect() as db:
-        assert db.execute("PRAGMA user_version").fetchone()[0] == 15
+        assert db.execute("PRAGMA user_version").fetchone()[0] == 16
         after = [dict(r) for r in db.execute("SELECT * FROM copies ORDER BY id")]
     added = (
         "deleted_at",

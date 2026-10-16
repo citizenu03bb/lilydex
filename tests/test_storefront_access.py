@@ -119,14 +119,14 @@ def test_schema_15_keeps_accounts_sessions_and_adds_clients(tmp_path):
 
     migrated = Store(store.root)
     with migrated.connect() as db:
-        assert db.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION == 15
+        assert db.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION >= 15
         after = db.execute("SELECT id,username,password_hash,role,created_at,disabled FROM users ORDER BY username").fetchall()
         assert [tuple(r) for r in after] == before
         assert {r[0] for r in db.execute("SELECT status FROM users")} == {"active"}
         assert [tuple(r) for r in db.execute("SELECT token_hash,user_id FROM sessions")] == sessions
         assert db.execute("PRAGMA foreign_key_check").fetchall() == []
         assert db.execute("PRAGMA foreign_keys").fetchone()[0] == 1
-    assert list((tmp_path / "backups").glob("before-schema15-from14-*.sqlite3"))
+    assert list((tmp_path / "backups").glob("before-schema*-from14-*.sqlite3"))
     add_account(migrated, "client", "client", "pending")
     add_account(migrated, "second", "client", "pending")  # several accounts without e-mail
     with migrated.connect(write=True) as db:

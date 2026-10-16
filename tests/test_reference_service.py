@@ -421,7 +421,7 @@ def test_schema11_observations_only_migrates_and_restores_without_losing_copy(
     assert state(restored, card["id"]) == before
     assert restored.summary()["copies"] == 1
     with restored.connect() as db:
-        assert db.execute("PRAGMA user_version").fetchone()[0] == 15
+        assert db.execute("PRAGMA user_version").fetchone()[0] == 16
         assert db.execute("SELECT count(*) FROM reference_quotes").fetchone()[0] == 0
 
 
@@ -434,7 +434,7 @@ def test_schema11_with_bound_journal_migrates_without_recreating_it(client):
     migrated = Store(store.root)
     assert state(migrated, card["id"]) == before
     with migrated.connect() as db:
-        assert db.execute("PRAGMA user_version").fetchone()[0] == 15
+        assert db.execute("PRAGMA user_version").fetchone()[0] == 16
 
 
 def test_readers_cannot_record_decisions_or_disputes(client):
@@ -500,7 +500,7 @@ def test_schema12_decisions_receive_their_recorded_engine(client):
     migrated = Store(store.root)
     assert migrated.reference.replay(recorded["id"])["status"] == "reproduced"
     with migrated.connect() as db:
-        assert db.execute("PRAGMA user_version").fetchone()[0] == 15
+        assert db.execute("PRAGMA user_version").fetchone()[0] == 16
 
 
 def test_source_document_is_archived_once_by_content_hash(tmp_path):

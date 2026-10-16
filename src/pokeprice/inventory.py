@@ -20,7 +20,7 @@ from .valuation import (
 )
 from .variant_pricing import category, compatible_quote, pricing_issue
 
-SCHEMA_VERSION = 15
+SCHEMA_VERSION = 16
 
 
 def now():
@@ -253,6 +253,24 @@ class Store:
                 """)
             if db.execute("PRAGMA user_version").fetchone()[0] == 14:
                 self.migrate_users_for_clients(db)
+            if db.execute("PRAGMA user_version").fetchone()[0] == 15:
+                # Storefront publications: one card or a lot sold at a single price.
+                db.executescript("""
+                    BEGIN IMMEDIATE;
+                    CREATE TABLE IF NOT EXISTS listings(id TEXT PRIMARY KEY, title TEXT NOT NULL DEFAULT '',
+                        state TEXT NOT NULL DEFAULT 'online' CHECK(state IN ('online','offline')),
+                        price_cents INTEGER NOT NULL CHECK(price_cents>=0),
+                        price_mode TEXT NOT NULL CHECK(price_mode IN ('trend','manual','offers')),
+                        price_source TEXT NOT NULL DEFAULT '', price_date TEXT NOT NULL DEFAULT '',
+                        published_at TEXT NOT NULL, published_by TEXT NOT NULL,
+                        updated_at TEXT NOT NULL, version INTEGER NOT NULL DEFAULT 1);
+                    CREATE TABLE IF NOT EXISTS listing_items(listing_id TEXT NOT NULL REFERENCES listings(id),
+                        copy_id TEXT NOT NULL REFERENCES copies(id),
+                        active INTEGER NOT NULL DEFAULT 1, PRIMARY KEY(listing_id,copy_id));
+                    CREATE UNIQUE INDEX IF NOT EXISTS single_listing ON listing_items(copy_id) WHERE active=1;
+                    PRAGMA user_version=16;
+                    COMMIT;
+                """)
             db.execute("PRAGMA journal_mode=WAL")
         from .reference_service import ReferenceService
 
@@ -513,6 +531,11 @@ class Store:
                 r["id"]: current(db, r["id"])
                 for r in db.execute("SELECT id FROM copies")
             }
+            # Copies in an online storefront publication (single card or lot).
+            published = {
+                r[0]
+                for r in db.execute("SELECT copy_id FROM listing_items WHERE active=1")
+            }
             rows = [
                 dict(r)
                 for r in db.execute(
@@ -534,6 +557,7 @@ class Store:
             metadata = self.category_metadata(row, valuation_context)
             issue = pricing_issue(row, metadata)
             row["price_category"] = category(row, metadata)
+            row["published"] = row["id"] in published
             row["reference_resolution"] = decide(
                 row,
                 metadata,
@@ -598,7 +622,12 @@ class Store:
             if (
                 matches
                 and (not album or row["album_id"] == album)
-                and (not stock or stock == "deleted" or row["stock_state"] == stock)
+                and (
+                    not stock
+                    or stock == "deleted"
+                    or (stock == "published" and row["id"] in published)
+                    or row["stock_state"] == stock
+                )
                 and (not status or row["identification_status"] == status)
                 and (
                     not review
