@@ -19,7 +19,7 @@ const controls = {
   },
   "sort-order": {
     value: "name",
-    options: ["name", "binder"].map((value) => ({ value })),
+    options: ["name", "binder", "price", "price_asc"].map((value) => ({ value })),
   },
   "display-mode": { value: "copies" },
   "review-filter": { value: "", options: ["", "needed", "coverage"].map((value) => ({ value })) },
@@ -100,6 +100,12 @@ controls["sort-order"].value = "binder";
 location.search = "?q=Pikachu";
 context.restoreLocation();
 assert.equal(controls["sort-order"].value, "name");
+// A price order is shared by link like the others.
+location.search = "?sort=price_asc";
+context.restoreLocation();
+assert.equal(controls["sort-order"].value, "price_asc");
+context.syncLocation();
+assert.equal(new URLSearchParams(location.search).get("sort"), "price_asc");
 // The same order survives display and tab changes without the Foil filter.
 for (const view of ["collection", "sales", "settings"]) {
   state.user.role = "admin";

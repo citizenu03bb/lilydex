@@ -559,6 +559,16 @@ class Store:
                 )
             ):
                 selected.append(row)
+        if sort in ("price", "price_asc"):
+            # The prudent value shown on each card, computed above; the SQL
+            # order (name) breaks ties and unknown prices always come last.
+            known = [r for r in selected if r["valuation"]["prudent_cents"] is not None]
+            known.sort(
+                key=lambda r: r["valuation"]["prudent_cents"], reverse=sort == "price"
+            )
+            selected = known + [
+                r for r in selected if r["valuation"]["prudent_cents"] is None
+            ]
         return {
             "items": selected[offset : offset + limit],
             "total": len(selected),

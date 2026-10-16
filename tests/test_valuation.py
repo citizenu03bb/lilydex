@@ -409,3 +409,46 @@ def test_a_tcgdex_prudent_price_wins_over_the_manual_reference():
     c = manual(catalog_id="swsh7-077")
     result = assess(c, summarize(CARD, False))
     assert result["manual_price"] is None and result["prudent_cents"] == 625
+
+
+def test_price_sort_follows_the_prudent_value_with_unknown_prices_last(
+    tmp_path, monkeypatch
+):
+    from pokeprice.inventory import Store
+
+    store = Store(tmp_path / "inventory")
+    with store.connect(write=True) as db:
+        db.execute("INSERT INTO albums VALUES('a','A')")
+    prudent = {"Abra": 300, "Bulbizarre": None, "Carapuce": 1200, "Dracaufeu": 300}
+    for position, name in enumerate(prudent, 1):
+        store.create_copy(
+            dict(
+                name=name, set_name="Test", number=f"{position}/100", language="fr",
+                album_id="a", page=1, position=position,
+                identification_status="review", foil=False, condition="EX",
+            ),
+            "pat",
+            "Test",
+        )
+
+    def valuation(card, context, source=None, *, threshold_cents=1000):
+        value = prudent[card["name"]]
+        return {
+            "prudent_cents": value, "trend_cents": value, "sale_estimate_cents": None,
+            "needs_review": False, "price_variant_issue": False,
+        }
+
+    monkeypatch.setattr(Store, "valuation", staticmethod(valuation))
+    names = lambda sort: [c["name"] for c in store.listing(sort=sort)["items"]]
+    assert names("price") == ["Carapuce", "Abra", "Dracaufeu", "Bulbizarre"]
+    assert names("price_asc") == ["Abra", "Dracaufeu", "Carapuce", "Bulbizarre"]
+    assert [g["name"] for g in store.grouped(sort="price")["items"]][0] == "Carapuce"
+
+
+def test_api_accepts_the_price_sorts(client):
+    refresh(client, create(client))
+    for endpoint in ("/api/copies", "/api/editions"):
+        for sort in ("price", "price_asc"):
+            response = client.get(endpoint, params={"sort": sort})
+            assert response.status_code == 200 and response.json()["total"] == 1
+        assert client.get(endpoint, params={"sort": "cost"}).status_code == 422
