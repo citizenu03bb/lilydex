@@ -39,6 +39,9 @@ réactivable. Elles restent privées.
 
 ## Commandes
 
+L'unité nocturne lit l'adresse du serveur dans `~/.config/pokeprice/backup.env`,
+fichier privé (mode 0600) hors du dépôt : `POKEPRICE_OCI_HOST=opc@<IP_OCI>`.
+
 Depuis `~/Projects/pokeprice` :
 
 ```bash

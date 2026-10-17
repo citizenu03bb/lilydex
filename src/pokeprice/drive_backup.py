@@ -2,6 +2,7 @@
 
 import fcntl
 import json
+import math
 import re
 import shutil
 import subprocess
@@ -21,26 +22,42 @@ from .daily_backup import (
 )
 
 
+# rclone gets as long as a slow ~2 Mbit/s home uplink needs for the archive:
+# a fixed 240 s stopped the 790 MB archive of 17 October three times.
+RCLONE_MIN_RATE = 250_000  # bytes per second
+RCLONE_FLOOR, RCLONE_CEILING = 240, 3 * 3600
+
+
+def transfer_timeout(size):
+    return min(RCLONE_CEILING, max(RCLONE_FLOOR, math.ceil(size / RCLONE_MIN_RATE)))
+
+
 class Drive:
     def __init__(self, binary, remote):
         if not re.fullmatch(r"[A-Za-z0-9_-]+", remote):
             raise ValueError("Nom de remote rclone invalide.")
         self.binary, self.remote = str(binary), remote
 
-    def run(self, *args):
-        result = subprocess.run(
-            [self.binary, *args],
-            check=False,
-            capture_output=True,
-            text=True,
-            timeout=240,
-        )
+    def run(self, *args, timeout=RCLONE_FLOOR):
+        try:
+            result = subprocess.run(
+                [self.binary, *args],
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+            )
+        except subprocess.TimeoutExpired:
+            # The command line names the private Drive folder: keep it out of logs.
+            raise RuntimeError(
+                f"rclone {args[0]} a dépassé le délai de {timeout} s."
+            ) from None
         if result.returncode:
             # Never emit config dumps or OAuth tokens in logs or exceptions.
             raise RuntimeError(f"rclone {args[0]} a échoué (code {result.returncode}).")
         return result.stdout
 
-    def transfer(self, *args):
+    def transfer(self, *args, size=0):
         return self.run(
             *args,
             "--drive-root-folder-id",
@@ -53,6 +70,7 @@ class Drive:
             "1",
             "--low-level-retries",
             "2",
+            timeout=transfer_timeout(size),
         )
 
     def prepare(self):
@@ -160,7 +178,11 @@ def upload_daily(store, *, binary=None, remote="gdrive"):
                 file = drive.find(name)
                 if file is None:
                     drive.transfer(
-                        "copyto", str(captured), f"{remote}:{name}", "--immutable"
+                        "copyto",
+                        str(captured),
+                        f"{remote}:{name}",
+                        "--immutable",
+                        size=local["bytes"],
                     )
                     file = drive.find(name)
                 if not file:
@@ -173,7 +195,9 @@ def upload_daily(store, *, binary=None, remote="gdrive"):
                 ):
                     raise ValueError("Métadonnées de l'archive distante incohérentes.")
                 downloaded = Path(temporary) / "download.zip"
-                drive.transfer("copyto", f"{remote}:{name}", str(downloaded))
+                drive.transfer(
+                    "copyto", f"{remote}:{name}", str(downloaded), size=local["bytes"]
+                )
                 restored = verify(downloaded)
                 if restored["sha256"] != local["sha256"]:
                     raise ValueError(

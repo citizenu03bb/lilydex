@@ -5,9 +5,13 @@ StartLimitBurst=3
 
 [Service]
 Type=oneshot
+# Private server address, kept out of the public repository:
+# POKEPRICE_OCI_HOST=opc@<IP_OCI> in this file (mode 0600).
+EnvironmentFile=%h/.config/pokeprice/backup.env
 WorkingDirectory=%h/Projects/pokeprice
 ExecStart=%h/Projects/pokeprice/.venv/bin/python -m pokeprice.manage --data %h/Projects/pokeprice/data/inventory backup-drive --rclone %h/.local/bin/rclone --remote gdrive
 UMask=0077
-TimeoutStartSec=15min
+# Upload then check download of a large archive on a slow uplink (see drive_backup.py).
+TimeoutStartSec=7h
 Restart=on-failure
 RestartSec=15min

@@ -1,4 +1,5 @@
 import shutil
+import subprocess
 from typing import ClassVar
 
 import pytest
@@ -6,6 +7,8 @@ import pytest
 from pokeprice import drive_backup
 from pokeprice.daily_backup import status
 from pokeprice.inventory import Store
+
+RealDrive = drive_backup.Drive  # The backend fixture swaps in a fake.
 
 
 def metadata(file_id, size=None):
@@ -32,6 +35,7 @@ def backend(tmp_path, monkeypatch):
         shared = False
         changed = False
         files: ClassVar[dict] = {}
+        sizes: ClassVar[list] = []
 
         def __init__(self, binary, remote):
             pass
@@ -53,7 +57,8 @@ def backend(tmp_path, monkeypatch):
                 else None
             )
 
-        def transfer(self, operation, source, destination, *flags):
+        def transfer(self, operation, source, destination, *flags, size=0):
+            type(self).sizes.append(size)
             if destination.startswith("gdrive:"):
                 type(self).uploads += 1
                 name = destination.split(":", 1)[1]
@@ -86,6 +91,41 @@ def test_upload_restores_and_retry_has_no_duplicate(backend):
     assert first["file_id"] == second["file_id"]
     assert first["verification"] == "download-sha256-restore"
     assert status(store)["last_error"] is None
+
+
+def test_upload_and_check_download_announce_the_archive_size(backend):
+    store, drive = backend
+    result = drive_backup.upload_daily(store, binary="fake")
+    assert drive.sizes == [result["bytes"]] * 2
+
+
+def test_rclone_deadline_grows_with_archive_size(monkeypatch):
+    seen = []
+
+    def run(command, **options):
+        seen.append(options["timeout"])
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(drive_backup.subprocess, "run", run)
+    rclone = RealDrive("rclone", "gdrive")
+    for size in (1_000, 790_906_664, 50_000_000_000):
+        rclone.transfer("copyto", "source.zip", "gdrive:target.zip", size=size)
+    small, server_daily, huge = seen
+    assert small == drive_backup.RCLONE_FLOOR == 240
+    # The 17 October archive must fit even on a slow 2 Mbit/s home uplink.
+    assert server_daily >= 790_906_664 / 250_000
+    assert huge == drive_backup.RCLONE_CEILING
+
+
+def test_rclone_timeout_keeps_the_drive_folder_out_of_the_error(monkeypatch):
+    def run(command, **options):
+        raise subprocess.TimeoutExpired(command, options["timeout"])
+
+    monkeypatch.setattr(drive_backup.subprocess, "run", run)
+    with pytest.raises(RuntimeError) as failure:
+        RealDrive("rclone", "gdrive").transfer("lsjson", "gdrive:")
+    assert drive_backup.DRIVE_FOLDER not in str(failure.value)
+    assert failure.value.__suppress_context__
 
 
 def test_uncertain_upload_is_found_before_retry(backend):
