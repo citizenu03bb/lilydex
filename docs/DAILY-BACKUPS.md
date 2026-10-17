@@ -6,17 +6,31 @@ dispose d'une permission. Aucun partage supplémentaire n'est créé.
 
 ## Chaque jour
 
-- À **3 h, heure de Paris**, le timer utilisateur `pokeprice-local-backup.timer`
-  lance une sauvegarde SQLite cohérente avec toutes les photos gérées, y compris
-  les versions précédentes. Une restauration temporaire contrôle les SHA-256,
-  l'intégrité SQLite, les clés étrangères et les photos référencées.
-- À **3 h 15**, le timer utilisateur `pokeprice-drive-backup.timer` lance
-  `backup-drive` avec le remote rclone `gdrive` existant. Le service peut
-  réessayer deux fois, à quinze minutes d'intervalle, en cas d'échec.
-  Il contrôle les permissions, copie une archive stable puis la retélécharge :
-  SHA-256, restauration temporaire, SQLite et photos sont vérifiés avant succès.
-- Les sept dernières archives `daily-AAAA-MM-JJ.zip` restent sur le portable.
-  Les sauvegardes manuelles et les fichiers Drive ne sont pas purgés.
+Depuis le 16 octobre 2026 à 21 h 11, la collection vivante est sur le serveur
+(voir [DEPLOYMENT.md](DEPLOYMENT.md)). La base `data/inventory` du portable est
+une copie périmée : aucun travail planifié ne la lit ni n'y écrit.
+
+- À **3 h, heure de Paris**, le serveur lance `pokeprice-backup.timer` :
+  sauvegarde SQLite cohérente avec les photos, restauration de contrôle,
+  rétention des sept dernières `daily-AAAA-MM-JJ.zip` sous `/srv/pokeprice/backups`.
+- À **3 h 15**, le timer utilisateur `pokeprice-drive-backup.timer` du portable
+  lance `backup-server-drive` :
+  1. par SSH (`opc@…`, sans mot de passe ni invite), il démarre
+     `pokeprice-backup.service` sur le serveur. Le portable attend ainsi une
+     sauvegarde nocturne en retard, ou fait revérifier l'archive du jour ;
+  2. il choisit la dernière `daily-*.zip` du serveur et relève son SHA-256 et sa taille ;
+  3. il la rapatrie en `data/oci-backups/oci-daily-AAAA-MM-JJ.zip`. Si le
+     SHA-256 ou la taille diffèrent de ceux du serveur, rien n'est conservé.
+     Une restauration temporaire contrôle ensuite SQLite, les clés étrangères
+     et les photos. Une archive déjà rapatriée avec la même empreinte n'est pas
+     retéléchargée ;
+  4. il l'envoie sur Drive, la retélécharge et la restaure avant de marquer le succès.
+  Le service peut réessayer deux fois, à quinze minutes d'intervalle, et au
+  plus trois fois par jour.
+- Les trois dernières archives `oci-daily-*.zip` restent sur le portable, faute
+  de place sur le disque. Les fichiers Drive ne sont pas purgés.
+- Le préfixe `oci-` sépare ces archives des anciennes `daily-AAAA-MM-JJ.zip`
+  du portable, dans `data/backups` comme sur Drive.
 
 Le timer est actif et son service a terminé avec succès. Il rattrape un
 déclenchement local manqué au prochain démarrage de la session utilisateur.
@@ -45,12 +59,9 @@ fichier privé (mode 0600) hors du dépôt : `POKEPRICE_OCI_HOST=opc@<IP_OCI>`.
 Depuis `~/Projects/pokeprice` :
 
 ```bash
-.venv/bin/python -m pokeprice.manage backup-daily
-.venv/bin/python -m pokeprice.manage backup-drive --rclone ~/.local/bin/rclone --remote gdrive
-.venv/bin/python -m pokeprice.manage backup-status
-.venv/bin/python -m pokeprice.manage --data /tmp/pokeprice-restored restore data/backups/daily-2026-10-05.zip
-systemctl --user list-timers pokeprice-local-backup.timer
-journalctl --user -u pokeprice-local-backup.service
+.venv/bin/python -m pokeprice.manage backup-server-pull --host opc@<IP_OCI>
+.venv/bin/python -m pokeprice.manage backup-server-drive --host opc@<IP_OCI> --rclone ~/.local/bin/rclone --remote gdrive
+.venv/bin/python -m pokeprice.manage --data /tmp/pokeprice-restored restore data/oci-backups/oci-daily-2026-10-17.zip
 systemctl --user list-timers pokeprice-drive-backup.timer
 journalctl --user -u pokeprice-drive-backup.service
 ```
@@ -62,10 +73,13 @@ téléversement Drive immédiat. `backup-record-upload ARCHIVE FILE_ID SIZE --ex
 réservé au mécanisme de copie après lecture des métadonnées Drive ;
 `backup-record-failure` conserve un échec visible sans effacer le dernier succès.
 
-Les unités installées sont reproduites dans `deploy/pokeprice-local-backup.*`
-et `deploy/pokeprice-drive-backup.*`.
+Les unités installées sont reproduites dans `deploy/pokeprice-drive-backup.*`.
 Elles visent ce portable ; adapter leurs chemins pour un autre appareil.
-Le suivi local est `data/inventory/backup-status.json`, en permissions 0600.
+L'ancien `pokeprice-local-backup.timer`, qui fabriquait l'archive depuis
+`data/inventory`, est retiré. Le suivi de la copie du serveur est
+`data/oci-backups/backup-status.json`, en permissions 0600 : la vue Gestion du
+serveur ne voit pas encore la copie Drive faite par le portable.
+La sortie des commandes omet l'identifiant du dossier Drive, car elle va dans le journal.
 L'API de statut et de sauvegarde manuelle est réservée aux administrateurs.
 
 ## Transfert déterministe
@@ -79,14 +93,17 @@ autres projets qui utilisent ce remote.
 
 Une copie temporaire privée stabilise les octets pendant le transfert ; un
 verrou empêche deux exécutions Poképrice simultanées. Les nouvelles archives
-Drive sont nommées `daily-AAAA-MM-JJ-SHA256.zip` pour conserver les versions d'un
-même jour. Une ancienne copie connue de contenu identique peut être réutilisée,
+Drive sont nommées `oci-daily-AAAA-MM-JJ-SHA256.zip` (copie du serveur) ou
+`daily-AAAA-MM-JJ-SHA256.zip` (anciennes copies du portable), pour conserver les
+versions d'un même jour. Une ancienne copie connue de contenu identique peut être réutilisée,
 comme lors de la réception du 6 octobre. Après un résultat de transfert incertain,
 le prochain essai recherche d'abord ce nom. Plusieurs fichiers de même nom,
 une archive altérée ou des permissions supplémentaires bloquent la validation.
 Le service ne supprime ni ne partage aucun fichier Drive.
 
-Les appels rclone et HTTP ont des délais maximaux. Toute erreur conserve le
+Les appels SSH, rclone et HTTP ont des délais maximaux. Pour un transfert, le
+délai est proportionnel à la taille de l'archive (débit plancher de 250 ko/s,
+au moins 4 min, au plus 3 h) : une archive de 790 Mo a droit à environ 53 min. Toute erreur conserve le
 dernier succès et inscrit un échec dans la vue Gestion ; les détails sont dans
 le journal systemd. Il n'y a pas encore de notification externe autonome.
 Une sauvegarde locale remplacée pendant le transfert n'est pas déclarée à jour.

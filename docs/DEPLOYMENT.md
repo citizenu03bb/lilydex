@@ -10,7 +10,7 @@ Configuration d'hébergement permanent avec isolation stricte des secrets. Un [t
   - **Aucun jeton OAuth Google Drive (`rclone.conf`) ni identifiant de dossier Drive (`POKEPRICE_DRIVE_FOLDER`)** n'est copié sur le serveur cloud.
   - L'adresse de contact affichée sur la page « À propos » (`POKEPRICE_CONTACT_EMAIL`) est lue dans ce même fichier : elle n'est jamais versionnée dans le dépôt public.
   - Seule la clé `GEMINI_API_KEY` (ou `GOOGLE_API_KEY`) et `POKEPRICE_HOST` résident sur le serveur dans `/etc/pokeprice/pokeprice.env` (`root:pokeprice`, mode `0640`), transférés de machine à machine par flux SSH chiffré sans jamais s'afficher en clair.
-  - Le serveur exécute `backup-daily` chaque nuit à 03 h (`Europe/Paris`) dans `/srv/pokeprice/backups` (avec restauration de contrôle et rétention des 7 derniers ZIP). Le portable rapatrie les sauvegardes via SSH (`deploy/oci-pull-backup.sh`) et conserve l'exclusivité de la copie Google Drive.
+  - Le serveur exécute `backup-daily` chaque nuit à 03 h (`Europe/Paris`) dans `/srv/pokeprice/backups` (avec restauration de contrôle et rétention des 7 derniers ZIP). Chaque nuit à 03 h 15, le portable rapatrie par SSH la dernière archive vérifiée du serveur (`pokeprice-drive-backup.timer`, commande `backup-server-drive`), en contrôle le SHA-256 et la restauration, puis l'envoie sur Google Drive, dont il garde seul le jeton. Il ne fabrique jamais d'archive depuis sa base `data/inventory`, périmée depuis le 16 octobre 2026 (voir [DAILY-BACKUPS.md](DAILY-BACKUPS.md)).
 
 ## Fichiers et scripts fournis (`deploy/`)
 
@@ -20,6 +20,7 @@ Configuration d'hébergement permanent avec isolation stricte des secrets. Un [t
 - `deploy/oci-provision.sh` : provisionnement idempotent d'Ubuntu 24.04 sur OCI (fuseau `Europe/Paris`, swap 2 Go, ouverture des ports `80`/`443` dans `iptables` local OCI, installation de Caddy et `uv`, création de l'utilisateur `pokeprice` et de `/srv/pokeprice`).
 - `deploy/oci-sync-secrets.sh` : transfert direct (`stdin` SSH, `set +x`, `umask 0077`) de `GEMINI_API_KEY` depuis `~/.env` vers `/etc/pokeprice/pokeprice.env` sans affichage.
 - `deploy/oci-deploy.sh` : synchronisation des seuls fichiers suivis par Git (`git ls-files`), installation du `.venv`, restauration initiale de la dernière archive vérifiée `data/backups/daily-*.zip`, activation de `systemd` et Caddy, puis test de `/health`.
+- `deploy/pokeprice-drive-backup.service` et `.timer` (unités utilisateur du portable) : `backup-server-drive --host opc@<IP_OCI>`, soit rapatriement SSH de la dernière `daily-*.zip` du serveur dans `data/oci-backups/oci-daily-*.zip`, contrôle SHA-256 et restauration, puis copie Drive retéléchargée et restaurée.
 - `deploy/oci-pull-backup.sh` : rapatriement par SSH de la dernière sauvegarde quotidienne du serveur OCI vers le portable avec restauration locale de contrôle.
 
 ## Procédure d'installation
@@ -37,15 +38,26 @@ ssh ubuntu@<IP_OCI> 'sudo bash -s' < deploy/oci-provision.sh
 ./deploy/oci-deploy.sh ubuntu@<IP_OCI> <sous-domaine.dedyn.io>
 ```
 
-Pour rapatrier une sauvegarde quotidienne depuis le serveur vers le portable et l'envoyer sur Google Drive :
+Pour rapatrier et vérifier à la main la dernière sauvegarde du serveur, puis l'envoyer sur Google Drive :
 
 ```bash
-./deploy/oci-pull-backup.sh ubuntu@<IP_OCI> --push-drive
+.venv/bin/python -m pokeprice.manage backup-server-pull --host opc@<IP_OCI>
+.venv/bin/python -m pokeprice.manage backup-server-drive --host opc@<IP_OCI> --rclone ~/.local/bin/rclone --remote gdrive
+```
+
+Installer ou mettre à jour les unités du portable (l'ancien `pokeprice-local-backup.timer`, qui sauvegardait la base périmée, est désactivé) :
+
+```bash
+systemctl --user disable --now pokeprice-local-backup.timer
+install -m 0644 deploy/pokeprice-drive-backup.service deploy/pokeprice-drive-backup.timer ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now pokeprice-drive-backup.timer
 ```
 
 ## Vérifications avant et après publication
 
 - Vérifier `https://<domaine>/health`, la connexion HTTPS, l'expiration/déconnexion, le refus (`401`) sans session sur les cartes, photos, exports et sauvegardes, et un parcours Android réel.
 - Vérifier le timer avec `systemctl list-timers pokeprice-backup.timer` et le journal `journalctl -u pokeprice-backup.service`.
+- Côté portable : `systemctl --user list-timers pokeprice-drive-backup.timer` et `journalctl --user -u pokeprice-drive-backup.service`.
 - Avant une mise à jour de schéma, exécuter `./deploy/oci-pull-backup.sh ubuntu@<IP_OCI>` et tester la migration.
 

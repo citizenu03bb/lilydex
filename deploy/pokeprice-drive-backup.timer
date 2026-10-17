@@ -1,7 +1,8 @@
 [Unit]
-Description=Poképrice - copie Drive quotidienne avec deux rattrapages
+Description=Poképrice - copie Drive quotidienne de la sauvegarde du serveur
 
 [Timer]
+# The server backs up at 03:00 (+ up to 10 min); its service is awaited anyway.
 OnCalendar=*-*-* 03:15:00 Europe/Paris
 Persistent=true
 Unit=pokeprice-drive-backup.service

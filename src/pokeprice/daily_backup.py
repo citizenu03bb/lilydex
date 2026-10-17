@@ -82,6 +82,12 @@ def verify(path):
     }
 
 
+def record_local(store, verified):
+    data = status(store)
+    data.update(local=verified, last_error=None)
+    _write(store, data)
+
+
 @serialized
 def daily(store, *, force=False):
     date = datetime.now(ZoneInfo("Europe/Paris")).strftime("%Y-%m-%d")
@@ -98,9 +104,7 @@ def daily(store, *, force=False):
         verified.update(path=str(target.resolve()), name=target.name)
     else:
         verified = verify(target)
-    data = status(store)
-    data.update(local=verified, last_error=None)
-    _write(store, data)
+    record_local(store, verified)
     # Only daily archives managed here are eligible; manual backups remain intact.
     for old in sorted(folder.glob("daily-????-??-??.zip"), reverse=True)[7:]:
         old.unlink()

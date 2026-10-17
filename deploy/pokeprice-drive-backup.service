@@ -1,6 +1,9 @@
 [Unit]
-Description=Poképrice - copie privée Drive et restauration de contrôle
-StartLimitIntervalSec=2h
+Description=Poképrice - copie Drive de la sauvegarde du serveur et restauration de contrôle
+Wants=network-online.target
+After=network-online.target
+# Three attempts a day at most, however long each one takes.
+StartLimitIntervalSec=1d
 StartLimitBurst=3
 
 [Service]
@@ -9,9 +12,12 @@ Type=oneshot
 # POKEPRICE_OCI_HOST=opc@<IP_OCI> in this file (mode 0600).
 EnvironmentFile=%h/.config/pokeprice/backup.env
 WorkingDirectory=%h/Projects/pokeprice
-ExecStart=%h/Projects/pokeprice/.venv/bin/python -m pokeprice.manage --data %h/Projects/pokeprice/data/inventory backup-drive --rclone %h/.local/bin/rclone --remote gdrive
+# The live collection is on the server: pull its verified daily archive, never
+# build one from the stale laptop copy in data/inventory.
+ExecStart=%h/Projects/pokeprice/.venv/bin/python -m pokeprice.manage backup-server-drive --host ${POKEPRICE_OCI_HOST} --mirror %h/Projects/pokeprice/data/oci-backups --rclone %h/.local/bin/rclone --remote gdrive
 UMask=0077
-# Upload then check download of a large archive on a slow uplink (see drive_backup.py).
+# SSH pull, Drive upload and check download of a large archive on a slow uplink
+# (see transfer_timeout in drive_backup.py).
 TimeoutStartSec=7h
 Restart=on-failure
 RestartSec=15min

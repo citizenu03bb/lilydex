@@ -76,6 +76,21 @@ def main():
     )
     drive.add_argument("--remote", default="gdrive")
     drive.add_argument("--rclone", default=None)
+    for name, summary in (
+        ("backup-server-pull", "Rapatrier et vérifier la sauvegarde du serveur"),
+        ("backup-server-drive", "Copie Drive de la sauvegarde rapatriée du serveur"),
+    ):
+        mirrored = actions.add_parser(name, help=summary)
+        mirrored.add_argument("--host", required=True, help="utilisateur@serveur")
+        mirrored.add_argument(
+            "--mirror",
+            default="data/oci-backups",
+            help="Archives rapatriées ; jamais un dossier de collection",
+        )
+        mirrored.add_argument("--ssh", default="ssh")
+        if name == "backup-server-drive":
+            mirrored.add_argument("--remote", default="gdrive")
+            mirrored.add_argument("--rclone", default=None)
     actions.add_parser(
         "backup-record-failure", help="Signaler un échec de copie externe"
     )
@@ -140,6 +155,23 @@ def main():
         from .inventory_backup import restore_backup
 
         result = restore_backup(args.archive, args.data)
+    elif args.action in ("backup-server-pull", "backup-server-drive"):
+        # The live base is on the server: --data is never opened here.
+        from .server_backup import Mirror, pull_latest
+
+        mirror = Mirror(args.mirror)
+        if args.action == "backup-server-pull":
+            result = pull_latest(mirror, args.host, ssh=args.ssh)
+        else:
+            from .drive_backup import upload_server
+
+            result = upload_server(
+                mirror,
+                args.host,
+                binary=args.rclone,
+                remote=args.remote,
+                ssh=args.ssh,
+            )
     else:
         store = Store(args.data)
         if args.action == "import":
@@ -268,7 +300,18 @@ def main():
             }[args.format](store)
             output.write_text(body, encoding="utf-8")
             result = {"path": str(output)}
-    print(json.dumps(result, ensure_ascii=False, indent=2))
+    # Output lands in the systemd journal: the private Drive folder stays out of it.
+    print(json.dumps(without_drive_folder(result), ensure_ascii=False, indent=2))
+
+
+def without_drive_folder(value):
+    if isinstance(value, dict):
+        return {
+            key: without_drive_folder(item)
+            for key, item in value.items()
+            if key not in ("folder_id", "drive_folder_url")
+        }
+    return value
 
 
 if __name__ == "__main__":

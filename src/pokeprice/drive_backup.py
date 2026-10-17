@@ -127,7 +127,7 @@ class Drive:
             raise ValueError("Confidentialité Drive non confirmée ; transfert bloqué.")
 
     def find(self, name):
-        if not re.fullmatch(r"daily-[0-9-]+(?:-[a-f0-9]{64})?\.zip", name):
+        if not re.fullmatch(r"(?:oci-)?daily-[0-9-]+(?:-[a-f0-9]{64})?\.zip", name):
             raise ValueError("Nom de sauvegarde invalide.")
         result = self.api(
             "files",
@@ -157,13 +157,26 @@ def snapshot(store, destination):
 
 
 def upload_daily(store, *, binary=None, remote="gdrive"):
+    return upload(store, lambda: daily(store), binary=binary, remote=remote)
+
+
+def upload_server(mirror, host, *, binary=None, remote="gdrive", ssh="ssh"):
+    """Send the server's verified daily archive, never one built on the laptop."""
+    from .server_backup import pull_latest
+
+    return upload(
+        mirror, lambda: pull_latest(mirror, host, ssh=ssh), binary=binary, remote=remote
+    )
+
+
+def upload(store, produce, *, binary=None, remote="gdrive"):
     binary = binary or shutil.which("rclone")
     with (store.root / "drive-backup.lock").open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
         try:
             if not binary:
                 raise RuntimeError("rclone introuvable.")
-            daily(store)
+            produce()
             drive = Drive(binary, remote)
             drive.prepare()
             with tempfile.TemporaryDirectory(prefix="pokeprice-drive-") as temporary:
