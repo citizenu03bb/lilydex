@@ -65,7 +65,34 @@ class PhotoBatches:
             )
             return self.get(db, jid, owner)
 
+    def checked(self, db, jid, owner, selected, undo):
+        job = self.get(db, jid, owner)
+        if job["status"] != ("applied" if undo else "preview"):
+            raise Conflict("Ce traitement a déjà été appliqué ou annulé.")
+        data = job["data"]
+        if undo:
+            selected = [
+                item["id"] for item in data["items"] if item.get("applied_version")
+            ]
+        if not selected or len(set(selected)) != len(selected):
+            raise ValueError("Sélectionnez au moins une photo distincte.")
+        items = {i["id"]: i for i in data["items"]}
+        for copy_id in selected:
+            item = items.get(copy_id)
+            if not item or not item["result"]:
+                raise ValueError("Photo absente ou étrangère à la simulation.")
+            card = self.store.get(db, copy_id)
+            expected = item["applied_version"] if undo else item["version"]
+            if card["deleted_at"] or card["version"] != expected:
+                raise Conflict(
+                    "Une fiche a changé depuis ce traitement. Aucune photo n’a été modifiée."
+                )
+        return data, selected, items
+
     def apply(self, jid, owner, actor, selected, *, undo=False):
+        # Refused requests must not cost a full archive: check before backing up.
+        with self.store.connect() as db:
+            self.checked(db, jid, owner, selected, undo)
         # Archive prior state before any bulk write. No cloud or model calls here.
         stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
         backup(
@@ -73,28 +100,9 @@ class PhotoBatches:
             self.store.root.parent / "backups" / f"before-photo-batch-{stamp}.zip",
         )
         with self.store.connect(write=True) as db:
-            job = self.get(db, jid, owner)
-            if job["status"] != ("applied" if undo else "preview"):
-                raise Conflict("Ce traitement a déjà été appliqué ou annulé.")
-            data = job["data"]
+            # Checked again under the write lock: the state may have moved meanwhile.
+            data, selected, items = self.checked(db, jid, owner, selected, undo)
             field = "photo" if data["side"] == "front" else "back_photo"
-            if undo:
-                selected = [
-                    item["id"] for item in data["items"] if item.get("applied_version")
-                ]
-            if not selected or len(set(selected)) != len(selected):
-                raise ValueError("Sélectionnez au moins une photo distincte.")
-            items = {i["id"]: i for i in data["items"]}
-            for copy_id in selected:
-                item = items.get(copy_id)
-                if not item or not item["result"]:
-                    raise ValueError("Photo absente ou étrangère à la simulation.")
-                card = self.store.get(db, copy_id)
-                expected = item["applied_version"] if undo else item["version"]
-                if card["deleted_at"] or card["version"] != expected:
-                    raise Conflict(
-                        "Une fiche a changé depuis ce traitement. Aucune photo n’a été modifiée."
-                    )
             for copy_id in selected:
                 item = items[copy_id]
                 changes = {

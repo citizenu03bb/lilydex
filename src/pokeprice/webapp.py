@@ -753,15 +753,16 @@ def create_app(
     @app.post("/api/login")
     def login(values: Credentials, request: Request, response: Response):
         key = request.client.host if request.client else "local"
+        target = values.username.casefold()
         timestamp = time.monotonic()
         with login_lock:
-            attempts = [t for t in failures.get(key, []) if timestamp - t < 300]
+            attempts = [a for a in failures.get(key, []) if timestamp - a[0] < 300]
             if len(attempts) >= 5:
                 raise HTTPException(
                     429, "Trop de tentatives. Réessayez dans cinq minutes."
                 )
             # Reserve the attempt before hashing to account for simultaneous requests.
-            failures[key] = attempts + [timestamp]
+            failures[key] = attempts + [(timestamp, target)]
         with store.connect(write=True) as db:
             row = db.execute(
                 "SELECT * FROM users WHERE username=?", (values.username,)
@@ -777,7 +778,13 @@ def create_app(
             user = {k: row[k] for k in ("id", "username", "role")}
             issue_session(db, user, response)
         with login_lock:
-            failures.pop(key, None)
+            # Forgive only this account's typos: logging into one's own account
+            # must not reset guesses aimed at another one from the same address.
+            remaining = [a for a in failures.get(key, []) if a[1] != target]
+            if remaining:
+                failures[key] = remaining
+            else:
+                failures.pop(key, None)
         return user
 
     @app.get("/api/session")

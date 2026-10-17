@@ -376,6 +376,28 @@ def test_bootstrap_and_login_throttling(tmp_path):
         )
 
 
+def test_login_success_elsewhere_keeps_failures_against_another_account(tmp_path):
+    owner = {"username": "owner", "password": "Collection-test-2026!"}
+    helper = {"username": "helper", "password": "Collection-helper-2026!"}
+    wrong = {"username": "owner", "password": "Collection-wrong-2026!"}
+    with TestClient(create_app(tmp_path / "throttle")) as client:
+        assert client.post("/api/setup", json=owner).status_code == 200
+        assert client.post("/api/users", json=helper).status_code == 201
+        statuses = [client.post("/api/login", json=wrong).status_code for _ in range(4)]
+        statuses.append(client.post("/api/login", json=helper).status_code)
+        statuses += [client.post("/api/login", json=wrong).status_code for _ in range(2)]
+        # Logging into one's own account must not reset guesses aimed at the owner.
+        assert statuses == [401] * 4 + [200, 401, 429]
+    with TestClient(create_app(tmp_path / "typos")) as client:
+        assert client.post("/api/setup", json=owner).status_code == 200
+        for _ in range(4):
+            assert client.post("/api/login", json=wrong).status_code == 401
+        assert client.post("/api/login", json=owner).status_code == 200
+        # The owner's own typos are forgiven once the right password is given.
+        for _ in range(4):
+            assert client.post("/api/login", json=wrong).status_code == 401
+
+
 def test_concurrent_reservations_have_one_winner_and_atomic_lot(inventory):
     store, _, _ = inventory
     ids = [r["id"] for r in store.listing(limit=20)["items"][:2]]

@@ -333,6 +333,42 @@ def test_bulk_application_rolls_back_all_if_any_version_changed(client):
     assert client.post(f"/api/photo-batches/{job['id']}/undo").status_code == 409
 
 
+def test_refused_photo_batch_requests_create_no_backup(client):
+    backups = client.app.state.store.root.parent / "backups"
+    first = client.post(
+        "/api/intake/" + draft(client) + "/save", json=values(client)
+    ).json()
+    bare = client.post("/api/copies", json=values(client, position=2)).json()
+    job = client.post(
+        "/api/photo-batches",
+        json={
+            "copies": [
+                {"id": c["id"], "expected_version": c["version"]} for c in (first, bare)
+            ]
+        },
+    ).json()
+    refused = [
+        client.post("/api/photo-batches/does-not-exist/undo"),
+        client.post(
+            "/api/photo-batches/does-not-exist/apply", json={"copy_ids": [first["id"]]}
+        ),
+        client.post(f"/api/photo-batches/{job['id']}/undo"),
+        client.post(
+            f"/api/photo-batches/{job['id']}/apply", json={"copy_ids": [bare["id"]]}
+        ),
+    ]
+    assert [r.status_code for r in refused] == [404, 404, 409, 422]
+    assert not list(backups.glob("before-photo-batch-*.zip"))
+    client.app.state.store.patch(first["id"], {"notes": "Concurrent"}, 1, "pat", "Test")
+    assert (
+        client.post(
+            f"/api/photo-batches/{job['id']}/apply", json={"copy_ids": [first["id"]]}
+        ).status_code
+        == 409
+    )
+    assert not list(backups.glob("before-photo-batch-*.zip"))
+
+
 def test_listing_package_excludes_notes_payments_and_does_not_reserve(client):
     store = client.app.state.store
     card = client.post(
