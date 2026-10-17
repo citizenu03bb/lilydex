@@ -509,32 +509,38 @@ def test_migration_snapshot_is_private_while_it_is_written(inventory):
     assert modes == [0o600] and target.stat().st_mode & 0o777 == 0o600
 
 
-def test_interrupted_backup_pull_leaves_no_readable_part_file(tmp_path):
+@pytest.mark.parametrize(
+    "extra, action",
+    [([], "backup-server-pull"), (["--push-drive"], "backup-server-drive")],
+)
+def test_backup_pull_script_delegates_to_the_verified_server_pull(
+    tmp_path, extra, action
+):
     root = tmp_path / "repo"
     (root / "deploy").mkdir(parents=True)
     script = Path(__file__).resolve().parents[1] / "deploy/oci-pull-backup.sh"
     shutil.copy(script, root / "deploy")
-    stubs = tmp_path / "bin"
-    stubs.mkdir()
-    # A fake ssh: the archive transfer starts, then the connection drops.
-    (stubs / "ssh").write_text(
-        "#!/usr/bin/env bash\n"
-        'case "$2" in\n'
-        "  *'ls -1t'*) echo /srv/pokeprice/backups/daily-2026-10-17.zip ;;\n"
-        "  *'cat '*) printf 'partial archive'; exit 255 ;;\n"
-        "esac\n"
-    )
-    (stubs / "ssh").chmod(0o755)
+    python = root / ".venv/bin/python"
+    python.parent.mkdir(parents=True)
+    python.write_text('#!/usr/bin/env bash\nprintf "%s\\n" "$@" > "$(dirname "$0")/args"\n')
+    python.chmod(0o755)
     result = subprocess.run(
-        ["bash", "-c", 'umask 022; exec bash "$0" opc@203.0.113.9', str(root / "deploy/oci-pull-backup.sh")],
-        env={**os.environ, "PATH": f"{stubs}:{os.environ['PATH']}"},
+        ["bash", str(root / "deploy/oci-pull-backup.sh"), "opc@203.0.113.9", *extra],
         capture_output=True,
         text=True,
     )
-    assert result.returncode != 0
-    backups = root / "data/backups"
-    assert backups.stat().st_mode & 0o777 == 0o700
-    assert list(backups.iterdir()) == []
+    assert result.returncode == 0, result.stderr
+    args = (python.parent / "args").read_text().split()
+    # The laptop collection is never named: the archive comes from the server.
+    assert args[:3] == ["-m", "pokeprice.manage", action]
+    assert "--data" not in args
+    assert args[args.index("--host") + 1] == "opc@203.0.113.9"
+    assert not (root / "data/backups").exists()
+    bad = subprocess.run(
+        ["bash", str(root / "deploy/oci-pull-backup.sh"), "opc@203.0.113.9", "--oops"],
+        capture_output=True,
+    )
+    assert bad.returncode == 1
 
 
 def test_concurrent_reservations_have_one_winner_and_atomic_lot(inventory):

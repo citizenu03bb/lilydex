@@ -1,4 +1,5 @@
 import hashlib
+import os
 import shutil
 import subprocess
 from typing import ClassVar
@@ -243,3 +244,29 @@ def test_cli_never_opens_the_laptop_collection(
     assert drive.uploads == 1
     # stdout goes to the journal, which must not name the private folder.
     assert drive_backup.DRIVE_FOLDER not in capsys.readouterr().out
+
+
+def test_interrupted_pull_leaves_no_readable_part_file(tmp_path, server, monkeypatch):
+    def drop(self, name, destination, size):
+        destination.write_bytes(b"partial archive")
+        raise RuntimeError("Connexion perdue")
+
+    monkeypatch.setattr(server, "fetch", drop)
+    mirror = server_backup.Mirror(tmp_path / "oci-backups")
+    with pytest.raises(RuntimeError):
+        server_backup.pull(mirror, server("opc@203.0.113.7"))
+    assert mirror.root.stat().st_mode & 0o777 == 0o700
+    assert not list(mirror.root.glob("*.zip*"))
+
+
+def test_real_fetch_creates_a_private_part_file(tmp_path, monkeypatch):
+    ssh_replies(monkeypatch, [])
+    previous = os.umask(0o022)
+    try:
+        server_backup.Server("opc@203.0.113.7").fetch(
+            "daily-2026-10-17.zip", tmp_path / "part", 13
+        )
+    finally:
+        os.umask(previous)
+    assert (tmp_path / "part").stat().st_mode & 0o777 == 0o600
+    assert (tmp_path / "part").read_bytes() == b"archive bytes"

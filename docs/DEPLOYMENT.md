@@ -21,7 +21,7 @@ Configuration d'hébergement permanent avec isolation stricte des secrets. Un [t
 - `deploy/oci-sync-secrets.sh` : transfert direct (`stdin` SSH, `set +x`, `umask 0077`) de `GEMINI_API_KEY` depuis `~/.env` vers `/etc/pokeprice/pokeprice.env` sans affichage.
 - `deploy/oci-deploy.sh` : synchronisation des seuls fichiers suivis par Git (`git ls-files`), installation du `.venv`, restauration initiale de la dernière archive vérifiée `data/backups/daily-*.zip`, activation de `systemd` et Caddy, puis test de `/health`.
 - `deploy/pokeprice-drive-backup.service` et `.timer` (unités utilisateur du portable) : `backup-server-drive --host opc@<IP_OCI>`, soit rapatriement SSH de la dernière `daily-*.zip` du serveur dans `data/oci-backups/oci-daily-*.zip`, contrôle SHA-256 et restauration, puis copie Drive retéléchargée et restaurée.
-- `deploy/oci-pull-backup.sh` : rapatriement par SSH de la dernière sauvegarde quotidienne du serveur OCI vers le portable avec restauration locale de contrôle.
+- `deploy/oci-pull-backup.sh` : raccourci manuel de `backup-server-pull` (ou de `backup-server-drive` avec `--push-drive`). Il rapatrie la dernière sauvegarde quotidienne du serveur dans `data/oci-backups/oci-daily-*.zip`, avec contrôle SHA-256 et restauration de contrôle.
 
 ## Procédure d'installation
 
@@ -59,5 +59,5 @@ systemctl --user enable --now pokeprice-drive-backup.timer
 - Vérifier `https://<domaine>/health`, la connexion HTTPS, l'expiration/déconnexion, le refus (`401`) sans session sur les cartes, photos, exports et sauvegardes, et un parcours Android réel.
 - Vérifier le timer avec `systemctl list-timers pokeprice-backup.timer` et le journal `journalctl -u pokeprice-backup.service`.
 - Côté portable : `systemctl --user list-timers pokeprice-drive-backup.timer` et `journalctl --user -u pokeprice-drive-backup.service`.
-- Avant une mise à jour de schéma, exécuter `./deploy/oci-pull-backup.sh ubuntu@<IP_OCI>` et tester la migration.
+- Avant une mise à jour de schéma, exécuter `./deploy/oci-pull-backup.sh opc@<IP_OCI>` et tester la migration sur une restauration de `data/oci-backups/oci-daily-*.zip`.
 
