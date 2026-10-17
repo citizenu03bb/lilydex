@@ -21,7 +21,8 @@ mkdir -p data/backups
 echo "[1/3] Déclenchement / vérification de la sauvegarde quotidienne sur le serveur OCI..."
 ssh "$REMOTE_HOST" "sudo systemctl start pokeprice-backup.service"
 
-REMOTE_LATEST="$(ssh "$REMOTE_HOST" "sudo ls -1t /srv/pokeprice/backups/daily-*.zip | head -n 1")"
+# The glob must expand as root: the SSH user cannot read the backups folder.
+REMOTE_LATEST="$(ssh "$REMOTE_HOST" "sudo sh -c 'ls -1t /srv/pokeprice/backups/daily-*.zip | head -n 1'")"
 if [ -z "$REMOTE_LATEST" ]; then
     echo "Erreur : aucune archive daily-*.zip trouvée sur le serveur." >&2
     exit 1
