@@ -18,7 +18,7 @@ from test_library import inputs
 from pokeprice.inventory import Conflict, Store
 from pokeprice.inventory_backup import backup, export_data, export_html, restore_backup
 from pokeprice.inventory_import import import_collection
-from pokeprice.webapp import create_app
+from pokeprice.webapp import create_app, password_hash, password_valid
 
 
 @pytest.fixture
@@ -396,6 +396,41 @@ def test_login_success_elsewhere_keeps_failures_against_another_account(tmp_path
         # The owner's own typos are forgiven once the right password is given.
         for _ in range(4):
             assert client.post("/api/login", json=wrong).status_code == 401
+
+
+@pytest.mark.real_scrypt
+def test_new_password_hashes_meet_owasp_scrypt_minimum():
+    encoded = password_hash("Collection-test-2026!")
+    algorithm, params, salt, key = encoded.split("$")
+    cost = {k: int(v) for k, v in (item.split("=") for item in params.split(","))}
+    # OWASP Password Storage Cheat Sheet: equivalent minimum scrypt settings.
+    owasp = {(2**17, 8, 1), (2**16, 8, 2), (2**15, 8, 3), (2**14, 8, 5), (2**13, 8, 10)}
+    assert algorithm == "scrypt" and (cost["n"], cost["r"], cost["p"]) in owasp
+    assert len(bytes.fromhex(salt)) == 16 and len(bytes.fromhex(key)) == 32
+    assert password_valid("Collection-test-2026!", encoded)
+    assert not password_valid("Collection-wrong-2026!", encoded)
+
+
+def test_legacy_password_hash_still_works_and_is_strengthened_at_login(tmp_path):
+    owner = {"username": "owner", "password": "Collection-test-2026!"}
+    salt = bytes(range(16))
+    key = hashlib.scrypt(owner["password"].encode(), salt=salt, n=16384, r=8, p=1, dklen=32)
+    legacy = salt.hex() + ":" + key.hex()
+
+    def stored():
+        with client.app.state.store.connect() as db:
+            return db.execute("SELECT password_hash FROM users WHERE username='owner'").fetchone()[0]
+
+    with TestClient(create_app(tmp_path / "legacy")) as client:
+        assert client.post("/api/setup", json=owner).status_code == 200
+        with client.app.state.store.connect(write=True) as db:
+            db.execute("UPDATE users SET password_hash=? WHERE username='owner'", (legacy,))
+        wrong = {**owner, "password": "Collection-wrong-2026!"}
+        assert client.post("/api/login", json=wrong).status_code == 401
+        assert stored() == legacy
+        assert client.post("/api/login", json=owner).status_code == 200
+        assert stored() != legacy and stored().startswith("scrypt$")
+        assert client.post("/api/login", json=owner).status_code == 200
 
 
 def test_concurrent_reservations_have_one_winner_and_atomic_lot(inventory):

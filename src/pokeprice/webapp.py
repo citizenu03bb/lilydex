@@ -365,18 +365,44 @@ class SalePatch(Model):
     notes: str | None = Field(default=None, max_length=8000)
 
 
+# OWASP scrypt minimum in its low-memory form (16 MiB per hash, five passes):
+# the small server stays usable when several logins arrive at once.
+SCRYPT = {"n": 2**14, "r": 8, "p": 5}
+# Bare "salt:key" hashes written before October 2026, upgraded at login.
+LEGACY_SCRYPT = {"n": 2**14, "r": 8, "p": 1}
+
+
+def scrypt_key(password, salt, n, r, p):
+    return hashlib.scrypt(
+        password.encode(), salt=salt, n=n, r=r, p=p, maxmem=256 * r * n, dklen=32
+    )
+
+
 def password_hash(password):
     salt = secrets.token_bytes(16)
-    key = hashlib.scrypt(password.encode(), salt=salt, n=16384, r=8, p=1, dklen=32)
-    return salt.hex() + ":" + key.hex()
+    params = ",".join(f"{k}={v}" for k, v in SCRYPT.items())
+    return f"scrypt${params}${salt.hex()}${scrypt_key(password, salt, **SCRYPT).hex()}"
+
+
+def hash_parts(encoded):
+    if "$" not in encoded:
+        salt, key = encoded.split(":")
+        return LEGACY_SCRYPT, salt, key
+    algorithm, params, salt, key = encoded.split("$")
+    if algorithm != "scrypt":
+        raise ValueError("Format de mot de passe inconnu.")
+    cost = {k: int(v) for k, v in (item.split("=") for item in params.split(","))}
+    return cost, salt, key
 
 
 def password_valid(password, encoded):
-    salt, key = encoded.split(":")
-    actual = hashlib.scrypt(
-        password.encode(), salt=bytes.fromhex(salt), n=16384, r=8, p=1, dklen=32
-    )
+    params, salt, key = hash_parts(encoded)
+    actual = scrypt_key(password, bytes.fromhex(salt), **params)
     return hmac.compare_digest(actual, bytes.fromhex(key))
+
+
+def password_outdated(encoded):
+    return hash_parts(encoded)[0] != SCRYPT
 
 
 def add_user(db, values):
@@ -775,6 +801,12 @@ def create_app(
             if row["status"] == "pending":
                 # Only said after a correct password: it reveals nothing to a guesser.
                 raise HTTPException(403, "Compte en attente de validation.")
+            if password_outdated(row["password_hash"]):
+                # The password is only known here: strengthen old hashes as owners log in.
+                db.execute(
+                    "UPDATE users SET password_hash=? WHERE id=?",
+                    (password_hash(values.password), row["id"]),
+                )
             user = {k: row[k] for k in ("id", "username", "role")}
             issue_session(db, user, response)
         with login_lock:

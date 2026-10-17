@@ -5,7 +5,15 @@ os.environ["POKEPRICE_DRIVE_FOLDER"] = "test-drive-folder"
 import urllib.parse
 
 import pytest
+from pokeprice import webapp
 from pokeprice.tcgdex import TCGdexClient
+
+
+@pytest.fixture(autouse=True)
+def cheap_scrypt(request, monkeypatch):
+    # Hundreds of test logins would otherwise pay the production hashing cost.
+    if not request.node.get_closest_marker("real_scrypt"):
+        monkeypatch.setattr(webapp, "SCRYPT", {"n": 2**10, "r": 8, "p": 1})
 
 
 @pytest.fixture
