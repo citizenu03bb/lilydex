@@ -99,7 +99,13 @@ versions d'un même jour. Une ancienne copie connue de contenu identique peut ê
 comme lors de la réception du 6 octobre. Après un résultat de transfert incertain,
 le prochain essai recherche d'abord ce nom. Plusieurs fichiers de même nom,
 une archive altérée ou des permissions supplémentaires bloquent la validation.
-Le service ne supprime ni ne partage aucun fichier Drive.
+Le service ne partage aucun fichier Drive. Après chaque copie vérifiée, il
+applique une rétention aux seules archives `daily-*` et `oci-daily-*` du dossier :
+il garde toutes celles des 7 derniers jours ayant une archive, la plus récente
+de chacune des 8 dernières semaines et de chacun des 12 derniers mois, et met
+les autres **à la corbeille** Drive, d'où elles restent récupérables 30 jours.
+Les autres fichiers du dossier ne sont jamais touchés. Un échec de rétention
+n'invalide pas la copie du jour : elle sera retentée à la copie suivante.
 
 Les appels SSH, rclone et HTTP ont des délais maximaux. Pour un transfert, le
 délai est proportionnel à la taille de l'archive (débit plancher de 250 ko/s,

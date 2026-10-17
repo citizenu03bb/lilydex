@@ -7,6 +7,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+from datetime import date
 from pathlib import Path
 
 import requests
@@ -30,6 +31,41 @@ RCLONE_FLOOR, RCLONE_CEILING = 240, 3 * 3600
 
 def transfer_timeout(size):
     return min(RCLONE_CEILING, max(RCLONE_FLOOR, math.ceil(size / RCLONE_MIN_RATE)))
+
+
+ARCHIVE = re.compile(r"(?:oci-)?daily-(\d{4}-\d{2}-\d{2})(?:-[a-f0-9]{64})?\.zip")
+# Kept on Drive: the last week day by day, then one per week, then one per month.
+KEEP_DAILY, KEEP_WEEKLY, KEEP_MONTHLY = 7, 8, 12
+
+
+def retained(names):
+    """Archive names to keep: every archive of a kept day; other names never count."""
+    by_day = {}
+    for name in names:
+        match = ARCHIVE.fullmatch(name)
+        if match:
+            by_day.setdefault(date.fromisoformat(match[1]), set()).add(name)
+    days = sorted(by_day, reverse=True)
+    kept = set(days[:KEEP_DAILY])
+    for period, count in (
+        (lambda day: day.isocalendar()[:2], KEEP_WEEKLY),
+        (lambda day: (day.year, day.month), KEEP_MONTHLY),
+    ):
+        newest = {}
+        for day in days:
+            newest.setdefault(period(day), day)
+        kept.update(sorted(newest.values(), reverse=True)[:count])
+    return {name for day in kept for name in by_day[day]}
+
+
+def prune(drive, current):
+    """Send archives beyond retention to the Drive trash (recoverable 30 days)."""
+    files = [f for f in drive.archives() if ARCHIVE.fullmatch(f["name"])]
+    kept = retained([f["name"] for f in files]) | {current}
+    stale = [f for f in files if f["name"] not in kept]
+    for file in stale:
+        drive.trash(file)
+    return len(stale)
 
 
 class Drive:
@@ -126,6 +162,36 @@ class Drive:
         ):
             raise ValueError("Confidentialité Drive non confirmée ; transfert bloqué.")
 
+    def archives(self):
+        files, token = [], None
+        while True:
+            params = {
+                "q": f"'{DRIVE_FOLDER}' in parents and trashed = false",
+                "fields": "files(id,name,parents),nextPageToken",
+                "pageSize": 1000,
+            }
+            if token:
+                params["pageToken"] = token
+            result = self.api("files", params)
+            files += result.get("files", [])
+            token = result.get("nextPageToken")
+            if not token:
+                return files
+
+    def trash(self, file):
+        if not ARCHIVE.fullmatch(file["name"]) or file.get("parents") != [DRIVE_FOLDER]:
+            raise ValueError("Seules les archives du dossier de sauvegarde sont élaguées.")
+        if not re.fullmatch(r"[A-Za-z0-9_-]+", file["id"]):
+            raise ValueError("Identifiant Drive invalide.")
+        response = requests.patch(
+            "https://www.googleapis.com/drive/v3/files/" + file["id"],
+            json={"trashed": True},
+            headers={"Authorization": self.authorization},
+            timeout=30,
+        )
+        if response.status_code != 200:
+            raise RuntimeError(f"Mise à la corbeille impossible (HTTP {response.status_code}).")
+
     def find(self, name):
         if not re.fullmatch(r"(?:oci-)?daily-[0-9-]+(?:-[a-f0-9]{64})?\.zip", name):
             raise ValueError("Nom de sauvegarde invalide.")
@@ -216,10 +282,12 @@ def upload(store, produce, *, binary=None, remote="gdrive"):
                     raise ValueError(
                         "Le SHA-256 téléchargé diffère de l'archive locale."
                     )
+                # A long transfer can outlive the hour-long OAuth token: refresh it.
+                drive.prepare()
                 # Recheck permissions after downloading and before marking success.
                 drive.private(drive.metadata(DRIVE_FOLDER))
                 drive.private(drive.metadata(file["id"]))
-                return record_external(
+                result = record_external(
                     store,
                     local["path"],
                     file["id"],
@@ -228,6 +296,14 @@ def upload(store, produce, *, binary=None, remote="gdrive"):
                     verification="download-sha256-restore",
                     remote_name=name,
                 )
+            # Only after a verified copy; a failure here leaves that copy valid.
+            try:
+                result["retention"] = {"trashed": prune(drive, name)}
+            except Exception:
+                result["retention"] = {
+                    "error": "Rétention non appliquée ; nouvel essai à la prochaine copie."
+                }
+            return result
         except Exception:
             record_failure(store)
             raise

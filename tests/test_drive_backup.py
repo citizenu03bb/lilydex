@@ -1,5 +1,6 @@
 import shutil
 import subprocess
+from datetime import date, timedelta
 from typing import ClassVar
 
 import pytest
@@ -36,6 +37,10 @@ def backend(tmp_path, monkeypatch):
         changed = False
         files: ClassVar[dict] = {}
         sizes: ClassVar[list] = []
+        # Archives already in the Drive folder, by id, and those sent to the trash.
+        others: ClassVar[dict] = {}
+        trashed: ClassVar[list] = []
+        trash_fails = False
 
         def __init__(self, binary, remote):
             pass
@@ -49,6 +54,18 @@ def backend(tmp_path, monkeypatch):
             if file_id == drive_backup.DRIVE_FOLDER:
                 return metadata(file_id)
             return metadata(file_id, next(iter(self.files.values())).stat().st_size)
+
+        def archives(self):
+            current = [{"id": "file-id", "name": n, "parents": [drive_backup.DRIVE_FOLDER]} for n in self.files]
+            return current + [
+                {"id": i, "name": n, "parents": [drive_backup.DRIVE_FOLDER]}
+                for i, n in self.others.items()
+            ]
+
+        def trash(self, file):
+            if self.trash_fails:
+                raise RuntimeError("Drive indisponible")
+            type(self).trashed.append(file["name"])
 
         def find(self, name):
             return (
@@ -126,6 +143,45 @@ def test_rclone_timeout_keeps_the_drive_folder_out_of_the_error(monkeypatch):
         RealDrive("rclone", "gdrive").transfer("lsjson", "gdrive:")
     assert drive_backup.DRIVE_FOLDER not in str(failure.value)
     assert failure.value.__suppress_context__
+
+
+def archive_names(days, today=date(2026, 10, 17)):
+    return [f"daily-{today - timedelta(days=n)}-{'a' * 64}.zip" for n in range(days)]
+
+
+def test_retention_keeps_a_week_daily_then_weeks_then_months():
+    names = archive_names(400) + ["collection-avant-amelioration.zip", "notes.txt"]
+    kept = drive_backup.retained(names)
+    days = sorted(date.fromisoformat(n[6:16]) for n in kept)
+    assert set(archive_names(7)) <= kept  # the last seven days, one by one
+    weeks = {d.isocalendar()[:2] for d in days}
+    months = {(d.year, d.month) for d in days}
+    assert len(weeks) >= 8 and len(months) == 12
+    assert days[0] > date(2025, 10, 17) and len(kept) <= 7 + 8 + 12
+    # Only archive names are ever candidates; anything else is left alone.
+    assert drive_backup.retained(["collection-avant-amelioration.zip"]) == set()
+
+
+def test_successful_upload_trashes_archives_beyond_retention(backend):
+    store, drive = backend
+    old = archive_names(60, today=date(2026, 10, 16))
+    drive.others.update({f"old-{i}": n for i, n in enumerate(old)})
+    drive.others["keep-me"] = "collection-avant-amelioration.zip"
+    result = drive_backup.upload_daily(store, binary="fake")
+    kept = drive_backup.retained([*old, result["remote_name"]])
+    assert set(drive.trashed) == set(old) - kept and drive.trashed
+    assert result["remote_name"] not in drive.trashed
+    assert "collection-avant-amelioration.zip" not in drive.trashed
+    assert result["retention"] == {"trashed": len(drive.trashed)}
+
+
+def test_failed_retention_does_not_undo_a_verified_copy(backend):
+    store, drive = backend
+    drive.others.update({f"old-{i}": n for i, n in enumerate(archive_names(400))})
+    drive.trash_fails = True
+    result = drive_backup.upload_daily(store, binary="fake")
+    assert result["verification"] == "download-sha256-restore"
+    assert "error" in result["retention"] and status(store)["last_error"] is None
 
 
 def test_uncertain_upload_is_found_before_retry(backend):
