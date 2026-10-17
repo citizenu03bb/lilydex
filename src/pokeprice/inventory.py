@@ -1448,7 +1448,7 @@ class Store:
         )
         return data
 
-    def create_sale(self, values, copy_ids, actor):
+    def create_sale(self, values, copy_ids, actor, *, _db=None):
         if not copy_ids or len(copy_ids) != len(set(copy_ids)):
             raise ValueError("Sélectionnez des exemplaires distincts.")
         sale_id = str(uuid.uuid4())
@@ -1466,7 +1466,7 @@ class Store:
             "created_at": now(),
             "updated_at": now(),
         }
-        with self.connect(write=True) as db:
+        with self.connect(write=True) if _db is None else nullcontext(_db) as db:
             for copy_id in copy_ids:
                 card = self.get(db, copy_id)
                 if card["deleted_at"]:
@@ -1520,7 +1520,7 @@ class Store:
                 result.append(sale)
             return result
 
-    def update_sale(self, sale_id, changes, version, actor, reason):
+    def update_sale(self, sale_id, changes, version, actor, reason, *, _db=None):
         transitions = {
             "draft": {"reserved", "cancelled"},
             "reserved": {"sold", "cancelled"},
@@ -1548,7 +1548,7 @@ class Store:
         }
         if changes.keys() - allowed:
             raise ValueError("Champs de vente non modifiables.")
-        with self.connect(write=True) as db:
+        with self.connect(write=True) if _db is None else nullcontext(_db) as db:
             row = db.execute("SELECT * FROM sales WHERE id=?", (sale_id,)).fetchone()
             if not row:
                 raise KeyError("Vente introuvable.")

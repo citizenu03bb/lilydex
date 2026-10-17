@@ -1,7 +1,8 @@
 """Storefront reservation requests: nothing is blocked until the seller accepts.
 
-Accepting creates a lot through the existing sale workflow and reserves it, so
-the single_reservation constraint arbitrates two acceptations of the same copy.
+Accepting creates a lot through the existing sale workflow and reserves it in
+the same transaction as the request's answer: a cancellation or another answer
+to the same request either comes first and wins, or waits and is refused.
 """
 
 import json
@@ -281,34 +282,29 @@ class Reservations:
             if unavailable:
                 raise Conflict("Une carte choisie n’est plus disponible : retirez-la de l’acceptation.")
             copy_ids = [c["id"] for l in chosen for c in self.storefront.cards(db, l)]
-        title = f"Vitrine · {client['display_name'] or client['email']}"
-        sale_id = self.store.create_sale(
-            {
-                "title": title[:256],
-                "channel": "Vitrine",
-                "notes": f"Demande {request_id} de {client['email']}."
-                + (f"\nMessage : {row['message']}" if row["message"] else ""),
-                "amount_cents": sum(items[l] for l in chosen),
-                "asking_cents": sum(items[l] for l in chosen),
-            },
-            copy_ids,
-            actor,
-        )
-        with self.store.connect() as db:
+            title = f"Vitrine · {client['display_name'] or client['email']}"
+            sale_id = self.store.create_sale(
+                {
+                    "title": title[:256],
+                    "channel": "Vitrine",
+                    "notes": f"Demande {request_id} de {client['email']}."
+                    + (f"\nMessage : {row['message']}" if row["message"] else ""),
+                    "amount_cents": sum(items[l] for l in chosen),
+                    "asking_cents": sum(items[l] for l in chosen),
+                },
+                copy_ids,
+                actor,
+                _db=db,
+            )
             sale_version = db.execute("SELECT version FROM sales WHERE id=?", (sale_id,)).fetchone()[0]
-        try:
-            self.store.update_sale(
-                sale_id, {"status": "reserved"}, sale_version, actor, "Demande de la vitrine acceptée"
-            )
-        except Conflict:
-            # Someone reserved a copy in between: give the draft up, keep the request open.
-            with self.store.connect() as db:
-                sale_version = db.execute("SELECT version FROM sales WHERE id=?", (sale_id,)).fetchone()[0]
-            self.store.update_sale(
-                sale_id, {"status": "cancelled"}, sale_version, actor, "Réservation impossible"
-            )
-            raise Conflict("Un exemplaire vient d’être réservé ailleurs : rechargez la demande.")
-        with self.store.connect(write=True) as db:
+            try:
+                self.store.update_sale(
+                    sale_id, {"status": "reserved"}, sale_version, actor,
+                    "Demande de la vitrine acceptée", _db=db,
+                )
+            except Conflict:
+                # The rollback drops the draft too: the request stays open, nothing is left.
+                raise Conflict("Un exemplaire vient d’être réservé ailleurs : rechargez la demande.") from None
             status = "accepted" if set(chosen) == set(items) else "partially_accepted"
             db.execute(
                 "UPDATE requests SET status=?,sale_id=?,updated_at=?,version=version+1 WHERE id=?",

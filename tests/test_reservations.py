@@ -1,11 +1,14 @@
 import json
+import threading
 
 import pytest
 from fastapi.testclient import TestClient
 from test_library import inputs
 
-from pokeprice.inventory import Store
+from pokeprice.inventory import Conflict, Store
 from pokeprice.inventory_import import import_collection
+from pokeprice.listings import Storefront
+from pokeprice.reservations import Reservations
 from pokeprice.webapp import create_app
 
 PASSWORD = "Client-test-2026!"
@@ -135,6 +138,84 @@ def test_two_requests_for_one_card_cannot_both_be_accepted(shop):
     assert refused.status_code == 200
     mine = client_of(store, "b@example.org").get("/api/me/requests").json()[0]
     assert mine["status"] == "refused" and mine["decision"] == "Déjà réservée"
+
+
+def interleave(monkeypatch, store, rival):
+    """Run `rival` in another thread right after accept() has checked the request."""
+    original, outcome = store.create_sale, {}
+
+    def run():
+        try:
+            outcome["rival"] = rival()
+        except Conflict as exc:
+            outcome["rival"] = exc
+
+    def create_sale(*args, **kwargs):
+        monkeypatch.setattr(store, "create_sale", original)
+        outcome["thread"] = threading.Thread(target=run)
+        outcome["thread"].start()
+        # A non-atomic acceptance lets the rival finish here; an atomic one
+        # holds the write lock, so the rival waits for the acceptance to end.
+        outcome["thread"].join(timeout=1)
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(store, "create_sale", create_sale)
+    return outcome
+
+
+def race_accept(shop, monkeypatch, rival):
+    admin, store, listings = shop
+    signup(store, "sacha@example.org")
+    activate(admin, "sacha@example.org")
+    ids = [listings[0]["id"], listings[1]["id"]]
+    client_of(store, "sacha@example.org").post("/api/me/requests", json={"listing_ids": ids})
+    request = admin.get("/api/requests").json()[0]
+    service = Reservations(store, Storefront(store))
+    outcome = interleave(monkeypatch, store, lambda: rival(service, request, ids[1]))
+    try:
+        outcome["accept"] = service.accept(request["id"], request["version"], [ids[0]], "pat")
+    except Conflict as exc:
+        outcome["accept"] = exc
+    outcome["thread"].join()
+    final = next(r for r in admin.get("/api/requests").json() if r["id"] == request["id"])
+    reserved = [s["id"] for s in admin.get("/api/sales").json() if s["status"] == "reserved"]
+    winners = [k for k in ("accept", "rival") if not isinstance(outcome[k], Exception)]
+    return winners, final, reserved
+
+
+def test_a_cancellation_racing_an_acceptance_cannot_both_win(shop, monkeypatch):
+    winners, final, reserved = race_accept(
+        shop, monkeypatch,
+        lambda service, request, _: service.cancel(request["client_id"], request["id"], request["version"]),
+    )
+    assert len(winners) == 1
+    if final["status"] == "cancelled":
+        assert reserved == [] and final["sale_id"] is None
+    else:
+        assert final["status"] == "partially_accepted" and reserved == [final["sale_id"]]
+
+
+def test_a_refusal_racing_an_acceptance_cannot_both_win(shop, monkeypatch):
+    winners, final, reserved = race_accept(
+        shop, monkeypatch,
+        lambda service, request, _: service.refuse(request["id"], request["version"], "lea", "Plus en stock"),
+    )
+    assert len(winners) == 1
+    if final["status"] == "refused":
+        assert reserved == [] and final["sale_id"] is None
+    else:
+        assert reserved == [final["sale_id"]]
+
+
+def test_two_partial_acceptances_of_one_request_cannot_both_win(shop, monkeypatch):
+    winners, final, reserved = race_accept(
+        shop, monkeypatch,
+        lambda service, request, other: service.accept(request["id"], request["version"], [other], "lea"),
+    )
+    # A reserved lot detached from its request would leave a card "refused" yet blocked.
+    assert len(winners) == 1 and reserved == [final["sale_id"]]
+    accepted = [i["listing_id"] for i in final["items"] if i["outcome"] == "accepted"]
+    assert len(accepted) == 1
 
 
 def test_clients_cancel_their_own_requests_and_old_ones_expire(shop):
