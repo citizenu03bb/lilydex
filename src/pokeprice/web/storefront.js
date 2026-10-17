@@ -47,7 +47,7 @@ async function call(path, options = {}) {
   if (!response.ok) {
     let detail = body?.detail || `La demande n’a pas abouti (HTTP ${response.status}).`;
     if (Array.isArray(detail)) detail = "Vérifiez les champs du formulaire.";
-    throw new Error(detail);
+    throw Object.assign(new Error(detail), { status: response.status });
   }
   return body;
 }
@@ -309,7 +309,16 @@ $("requests-open").addEventListener("click", () => {
 $("logout").addEventListener("click", async () => {
   try {
     await call("/api/logout", { method: "POST" });
-  } catch {}
+  } catch (error) {
+    // Without the server's answer the session may still be valid: say so, keep it.
+    if (error.status !== 401) {
+      const reason = error.status ? error.message : "le serveur ne répond pas.";
+      $("error").textContent = `Déconnexion impossible : ${reason} Réessayez.`;
+      $("error").hidden = false;
+      return;
+    }
+  }
+  $("error").hidden = true;
   state.me = null;
   renderAccount();
 });
