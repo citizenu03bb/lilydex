@@ -51,6 +51,9 @@ class Reservations:
         """Create a pending client; an existing address is silently left alone."""
         email = valid_email(email)
         with self.store.connect(write=True) as db:
+            # Before the first admin exists, a sign-up could only get in the way of setup.
+            if not db.execute("SELECT 1 FROM users WHERE role='admin' LIMIT 1").fetchone():
+                raise Conflict("La boutique n’est pas encore ouverte aux inscriptions.")
             known = db.execute(
                 "SELECT 1 FROM users WHERE email=? OR username=?", (email, email)
             ).fetchone()

@@ -17,9 +17,13 @@ Ouvrir [http://127.0.0.1:3820/gestion](http://127.0.0.1:3820/gestion) (la racine
 son compte administrateur et un mot de passe d'au moins dix caractères. Aucun
 mot de passe par défaut n'est livré pour la collection réelle. Le serveur reste
 sur cet appareil. Pour utiliser le téléphone sur le même Wi-Fi, écouter sur
-l'adresse IPv4 Wi-Fi du portable :
+l'adresse IPv4 Wi-Fi du portable. Le serveur refuse alors de démarrer sans
+administrateur : sinon, le premier appareil du réseau à ouvrir la page le
+deviendrait. Créer d'abord ce compte depuis le terminal du portable (ou par le
+premier accès sur `127.0.0.1`), puis écouter sur le Wi-Fi :
 
 ```bash
+uv run --extra web pokeprice-manage user <nom> --role admin
 uv run --extra web pokeprice-manage serve --host <adresse-wifi>
 ```
 

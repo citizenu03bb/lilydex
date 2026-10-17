@@ -18,7 +18,7 @@ from test_library import inputs
 from pokeprice.inventory import Conflict, Store
 from pokeprice.inventory_backup import backup, export_data, export_html, restore_backup
 from pokeprice.inventory_import import import_collection
-from pokeprice.webapp import create_app, password_hash, password_valid
+from pokeprice.webapp import UserCreate, add_user, create_app, password_hash, password_valid
 
 
 @pytest.fixture
@@ -431,6 +431,42 @@ def test_legacy_password_hash_still_works_and_is_strengthened_at_login(tmp_path)
         assert client.post("/api/login", json=owner).status_code == 200
         assert stored() != legacy and stored().startswith("scrypt$")
         assert client.post("/api/login", json=owner).status_code == 200
+
+
+SIGNUP = {
+    "email": "early@example.org",
+    "display_name": "Tôt",
+    "password": "Client-test-2026!",
+    "consent": True,
+}
+
+
+def test_signups_wait_for_the_first_admin_and_cannot_block_setup(tmp_path):
+    owner = {"username": "owner", "password": "Collection-test-2026!"}
+    with TestClient(create_app(tmp_path / "blank")) as client:
+        assert client.post("/api/public/signup", json=SIGNUP).status_code == 409
+        assert client.get("/api/setup").json() == {"required": True}
+        assert client.post("/api/setup", json=owner).status_code == 200
+        assert client.post("/api/public/signup", json=SIGNUP).status_code == 202
+    # A client row left by an older version does not count as an installed shop.
+    store = Store(tmp_path / "older")
+    with store.connect(write=True) as db:
+        db.execute(
+            "INSERT INTO users(id,username,password_hash,role,created_at,status) "
+            "VALUES('c1','early@example.org','x','client','2026-10-16','pending')"
+        )
+    with TestClient(create_app(store.root)) as client:
+        assert client.get("/api/setup").json() == {"required": True}
+        assert client.post("/api/setup", json=owner).status_code == 200
+
+
+def test_an_instance_open_to_the_network_needs_a_local_admin_first(tmp_path):
+    with pytest.raises(ValueError, match="administrateur"):
+        create_app(tmp_path / "lan", allowed_hosts=["192.168.1.20"])
+    with Store(tmp_path / "lan").connect(write=True) as db:
+        add_user(db, UserCreate(username="owner", password="Collection-test-2026!", role="admin"))
+    create_app(tmp_path / "lan", allowed_hosts=["192.168.1.20"])
+    create_app(tmp_path / "local", allowed_hosts=["127.0.0.1", "localhost"])
 
 
 def test_concurrent_reservations_have_one_winner_and_atomic_lot(inventory):

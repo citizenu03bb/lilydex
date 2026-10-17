@@ -29,7 +29,8 @@ démarrage. Pour une installation neuve, importer d'abord les albums scannés :
 uv run --extra web pokeprice-manage import pokeprice_library_manifest.json
 ```
 
-Accès depuis le téléphone sur le Wi-Fi : `pokeprice-manage serve --host <adresse-wifi>`.
+Accès depuis le téléphone sur le Wi-Fi : `pokeprice-manage serve --host <adresse-wifi>`,
+une fois le compte administrateur créé (`pokeprice-manage user <nom> --role admin`).
 Les données (base, photos, sauvegardes) vivent dans `data/`, hors de git.
 La lecture des cartes dans l'application utilise Gemini : une clé
 `GEMINI_API_KEY` ou `GOOGLE_API_KEY` dans `~/.env`, jamais envoyée au navigateur.

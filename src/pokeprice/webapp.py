@@ -405,6 +405,13 @@ def password_outdated(encoded):
     return hash_parts(encoded)[0] != SCRYPT
 
 
+LOCAL_HOSTS = {"127.0.0.1", "localhost", "::1", "[::1]", "testserver"}
+
+
+def has_admin(db):
+    return bool(db.execute("SELECT 1 FROM users WHERE role='admin' LIMIT 1").fetchone())
+
+
 def add_user(db, values):
     import uuid
 
@@ -440,13 +447,18 @@ def create_app(
     market_fetch=None,
 ):
     store = Store(directory)
-    if secure_cookie:
+    allowed_hosts = allowed_hosts or ["127.0.0.1", "localhost", "testserver"]
+    # Web setup is for a private first run: once others can reach the server,
+    # the first visitor must not become admin, so the admin is made locally.
+    exposed = secure_cookie or set(allowed_hosts) - LOCAL_HOSTS
+    if exposed:
         with store.connect() as db:
             if not db.execute(
                 "SELECT 1 FROM users WHERE role='admin' AND disabled=0 LIMIT 1"
             ).fetchone():
                 raise ValueError(
-                    "Créez un administrateur local avant le démarrage HTTPS."
+                    "Créez un administrateur local (commande user) avant le "
+                    "démarrage HTTPS ou l’ouverture au réseau."
                 )
     app = FastAPI(
         title="Poképrice — collection privée",
@@ -484,10 +496,7 @@ def create_app(
         ),
     )
     app.state.variant_catalogue = variant_catalogue
-    app.add_middleware(
-        TrustedHostMiddleware,
-        allowed_hosts=allowed_hosts or ["127.0.0.1", "localhost", "testserver"],
-    )
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=allowed_hosts)
     static = Path(__file__).with_name("web")
     failures = {}
     login_lock = threading.Lock()
@@ -755,11 +764,7 @@ def create_app(
     @app.get("/api/setup")
     def setup_state():
         with store.connect() as db:
-            return {
-                "required": not bool(
-                    db.execute("SELECT 1 FROM users LIMIT 1").fetchone()
-                )
-            }
+            return {"required": not has_admin(db)}
 
     @app.get("/health")
     def health():
@@ -770,7 +775,8 @@ def create_app(
     @app.post("/api/setup")
     def setup(values: Credentials, response: Response):
         with store.connect(write=True) as db:
-            if db.execute("SELECT 1 FROM users LIMIT 1").fetchone():
+            # Client sign-ups do not count: only an admin closes the setup.
+            if has_admin(db):
                 raise Conflict("Le compte initial existe déjà.")
             user = add_user(db, UserCreate(**values.model_dump(), role="admin"))
             issue_session(db, user, response)
