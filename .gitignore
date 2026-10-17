@@ -48,3 +48,8 @@ outputs/
 /pokeprice_library.json
 /data/
 !src/pokeprice/web/index.html
+
+# Local secrets and agent configuration never go to the public repository.
+.env
+.env.*
+.claude/
