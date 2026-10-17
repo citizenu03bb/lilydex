@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import os
 import re
 import sqlite3
 import uuid
@@ -340,10 +341,12 @@ class Store:
     def snapshot_before_migration(self, db, version):
         """Keep the database as it was; a failed copy stops the migration."""
         folder = self.root.parent / "backups"
-        folder.mkdir(parents=True, exist_ok=True)
+        folder.mkdir(mode=0o700, parents=True, exist_ok=True)
         stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
         target = folder / f"before-schema{SCHEMA_VERSION}-from{version}-{stamp}.sqlite3"
         temporary = target.with_name(target.name + ".tmp")
+        # Created private before SQLite writes into it; its journal inherits the mode.
+        os.close(os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600))
         try:
             with closing(sqlite3.connect(temporary)) as copy:
                 db.backup(copy)
@@ -354,7 +357,6 @@ class Store:
                     or copy.execute("PRAGMA user_version").fetchone()[0] != version
                 ):
                     raise ValueError("Copie avant migration incohérente.")
-            temporary.chmod(0o600)
             temporary.replace(target)
         finally:
             temporary.unlink(missing_ok=True)

@@ -5,6 +5,7 @@ import csv
 import hashlib
 import io
 import json
+import os
 import re
 import sqlite3
 import tempfile
@@ -17,7 +18,7 @@ from .inventory import SCHEMA_VERSION, Store, now
 
 def backup(store, destination):
     destination = Path(destination)
-    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     if destination.exists():
         raise ValueError("La sauvegarde existe déjà.")
     with tempfile.TemporaryDirectory() as tmp:
@@ -48,15 +49,20 @@ def backup(store, destination):
                 name: hashlib.sha256(body).hexdigest() for name, body in files.items()
             },
         }
-        with zipfile.ZipFile(
-            destination, "x", compression=zipfile.ZIP_DEFLATED
-        ) as archive:
-            for name, body in files.items():
-                archive.writestr(name, body)
-            archive.writestr(
-                "manifest.json", json.dumps(manifest, ensure_ascii=False, indent=2)
-            )
-        destination.chmod(0o600)
+        # Private from its first byte: a chmod after writing leaves a readable window.
+        handle = os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        try:
+            with os.fdopen(handle, "wb") as output, zipfile.ZipFile(
+                output, "w", compression=zipfile.ZIP_DEFLATED
+            ) as archive:
+                for name, body in files.items():
+                    archive.writestr(name, body)
+                archive.writestr(
+                    "manifest.json", json.dumps(manifest, ensure_ascii=False, indent=2)
+                )
+        except BaseException:
+            destination.unlink(missing_ok=True)
+            raise
     return {
         "path": str(destination),
         "files": len(files),

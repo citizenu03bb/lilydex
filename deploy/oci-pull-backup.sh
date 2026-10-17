@@ -3,6 +3,8 @@
 # vers le portable, suivi de la vérification locale. Le jeton Google Drive reste uniquement sur le portable.
 # Usage : ./deploy/oci-pull-backup.sh ubuntu@<IP_OCI> [--push-drive]
 set -euo pipefail
+# Archives and partial downloads are private from their first byte.
+umask 077
 
 if [ "$#" -lt 1 ]; then
     echo "Usage: $0 <user@oci-ip> [--push-drive]" >&2
@@ -27,6 +29,13 @@ fi
 
 ARCHIVE_NAME="$(basename "$REMOTE_LATEST")"
 LOCAL_TARGET="data/backups/${ARCHIVE_NAME}"
+TMP_RESTORE=""
+cleanup() {
+    # An interrupted transfer must not leave a partial archive behind.
+    rm -f "${LOCAL_TARGET}.part"
+    if [ -n "$TMP_RESTORE" ]; then rm -rf "$TMP_RESTORE"; fi
+}
+trap cleanup EXIT
 
 echo "[2/3] Rapatriement de ${ARCHIVE_NAME} via SSH..."
 ssh "$REMOTE_HOST" "sudo cat '$REMOTE_LATEST'" > "${LOCAL_TARGET}.part"
@@ -35,7 +44,6 @@ chmod 0600 "$LOCAL_TARGET"
 
 echo "[3/3] Restauration de contrôle sur le portable..."
 TMP_RESTORE="$(mktemp -d -t pokeprice-oci-verify-XXXXXX)"
-trap 'rm -rf "$TMP_RESTORE"' EXIT
 .venv/bin/python -m pokeprice.manage --data "${TMP_RESTORE}/collection" restore "$LOCAL_TARGET"
 
 if [ "$PUSH_DRIVE" = "--push-drive" ]; then

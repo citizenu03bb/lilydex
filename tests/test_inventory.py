@@ -2,6 +2,7 @@ import shutil
 import hashlib
 import io
 import json
+import os
 import re
 import subprocess
 import threading
@@ -467,6 +468,73 @@ def test_an_instance_open_to_the_network_needs_a_local_admin_first(tmp_path):
         add_user(db, UserCreate(username="owner", password="Collection-test-2026!", role="admin"))
     create_app(tmp_path / "lan", allowed_hosts=["192.168.1.20"])
     create_app(tmp_path / "local", allowed_hosts=["127.0.0.1", "localhost"])
+
+
+def test_backup_archive_is_private_while_it_is_written(inventory, tmp_path, monkeypatch):
+    store, _, _ = inventory
+    target = tmp_path / "out" / "copy.zip"
+    modes = []
+    writestr = zipfile.ZipFile.writestr
+
+    def watched(self, name, data, *args, **kwargs):
+        modes.append(target.stat().st_mode & 0o777)
+        return writestr(self, name, data, *args, **kwargs)
+
+    monkeypatch.setattr(zipfile.ZipFile, "writestr", watched)
+    previous = os.umask(0o022)
+    try:
+        backup(store, target)
+    finally:
+        os.umask(previous)
+    assert modes and set(modes) == {0o600}
+
+
+def test_migration_snapshot_is_private_while_it_is_written(inventory):
+    store, _, _ = inventory
+    folder = store.root.parent / "backups"
+    modes = []
+    with store.connect() as db:
+        version = db.execute("PRAGMA user_version").fetchone()[0]
+
+        class Watched:
+            def backup(self, target):
+                modes.extend(p.stat().st_mode & 0o777 for p in folder.glob("*.tmp"))
+                db.backup(target)
+
+        previous = os.umask(0o022)
+        try:
+            target = store.snapshot_before_migration(Watched(), version)
+        finally:
+            os.umask(previous)
+    assert modes == [0o600] and target.stat().st_mode & 0o777 == 0o600
+
+
+def test_interrupted_backup_pull_leaves_no_readable_part_file(tmp_path):
+    root = tmp_path / "repo"
+    (root / "deploy").mkdir(parents=True)
+    script = Path(__file__).resolve().parents[1] / "deploy/oci-pull-backup.sh"
+    shutil.copy(script, root / "deploy")
+    stubs = tmp_path / "bin"
+    stubs.mkdir()
+    # A fake ssh: the archive transfer starts, then the connection drops.
+    (stubs / "ssh").write_text(
+        "#!/usr/bin/env bash\n"
+        'case "$2" in\n'
+        "  *'ls -1t'*) echo /srv/pokeprice/backups/daily-2026-10-17.zip ;;\n"
+        "  *'cat '*) printf 'partial archive'; exit 255 ;;\n"
+        "esac\n"
+    )
+    (stubs / "ssh").chmod(0o755)
+    result = subprocess.run(
+        ["bash", "-c", 'umask 022; exec bash "$0" opc@203.0.113.9', str(root / "deploy/oci-pull-backup.sh")],
+        env={**os.environ, "PATH": f"{stubs}:{os.environ['PATH']}"},
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0
+    backups = root / "data/backups"
+    assert backups.stat().st_mode & 0o777 == 0o700
+    assert list(backups.iterdir()) == []
 
 
 def test_concurrent_reservations_have_one_winner_and_atomic_lot(inventory):
