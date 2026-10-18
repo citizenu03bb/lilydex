@@ -20,7 +20,7 @@ Configuration d'hébergement permanent avec isolation stricte des secrets. Un [t
 - `deploy/Caddyfile.example` : modèle HTTPS et proxy local vers `127.0.0.1:3820`.
 - `deploy/oci-provision.sh` : provisionnement idempotent d'Ubuntu 24.04 sur OCI (fuseau `Europe/Paris`, swap 2 Go, ouverture des ports `80`/`443` dans `iptables` local OCI, installation de Caddy et `uv`, création de l'utilisateur `pokeprice` et de `/srv/pokeprice`).
 - `deploy/oci-sync-secrets.sh` : transfert direct (`stdin` SSH, `set +x`, `umask 0077`) de `GEMINI_API_KEY` depuis `~/.env` vers `/etc/pokeprice/pokeprice.env` sans affichage.
-- `deploy/oci-deploy.sh` : synchronisation des seuls fichiers suivis par Git (`git ls-files`), installation du `.venv`, restauration initiale de la dernière archive vérifiée `data/backups/daily-*.zip`, activation de `systemd` et Caddy, puis test de `/health`.
+- `deploy/oci-deploy.sh` : synchronisation des seuls fichiers suivis par Git (`git ls-files`), installation du `.venv` avec les options `web` et `vision` (voir [Option vision](#option-vision-contrôle-dédition-et-porte-énergie)), restauration initiale de la dernière archive vérifiée `data/backups/daily-*.zip`, activation de `systemd` et Caddy, puis test de `/health`.
 - `deploy/pokeprice-drive-backup.service` et `.timer` (unités utilisateur du portable) : `backup-server-drive --host opc@<IP_OCI>`, soit rapatriement SSH de la dernière `daily-*.zip` du serveur dans `data/oci-backups/oci-daily-*.zip`, contrôle SHA-256 et restauration, puis copie Drive retéléchargée et restaurée.
 - `deploy/oci-pull-backup.sh` : raccourci manuel de `backup-server-pull` (ou de `backup-server-drive` avec `--push-drive`). Il rapatrie la dernière sauvegarde quotidienne du serveur dans `data/oci-backups/oci-daily-*.zip`, avec contrôle SHA-256 et restauration de contrôle.
 
@@ -53,6 +53,38 @@ systemctl --user disable --now pokeprice-local-backup.timer
 install -m 0644 deploy/pokeprice-drive-backup.service deploy/pokeprice-drive-backup.timer ~/.config/systemd/user/
 systemctl --user daemon-reload
 systemctl --user enable --now pokeprice-drive-backup.timer
+```
+
+## Option vision (contrôle d’édition et porte énergie)
+
+`oci-deploy.sh` installe l’option `vision` (torch, transformers) : elle sert au
+contrôle de l’édition par l’image dans l’application et à
+`scan --energy-gate`. Sans elle, l’application affiche « Contrôle indisponible
+sur ce serveur ». Sur aarch64 (instance A1), torch vient de l’index CPU de
+PyTorch (`[tool.uv.sources]` de `pyproject.toml`) : la roue PyPI y ajouterait
+plusieurs Go de bibliothèques CUDA inutiles sans GPU.
+
+Mesuré le 18 octobre 2026 sur l’instance A1 (2 OCPU, 10 Go de RAM) :
+
+- **Disque :** le `.venv` pèse 912 Mo, le modèle `facebook/dinov2-small` 85 Mo
+  (`/srv/pokeprice/.cache/huggingface`).
+- **Mémoire :** 129 Mo pour le service au repos. Le modèle n’est chargé qu’au
+  premier contrôle. La banque de la porte énergie monte à 1,2 Go quand elle
+  calcule les vecteurs de toute la collection (1 767 exemplaires en 2 min 44),
+  puis 310 Mo et 2 s une fois son cache à jour. L’instance `E2.1.Micro`
+  (1 Go de RAM) ne suffit pas.
+
+Les caches vivent sous `/srv/pokeprice/inventory/references` : images TCGdex
+de référence, vecteurs du contrôle d’édition (`dinov2-small.pt`) et de la porte
+énergie (`energy-bank.pt`). Ils ne sont pas dans les sauvegardes et se
+recalculent seuls. Les photos étant nommées par leur SHA-256, les vecteurs d’un
+autre poste restent valables ; pour éviter le premier calcul, reprendre ceux du
+portable :
+
+```bash
+rsync -az --ignore-existing --no-owner --no-group --rsync-path="sudo rsync" data/inventory/references/ opc@<IP_OCI>:/srv/pokeprice/inventory/references/
+rsync -az --no-owner --no-group --rsync-path="sudo rsync" ~/.cache/huggingface/hub/models--facebook--dinov2-small opc@<IP_OCI>:/srv/pokeprice/.cache/huggingface/hub/
+ssh opc@<IP_OCI> 'sudo chown -R pokeprice:pokeprice /srv/pokeprice/inventory/references /srv/pokeprice/.cache && sudo chmod -R go-rwx /srv/pokeprice/inventory/references /srv/pokeprice/.cache'
 ```
 
 ## Vérifications avant et après publication
