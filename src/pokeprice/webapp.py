@@ -650,10 +650,10 @@ def create_app(
             else "L’adresse de contact sera bientôt indiquée ici."
         )
         controller = (
-            f"Le responsable du traitement est {html.escape(controller_name)}, "
-            "particulier, joignable à l’adresse de contact ci-dessous."
+            f"Responsable du traitement : {html.escape(controller_name)}, à titre "
+            "personnel, joignable à l’adresse de contact ci-dessous."
             if controller_name
-            else "Le responsable du traitement est le vendeur, particulier, "
+            else "Responsable du traitement : le vendeur, à titre personnel, "
             "joignable à l’adresse de contact ci-dessous."
         )
         return (
