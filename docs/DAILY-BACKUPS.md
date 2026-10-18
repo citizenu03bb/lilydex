@@ -24,7 +24,8 @@ une copie périmée : aucun travail planifié ne la lit ni n'y écrit.
      Une restauration temporaire contrôle ensuite SQLite, les clés étrangères
      et les photos. Une archive déjà rapatriée avec la même empreinte n'est pas
      retéléchargée ;
-  4. il l'envoie sur Drive, la retélécharge et la restaure avant de marquer le succès.
+  4. il la **chiffre** (age, voir plus bas), l'envoie sur Drive, la retélécharge,
+     la déchiffre et la restaure avant de marquer le succès.
   Le service peut réessayer deux fois, à quinze minutes d'intervalle, et au
   plus trois fois par jour.
 - Les trois dernières archives `oci-daily-*.zip` restent sur le portable, faute
@@ -48,8 +49,35 @@ temporairement : 404 exemplaires actifs. Le statut porte désormais
 initial, conservent leur niveau de contrôle antérieur par métadonnées ; ce test
 ne revendique pas leur restauration distante.
 Les archives contiennent les comptes et leurs hashes
-de mot de passe nécessaires à la restauration, mais aucune session connectée
-réactivable. Elles restent privées.
+de mot de passe nécessaires à la restauration, dont les e-mails et demandes des
+clients de la vitrine, mais aucune session connectée réactivable. Depuis le
+18 octobre 2026, elles ne partent sur Drive que chiffrées.
+
+## Chiffrement des copies Drive
+
+Le portable chiffre chaque archive avec [age](https://age-encryption.org)
+(X25519) avant l'envoi : Drive ne reçoit que des `….zip.age`, illisibles sans
+la clé. Google n'a donc aucun accès aux données des clients, ce qui dispense de
+contrat de sous-traitance pour un compte Drive personnel. La clé est créée une
+fois par `.venv/bin/python -m pokeprice.manage backup-key`, qui n'affiche que la
+clé publique ; elle vit dans `~/.config/pokeprice/backup-key.txt` (mode 0600,
+format de clé d'age). Sans elle, ou si elle est lisible par d'autres comptes,
+aucune copie n'est envoyée. Chaque copie est déchiffrée après retéléchargement :
+une clé perdue ou altérée se voit dès la nuit suivante.
+
+**Sans cette clé, aucune copie Drive n'est récupérable.** Elle doit avoir une
+copie hors ligne, distincte du portable (disque externe), et jamais sur Drive.
+
+Récupération sans le projet, avec l'outil `age` :
+
+```bash
+age -d -i backup-key.txt oci-daily-AAAA-MM-JJ-SHA256.zip.age > archive.zip
+```
+
+puis `restore` comme ci-dessous. Les copies envoyées avant le chiffrement
+(`….zip` sans `.age`) restent lisibles par Google jusqu'à ce que la rétention
+les mette à la corbeille, au plus tard après 12 mois et 30 jours ; les mettre
+à la corbeille plus tôt à la main ne gêne pas le service.
 
 ## Commandes
 
@@ -93,10 +121,11 @@ autres projets qui utilisent ce remote.
 
 Une copie temporaire privée stabilise les octets pendant le transfert ; un
 verrou empêche deux exécutions Poképrice simultanées. Les nouvelles archives
-Drive sont nommées `oci-daily-AAAA-MM-JJ-SHA256.zip` (copie du serveur) ou
-`daily-AAAA-MM-JJ-SHA256.zip` (anciennes copies du portable), pour conserver les
-versions d'un même jour. Une ancienne copie connue de contenu identique peut être réutilisée,
-comme lors de la réception du 6 octobre. Après un résultat de transfert incertain,
+Drive sont nommées `oci-daily-AAAA-MM-JJ-SHA256.zip.age` (copie du serveur) ou
+`daily-AAAA-MM-JJ-SHA256.zip.age` (copies du portable), le SHA-256 étant celui
+de l'archive en clair, pour conserver les versions d'un même jour. Une copie
+chiffrée déjà envoyée de contenu identique est réutilisée ; une copie en clair
+ne l'est jamais. Après un résultat de transfert incertain,
 le prochain essai recherche d'abord ce nom. Plusieurs fichiers de même nom,
 une archive altérée ou des permissions supplémentaires bloquent la validation.
 Le service ne partage aucun fichier Drive. Après chaque copie vérifiée, il

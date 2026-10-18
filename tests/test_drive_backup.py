@@ -6,7 +6,7 @@ from typing import ClassVar
 import pytest
 
 from pokeprice import drive_backup
-from pokeprice.daily_backup import status
+from pokeprice.daily_backup import _write, status
 from pokeprice.inventory import Store
 
 RealDrive = drive_backup.Drive  # The backend fixture swaps in a fake.
@@ -97,6 +97,7 @@ def backend(tmp_path, monkeypatch):
 
     store = Store(tmp_path / "inventory")
     monkeypatch.setattr(drive_backup, "Drive", FakeDrive)
+    drive_backup.create_key()
     return store, FakeDrive
 
 
@@ -106,7 +107,7 @@ def test_upload_restores_and_retry_has_no_duplicate(backend):
     second = drive_backup.upload_daily(store, binary="fake")
     assert drive.uploads == 1
     assert first["file_id"] == second["file_id"]
-    assert first["verification"] == "download-sha256-restore"
+    assert first["verification"] == "download-decrypt-sha256-restore"
     assert status(store)["last_error"] is None
 
 
@@ -180,7 +181,7 @@ def test_failed_retention_does_not_undo_a_verified_copy(backend):
     drive.others.update({f"old-{i}": n for i, n in enumerate(archive_names(400))})
     drive.trash_fails = True
     result = drive_backup.upload_daily(store, binary="fake")
-    assert result["verification"] == "download-sha256-restore"
+    assert result["verification"] == "download-decrypt-sha256-restore"
     assert "error" in result["retention"] and status(store)["last_error"] is None
 
 
@@ -233,3 +234,48 @@ def test_shared_folder_blocks_upload(backend):
 def test_private_check_requires_owner_only(change):
     with pytest.raises(ValueError):
         drive_backup.Drive.private({**metadata("folder"), **change})
+
+
+def test_drive_only_receives_the_archive_encrypted(backend):
+    store, drive = backend
+    result = drive_backup.upload_daily(store, binary="fake")
+    sent = drive.files[result["remote_name"]].read_bytes()
+    assert result["remote_name"].endswith(".zip.age")
+    assert sent.startswith(b"age-encryption.org/v1") and b"PK\x03\x04" not in sent[:4096]
+
+
+def test_an_old_plain_copy_is_not_reused_once_encryption_is_on(backend):
+    store, drive = backend
+    first = drive_backup.upload_daily(store, binary="fake")
+    data = status(store)
+    data["external"]["remote_name"] = first["remote_name"].removesuffix(".age")
+    _write(store, data)
+    again = drive_backup.upload_daily(store, binary="fake")
+    assert again["remote_name"] == first["remote_name"] and drive.uploads == 1
+
+
+def test_no_upload_without_the_key_or_with_a_readable_key(backend):
+    store, drive = backend
+    key = drive_backup.key_path()
+    key.chmod(0o644)
+    with pytest.raises(ValueError):
+        drive_backup.upload_daily(store, binary="fake")
+    key.unlink()
+    with pytest.raises(RuntimeError, match="backup-key"):
+        drive_backup.upload_daily(store, binary="fake")
+    assert drive.uploads == 0 and status(store)["last_error"]
+
+
+def test_the_key_is_created_once_and_never_shown(tmp_path):
+    first = drive_backup.create_key()
+    again = drive_backup.create_key()
+    assert first["created"] and not again["created"]
+    assert first["recipient"] == again["recipient"] and first["recipient"].startswith("age1")
+    assert "AGE-SECRET-KEY" not in str(first)
+    assert drive_backup.key_path().stat().st_mode & 0o777 == 0o600
+
+
+def test_retention_counts_encrypted_and_former_plain_copies():
+    names = [n + ".age" for n in archive_names(30)] + archive_names(30, today=date(2026, 9, 17))
+    kept = drive_backup.retained(names)
+    assert {n for n in names[:7]} <= kept and kept <= set(names)

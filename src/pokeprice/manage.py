@@ -71,6 +71,10 @@ def main():
     )
     daily.add_argument("--force", action="store_true")
     actions.add_parser("backup-status", help="État local et copie externe")
+    actions.add_parser(
+        "backup-key",
+        help="Créer (une fois) la clé de chiffrement des copies Drive ; affiche la clé publique",
+    )
     drive = actions.add_parser(
         "backup-drive", help="Copie Drive déterministe et restauration de contrôle"
     )
@@ -159,6 +163,10 @@ def main():
         from .reference_service import archive_document
 
         result = archive_document(args.data, args.document)
+    elif args.action == "backup-key":
+        from .drive_backup import create_key
+
+        result = create_key()
     elif args.action == "restore":
         from .inventory_backup import restore_backup
 

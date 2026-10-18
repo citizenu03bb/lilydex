@@ -16,6 +16,12 @@ def cheap_scrypt(request, monkeypatch):
         monkeypatch.setattr(webapp, "SCRYPT", {"n": 2**10, "r": 8, "p": 1})
 
 
+@pytest.fixture(autouse=True)
+def private_config(tmp_path, monkeypatch):
+    # Backup keys and other per-user configuration never come from the real home.
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+
+
 @pytest.fixture
 def client_factory():
     def make(details, names=None):

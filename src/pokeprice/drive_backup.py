@@ -1,8 +1,15 @@
-"""Deterministic private Drive copies using an existing rclone OAuth remote."""
+"""Deterministic private Drive copies using an existing rclone OAuth remote.
+
+Archives leave the laptop encrypted with age (X25519): Drive only ever holds
+`.zip.age` files. The key stays on the laptop, in the configuration folder;
+without it no copy on Drive can be read, so it needs an offline copy too.
+Recovery without this code: `age -d -i backup-key.txt archive.zip.age > archive.zip`.
+"""
 
 import fcntl
 import json
 import math
+import os
 import re
 import shutil
 import subprocess
@@ -10,6 +17,7 @@ import tempfile
 from datetime import date
 from pathlib import Path
 
+import pyrage
 import requests
 
 from .daily_backup import (
@@ -33,7 +41,8 @@ def transfer_timeout(size):
     return min(RCLONE_CEILING, max(RCLONE_FLOOR, math.ceil(size / RCLONE_MIN_RATE)))
 
 
-ARCHIVE = re.compile(r"(?:oci-)?daily-(\d{4}-\d{2}-\d{2})(?:-[a-f0-9]{64})?\.zip")
+# Plain .zip names are the copies sent before encryption; retention ages them out.
+ARCHIVE = re.compile(r"(?:oci-)?daily-(\d{4}-\d{2}-\d{2})(?:-[a-f0-9]{64})?\.zip(?:\.age)?")
 # Kept on Drive: the last week day by day, then one per week, then one per month.
 KEEP_DAILY, KEEP_WEEKLY, KEEP_MONTHLY = 7, 8, 12
 
@@ -193,7 +202,7 @@ class Drive:
             raise RuntimeError(f"Mise à la corbeille impossible (HTTP {response.status_code}).")
 
     def find(self, name):
-        if not re.fullmatch(r"(?:oci-)?daily-[0-9-]+(?:-[a-f0-9]{64})?\.zip", name):
+        if not re.fullmatch(r"(?:oci-)?daily-[0-9-]+(?:-[a-f0-9]{64})?\.zip(?:\.age)?", name):
             raise ValueError("Nom de sauvegarde invalide.")
         result = self.api(
             "files",
@@ -209,6 +218,39 @@ class Drive:
                 "Plusieurs archives portent ce nom ; aucun transfert effectué."
             )
         return self.metadata(files[0]["id"]) if files else None
+
+
+def key_path():
+    config = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
+    return config / "pokeprice" / "backup-key.txt"
+
+
+def create_key(path=None):
+    """Create the laptop's backup key once, in the age key file format."""
+    path = Path(path or key_path())
+    created = not path.exists()
+    if created:
+        path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        identity = pyrage.x25519.Identity.generate()
+        with os.fdopen(os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), "w") as key:
+            key.write(f"# public key: {identity.to_public()}\n{identity}\n")
+    # Only the public half is ever shown.
+    return {"path": str(path), "recipient": str(load_key(path).to_public()), "created": created}
+
+
+def load_key(path=None):
+    path = Path(path or key_path())
+    if not path.exists():
+        raise RuntimeError(
+            "Clé de chiffrement des sauvegardes absente : lancez pokeprice-manage backup-key."
+        )
+    if path.stat().st_mode & 0o077:
+        raise ValueError("La clé de chiffrement doit être en mode 0600.")
+    lines = [l.strip() for l in path.read_text(encoding="utf-8").splitlines()]
+    secret = next((l for l in lines if l.startswith("AGE-SECRET-KEY-")), None)
+    if not secret:
+        raise ValueError("Fichier de clé de chiffrement illisible.")
+    return pyrage.x25519.Identity.from_str(secret)
 
 
 @serialized
@@ -242,23 +284,28 @@ def upload(store, produce, *, binary=None, remote="gdrive"):
         try:
             if not binary:
                 raise RuntimeError("rclone introuvable.")
+            identity = load_key()
             produce()
             drive = Drive(binary, remote)
             drive.prepare()
             with tempfile.TemporaryDirectory(prefix="pokeprice-drive-") as temporary:
                 captured = Path(temporary) / "upload.zip"
                 local = snapshot(store, captured)
-                # Reuse a pre-existing agentic copy only when its content identity agrees.
+                sealed = Path(temporary) / "upload.zip.age"
+                pyrage.encrypt_file(str(captured), str(sealed), [identity.to_public()])
+                # Reuse an encrypted copy already sent only when its content identity agrees.
                 previous = status(store).get("external") or {}
-                if previous.get("sha256") == local["sha256"]:
-                    name = previous.get("remote_name") or previous["name"]
+                if previous.get("sha256") == local["sha256"] and str(
+                    previous.get("remote_name", "")
+                ).endswith(".age"):
+                    name = previous["remote_name"]
                 else:
-                    name = Path(local["name"]).stem + "-" + local["sha256"] + ".zip"
+                    name = Path(local["name"]).stem + "-" + local["sha256"] + ".zip.age"
                 file = drive.find(name)
                 if file is None:
                     drive.transfer(
                         "copyto",
-                        str(captured),
+                        str(sealed),
                         f"{remote}:{name}",
                         "--immutable",
                         size=local["bytes"],
@@ -267,16 +314,24 @@ def upload(store, produce, *, binary=None, remote="gdrive"):
                 if not file:
                     raise ValueError("Archive distante introuvable après le transfert.")
                 drive.private(file)
+                # A copy sent earlier has another random header: only the payload
+                # size (nonce, plain bytes, a tag per 64 KiB chunk) is fixed.
+                payload = 16 + local["bytes"] + 16 * max(1, math.ceil(local["bytes"] / 65536))
                 if (
                     file.get("parents") != [DRIVE_FOLDER]
-                    or int(file.get("size", -1)) != local["bytes"]
-                    or file.get("mimeType") != "application/zip"
+                    or not 0 < int(file.get("size", -1)) - payload <= 1024
+                    or str(file.get("mimeType", "")).startswith("application/vnd.google-apps")
                 ):
                     raise ValueError("Métadonnées de l'archive distante incohérentes.")
-                downloaded = Path(temporary) / "download.zip"
+                fetched = Path(temporary) / "download.zip.age"
                 drive.transfer(
-                    "copyto", f"{remote}:{name}", str(downloaded), size=local["bytes"]
+                    "copyto", f"{remote}:{name}", str(fetched), size=local["bytes"]
                 )
+                downloaded = Path(temporary) / "download.zip"
+                try:
+                    pyrage.decrypt_file(str(fetched), str(downloaded), [identity])
+                except (pyrage.DecryptError, OSError):  # a truncated or altered stream
+                    raise ValueError("L'archive distante ne se déchiffre pas avec la clé.") from None
                 restored = verify(downloaded)
                 if restored["sha256"] != local["sha256"]:
                     raise ValueError(
@@ -293,7 +348,7 @@ def upload(store, produce, *, binary=None, remote="gdrive"):
                     file["id"],
                     local["bytes"],
                     expected_sha256=local["sha256"],
-                    verification="download-sha256-restore",
+                    verification="download-decrypt-sha256-restore",
                     remote_name=name,
                 )
             # Only after a verified copy; a failure here leaves that copy valid.

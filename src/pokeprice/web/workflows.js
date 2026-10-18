@@ -319,7 +319,7 @@ const Workflows = (() => {
       el(
         "p",
         data.external
-          ? `Copie Drive : ${date(data.external)} · ${data.external.verification === "download-sha256-restore" ? "téléchargée, SHA-256 et restauration vérifiés" : "taille vérifiée"}`
+          ? `Copie Drive : ${date(data.external)} · ${{ "download-decrypt-sha256-restore": "chiffrée, puis téléchargée, déchiffrée, SHA-256 et restauration vérifiés", "download-sha256-restore": "non chiffrée ; téléchargée, SHA-256 et restauration vérifiés" }[data.external.verification] || "taille vérifiée"}`
           : "Copie Drive en attente.",
       ),
     );

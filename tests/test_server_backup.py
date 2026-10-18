@@ -95,6 +95,7 @@ def drive(tmp_path, monkeypatch):
 
     FakeDrive.files = {}
     monkeypatch.setattr(drive_backup, "Drive", FakeDrive)
+    drive_backup.create_key()
     return FakeDrive
 
 
@@ -108,9 +109,9 @@ def test_drive_receives_the_server_archive_not_the_laptop_base(
     )
     expected = hashlib.sha256(server_archive.read_bytes()).hexdigest()
     assert result["sha256"] == expected
-    assert result["verification"] == "download-sha256-restore"
+    assert result["verification"] == "download-decrypt-sha256-restore"
     # The Drive name says where the archive comes from and cannot meet a laptop daily.
-    assert result["remote_name"] == f"oci-daily-2026-10-17-{expected}.zip"
+    assert result["remote_name"] == f"oci-daily-2026-10-17-{expected}.zip.age"
     assert list(drive.files) == [result["remote_name"]]
     assert (mirror.root / "oci-daily-2026-10-17.zip").exists()
     assert status(mirror)["local"]["source"] == {
