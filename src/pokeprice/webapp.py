@@ -47,7 +47,8 @@ from .pricing import (
     fetch_catalogue_card,
 )
 from .listings import Listings, Storefront
-from .reservations import Reservations
+from .privacy import Privacy
+from .reservations import Reservations, valid_email
 from .variant_catalogue import VariantCatalogue
 from .variant_pricing import category
 from .edition_check import EditionCheckService, propose_edition
@@ -291,6 +292,16 @@ class RequestVersion(Model):
 
 class RequestAccept(RequestVersion):
     listing_ids: list[str] = Field(min_length=1, max_length=50)
+
+
+class Profile(Model):
+    display_name: str = Field(min_length=1, max_length=80)
+    email: str = Field(min_length=3, max_length=254)
+    password: str = Field(min_length=1, max_length=256)
+
+
+class PasswordCheck(Model):
+    password: str = Field(min_length=1, max_length=256)
 
 
 class ClientPatch(Model):
@@ -723,6 +734,58 @@ def create_app(
                 "SELECT email,display_name FROM users WHERE id=?", (user["id"],)
             ).fetchone()
         return dict(row)
+
+    def own_password(db, user, password):
+        """Changing or deleting one's account asks for the password again."""
+        row = db.execute("SELECT password_hash FROM users WHERE id=?", (user["id"],)).fetchone()
+        if not password_valid(password, row["password_hash"]):
+            raise HTTPException(403, "Mot de passe incorrect.")
+
+    @app.patch("/api/me")
+    def me_update(values: Profile, user=Depends(client)):
+        email = valid_email(values.email)
+        with store.connect(write=True) as db:
+            own_password(db, user, values.password)
+            taken = db.execute(
+                "SELECT 1 FROM users WHERE (email=? OR username=?) AND id<>?",
+                (email, email, user["id"]),
+            ).fetchone()
+            if taken:
+                raise Conflict("Cette adresse est déjà utilisée par un autre compte.")
+            # The e-mail is also the login name.
+            db.execute(
+                "UPDATE users SET email=?,username=?,display_name=? WHERE id=?",
+                (email, email, values.display_name.strip(), user["id"]),
+            )
+            row = db.execute(
+                "SELECT email,display_name FROM users WHERE id=?", (user["id"],)
+            ).fetchone()
+        return dict(row)
+
+    @app.get("/api/me/export")
+    def me_export(user=Depends(client)):
+        """Everything kept about the client, in a portable format (articles 15 and 20)."""
+        with store.connect() as db:
+            account = dict(
+                db.execute(
+                    "SELECT email,display_name,status,created_at,consent_at FROM users WHERE id=?",
+                    (user["id"],),
+                ).fetchone()
+            )
+        body = {"exported_at": now(), "account": account, "requests": reservations.mine(user["id"])}
+        return Response(
+            json.dumps(body, ensure_ascii=False, indent=2),
+            media_type="application/json",
+            headers={"Content-Disposition": 'attachment; filename="lilydex-mes-donnees.json"'},
+        )
+
+    @app.post("/api/me/delete")
+    def me_delete(values: PasswordCheck, response: Response, user=Depends(client)):
+        with store.connect() as db:
+            own_password(db, user, values.password)
+        Privacy(store).forget(user["id"], "Suppression par la personne")
+        response.delete_cookie("pokeprice_session", path="/")
+        return {"ok": True}
 
     @app.get("/api/me/requests")
     def my_requests(user=Depends(client)):

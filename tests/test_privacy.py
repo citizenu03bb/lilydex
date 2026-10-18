@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 from fastapi.testclient import TestClient
-from test_reservations import activate, client_of, shop, signup  # noqa: F401
+from test_reservations import PASSWORD, activate, client_of, shop, signup  # noqa: F401
 
 from pokeprice import manage
 from pokeprice.inventory import Store
@@ -117,3 +117,35 @@ def test_the_notice_names_the_controller_from_the_server(shop, monkeypatch):
         page = visitor.get("/a-propos").text
     assert "Camille &lt;b&gt;Dupont&lt;/b&gt;" in page and "{{" not in page
     assert "30 jours" in page and "90 jours" in page and "6 mois" in page and "3 ans" in page
+
+
+def test_a_client_corrects_exports_and_deletes_their_account(shop):
+    admin, store, listings = shop
+    me, request, _ = accepted_request(admin, store, listings)
+    wrong = me.patch("/api/me", json={"display_name": "Sacha", "email": "s@example.org", "password": "faux-mot-de-passe"})
+    assert wrong.status_code == 403
+    changed = me.patch("/api/me", json={"display_name": "Sacha K.", "email": "S@example.org", "password": PASSWORD})
+    assert changed.json() == {"email": "S@example.org", "display_name": "Sacha K."}
+    signup(store, "autre@example.org")
+    taken = me.patch("/api/me", json={"display_name": "X", "email": "autre@example.org", "password": PASSWORD})
+    assert taken.status_code == 409
+    me.post("/api/logout")
+    me = client_of(store, "s@example.org")  # the new address is the login
+
+    exported = me.get("/api/me/export")
+    assert "attachment" in exported.headers["content-disposition"]
+    data = exported.json()
+    assert data["account"]["email"] == "S@example.org" and "password_hash" not in json.dumps(data)
+    assert [r["id"] for r in data["requests"]] == [request["id"]]
+
+    assert me.post("/api/me/delete", json={"password": "faux-mot-de-passe"}).status_code == 403
+    assert me.post("/api/me/delete", json={"password": PASSWORD}).json() == {"ok": True}
+    assert me.get("/api/me").status_code == 401
+    assert "S@example.org" not in dump(store)
+    assert json.loads(Privacy(store).log.read_text().splitlines()[0])["reason"] == "Suppression par la personne"
+
+
+def test_staff_cannot_use_the_client_account_routes(shop):
+    admin, _, _ = shop
+    assert admin.get("/api/me/export").status_code == 403
+    assert admin.post("/api/me/delete", json={"password": "Collection-test-2026!"}).status_code == 403

@@ -14,6 +14,7 @@
       <nav class="account" aria-label="Compte">
         <button id="basket-open" type="button" hidden>Ma demande (0)</button>
         <button id="requests-open" type="button" hidden>Mes demandes</button>
+        <button id="account-open" type="button" hidden>Mon compte</button>
         <button id="logout" type="button" hidden>Déconnexion</button>
         <button id="login-open" type="button">Se connecter</button>
         <button id="signup-open" type="button" class="primary">Créer un compte</button>
@@ -66,6 +67,7 @@
       </form>
       <p id="count" class="count" aria-live="polite"></p>
       <p id="error" class="error" role="alert" hidden></p>
+      <p id="notice" class="notice" role="status" hidden></p>
       <ul id="grid" class="grid"></ul>
       <p class="more"><button id="more" type="button" hidden>Afficher plus</button></p>
     </main>
@@ -128,6 +130,36 @@
       <form method="dialog"><button class="close" aria-label="Fermer">×</button></form>
       <h2 id="requests-title">Mes demandes</h2>
       <div id="requests-body"></div>
+    </dialog>
+    <dialog id="account" aria-labelledby="account-title">
+      <form method="dialog"><button class="close" aria-label="Fermer">×</button></form>
+      <h2 id="account-title">Mon compte</h2>
+      <form id="profile-form" class="stack">
+        <label>Nom affiché<input name="display_name" autocomplete="name" required maxlength="80" /></label>
+        <label>E-mail (aussi pour vous connecter)<input name="email" type="email" autocomplete="email" required maxlength="254" /></label>
+        <label>Mot de passe actuel<input name="password" type="password" autocomplete="current-password" required /></label>
+        <p class="error" role="alert" hidden></p>
+        <p class="notice" role="status" hidden></p>
+        <button class="primary">Enregistrer</button>
+      </form>
+      <h3>Mes données</h3>
+      <p class="help">
+        Tout ce que Lilydex conserve sur vous (compte et demandes), dans un
+        fichier JSON : <a href="/api/me/export" download>télécharger mes données</a>.
+        <a href="/a-propos#donnees">Ce qui est conservé, et combien de temps</a>.
+      </p>
+      <h3>Supprimer mon compte</h3>
+      <form id="delete-form" class="stack">
+        <p class="help">
+          Votre compte, vos demandes et leurs messages sont effacés
+          définitivement. Une vente déjà conclue reste dans les comptes du
+          vendeur, sans votre nom, votre e-mail ni votre message.
+        </p>
+        <label>Mot de passe<input name="password" type="password" autocomplete="current-password" required /></label>
+        <label class="check"><input name="confirm" type="checkbox" required /> Je comprends que c’est définitif.</label>
+        <p class="error" role="alert" hidden></p>
+        <button class="danger">Supprimer mon compte</button>
+      </form>
     </dialog>
     <script src="/assets/storefront.js"></script>
   </body>

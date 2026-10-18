@@ -558,7 +558,11 @@ expirée, annulée) 6 mois après, client sans demande depuis 3 ans effacé avec
 ses demandes. Les durées sont dans `privacy.py` ; en changer une, c'est changer
 la notice aussi.
 
-Une demande d'effacement reçue par e-mail se traite sur le serveur :
+Un client connecté gère lui-même ses droits dans **Mon compte** : corriger son
+nom et son e-mail (qui sert aussi à se connecter), télécharger toutes ses
+données en JSON (`/api/me/export`) et supprimer son compte. Modifier ou
+supprimer demande le mot de passe actuel. Une demande d'effacement reçue par
+e-mail se traite sur le serveur :
 
 ```bash
 sudo -u pokeprice env HOME=/srv/pokeprice /opt/pokeprice/.venv/bin/python -m pokeprice.manage --data /srv/pokeprice/inventory forget <e-mail>

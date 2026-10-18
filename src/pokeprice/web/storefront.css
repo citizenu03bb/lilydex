@@ -227,6 +227,10 @@ button.primary {
   background: var(--green);
   color: #fff;
 }
+.stack button.danger {
+  border-color: #a8392b;
+  color: #a8392b;
+}
 button:disabled {
   opacity: 0.6;
   cursor: default;

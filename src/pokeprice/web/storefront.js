@@ -166,7 +166,7 @@ function show(listing) {
 function renderAccount() {
   const signedIn = Boolean(state.me);
   for (const id of ["login-open", "signup-open"]) $(id).hidden = signedIn;
-  for (const id of ["basket-open", "requests-open", "logout"]) $(id).hidden = !signedIn;
+  for (const id of ["basket-open", "requests-open", "account-open", "logout"]) $(id).hidden = !signedIn;
   $("basket-open").textContent = `Ma demande (${state.basket.length})`;
 }
 
@@ -306,6 +306,58 @@ $("requests-open").addEventListener("click", () => {
   renderRequests();
   $("requests").showModal();
 });
+$("account-open").addEventListener("click", () => {
+  const form = $("profile-form");
+  form.reset();
+  form.display_name.value = state.me.display_name;
+  form.email.value = state.me.email;
+  for (const box of [form, $("delete-form")]) formError(box, "");
+  form.querySelector(".notice").hidden = true;
+  $("delete-form").reset();
+  $("account").showModal();
+});
+$("profile-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.target;
+  formError(form, "");
+  form.querySelector(".notice").hidden = true;
+  try {
+    state.me = await call("/api/me", {
+      method: "PATCH",
+      body: JSON.stringify({
+        display_name: form.display_name.value.trim(),
+        email: form.email.value.trim(),
+        password: form.password.value,
+      }),
+    });
+    form.password.value = "";
+    const notice = form.querySelector(".notice");
+    notice.textContent = "Modifications enregistrées.";
+    notice.hidden = false;
+  } catch (error) {
+    formError(form, error.message);
+  }
+});
+$("delete-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.target;
+  formError(form, "");
+  try {
+    await call("/api/me/delete", {
+      method: "POST",
+      body: JSON.stringify({ password: form.password.value }),
+    });
+  } catch (error) {
+    formError(form, error.message);
+    return;
+  }
+  state.me = null;
+  state.basket = [];
+  saveBasket();
+  $("account").close();
+  $("notice").textContent = "Votre compte et vos données ont été supprimés.";
+  $("notice").hidden = false;
+});
 $("logout").addEventListener("click", async () => {
   try {
     await call("/api/logout", { method: "POST" });
@@ -338,6 +390,7 @@ $("login-form").addEventListener("submit", async (event) => {
       return;
     }
     form.reset();
+    $("notice").hidden = true;
     $("login").close();
   } catch (error) {
     formError(form, error.message);
