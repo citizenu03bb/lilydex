@@ -275,6 +275,8 @@ class Signup(Model):
     email: str = Field(min_length=3, max_length=254)
     display_name: str = Field(min_length=1, max_length=80)
     password: str = Field(min_length=10, max_length=256)
+    # Acknowledges the data notice; the legal basis is the reservation itself,
+    # not consent. Its date stays in users.consent_at.
     consent: Literal[True]
 
 
@@ -626,6 +628,8 @@ def create_app(
     contact_email = os.environ.get("POKEPRICE_CONTACT_EMAIL", "").strip()
     if not re.fullmatch(r"[^@\s<>\"']+@[^@\s<>\"']+\.[a-z]{2,}", contact_email, re.I):
         contact_email = ""
+    # The data controller, a private individual, is named by the server too.
+    controller_name = os.environ.get("POKEPRICE_CONTROLLER_NAME", "").strip()[:120]
 
     @app.get("/a-propos", response_class=HTMLResponse)
     def about():
@@ -634,7 +638,18 @@ def create_app(
             if contact_email
             else "L’adresse de contact sera bientôt indiquée ici."
         )
-        return static.joinpath("about.html").read_text().replace("{{contact}}", contact)
+        controller = (
+            f"Le responsable du traitement est {html.escape(controller_name)}, "
+            "particulier, joignable à l’adresse de contact ci-dessous."
+            if controller_name
+            else "Le responsable du traitement est le vendeur, particulier, "
+            "joignable à l’adresse de contact ci-dessous."
+        )
+        return (
+            static.joinpath("about.html").read_text()
+            .replace("{{contact}}", contact)
+            .replace("{{controller}}", controller)
+        )
 
     @app.get("/gestion", response_class=HTMLResponse)
     def index():

@@ -139,6 +139,14 @@ def main():
         help="Noms des éditions en plusieurs langues (TCGdex, une fois par édition)",
     )
     names.add_argument("--languages", default="fr,en,de,it,es,pt")
+    forget = actions.add_parser(
+        "forget", help="Effacer un client de la vitrine (e-mail ou identifiant)"
+    )
+    forget.add_argument("client")
+    forget.add_argument("--reason", default="Demande de la personne")
+    actions.add_parser(
+        "purge", help="Appliquer les durées de conservation des données clients"
+    )
     exporter = actions.add_parser("export", help="Export de la collection gérée")
     exporter.add_argument("format", choices=["csv", "json", "html"])
     exporter.add_argument("output")
@@ -155,6 +163,11 @@ def main():
         from .inventory_backup import restore_backup
 
         result = restore_backup(args.archive, args.data)
+        from .privacy import Privacy, erasure_log
+
+        # The archive may predate erasures: they are applied again.
+        if erasure_log(args.data).exists():
+            result["erasures"] = Privacy(Store(args.data)).replay()
     elif args.action in ("backup-server-pull", "backup-server-drive"):
         # The live base is on the server: --data is never opened here.
         from .server_backup import Mirror, pull_latest
@@ -256,6 +269,15 @@ def main():
                     args.size,
                     expected_sha256=args.expected_sha256,
                 )
+        elif args.action in ("forget", "purge"):
+            from .privacy import Privacy
+
+            privacy = Privacy(store)
+            result = (
+                privacy.forget(args.client, args.reason)
+                if args.action == "forget"
+                else privacy.purge()
+            )
         elif args.action == "repair-prices":
             from .price_recovery import apply, candidates
 

@@ -3,10 +3,10 @@
 # Exécuté sur le serveur distant via : ssh <opc|ubuntu>@<IP> 'sudo bash -s' < deploy/oci-provision.sh
 set -euo pipefail
 
-echo "[1/6] Configuration du fuseau horaire Europe/Paris..."
+echo "[1/7] Configuration du fuseau horaire Europe/Paris..."
 timedatectl set-timezone Europe/Paris
 
-echo "[2/6] Configuration du swap (2 Go si absent)..."
+echo "[2/7] Configuration du swap (2 Go si absent)..."
 if ! swapon --show | grep -q '/swapfile'; then
     if [ ! -f /swapfile ]; then
         dd if=/dev/zero of=/swapfile bs=1M count=2048 status=none
@@ -19,7 +19,7 @@ if ! swapon --show | grep -q '/swapfile'; then
     fi
 fi
 
-echo "[3/6] Installation des paquets système (Caddy, Git, rsync, tar/unzip)..."
+echo "[3/7] Installation des paquets système (Caddy, Git, rsync, tar/unzip)..."
 if command -v dnf >/dev/null 2>&1; then
     # Oracle Linux / RHEL 8 ou 9
     dnf install -y -q git rsync unzip tar curl ca-certificates policycoreutils-python-utils
@@ -39,7 +39,7 @@ else
     exit 1
 fi
 
-echo "[4/6] Ouverture des ports 80 et 443 dans le pare-feu local de l'instance..."
+echo "[4/7] Ouverture des ports 80 et 443 dans le pare-feu local de l'instance..."
 if systemctl is-active --quiet firewalld; then
     # Oracle Linux utilise firewalld par défaut
     firewall-cmd --permanent --add-service=http
@@ -65,7 +65,7 @@ if command -v getenforce >/dev/null 2>&1 && [ "$(getenforce)" != "Disabled" ]; t
     setsebool -P httpd_can_network_connect 1 || true
 fi
 
-echo "[5/6] Création de l'utilisateur système 'pokeprice' et des dossiers isolés..."
+echo "[5/7] Création de l'utilisateur système 'pokeprice' et des dossiers isolés..."
 if ! id -u pokeprice >/dev/null 2>&1; then
     useradd --system --user-group --home-dir /srv/pokeprice --no-create-home --shell /usr/sbin/nologin pokeprice
 fi
@@ -77,7 +77,7 @@ install -d -m 0700 -o pokeprice -g pokeprice /srv/pokeprice/.config
 install -d -m 0750 -o root -g pokeprice /etc/pokeprice
 install -d -m 0755 -o pokeprice -g pokeprice /opt/pokeprice
 
-echo "[6/6] Installation de uv dans /usr/local/bin..."
+echo "[6/7] Installation de uv dans /usr/local/bin..."
 if [ ! -x /usr/local/bin/uv ]; then
     curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR="/usr/local/bin" sh
 fi
@@ -85,5 +85,10 @@ fi
 if command -v restorecon >/dev/null 2>&1; then
     restorecon -Rv /usr/local/bin /opt/pokeprice /srv/pokeprice /etc/pokeprice >/dev/null 2>&1 || true
 fi
+
+echo "[7/7] Conservation du journal limitée à trois mois (adresses IP des visiteurs)..."
+install -d -m 0755 /etc/systemd/journald.conf.d
+printf '[Journal]\nMaxRetentionSec=3month\n' > /etc/systemd/journald.conf.d/pokeprice-retention.conf
+systemctl restart systemd-journald
 
 echo "Provisionnement système terminé avec succès."

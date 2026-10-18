@@ -99,7 +99,7 @@ opération de masse : `uv run --extra web pokeprice-manage backup`.
 | `pokeprice report album.csv` | Résumé d'un rapport |
 | `pokeprice html album.csv photos/ -o album.html` | Rapport HTML autonome, photo réelle et officielle côte à côte |
 | `pokeprice library manifeste.json -o bibliotheque` | Bibliothèque HTML consolidée des albums d'origine |
-| `pokeprice-manage serve \| import \| status \| export \| backup \| restore \| user` | Application de gestion : voir [APP.md](docs/APP.md) |
+| `pokeprice-manage serve \| import \| status \| export \| backup \| restore \| user \| forget \| purge` | Application de gestion : voir [APP.md](docs/APP.md) |
 
 Le pipeline d'albums lit en local par défaut (Ollama, modèle
 `gemma4:e4b-it-q4_K_M`). `--backend gemini` envoie les photos au service cloud,

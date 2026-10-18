@@ -8,6 +8,8 @@ Group=pokeprice
 WorkingDirectory=/opt/pokeprice
 Environment=HOME=/srv/pokeprice
 Environment=XDG_CONFIG_HOME=/srv/pokeprice/.config
+# Retention periods first, so that the night's archive no longer holds expired data.
+ExecStartPre=/opt/pokeprice/.venv/bin/python -m pokeprice.manage --data /srv/pokeprice/inventory purge
 ExecStart=/opt/pokeprice/.venv/bin/python -m pokeprice.manage --data /srv/pokeprice/inventory backup-daily
 UMask=0077
 TimeoutStartSec=10min

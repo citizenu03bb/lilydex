@@ -514,14 +514,17 @@ La vitrine affiche qu'il s'agit d'un site personnel non officiel, sans paiement
 en ligne ni téléchargement, et renvoie à la page `/a-propos` (qui vend, comment
 se passe un achat, données conservées, contact, code source). L'adresse de
 contact vient de `POKEPRICE_CONTACT_EMAIL` dans l'environnement du serveur ;
-sans elle, la page l'annonce « bientôt ». L'inscription rappelle de choisir un
+sans elle, la page l'annonce « bientôt ». Le nom du responsable du traitement
+vient de `POKEPRICE_CONTROLLER_NAME` ; sans lui, la page dit « le vendeur ».
+L'inscription rappelle de choisir un
 mot de passe propre à Lilydex. La gestion (`/gestion`) et l'API portent
 `X-Robots-Tag: noindex, nofollow`.
 
 ### Inscription des clients et demandes de réservation
 
 Sur la vitrine, **Créer un compte** demande un nom, un e-mail, un mot de passe
-(10 caractères au moins) et l'accord sur l'utilisation des données. Le compte
+(10 caractères au moins) et la lecture de l'information sur les données (la base
+légale est la demande de réservation, pas un consentement). Le compte
 reste **en attente** : l'administrateur le valide ou le refuse dans **Gestion →
 Comptes et albums → Comptes clients de la vitrine**, où il peut aussi le
 désactiver. La réponse à l'inscription est la même qu'une adresse soit déjà
@@ -545,6 +548,33 @@ demande** demande un motif, visible par le client. Ensuite, contacter le client
 depuis sa boîte mail pour le paiement et l'envoi : le lot suit le circuit
 habituel, et le client voit son statut (réservée, vendue, expédiée…). Chaque
 décision est inscrite à l'historique des exemplaires.
+
+### Données des clients : conservation et effacement
+
+Les durées annoncées sur `/a-propos` sont appliquées chaque nuit, avant la
+sauvegarde, par `pokeprice-manage purge` : compte refusé effacé 30 jours après
+l'inscription, compte jamais validé 90 jours après, demande sans suite (refusée,
+expirée, annulée) 6 mois après, client sans demande depuis 3 ans effacé avec
+ses demandes. Les durées sont dans `privacy.py` ; en changer une, c'est changer
+la notice aussi.
+
+Une demande d'effacement reçue par e-mail se traite sur le serveur :
+
+```bash
+sudo -u pokeprice env HOME=/srv/pokeprice /opt/pokeprice/.venv/bin/python -m pokeprice.manage --data /srv/pokeprice/inventory forget <e-mail>
+```
+
+Le compte, ses sessions, ses demandes et leurs messages sont supprimés. Un lot
+issu d'une demande acceptée reste dans les ventes, avec ses montants, mais le
+nom, l'e-mail et le message du client y sont remplacés (« client effacé »,
+« message effacé »), dans le lot comme dans son historique. Seuls les comptes
+clients peuvent être effacés ainsi, jamais ceux de l'équipe. Ce qui a été
+ajouté à la main dans les notes d'un lot n'est pas retrouvé : relire ces notes.
+
+Chaque effacement est inscrit, par identifiant de compte seulement, dans
+`erasures.jsonl` à côté du dossier de collection (`/srv/pokeprice/`).
+`restore` rejoue ce journal dans le dossier restauré, s'il est à côté : une
+archive antérieure à un effacement ne fait pas revenir le client.
 
 ## Saisie assistée par photo
 
