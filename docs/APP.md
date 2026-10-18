@@ -421,7 +421,9 @@ uv sync --all-extras
 ```
 
 Le modèle (`facebook/dinov2-small`, 90 Mo) est téléchargé au premier usage ;
-`HF_HOME` permet de réutiliser un cache existant. Avec `serve`, le contrôle est
+`HF_HOME` permet de réutiliser un cache existant. `deploy/oci-deploy.sh`
+installe l’option sur le serveur, avec torch CPU sur aarch64 (sans les
+bibliothèques CUDA). Avec `serve`, le contrôle est
 lancé automatiquement après chaque saisie photo dont l’édition est confirmée.
 
 ## Supprimer ou restaurer un exemplaire

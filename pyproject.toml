@@ -51,3 +51,13 @@ packages = ["src/pokeprice"]
 pythonpath = ["src"]
 testpaths = ["tests"]
 markers = ["real_scrypt: keep the production password hashing cost"]
+
+# Le serveur OCI (aarch64, sans GPU) prend torch CPU : la roue PyPI aarch64
+# tire plusieurs Go de bibliothèques CUDA inutiles.
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "platform_machine == 'aarch64'" }]

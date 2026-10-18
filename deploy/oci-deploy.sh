@@ -28,7 +28,7 @@ ssh "$REMOTE_HOST" "sudo chown -R pokeprice:pokeprice /opt/pokeprice"
 echo "[3/6] Installation de Python 3.13 et de l'environnement virtuel (uv sync)..."
 ssh "$REMOTE_HOST" "cd /opt/pokeprice && \
     sudo -u pokeprice env HOME=/srv/pokeprice /usr/local/bin/uv python install 3.13 && \
-    sudo -u pokeprice env HOME=/srv/pokeprice /usr/local/bin/uv sync --frozen --extra web"
+    sudo -u pokeprice env HOME=/srv/pokeprice /usr/local/bin/uv sync --frozen --extra web --extra vision"
 
 # Sur Oracle Linux (SELinux), marquer les exécutables du venv et de uv comme bin_t pour que systemd puisse les lancer
 ssh "$REMOTE_HOST" "if command -v chcon >/dev/null 2>&1 && command -v getenforce >/dev/null 2>&1 && [ \"\$(getenforce)\" != 'Disabled' ]; then \
