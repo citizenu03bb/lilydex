@@ -16,6 +16,28 @@ Le [plan révisé](AGENT_CONTROL_PLAN.md) explique l’apport par rôle et les
 extensions possibles. Les confirmations physiques, corrections de fiches,
 réservations, publications, ventes et paiements restent hors du pilote.
 
+## Agent et skill d'exploitation
+
+Le guide versionné est [pokeprice-agent](../skills/pokeprice-agent/SKILL.md).
+Il apprend au client à vérifier ses droits, respecter les quantités à conserver,
+reprendre une création sans doublon et expliquer les décisions humaines restantes.
+Le client agent conduit la conversation et choisit les appels ; la CLI exécute
+ces appels HTTP ; le serveur décide ce qui est autorisé et enregistre les faits.
+Le guide de maintenance `pokeprice-collection` garde un autre usage, avec un
+accès opérateur plus large. Aucun accès opérateur n'est nécessaire au pilote.
+
+Une installation cliente doit exposer seulement l'API déléguée et ce guide,
+avec les données autorisées. Le skill ne protège pas une base ou des clés SSH
+accessibles par ailleurs au même agent. Garder une seule source versionnée du
+guide ; ses emplacements de découverte dépendent du client.
+
+Le [protocole conversationnel](AGENT_EVALUATION_PROTOCOL.md) compare explicitement
+le même usage avec et sans le guide, sur des données synthétiques et dans un
+processus séparé des fichiers réels. Son adaptateur MCP est réservé au banc de
+test ; il ne remplace pas la CLI ni n'étend les droits du pilote.
+Le [rapport du 19 octobre](AGENT_EVALUATION_RESULTS.md) consigne les quatre essais
+réussis et les limites : le gain humain reste à mesurer.
+
 ## Installer et préparer l’accès
 
 ```bash
