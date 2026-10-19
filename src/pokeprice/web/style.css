@@ -705,6 +705,10 @@ dialog::backdrop {
   backdrop-filter: blur(2px);
 }
 .dialog-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #fff;
   padding: 18px 25px;
   border-bottom: 1px solid var(--line);
   display: flex;
@@ -730,7 +734,7 @@ dialog::backdrop {
 }
 .detail-photo {
   position: sticky;
-  top: 0;
+  top: 84px;
   align-self: start;
 }
 .detail-photo img {
