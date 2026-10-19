@@ -246,6 +246,19 @@
             </p>
             <div id="requests-list"></div>
           </section>
+          <div class="result-line">
+            <label
+              >Statut<select id="sales-filter">
+                <option value="active">Lots actifs (hors annulés)</option>
+                <option value="draft">Brouillons</option>
+                <option value="reserved">Réservés</option>
+                <option value="sold">Vendus et clôturés</option>
+                <option value="cancelled">Annulés</option>
+                <option value="all">Tous les lots</option>
+              </select></label
+            >
+            <p id="sales-count" aria-live="polite"></p>
+          </div>
           <div id="sales-list" class="sales-list"></div>
         </section>
         <section id="settings-view" hidden>

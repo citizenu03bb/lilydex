@@ -156,3 +156,21 @@ def test_gallery_keys_find_the_card_below_and_the_page_of_a_position():
         capture_output=True,
         text=True,
     )
+
+
+def test_sales_status_filter_hides_cancelled_lots_by_default():
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("Node.js is required")
+    root = Path(__file__).resolve().parents[1]
+    subprocess.run(
+        [
+            node,
+            str(root / "tests/web_sales_filter_runtime.cjs"),
+            str(root / "src/pokeprice/web/app.js"),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+

@@ -2273,20 +2273,42 @@ async function loadClients() {
     box.append(row);
   }
 }
+function matchesSalesFilter(sale, filter) {
+  if (filter === "all") return true;
+  if (filter === "draft" || filter === "reserved" || filter === "cancelled")
+    return sale.status === filter;
+  if (filter === "sold")
+    return ["sold", "shipped", "completed", "returned"].includes(sale.status);
+  return sale.status !== "cancelled";
+}
 async function loadSales() {
   await loadRequests();
   const sales = await api("/sales");
+  const filter = $("sales-filter")?.value || "active";
+  const visible = sales.filter((sale) => matchesSalesFilter(sale, filter));
+  const cancelled = sales.filter((sale) => sale.status === "cancelled").length;
+  if ($("sales-count")) {
+    const parts = [
+      `${visible.length} lot${visible.length > 1 ? "s" : ""} affiché${visible.length > 1 ? "s" : ""}`,
+    ];
+    if (filter === "active" && cancelled)
+      parts.push(
+        `${cancelled} annulé${cancelled > 1 ? "s" : ""} masqué${cancelled > 1 ? "s" : ""}`,
+      );
+    $("sales-count").textContent = parts.join(" · ");
+  }
   $("sales-list").replaceChildren();
-  if (!sales.length) {
-    $("sales-list").append(
-      el(
-        "p",
-        editAllowed()
-          ? "Aucun lot pour le moment. Cliquez sur « Créer un lot » pour choisir vos cartes."
-          : "Aucun lot pour le moment.",
-        "empty",
-      ),
-    );
+  if (!visible.length) {
+    const message = !sales.length
+      ? editAllowed()
+        ? "Aucun lot pour le moment. Cliquez sur « Créer un lot » pour choisir vos cartes."
+        : "Aucun lot pour le moment."
+      : filter === "active"
+        ? editAllowed()
+          ? "Aucun lot actif pour le moment. Cliquez sur « Créer un lot » pour choisir vos cartes."
+          : "Aucun lot actif pour le moment."
+        : "Aucun lot dans ce statut.";
+    $("sales-list").append(el("p", message, "empty"));
     return;
   }
   const transitions = {
@@ -2311,7 +2333,7 @@ async function loadSales() {
     cancelled: [],
     returned: [],
   };
-  for (const sale of sales) {
+  for (const sale of visible) {
     const box = el("article", undefined, "sale");
     const heading = el("div", undefined, "sale-heading");
     heading.append(
@@ -2473,7 +2495,14 @@ async function loadSales() {
           error.textContent = err.message;
         }
       });
-      box.append(form);
+      if (sale.status === "cancelled") {
+        const details = el("details"),
+          summary = el("summary", "Détails et notes du lot annulé");
+        details.append(summary, form);
+        box.append(details);
+      } else {
+        box.append(form);
+      }
     } else if (sale.notes) box.append(el("p", sale.notes, "sale-meta"));
     $("sales-list").append(box);
   }
@@ -2599,6 +2628,9 @@ for (const id of [
     syncLocation("push");
     loadCards().catch((e) => toast(e.message));
   });
+$("sales-filter")?.addEventListener("change", () => {
+  loadSales().catch((e) => toast(e.message));
+});
 $("previous").addEventListener("click", () => {
   state.offset = Math.max(0, state.offset - state.limit);
   syncLocation("push");
@@ -2800,6 +2832,11 @@ $("sale-form").addEventListener("submit", async (e) => {
     e.target.reset();
     state.selected.clear();
     state.lotMode = false;
+    if (
+      $("sales-filter") &&
+      !matchesSalesFilter({ status: "draft" }, $("sales-filter").value)
+    )
+      $("sales-filter").value = "active";
     await loadCards();
     await loadSales();
     changeView("sales");
