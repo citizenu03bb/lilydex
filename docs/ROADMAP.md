@@ -579,9 +579,14 @@ vérification : changer de modèle relève de la configuration, pas du code.
 
 ## Après le MVP
 
-- Pilotage par agents IA : identité d'agent, contrat d'API, simulations
-  générales, traitements réessayables, adaptateur MCP (jalons A1 à A5 détaillés
-  dans l'[archive](archive/ROADMAP-2026-10-05.md)).
+- Pilotage par agents IA : [plan revu le 19 octobre](AGENT_CONTROL_PLAN.md).
+  Recommandation : éprouver d’abord la préparation d’un lot de doublons depuis
+  un album dans le vrai client agent, puis ajouter une seule écriture bornée
+  (suggestion ou brouillon) si le gain humain est démontré. Premier essai estimé
+  en 3 à 5 jours, puis 1 à 3 jours pour l’écriture retenue. Les jalons A1 à A5
+  de l'[archive](archive/ROADMAP-2026-10-05.md) deviennent des extensions selon
+  le besoin ; aucun engagement global de 11 à 17 jours. Le pilote peut soutenir
+  M4 sans attendre tout le MVP. Statut : proposition de pilote, non implémenté.
 - Catalogue public ([plan](CATALOGUE.md)) : vitrine ouverte, visible sans compte (décision du 16 octobre) ; elle montre une sélection explicite de cartes et de champs. Un client s'inscrit pour demander une réservation ; l'administrateur l'accepte, ce qui crée un lot réservé. Le client ne voit ni notes, ni provenance, ni historique, ni acheteurs. Prix affiché selon la décision du 16 octobre. Décidé le 16 octobre : pas de service d'e-mail au départ ; un compte client reste en attente jusqu'à sa validation par un administrateur ; une demande ne bloque les cartes qu'à son acceptation ; le contact (paiement, envoi) se fait depuis la boîte du vendeur. Service d'envoi (Brevo ou Mailjet, domaine deSEC pour SPF/DKIM) quand le volume ou les mots de passe oubliés le justifient. Intégrations autorisées aux plateformes de vente ensuite.
 - Calibration de l'aide à l'évaluation de l'état sur les ventes réelles.
 - PostgreSQL seulement si plusieurs serveurs ou de nombreuses écritures
