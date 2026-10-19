@@ -846,6 +846,12 @@ dialog::backdrop {
   gap: 6px;
   margin-bottom: 20px;
 }
+
+.agent-description {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+}
 .sale-items button {
   font-size: 0.77rem;
   font-weight: 400;

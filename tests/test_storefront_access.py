@@ -33,6 +33,17 @@ def dependencies(dependant):
         yield from dependencies(dependency)
 
 
+def api_routes(routes):
+    # Newer FastAPI keeps included routers lazy; never silently skip a branch.
+    for route in routes:
+        if isinstance(route, APIRoute):
+            yield route
+        else:
+            nested = getattr(route, "original_router", None)
+            assert nested is not None, f"Unexamined route type: {type(route)}"
+            yield from api_routes(nested.routes)
+
+
 def add_account(store, username, role, status):
     with store.connect(write=True) as db:
         db.execute(
@@ -45,12 +56,16 @@ def add_account(store, username, role, status):
 def test_every_management_route_requires_staff(tmp_path):
     app = create_app(tmp_path / "inventory")
     assert app.openapi_url is None and app.docs_url is None and app.redoc_url is None
-    assert all(isinstance(route, APIRoute) for route in app.routes)
+    routes = list(api_routes(app.routes))
     unguarded = [
         (method, route.path)
-        for route in app.routes
+        for route in routes
         for method in route.methods
-        if "staff" not in set(dependencies(route.dependant))
+        if not (
+            "agent_principal" in set(dependencies(route.dependant))
+            if route.path.startswith("/api/agent/v1/")
+            else "staff" in set(dependencies(route.dependant))
+        )
         and (method, route.path) not in PUBLIC
         and not route.path.startswith(STOREFRONT)
     ]

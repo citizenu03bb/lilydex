@@ -3,6 +3,10 @@
 Première version locale du 4 octobre 2026 : FastAPI, SQLite et interface française
 sans service externe pour consulter, corriger ou suivre les ventes.
 
+Accès délégué à un agent : [lecture d’un album et préparation de lots](AGENT_CONTROL.md).
+Ce pilote utilise un jeton distinct du compte humain et crée uniquement des
+brouillons privés, sans réserver ni publier les cartes.
+
 ## Démarrage
 
 Depuis `~/Projects/pokeprice` :

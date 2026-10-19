@@ -458,6 +458,7 @@ def create_app(
     price_fetch=None,
     variant_fetch=None,
     market_fetch=None,
+    agent_enabled=True,
 ):
     store = Store(directory)
     allowed_hosts = allowed_hosts or ["127.0.0.1", "localhost", "testserver"]
@@ -1904,4 +1905,8 @@ def create_app(
             background=BackgroundTask(shutil.rmtree, folder),
         )
 
+    if agent_enabled:
+        from .agent_api import install
+
+        install(app, store)
     return app

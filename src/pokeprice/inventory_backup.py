@@ -26,6 +26,9 @@ def backup(store, destination):
         with store.connect() as db, closing(sqlite3.connect(snapshot)) as target:
             db.backup(target)
             target.execute("DELETE FROM sessions")
+            from .agent import disable_tokens
+
+            disable_tokens(target)
             target.commit()
         files = {"collection.sqlite3": snapshot.read_bytes()}
         # Include previous photos referenced in correction history as well.
@@ -52,9 +55,12 @@ def backup(store, destination):
         # Private from its first byte: a chmod after writing leaves a readable window.
         handle = os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
         try:
-            with os.fdopen(handle, "wb") as output, zipfile.ZipFile(
-                output, "w", compression=zipfile.ZIP_DEFLATED
-            ) as archive:
+            with (
+                os.fdopen(handle, "wb") as output,
+                zipfile.ZipFile(
+                    output, "w", compression=zipfile.ZIP_DEFLATED
+                ) as archive,
+            ):
                 for name, body in files.items():
                     archive.writestr(name, body)
                 archive.writestr(
@@ -160,6 +166,9 @@ def restore_backup(archive_path, destination):
                         raise ValueError("Photo référencée absente.")
                 # Backups carry user password hashes, but never reactivate saved sessions.
                 db.execute("DELETE FROM sessions")
+                from .agent import disable_tokens
+
+                disable_tokens(db)
                 db.commit()
             recovered.rename(destination)
     return Store(destination).summary()
@@ -177,6 +186,7 @@ def export_data(store):
         "sale_items",
         "sale_events",
         "imports",
+        "agent_drafts",
         "condition_assessments",
         "verifications",
         "reference_rulesets",
@@ -187,13 +197,22 @@ def export_data(store):
     )
     with store.connect() as db:
         db.execute("BEGIN")
-        return {
+        exported = {
             "format": "pokeprice-inventory-v1",
             "exported_at": now(),
             "tables": {
                 t: [dict(r) for r in db.execute("SELECT * FROM " + t)] for t in tables
             },
         }
+        unknown = {
+            r["sale_id"]
+            for r in exported["tables"]["agent_drafts"]
+            if not r["amount_known"]
+        }
+        for sale in exported["tables"]["sales"]:
+            if sale["id"] in unknown:
+                sale["amount_cents"] = None
+        return exported
 
 
 def export_csv(store):

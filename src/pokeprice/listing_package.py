@@ -4,24 +4,52 @@ import json
 import re
 import zipfile
 
+from .inventory import now
 
-def package(store, sale_id, target):
-    with store.connect() as db:
-        db.execute("BEGIN")
-        sale = db.execute("SELECT * FROM sales WHERE id=?", (sale_id,)).fetchone()
-        if not sale:
-            raise KeyError("Lot inconnu.")
-        cards = [
-            store.get(db, r[0])
-            for r in db.execute(
-                "SELECT copy_id FROM sale_items WHERE sale_id=? ORDER BY copy_id",
-                (sale_id,),
-            )
-        ]
+
+def package(store, sale_id, target, *, snapshot=None):
+    if snapshot is not None:
+        sale, cards, preparation = snapshot
+    else:
+        with store.connect() as db:
+            db.execute("BEGIN")
+            sale = db.execute("SELECT * FROM sales WHERE id=?", (sale_id,)).fetchone()
+            if not sale:
+                raise KeyError("Lot inconnu.")
+            cards = [
+                store.get(db, r[0])
+                for r in db.execute(
+                    "SELECT copy_id FROM sale_items WHERE sale_id=? ORDER BY copy_id",
+                    (sale_id,),
+                )
+            ]
+            row = db.execute(
+                "SELECT * FROM agent_drafts WHERE sale_id=?", (sale_id,)
+            ).fetchone()
+            preparation = None
+            if row:
+                stored = json.loads(row["snapshot_json"])
+                versions = {c["id"]: c["version"] for c in stored["copies"]}
+                preparation = {
+                    **stored,
+                    "created_at": row["created_at"],
+                    "stale": any(versions.get(c["id"]) != c["version"] for c in cards),
+                }
     if any(c["deleted_at"] for c in cards):
         raise ValueError("Un exemplaire de ce lot est dans la corbeille.")
     lines = [sale["title"], "", f"Lot de {len(cards)} carte(s) Pokémon.", ""]
     checks, manifest = [], []
+    if preparation:
+        checks.append(
+            "Brouillon préparé par agent le "
+            + preparation["created_at"]
+            + ". À relire."
+        )
+        checks.append("Paquet régénéré le " + now() + " depuis les fiches courantes.")
+        if preparation["stale"]:
+            checks.append(
+                "ATTENTION : des fiches ont changé depuis la préparation ; revoir la sélection et le texte proposé."
+            )
     if sale["asking_cents"] is not None:
         lines.append(f"Prix demandé : {sale['asking_cents'] / 100:.2f} EUR")
     else:
@@ -67,6 +95,8 @@ def package(store, sale_id, target):
             "Relire le texte et les photos avant toute publication.",
         ]
         archive.writestr("description.txt", "\n".join(lines) + "\n")
+        if preparation:
+            archive.writestr("proposition-agent.txt", preparation["description"] + "\n")
         archive.writestr("a-completer.txt", "\n".join(checks) + "\n")
         archive.writestr(
             "cartes.json", json.dumps(manifest, ensure_ascii=False, indent=2)

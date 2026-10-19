@@ -2331,7 +2331,7 @@ async function loadSales() {
       heading,
       el(
         "p",
-        `${sale.items.length} exemplaire${sale.items.length > 1 ? "s" : ""} · ${sale.channel || "Canal à préciser"} · ${money(sale.amount_cents)}`,
+        `${sale.items.length} exemplaire${sale.items.length > 1 ? "s" : ""} · ${sale.channel || "Canal à préciser"} · ${sale.amount_cents == null ? "Prix convenu à préciser" : money(sale.amount_cents)}`,
         "sale-meta",
       ),
     );
@@ -2344,6 +2344,15 @@ async function loadSales() {
       items.append(button);
     }
     box.append(items);
+    if (sale.agent_preparation) {
+      const preparation = sale.agent_preparation;
+      box.append(el("p", preparation.stale
+        ? "Préparation par agent · des fiches ont changé : lot à revoir."
+        : "Préparation par agent · à relire avant réservation ou publication.", "sale-meta"));
+      const details = el("details"), summary = el("summary", "Lire le texte proposé");
+      details.append(summary, el("pre", preparation.description, "agent-description"));
+      box.append(details);
+    }
     if (editAllowed()) {
       const draft = el("a", "Télécharger le brouillon d’annonce", "button");
       draft.href = `/api/sales/${sale.id}/listing-package`;
@@ -2446,6 +2455,8 @@ async function loadSales() {
               : Number(data.get(key + "_eur"));
         if (e.submitter.dataset.target)
           changes.status = e.submitter.dataset.target;
+        if (sale.agent_preparation && changes.amount_eur == null)
+          delete changes.amount_eur;
         try {
           await api("/sales/" + sale.id, {
             method: "PATCH",

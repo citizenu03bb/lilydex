@@ -1,7 +1,12 @@
 # Pilotage par agent — plan révisé
 
 Révision du 19 octobre 2026, sur le code à `8e6a36d` (schéma 17).
-**Statut : recommandation de mise en œuvre, non implémentée.** Elle remplace
+**Statut : pilote technique implémenté ; extensions conditionnelles.** Le
+[guide d’utilisation](AGENT_CONTROL.md) décrit la lecture déléguée, la préparation
+de lots et la création de brouillons via HTTP/CLI, raccordées à Ventes. La
+réception technique utilise des données synthétiques ; le gain humain reste
+à mesurer. La branche de première écriture retenue est le lot en brouillon,
+sans moteur de suggestions générique. Cette révision remplace
 l’ordre et les prérequis proposés le 18 octobre. Les jalons A1–A5 de
 [l’archive](archive/ROADMAP-2026-10-05.md#pilotage-par-agents-ia--ajouté-le-5-octobre-2026)
 restent des capacités possibles, pas une liste à développer intégralement.

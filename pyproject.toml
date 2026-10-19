@@ -39,6 +39,7 @@ vision = [
 [project.scripts]
 pokeprice = "pokeprice.cli:main"
 pokeprice-manage = "pokeprice.manage:main"
+pokeprice-agent = "pokeprice.agent_client:main"
 
 [build-system]
 requires = ["hatchling"]

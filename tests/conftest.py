@@ -5,6 +5,7 @@ os.environ["POKEPRICE_DRIVE_FOLDER"] = "test-drive-folder"
 import urllib.parse
 
 import pytest
+
 from pokeprice import webapp
 from pokeprice.tcgdex import TCGdexClient
 
@@ -20,6 +21,7 @@ def cheap_scrypt(request, monkeypatch):
 def private_config(tmp_path, monkeypatch):
     # Backup keys and other per-user configuration never come from the real home.
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+    monkeypatch.delenv("POKEPRICE_CONTACT_EMAIL", raising=False)
 
 
 @pytest.fixture

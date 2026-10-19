@@ -21,7 +21,7 @@ from .valuation import (
 )
 from .variant_pricing import category, compatible_quote, pricing_issue
 
-SCHEMA_VERSION = 17
+SCHEMA_VERSION = 18
 
 
 def now():
@@ -294,6 +294,10 @@ class Store:
                     PRAGMA user_version=17;
                     COMMIT;
                 """)
+            if db.execute("PRAGMA user_version").fetchone()[0] == 17:
+                from .agent import SCHEMA as AGENT_SCHEMA
+
+                db.executescript(AGENT_SCHEMA)
             db.execute("PRAGMA journal_mode=WAL")
         from .reference_service import ReferenceService
 
@@ -329,7 +333,9 @@ class Store:
             db.execute("DROP TABLE users")
             db.execute("ALTER TABLE users_v15 RENAME TO users")
             if db.execute("PRAGMA foreign_key_check").fetchall():
-                raise ValueError("Clés étrangères incohérentes après la migration des comptes.")
+                raise ValueError(
+                    "Clés étrangères incohérentes après la migration des comptes."
+                )
             db.execute("PRAGMA user_version=15")
             db.commit()
         except Exception:
@@ -1502,6 +1508,10 @@ class Store:
 
     def sales(self):
         with self.connect() as db:
+            agent_drafts = {
+                row["sale_id"]: dict(row)
+                for row in db.execute("SELECT * FROM agent_drafts")
+            }
             result = []
             for row in db.execute("SELECT * FROM sales ORDER BY created_at DESC"):
                 sale = dict(row)
@@ -1519,6 +1529,22 @@ class Store:
                     - sale["packing_cents"]
                     - sale["refund_cents"]
                 )
+                if sale["id"] in agent_drafts:
+                    draft = agent_drafts[sale["id"]]
+                    prepared = json.loads(draft["snapshot_json"])
+                    versions = {c["id"]: c["version"] for c in prepared["copies"]}
+                    sale["agent_preparation"] = {
+                        "origin": "agent",
+                        "grant_id": draft["grant_id"],
+                        "created_at": draft["created_at"],
+                        "description": prepared["description"],
+                        "reason": prepared["reason"],
+                        "stale": any(
+                            versions.get(c["id"]) != c["version"] for c in sale["items"]
+                        ),
+                    }
+                    if not draft["amount_known"]:
+                        sale["amount_cents"] = sale["net_cents"] = None
                 result.append(sale)
             return result
 
@@ -1559,6 +1585,23 @@ class Store:
                 raise Conflict("La vente a changé. Rechargez-la.")
             after = {**before, **changes}
             old, new = before["status"], after["status"]
+            agent_draft = db.execute(
+                "SELECT amount_known FROM agent_drafts WHERE sale_id=?", (sale_id,)
+            ).fetchone()
+            if agent_draft:
+                if (
+                    new == "reserved"
+                    and not agent_draft["amount_known"]
+                    and "amount_cents" not in changes
+                ):
+                    raise ValueError(
+                        "Précisez le prix convenu avant de réserver ce brouillon."
+                    )
+                if "amount_cents" in changes:
+                    db.execute(
+                        "UPDATE agent_drafts SET amount_known=1 WHERE sale_id=?",
+                        (sale_id,),
+                    )
             if old != new:
                 if new not in transitions[old]:
                     raise Conflict("Transition de vente interdite.")

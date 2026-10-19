@@ -52,4 +52,5 @@ outputs/
 # Local secrets and agent configuration never go to the public repository.
 .env
 .env.*
+*.token
 .claude/

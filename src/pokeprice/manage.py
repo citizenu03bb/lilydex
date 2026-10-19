@@ -42,8 +42,35 @@ def main():
     )
     user.add_argument("username")
     user.add_argument("--role", choices=["admin", "editor", "reader"], default="reader")
+    agents = actions.add_parser("agent-create", help="Déléguer un album à un agent")
+    agents.add_argument("name")
+    agents.add_argument("--owner", required=True, help="Compte de gestion délégant")
+    agents.add_argument("--album", required=True)
+    agents.add_argument(
+        "--client", required=True, help="Client et destinataire des données/photos"
+    )
+    agents.add_argument("--days", type=int, default=7)
+    agents.add_argument("--photos", action="store_true")
+    agents.add_argument("--drafts", action="store_true")
+    agents.add_argument("--value-ceiling-eur", default="10")
+    agents.add_argument(
+        "--token-file",
+        required=True,
+        help="Nouveau fichier privé ; aucun secret sur stdout",
+    )
+    actions.add_parser("agent-list", help="Lister les délégations sans leurs secrets")
+    revoke = actions.add_parser(
+        "agent-revoke", help="Révoquer immédiatement un accès agent"
+    )
+    revoke.add_argument("grant_id")
+    actions.add_parser(
+        "agent-schema", help="Contrat OpenAPI agent hors ligne, sans ouvrir de base"
+    )
     server = actions.add_parser("serve", help="Interface locale privée")
     server.add_argument("--port", type=int, default=3820)
+    server.add_argument(
+        "--no-agent-api", action="store_true", help="Désactiver les routes agent"
+    )
     server.add_argument(
         "--host",
         default="127.0.0.1",
@@ -155,7 +182,11 @@ def main():
     exporter.add_argument("format", choices=["csv", "json", "html"])
     exporter.add_argument("output")
     args = parser.parse_args()
-    if args.action == "reference-audit":
+    if args.action == "agent-schema":
+        from .agent_api import schema
+
+        result = schema()
+    elif args.action == "reference-audit":
         from .reference_service import audit_directory
 
         result = audit_directory(args.data)
@@ -199,6 +230,45 @@ def main():
             from .inventory_import import import_collection
 
             result = import_collection(store, args.manifest)
+        elif args.action in ("agent-create", "agent-list", "agent-revoke"):
+            from .agent import AgentService
+            from .inventory import cents
+
+            agents = AgentService(store)
+            if args.action == "agent-list":
+                result = agents.grants()
+            elif args.action == "agent-revoke":
+                result = agents.revoke(args.grant_id)
+            else:
+                import os
+
+                permissions = ["copies:read"]
+                if args.photos:
+                    permissions.append("photos:read")
+                if args.drafts:
+                    permissions.append("drafts:create")
+                path = Path(args.token_file)
+                handle = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+                grant = None
+                try:
+                    with os.fdopen(handle, "w") as stream:
+                        grant = agents.issue(
+                            args.name,
+                            args.owner,
+                            args.album,
+                            permissions=permissions,
+                            days=args.days,
+                            client=args.client,
+                            value_ceiling_cents=cents(args.value_ceiling_eur),
+                        )
+                        stream.write(grant["token"] + "\n")
+                    result = {k: v for k, v in grant.items() if k != "token"}
+                    result["token_file"] = str(path.resolve())
+                except BaseException:
+                    if grant:
+                        agents.revoke(grant["id"])
+                    path.unlink(missing_ok=True)
+                    raise
         elif args.action == "status":
             result = store.summary()
         elif args.action == "reference-recheck":
@@ -234,6 +304,7 @@ def main():
                     allowed_hosts=args.allowed_host
                     or ["127.0.0.1", "localhost", args.host],
                     auto_checks=not args.no_auto_checks,
+                    agent_enabled=not args.no_agent_api,
                 ),
                 host=args.host,
                 port=args.port,
