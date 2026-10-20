@@ -88,3 +88,31 @@ def test_absent_layout_is_failed(monkeypatch):
     monkeypatch.setattr(provider, "_query_ollama", lambda *a, **k: "{}")
     with pytest.raises(ValueError):
         provider.detect_layout(Image.new("RGB", (100, 100)))
+
+
+def test_ollama_request_disables_thinking(monkeypatch):
+    """A thinking model would spend num_predict on reasoning and answer nothing."""
+    import io
+    import json
+    import urllib.request
+
+    sent = {}
+
+    class Response(io.BytesIO):
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    def urlopen(request, timeout):
+        sent.update(json.loads(request.data))
+        return Response(json.dumps({"response": "{}"}).encode())
+
+    monkeypatch.setattr(urllib.request, "urlopen", urlopen)
+    from PIL import Image
+
+    from pokeprice.ocr import OllamaVisionProvider
+
+    OllamaVisionProvider()._query_ollama(Image.new("RGB", (8, 8)), "prompt")
+    assert sent["think"] is False and sent["format"] == "json"
