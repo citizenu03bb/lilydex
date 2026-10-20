@@ -28,6 +28,7 @@ quand, est dans le [journal](JOURNAL.md).
 | [Contrat du référentiel](PRINT_REFERENCE_CONTRACT.md) | Les règles exactes du référentiel et ses scénarios de réception |
 | [Pilote agent](AGENT_CONTROL.md) | Déléguer un album, préparer des contrôles ou brouillons et appliquer des corrections préautorisées |
 | [Parcours des prix manquants](AGENT_PRICE_EVALUATION.md) | Guide agent dédié, cas rejouables et mesure de l’utilité |
+| [Résoudre les cartes en suspens](RESOLUTION_CARTES.md) | Accélérer le traitement des cartes à identifier, à vérifier et à examiner |
 
 ## Héberger et exploiter
 

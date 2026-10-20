@@ -46,6 +46,7 @@ PAGES_VIVANTES = {
     "docs/IA-VISION.md",
     "docs/PRINT_REFERENCE_GUIDE.md",
     "docs/README.md",
+    "docs/RESOLUTION_CARTES.md",
     "docs/RGPD.md",
     "docs/ROADMAP.md",
     "docs/VALUATION.md",

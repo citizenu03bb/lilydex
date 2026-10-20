@@ -9,6 +9,12 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-10-20
 
+- Les guides de `skills/` sont exposés dans `.agents/skills` et `.codex/skills`
+  et référencés dans [AGENTS.md](../AGENTS.md) pour la découverte automatique
+  par les clients agents. La page [Résoudre les cartes en suspens](RESOLUTION_CARTES.md)
+  planifie l'enchaînement entre outils locaux, agent multimodal et examen en
+  main pour les trois files (« À identifier », « À vérifier », « À examiner »).
+
 - Le guide autonome `pokeprice-agent-prix` reprend le diagnostic des prix
   manquants et l’application des corrections déjà autorisées. Les cas
   synthétiques rejouent les rapprochements, refus et conflits de version,
@@ -19,7 +25,6 @@ daté la quitte, il est versé ici dans le même commit.
   par le propriétaire : plan borné par délégation, version et empreinte, reçu
   sans doublon et identité d’agent dans l’historique. Aucune confirmation
   physique n’est créée ([décision 0014](decisions/0014-corrections-agent-autorisees.md)).
-
 
 - Recherche catalogue : les apostrophes droites/courbes et le suffixe Delta
   omis dans un nom ne masquent plus une édition candidate. La référence,

@@ -62,3 +62,13 @@ def test_command_reference_is_up_to_date():
     assert (ROOT / "docs/COMMANDES.md").read_text(encoding="utf-8") == gen.generer(), (
         "Référence des commandes périmée : lancer python scripts/gen_commandes.py"
     )
+
+
+def test_skill_discovery_links_point_to_versioned_skills():
+    skills_dir = (ROOT / "skills").resolve()
+    for link_path in (ROOT / ".agents/skills", ROOT / ".codex/skills"):
+        assert link_path.is_symlink(), link_path
+        assert link_path.resolve() == skills_dir
+        discovered = {p.parent.name for p in link_path.glob("*/SKILL.md")}
+        assert {"pokeprice-agent", "pokeprice-agent-prix", "pokeprice-collection"} <= discovered
+

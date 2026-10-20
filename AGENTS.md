@@ -14,6 +14,26 @@ s'ajoutent à [CONTRIBUTING.md](CONTRIBUTING.md), qui fait foi.
   [skills/pokeprice-collection/SKILL.md](skills/pokeprice-collection/SKILL.md).
 - Les essais se font sur une base temporaire ou une sauvegarde restaurée.
 
+## Guides et parcours métier
+
+Les guides versionnés vivent dans `skills/` et sont exposés via les liens
+symboliques `.agents/skills` et `.codex/skills` pour la découverte automatique
+par les clients agents (Pi, Codex, Antigravity) :
+
+- [`pokeprice-collection`](skills/pokeprice-collection/SKILL.md) : exploitation
+  de la collection par l'opérateur (serveur, sauvegardes, imports, délégations,
+  approbation de corrections en lot) ;
+- [`pokeprice-agent`](skills/pokeprice-agent/SKILL.md) : consultation déléguée
+  d'un album via `pokeprice-agent`, préparation d'une séance de vérification
+  dans l'ordre du classeur et brouillons de lots de doublons ;
+- [`pokeprice-agent-prix`](skills/pokeprice-agent-prix/SKILL.md) : diagnostic
+  des cartes sans prix et application des corrections catalogue préautorisées
+  (`pokeprice-agent apply-correction`).
+
+Pour accélérer le traitement des cartes « À identifier », « À vérifier » et
+« À examiner », suivez le parcours décrit dans
+[docs/RESOLUTION_CARTES.md](docs/RESOLUTION_CARTES.md).
+
 ## Code
 
 - Lancez `uv run --extra web --extra dev pytest` avant chaque commit.
