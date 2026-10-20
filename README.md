@@ -1,5 +1,7 @@
 # Lilydex
 
+[![Tests](https://github.com/citizenu03bb/lilydex/actions/workflows/tests.yml/badge.svg)](https://github.com/citizenu03bb/lilydex/actions/workflows/tests.yml)
+
 Lilydex numérise, identifie, estime et met en vente une collection de cartes Pokémon multilingue.
 La boutique est en service : [lilydex.duckdns.org](https://lilydex.duckdns.org).
 Le paquet Python et ses commandes s'appellent `pokeprice`, `pokeprice-manage` et `pokeprice-agent`.

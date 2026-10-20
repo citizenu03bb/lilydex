@@ -57,6 +57,7 @@ tenues à jour.
 | [Audit des photos](AUDIT-PHOTOS.md) | La revue des découpes et des identités lues des classeurs |
 | [Plan du pilote agent](AGENT_CONTROL_PLAN.md) | L'apport attendu par rôle et les extensions possibles |
 | [Protocole d'évaluation du pilote](AGENT_EVALUATION_PROTOCOL.md) et [résultats](AGENT_EVALUATION_RESULTS.md) | Le pilote évalué sur une collection synthétique |
+| [Données du banc d'essai](evaluations/banc-reconnaissance/) | Vérité terrain et lectures enregistrées, rejouables hors ligne |
 | [Protocole de la séance de vérification](AGENT_REVIEW_EVALUATION.md) et [résultats](AGENT_REVIEW_RESULTS.md) | Un agent prépare cinq contrôles sur un album réel figé |
 
 ## Archive
