@@ -24,6 +24,14 @@ ROOT = Path(__file__).resolve().parents[1]
 DB = ROOT / "data/inventory/collection.sqlite3"
 PHOTOS = ROOT / "data/inventory/photos"
 OUT = ROOT / "outputs/bench-recognition"
+# Published copy of the recorded app runs (copy ids replaced by labels), so that
+# the offline replay runs from the public repository too.
+PUBLIC = ROOT / "docs/evaluations/banc-reconnaissance"
+
+
+def replay_dir():
+    """Where the recorded app runs live: the private bench, else the published copy."""
+    return OUT if (OUT / "result-app-1.json").exists() else PUBLIC
 API = "https://api.tcgdex.net/v2"
 
 # Variant, stamp and holo artwork verified on the physical card (7 October 2026).
@@ -589,7 +597,7 @@ def app_store(folder):
 
 def app_runs():
     """Recorded live runs, oldest first."""
-    return [json.loads(p.read_text()) for p in sorted(OUT.glob("result-app-*.json"))]
+    return [json.loads(p.read_text()) for p in sorted(replay_dir().glob("result-app-*.json"))]
 
 
 def run_app(index=1):
@@ -810,7 +818,7 @@ def app_regressions(entries, runs):
 
 
 def run_app_check(live):
-    entries = json.loads((OUT / "truth.json").read_text())
+    entries = json.loads(((OUT if live else replay_dir()) / "truth.json").read_text())
     if live:
         for old in OUT.glob("result-app-*.json"):
             old.unlink()

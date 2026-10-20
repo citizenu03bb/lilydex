@@ -48,10 +48,16 @@ Dans la suite de tests (`tests/test_recognition_bench.py`), le rejeu tourne
 si les données locales existent ; le passage réel ne se lance qu'avec
 `POKEPRICE_BENCH=1`.
 
-**Les données du banc restent privées** (photos de la collection, lectures
-enregistrées, dans `outputs/`, que git ignore). Le dépôt public contient le
-code du banc, sa notation et ces résumés : les chiffres ci-dessous ne sont pas
-reproductibles depuis le seul dépôt.
+**Ce qui se rejoue depuis le dépôt.** La vérité terrain et les deux passages
+enregistrés dans l'application sont publiés dans
+[`docs/evaluations/banc-reconnaissance/`](evaluations/banc-reconnaissance/), les
+identifiants d'exemplaires remplacés par des étiquettes (`banc-01`…). Depuis un
+simple clone, `app-check` et la suite de tests rejouent donc hors ligne les
+mesures de la lecture à la saisie, de la finition, de la langue et du contrôle
+d'édition, avec les règles actuelles. Restent privés : les photos de la
+collection (nécessaires au passage réel), les résultats du premier banc
+(Tesseract, CLIP, agents Claude) et ceux de la porte énergie, qui ne sont
+présentés ici qu'en résumé.
 
 ## Le premier banc : comparer les lecteurs
 
@@ -230,5 +236,6 @@ a fixé la marge à 0,10 ; elle n'est pas citée comme résultat principal.
   Gemma via Ollama, qui n'a jamais été passé au banc.
 - **Aide à l'état non mesurée** : seuls le parcours et le format de réponse ont
   été validés.
-- **Données privées** : le rejeu complet demande les photos et les lectures
-  enregistrées, qui ne sont pas publiées.
+- **Photos privées** : un nouveau passage réel demande les photos de la
+  collection, qui ne sont pas publiées ; seules les lectures enregistrées le
+  sont.

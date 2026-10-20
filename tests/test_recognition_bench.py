@@ -121,15 +121,15 @@ def test_failed_readings_count_as_wrong_and_unknown_truth_is_ignored():
 
 
 @pytest.mark.skipif(
-    not bench.app_runs() if bench.OUT.exists() else True,
-    reason="Aucune lecture de l’application enregistrée (banc local).",
+    not bench.app_runs(),
+    reason="Aucune lecture de l’application enregistrée.",
 )
 def test_recorded_readings_never_yield_a_proposal_against_a_confirmed_variant():
     """Current rules on recorded readings: a rule regression shows without Gemini.
 
     The reading scores themselves only move with a live run (``app``).
     """
-    entries = json.loads((bench.OUT / "truth.json").read_text())
+    entries = json.loads((bench.replay_dir() / "truth.json").read_text())
     wrong = [
         e["label"]
         for run in bench.app_runs()

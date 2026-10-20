@@ -38,7 +38,7 @@ Models abstain when unsure, and every choice was measured on a bench of hand-ver
 | Photo preparation | classic computer vision (Pillow), no AI | server | not measured; the original is always kept |
 | Condition help | Gemini | cloud, on demand only | not measured: a proposal, never a grade |
 
-*Measurement conditions: 31 cards from a single collection checked against the physical cards (25 FR, 5 EN, 1 IT, no Japanese; 21 with a verified variant, 2 of them reverse holos), gemini-3.8-flash and DINOv2-small, bench replayed through the app, two runs judged on the worse; energy gate: 1,767 copies, each card left out of its own bank; October 2026. Bench data is private, so these figures cannot be replayed from the repository alone.*
+*Measurement conditions: 31 cards from a single collection checked against the physical cards (25 FR, 5 EN, 1 IT, no Japanese; 21 with a verified variant, 2 of them reverse holos), gemini-3.8-flash and DINOv2-small, bench replayed through the app, two runs judged on the worse; energy gate: 1,767 copies, each card left out of its own bank; October 2026. The recorded runs are published: `scripts/bench_recognition.py app-check` replays the reading and edition-check figures offline from a clone; the card photos stay private.*
 
 Engineering choices, each backed by a measurement and written up as a decision record (in
 French, [docs/decisions/](docs/decisions/README.md)):

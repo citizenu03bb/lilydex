@@ -57,7 +57,7 @@ Gemini, un modèle vision-langage, lit une photo ; DINOv2 compare des images, sa
 | Préparation des photos | vision classique (Pillow), sans IA | serveur | non mesurée ; l'original est toujours gardé |
 | Aide à l'état | Gemini | cloud, à la demande | non mesurée : une proposition, jamais une note |
 
-*Conditions de mesure : 31 cartes d'une seule collection vérifiées sur la carte physique (25 FR, 5 EN, 1 IT, aucune japonaise ; 21 à variante vérifiée, dont 2 reverses), gemini-3.8-flash et DINOv2-small, banc rejoué dans l'application, deux passages jugés sur le pire ; porte énergie : 1 767 exemplaires, chaque carte hors de sa propre banque ; octobre 2026. Données du banc privées : les chiffres ne se rejouent pas depuis le seul dépôt.*
+*Conditions de mesure : 31 cartes d'une seule collection vérifiées sur la carte physique (25 FR, 5 EN, 1 IT, aucune japonaise ; 21 à variante vérifiée, dont 2 reverses), gemini-3.8-flash et DINOv2-small, banc rejoué dans l'application, deux passages jugés sur le pire ; porte énergie : 1 767 exemplaires, chaque carte hors de sa propre banque ; octobre 2026. Les lectures enregistrées sont publiées : `scripts/bench_recognition.py app-check` rejoue hors ligne les mesures de lecture et du contrôle d'édition depuis un clone ; les photos restent privées.*
 
 Le [banc d'essai](docs/BANC-RECONNAISSANCE.md) a aussi mis à l'épreuve Tesseract, CLIP et
 des agents Claude ; ses seuils de sécurité ne baissent jamais. Limites : les
