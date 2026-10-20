@@ -1,7 +1,7 @@
 [project]
 name = "pokeprice"
 version = "0.1.0"
-description = "Automated Pokemon card album scanning and Cardmarket EUR valuation pipeline powered by local Gemma 4 E4B vision"
+description = "Digitise, identify, price and sell a multilingual Pokemon card collection: album scanner (local Ollama or Gemini) and FastAPI management app"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"

@@ -403,7 +403,7 @@ banc local est présent.
 
 Dans la fiche, **Comparer aux images TCGdex** compare la photo du recto aux
 images de toutes les impressions de même nom (langue de la carte et anglais).
-Le calcul se fait sur cet ordinateur avec DINOv2, sans lire le texte : c’est un
+Le calcul se fait sur le serveur avec DINOv2, sans lire le texte : c’est un
 contrôle indépendant de la lecture Gemini qui a proposé l’édition. Les images
 de référence et leurs vecteurs restent en cache dans `data/inventory/references`.
 Le contrôle est enregistré comme la lecture de la finition et ne modifie pas la

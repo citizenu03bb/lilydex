@@ -467,7 +467,7 @@ def main():
     load_env()
     parser = argparse.ArgumentParser(
         prog="pokeprice",
-        description="Scannez et valorisez automatiquement vos albums Pokémon avec l'IA locale Gemma 4 E4B et Cardmarket.",
+        description="Numérisez et cotez vos albums Pokémon : lecture locale (Ollama) ou Gemini, rapprochement TCGdex, prix Cardmarket et TCGplayer.",
     )
     subparsers = parser.add_subparsers(dest="subcommand", required=True)
 

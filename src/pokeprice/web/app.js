@@ -1322,7 +1322,7 @@ function renderEditionCheck(parent, card, previous = null) {
     panel.append(
       el(
         "p",
-        "Compare la photo du recto, sur cet ordinateur, aux images TCGdex des cartes de même nom. Ne modifie pas la fiche.",
+        "Compare la photo du recto, sur le serveur, aux images TCGdex des cartes de même nom. Ne modifie pas la fiche.",
         "help",
       ),
     );
