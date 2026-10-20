@@ -15,6 +15,11 @@ Le paquet Python et ses commandes s'appellent `pokeprice`, `pokeprice-manage` et
 > Tesseract rejected after measurement. The interface and detailed docs are in French:
 > [English overview](README.en.md).
 
+<p align="center">
+  <img src="docs/images/vitrine.png" alt="La vitrine publique de Lilydex sur ordinateur : recherche, filtres et grille de cartes photographiées, avec leur prix" width="70%">
+  <img src="docs/images/vitrine-telephone.png" alt="La même vitrine sur un téléphone" width="21%">
+</p>
+
 ## Ce que fait Lilydex
 
 **Numériser vos classeurs** (ligne de commande `pokeprice`). Vous photographiez chaque page ;
