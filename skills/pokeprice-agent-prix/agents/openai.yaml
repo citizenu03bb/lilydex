@@ -1,0 +1,3 @@
+interface:
+  display_name: "Prix manquants Lilydex"
+  short_description: "Diagnostiquer et appliquer les corrections autorisées"
