@@ -14,7 +14,7 @@ photo fiable, et peut-être un second avis indépendant.
    cartes.
 3. **Claude Sonnet par l'API** : environ 0,5 à 1 centime par carte, mais un
    compte et des crédits à ouvrir.
-4. **L'agent Antigravity** : 69 à 117 s et plus de 50 000 jetons pour une
+4. **L'agent Antigravity** (la CLI `agy`, sur un abonnement Google) : 69 à 117 s et plus de 50 000 jetons pour une
    seule photo, et aucune réponse sans l'autoriser à exécuter des commandes.
 5. L'agent Claude Haiku : numéro 5/31.
 

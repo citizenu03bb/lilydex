@@ -33,7 +33,7 @@ Autres hébergeurs possibles, sur un petit serveur privé payant : Scaleway
     contact et le nom du responsable du traitement affichés sur la page
     « À propos ». Ils ne sont jamais versionnés.
 - **Sur le portable seulement** : le jeton Google Drive (configuration
-  rclone), l'identifiant du dossier Drive et la clé de chiffrement des
+  rclone, `rclone.conf`), l'identifiant du dossier Drive et la clé de chiffrement des
   sauvegardes. Aucun n'est copié sur le serveur.
 
 `deploy/oci-sync-secrets.sh` réécrit le fichier du serveur en entier à partir

@@ -44,8 +44,9 @@ uv run --extra web --extra vision python scripts/bench_recognition.py app       
 uv run --extra web --extra vision python scripts/bench_recognition.py app-check  # rejeu hors ligne
 ```
 
-Dans la suite de tests, le rejeu tourne si les données locales existent ; le
-passage réel ne se lance qu'avec `POKEPRICE_BENCH=1`.
+Dans la suite de tests (`tests/test_recognition_bench.py`), le rejeu tourne
+si les données locales existent ; le passage réel ne se lance qu'avec
+`POKEPRICE_BENCH=1`.
 
 **Les données du banc restent privées** (photos de la collection, lectures
 enregistrées, dans `outputs/`, que git ignore). Le dépôt public contient le
@@ -106,8 +107,12 @@ reverses (Clic 75/114) : son « pas de reverse » ne vaut donc plus preuve quand
 la photo laisse le fond indéterminé. Une reverse sous le seuil de valeur
 proposée Standard reste tolérée par la règle (Clic à 0,77 €, Octillery 58/127).
 
-**Coût** : environ 1 930 jetons par carte pour la lecture de la finition,
-langue comprise.
+**Coût** : environ 1 930 jetons par carte pour la lecture de la finition
+(protocole `card-finish-v2`), langue comprise, contre 1 820 à 1 860 sans la
+langue. Le tout premier essai réel, sur trois cartes confirmées à l'œil (une
+holo tamponnée EX Deoxys, une mate, une reverse Noir & Blanc), avait donné 3
+sur 3, tampon compris, pour environ 1 350 jetons d'entrée et 450 de sortie,
+raisonnement compris.
 
 ## Le contrôle d'édition par l'image
 
@@ -149,10 +154,21 @@ deux passages :
 
 *Conditions de mesure : lectures enregistrées des deux passages applicatifs, DINOv2-small rejoué hors ligne, octobre 2026.*
 
+Sans filtre, deux erreurs reviennent aux deux passages : Solochi, confondu
+avec une impression récente (écart 0,075), et Baggiguane 10/12, dont la vraie
+impression n'a pas d'image, si bien que DINOv2 en choisit forcément une autre.
+Monter la marge ne les sépare pas des bonnes propositions, qui ont aussi des
+écarts de 0,061 et 0,075. Le numéro, même partiel, les règle : « 68/97 » garde
+l'extension à 97 cartes. Il départage aussi Clic (« 89/114 ») et Chamallot
+(écarts de 0,075 à 0,241), et récupère Zarbi K (« 58/105 »), Fossile Crâne et
+Méthode d'entraînement du Prof. Orme.
+
 La seule erreur restante, avec le filtre, est PokéNav lu « 88/109 », numéro
-d'une autre impression existante dont l'illustration est identique. Risque
+d'une autre impression existante dont l'illustration est identique : le
+catalogue faisait déjà la même erreur, et l'image ne peut pas trancher. Risque
 restant : sans numéro lu, une vraie impression sans image (promos) laisse
-passer une mauvaise proposition.
+passer une mauvaise proposition ; la proposition devra alors signaler les
+impressions de ce nom qui n'ont pas d'image.
 
 ## La langue : Tesseract face au contrôle de cohérence
 

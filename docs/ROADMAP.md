@@ -132,9 +132,15 @@ et l'[état de la mise en œuvre](PRINT_REFERENCE_GUIDE.md#ce-qui-est-mis-en-œu
 - **Reste, tranche 5 :** quand le catalogue ne trouve rien, DINOv2 propose
   l'édition parmi les impressions du nom lu, filtrées par le numéro même mal
   lu ; une personne confirme. La règle est mesurée hors ligne (48 justes,
-  1 fausse, 9 sans proposition sur 58 lectures). À corriger dans la même
-  tranche : la recherche du catalogue compare les noms en tenant compte des
-  majuscules (« Fossile crâne » contre « Fossile Crâne »).
+  1 fausse, 9 sans proposition sur 58 lectures). À prévoir : la proposition à
+  la saisie (avec l'option `vision`), la galerie par nom lu en partageant le
+  code de `same_name_gallery`, le nombre de cartes par extension (TCGdex
+  `/sets`, en cache), une mesure « édition proposée par l'image » dans le banc
+  (au moins 6/6 et 7/8 justes sur les cartes sans résultat du catalogue,
+  aucune fausse), et des tests : nom lu avec une autre casse ou des crochets,
+  numéro partiel, impressions sans image. À corriger dans la même tranche :
+  `catalogue_candidates` compare les noms en tenant compte des majuscules
+  (« Fossile crâne » contre « Fossile Crâne »).
 - **Reste :** une alerte de contrefaçon seulement si deux sources indépendantes
   concordent ; aujourd'hui, Gemini est le seul lecteur de texte
   ([fiche 0004](decisions/0004-gemini-seul-lecteur.md)), donc aucune alerte.

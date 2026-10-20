@@ -59,7 +59,8 @@ ouvre directement la bonne page).
 ### Un produit Cardmarket douteux
 
 TCGdex attribue parfois un même produit Cardmarket à deux cartes d'une
-extension (Darkrai GE 3 Lv.38 et GE 4 Lv.40 : produit 277905, celui du Lv.38).
+extension (Darkrai GE 3 Lv.38 et GE 4 Lv.40 : produit 277905, celui du Lv.38 ;
+de même Airmure BCR 95/96 et Solochi DRX 93/94).
 À chaque relevé, les numéros voisins (n-1 et n+1) sont comparés, avec un cache
 de 30 jours. Un produit partagé met la carte en examen jusqu'au verdict d'une
 personne, qui vaut pour cet identifiant du catalogue et ce produit seulement :

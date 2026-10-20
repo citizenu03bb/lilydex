@@ -111,14 +111,14 @@ daté la quitte, il est versé ici dans le même commit.
 
 - Point de départ de la feuille de route du MVP : 405 exemplaires dans
   4 classeurs, 401 identités confirmées, 12 cartes relevées en détail,
-  1 estimation de vente, 1 lot réservé. Écarts relevés : aucune valeur en jeu
+  1 estimation de vente, 1 lot réservé ; 174 tests. Écarts relevés : aucune valeur en jeu
   calculée (23 Rare Holo marquées Foil, sous-cotées d'environ 330 €),
   contrôles du banc non branchés, reverses indétectables, tunnel instable
   (cinq coupures en deux heures).
 - Valeur prudente et file « À examiner » (jalon M1) ([valeur en jeu](VALUATION.md)) :
-  57 cartes sur 405 (14 %) dans la file au seuil de 10 €, les quatre éditions
-  de valeur attendues comprises. Avec la finition observée et la confirmation
-  physique, la file passe à 73 sur 405 (18 %) : aucun contrôle n'est masqué
+  57 cartes sur 405 (14,07 %) dans la file au seuil de 10 €, les quatre
+  éditions de valeur attendues comprises. Avec la finition observée et la
+  confirmation physique, la file passe à 73 sur 405 (18,02 %) : aucun contrôle n'est masqué
   pour tenir la borne de 15 %.
 - Catégorie Standard ou Foil calculée depuis les observations physiques et les
   métadonnées de l'édition, imposée aussi par le serveur ; les corrections

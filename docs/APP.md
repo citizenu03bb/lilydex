@@ -224,7 +224,8 @@ refus de permission ou l'absence de caméra laisse le téléversement accessible
 Les mêmes choix servent, sur la fiche, à remplacer une photo.
 
 Sur ordinateur, l'aperçu affiche une **mire de cadrage** au format carte. Un
-téléphone peut servir de webcam : relayée par `scrcpy --capture-orientation=90`,
+téléphone peut servir de webcam sous Linux, avec `scrcpy` et le module
+`v4l2loopback` : relayée par `scrcpy --capture-orientation=90`,
 sa caméra garde sa résolution native, y compris en portrait, sans recadrage du
 navigateur.
 
@@ -414,7 +415,7 @@ enregistrables sans catalogue ni prix.
 **Variante → Foil à vérifier** retient les cartes Foil dont le dernier relevé
 signale que TCGdex ne connaît pas de reverse (à partir de 2 €) et dont la
 variante n'est pas confirmée ; elles portent le badge « ⚠ Variante à
-vérifier ». Parcours conseillé : filtre Foil, **Sélectionner les cartes
+vérifier ». Le filtre reste dans l'adresse (`?variant=check`). Parcours conseillé : filtre Foil, **Sélectionner les cartes
 affichées**, **Relever les prix** ; puis filtre Foil à vérifier, examen des
 photos et **Changer la variante** sur la sélection. Chaque carte reçoit sa
 correction avec le motif saisi, puis un nouveau relevé ; une carte déjà dans la
@@ -456,7 +457,8 @@ seuil, jusqu'à une confirmation physique postérieure à cette lecture.
 entre dans « À examiner ». Corrigez la langue de la fiche, ou cliquez sur
 **Garder la langue de la fiche** pour cette lecture, avec un motif inscrit à
 l'historique. Une langue non lue (texte illisible, énergie de base) ne
-déclenche rien. Ce contrôle vise surtout les noms identiques d'une langue à
+déclenche rien, pas plus qu'une lecture antérieure à ce contrôle (protocole
+`card-finish-v1`). Ce contrôle vise surtout les noms identiques d'une langue à
 l'autre (Pikachu), que la recherche du catalogue, stricte sur la langue, ne
 départage pas. Ce n'est pas un second avis indépendant : c'est le même modèle,
 dans un autre appel.
