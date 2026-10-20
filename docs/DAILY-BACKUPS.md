@@ -44,8 +44,8 @@ retard supérieur à 36 heures.
 
 **Réception du 6 octobre 2026 :** le ZIP Drive `daily-2026-10-06.zip` a été
 retéléchargé par rclone, son SHA-256 comparé au ZIP local et son contenu restauré
-temporairement : 404 exemplaires actifs. Le statut porte désormais
-`download-sha256-restore`. Les autres archives, dont les parties du snapshot
+temporairement : 404 exemplaires actifs. Ce contrôle portait le statut
+`download-sha256-restore` ; depuis le chiffrement des copies, il s'appelle `download-decrypt-sha256-restore`. Les autres archives, dont les parties du snapshot
 initial, conservent leur niveau de contrôle antérieur par métadonnées ; ce test
 ne revendique pas leur restauration distante.
 Les archives contiennent les comptes et leurs hashes
@@ -96,7 +96,7 @@ journalctl --user -u pokeprice-drive-backup.service
 
 La restauration exige un dossier inexistant. Le bouton **Gestion → Sauvegarder
 et vérifier maintenant** renouvelle l'archive du jour ; sa copie externe sera
-effectuée au prochain passage du timer ou par la commande `backup-drive`. Le bouton ne promet pas un
+effectuée au prochain passage du timer du portable ou par la commande `backup-server-drive`. Le bouton ne promet pas un
 téléversement Drive immédiat. `backup-record-upload ARCHIVE FILE_ID SIZE --expected-sha256 SHA256_AVANT_TRANSFERT` est
 réservé au mécanisme de copie après lecture des métadonnées Drive ;
 `backup-record-failure` conserve un échec visible sans effacer le dernier succès.

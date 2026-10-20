@@ -605,7 +605,7 @@ vérification : changer de modèle relève de la configuration, pas du code.
   - [x] Relevé TCGdex : 379 cartes le 12 octobre (`pokeprice-manage prices`) ; 20 sans cote TCGdex (Zarbi, Celebi NP, Nidoran ♀ Jungle, Méganium HGSS) ; depuis le 13 octobre, un prix saisi à la main tient lieu de valeur prudente pour ces cartes
   - [x] Restauration du snapshot initial depuis Drive, vérifiée le 12 octobre
   - [x] Audit des variantes Foil, clos le 13 octobre : alertes du relevé toutes décidées, toutes les Foil confirmées à l’œil (filtre « Foil non vérifiées à l’œil » vide)
-  - [x] Dépôt distant : GitHub `citizenu03bb/lilydex` depuis le 16 octobre (historique propre, sans les commits orphelins de l’ancien dépôt `pokeprice`, resté privé), bugs suivis en issues
+  - [x] Dépôt distant : GitHub `citizenu03bb/lilydex` depuis le 16 octobre (historique propre, sans les commits d’avant la réécriture), bugs suivis en issues
 - [x] M1 — Valeur en jeu, file « À examiner », totaux prudents
 - [ ] M1.1 — Référentiel des impressions : socle livré en audit ; preuves FR et de marché limitées à 2 jours ; ne bloque plus M2
 - [ ] M2 — Vérifications indépendantes branchées, banc en test de non-régression

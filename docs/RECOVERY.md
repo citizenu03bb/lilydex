@@ -6,7 +6,7 @@ L'instantané contient **368 fichiers, dont les 80 photos originales** des trois
 albums, les CSV, checkpoints, corrections, exports et sources du projet.
 L'archive mesure 590 050 645 octets, soit environ 590 Mo.
 
-Emplacement : [outputs/snapshots/20261004T170658Z](../outputs/snapshots/20261004T170658Z/).
+Emplacement : `outputs/snapshots/20261004T170658Z/` (hors du dépôt public).
 Conserver ensemble `collection.tar.gz`, `manifest.json` et `SHA256SUMS`.
 Le manifeste détaille les chemins d'origine, tailles et SHA-256 des fichiers,
 ainsi que le commit et l'état des modifications Git au moment de la capture.
@@ -84,7 +84,7 @@ régénérés sont identiques, hormis les chemins des rapports déplacés par la
 restauration. Octillery 58/127, Kirlia 51/127, Capidextre 35/100,
 Fossile Crâne 120/127 et PokéNav 81/106 sont contrôlés explicitement.
 
-Preuve : [validation.json](../outputs/evaluation/step0/recovery-check/validation.json).
+Preuve : validation.json (`outputs/evaluation/step0/recovery-check/validation.json`, hors du dépôt public).
 La restauration et la régénération ont été exécutées avec Python 3.13.2.
 Le résultat comprend aussi un échantillon de 20 exemplaires et leurs photos,
 utilisé pour l'[évaluation](EVALUATION.md).

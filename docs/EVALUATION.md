@@ -36,10 +36,10 @@ Les adaptations d'import sont des scripts autour des API existantes, sans
 modification fonctionnelle du code des candidats.
 
 Les 368 fichiers de l'instantané, dont les 80 photos, étaient inchangés après
-les essais : [contrôle d'intégrité](../outputs/evaluation/source_integrity.json).
+les essais : contrôle d'intégrité (`outputs/evaluation/source_integrity.json`, hors du dépôt public).
 Les mises à jour de documentation postérieures sont naturellement hors de cet
 instantané. Les données et preuves des essais restent dans `outputs/evaluation/`.
-Un [contrôle final](../outputs/evaluation/final-source-integrity.json) confirme
+Un contrôle final (`outputs/evaluation/final-source-integrity.json`, hors du dépôt public) confirme
 que seuls le README et la roadmap archivés ont changé, pour documenter ces
 résultats ; les autres fichiers et les 80 photos restent identiques.
 
@@ -97,7 +97,7 @@ sauvegarde. La recherche « Pikachu » dans l'interface française donne une
 édition et **3 exemplaires**, ce qui convient à la consultation des doublons.
 L'interface de Bindarr n'a été validée que sur ordinateur pendant cet essai.
 
-Preuve : [bindarr-results.json](../outputs/evaluation/bindarr-results.json).
+Preuve : bindarr-results.json (`outputs/evaluation/bindarr-results.json`, hors du dépôt public).
 Code examiné : `backend/src/routes/importExport.js`,
 `backend/src/routes/collection.js`, `backend/src/backup.js` dans la version figée.
 
@@ -142,9 +142,9 @@ L'interface est en allemand/anglais ; une traduction française reste à faire.
 Le compte de gestion est unique dans la configuration standard. Les rôles
 lecteur/gestionnaire, le cycle de vente et l'export HTML autonome sont à ajouter.
 
-Preuves : [pokecollect-results.json](../outputs/evaluation/pokecollect-results.json),
-[diagnostic des images](../outputs/evaluation/pokecollect-image-regression.json),
-[capture en largeur mobile](../outputs/evaluation/screenshots/pokecollect-owned-mobile.png).
+Preuves : pokecollect-results.json (`outputs/evaluation/pokecollect-results.json`, hors du dépôt public),
+diagnostic des images (`outputs/evaluation/pokecollect-image-regression.json`, hors du dépôt public),
+capture en largeur mobile (`outputs/evaluation/screenshots/pokecollect-owned-mobile.png`, hors du dépôt public).
 
 ## PokéCollector : journal intéressant, photos trop regroupées
 
@@ -216,7 +216,7 @@ bases jetables** et ne doivent pas être lancées contre la collection réelle.
 Ils sont des preuves d'essai local, pas un importateur de production.
 
 L'échantillon et ses hashes sont dans
-[step0/recovery-check/sample/](../outputs/evaluation/step0/recovery-check/sample/).
+step0/recovery-check/sample/ (`outputs/evaluation/step0/recovery-check/sample/`, hors du dépôt public).
 Les résultats JSON et sauvegardes permettent d'examiner les constats sans
 relancer les applications. Les serveurs temporaires sont arrêtés à la fin de
 l'évaluation ; aucune application n'est publiée sur Internet.

@@ -84,8 +84,10 @@ e-mail :
    - **accès ou portabilité** : la personne télécharge le fichier JSON dans
      **Mon compte** ; à défaut, l'administrateur lui transmet le même contenu ;
    - **rectification** : **Mon compte**, ou correction par l'administrateur ;
-   - **effacement** : `pokeprice-manage forget <e-mail>` sur le serveur (voir
-     [APP.md](APP.md)), puis relire les notes des lots de ce client ;
+   - **effacement** : sur le serveur, lancer
+     `sudo -u pokeprice env HOME=/srv/pokeprice /opt/pokeprice/.venv/bin/python -m pokeprice.manage --data /srv/pokeprice/inventory forget <e-mail>`
+     (voir [APP.md](APP.md)), puis relire les notes des lots de ce client.
+     Sans `--data`, la commande viserait une autre base, vide, et n'effacerait rien ;
    - **opposition au journal technique** : pas de suppression ciblée possible
      dans journald ; répondre que le journal s'efface au bout de 3 mois.
 4. Garder la trace de la réponse (date, demande, suite donnée) dans un fichier
@@ -98,8 +100,9 @@ disponibilité de données personnelles : serveur compromis, base ou sauvegarde
 copiée, clé de sauvegarde perdue avec une copie Drive, compte de gestion
 utilisé par un tiers, données supprimées par erreur sans sauvegarde.
 
-1. **Contenir** : arrêter le service (`systemctl stop pokeprice`), fermer
-   toutes les sessions (`DELETE FROM sessions`), changer les mots de passe de
+1. **Contenir** : arrêter le service (`sudo systemctl stop pokeprice`), fermer
+   toutes les sessions (service arrêté :
+   `sudo -u pokeprice /opt/pokeprice/.venv/bin/python -c "import sqlite3; c = sqlite3.connect('/srv/pokeprice/inventory/collection.sqlite3'); c.execute('DELETE FROM sessions'); c.commit()"`), changer les mots de passe de
    l'équipe, révoquer et remplacer les clés concernées (Gemini, SSH, jeton
    Drive ; une nouvelle clé de sauvegarde par `backup-key` après avoir déplacé
    l'ancienne).

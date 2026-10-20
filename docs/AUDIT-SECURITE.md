@@ -9,20 +9,17 @@ sur Internet (vitrine publique, inscription des clients ouverte).
 |---|---|
 | Secrets dans l'historique publié | aucun (clés Google, OpenAI, GitHub, Slack, clés privées, mots de passe, jetons) |
 | Données personnelles dans l'historique publié | aucune (auteurs `noreply`, ni nom, ni e-mail, ni IP) |
-| Ancien dépôt `pokeprice` | **ne pas le rendre public** : GitHub y garde les commits d'avant la réécriture du 12 octobre |
+| Historique d'avant la réécriture du 12 octobre | absent du dépôt public (vérifié par l'API GitHub) |
 | Dépendances Python (95, dont 43 déployées) | aucune vulnérabilité connue (pip-audit, base PyPI/OSV) |
 | Application | 1 défaut corrigé (déni de service), 1 durcissement ajouté (HSTS) |
 
 ## Historique et nouveau dépôt
 
-- Les commits d'avant la réécriture du 12 octobre portent le nom et l'adresse
-  personnelle du propriétaire, et la documentation de l'époque des
-  identifiants de dossiers Google Drive. Ils ne sont plus dans `master`, mais
-  GitHub les conserve dans l'ancien dépôt et les sert encore par leur
-  identifiant ; rendre ce dépôt public les exposerait.
-- Le nouveau dépôt `citizenu03bb/lilydex` a été créé **privé** à partir de
+- Les commits d'avant la réécriture du 12 octobre contenaient des données
+  personnelles. Ils ne sont plus dans `master`.
+- Le dépôt public `citizenu03bb/lilydex` a été créé **privé** à partir de
   `master` seul : GitHub n'y connaît aucun de ces anciens commits (vérifié par
-  l'API). L'unique issue y a été transférée. L'ancien dépôt reste privé.
+  l'API). L'unique issue y a été transférée.
 - Balayage par motifs de tout l'historique publié et `detect-secrets` sur
   l'arbre : 40 signalements, tous faux positifs (empreintes SHA-256 des pièces
   du référentiel, mots de passe fictifs des tests).
@@ -68,8 +65,7 @@ Corrigé le 16 octobre :
 1. Licence : MIT, choisie le 16 octobre (`LICENSE`, au nom de `citizen-lambda`).
 2. Une fois public, activer les avis de sécurité privés (Settings → Security)
    pour que `SECURITY.md` fonctionne.
-3. Faire pointer le dépôt local vers `lilydex` (`git remote set-url origin …`)
-   et garder l'ancien dépôt `pokeprice` privé (ou le supprimer).
+3. Faire pointer le dépôt local vers `lilydex` (`git remote set-url origin …`).
 
 ## Points à suivre
 

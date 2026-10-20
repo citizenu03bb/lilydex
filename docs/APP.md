@@ -816,10 +816,10 @@ Les comptes sont 111 / 110 / 180 par album, 347 éditions, 400 identités confir
 22 confirmées sans prix et une non résolue. Les 401 vignettes sont identiques à
 celles de la bibliothèque initiale. Les sources des albums restent inchangées.
 
-Preuves : [premier import](../outputs/inventory-import-2026-10-04.json),
-[réimport](../outputs/inventory-reimport-2026-10-04.json),
-[audit de rapprochement](../outputs/development/import-validation.json),
-[exercice de restauration](../outputs/development/managed-recovery-check.json).
+Preuves : premier import (`outputs/inventory-import-2026-10-04.json`, hors du dépôt public),
+réimport (`outputs/inventory-reimport-2026-10-04.json`, hors du dépôt public),
+audit de rapprochement (`outputs/development/import-validation.json`, hors du dépôt public),
+exercice de restauration (`outputs/development/managed-recovery-check.json`, hors du dépôt public).
 
 Les **147 tests passent**, dont l'inscription depuis l'adresse Wi-Fi et la
 gestion des réponses HTTP vides ou illisibles. La sauvegarde finale a été restaurée dans une base

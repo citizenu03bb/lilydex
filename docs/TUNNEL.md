@@ -3,7 +3,7 @@
 Activé le 5 octobre 2026, après le choix explicite de Cloudflare par le propriétaire.
 
 Adresse actuelle :
-[Poképrice](https://<nom-du-tunnel>.trycloudflare.com).
+`https://<nom-du-tunnel>.trycloudflare.com` (le nom change à chaque démarrage du tunnel).
 Utiliser le compte existant. La création du compte initial est fermée.
 
 La base et les photos restent sur le portable. Le trafic web transite par
@@ -56,4 +56,4 @@ sans connexion (`401`). Un essai de connexion avec de faux identifiants depuis
 la même origine renvoie l'erreur d'authentification attendue, sans rejet CSRF.
 Les mots de passe des comptes existants n'ont pas été consultés ni modifiés.
 
-Preuve : [cloudflare-validation.json](../outputs/development/cloudflare-validation.json).
+Preuve : cloudflare-validation.json (`outputs/development/cloudflare-validation.json`, hors du dépôt public).
