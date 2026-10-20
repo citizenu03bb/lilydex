@@ -112,6 +112,13 @@ def main(argv=None):
     )
     actions = parser.add_subparsers(dest="action", required=True)
     actions.add_parser("capabilities")
+    actions.add_parser("corrections", help="Lire les corrections préautorisées")
+    apply = actions.add_parser(
+        "apply-correction", help="Appliquer un plan précis, sans champ libre"
+    )
+    apply.add_argument("id")
+    apply.add_argument("--expected-version", type=int, required=True)
+    apply.add_argument("--approval-sha256", required=True)
     copies = actions.add_parser("copies")
     copies.add_argument("--query", default="")
     copies.add_argument("--limit", type=int, default=60)
@@ -142,6 +149,16 @@ def main(argv=None):
         encoded = quote(args.id, safe="") if hasattr(args, "id") else ""
         if args.action == "capabilities":
             result = client.request("/capabilities")
+        elif args.action == "corrections":
+            result = client.request("/corrections")
+        elif args.action == "apply-correction":
+            result = client.request(
+                "/copies/" + encoded + "/apply-correction",
+                data={
+                    "expected_version": args.expected_version,
+                    "approval_sha256": args.approval_sha256,
+                },
+            )
         elif args.action == "copies":
             result = client.request(
                 "/copies",

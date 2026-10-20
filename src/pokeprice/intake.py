@@ -127,6 +127,22 @@ def number_key(value):
     return "/".join(str(int(p)) if p.isdigit() else p for p in parts)
 
 
+def catalogue_name_key(value):
+    return strip_accents(TCGdexClient.clean_name(value)).translate(
+        str.maketrans({"’": "'", "‘": "'", "ʼ": "'", "œ": "oe"})
+    )
+
+
+def catalogue_name_matches(printed, official):
+    """An omitted Delta suffix may suggest an edition, never select it.
+
+    An explicit suffix remains mandatory. Other qualifiers (Team Rocket,
+    regional forms, etc.) are not discarded.
+    """
+    printed, official = catalogue_name_key(printed), catalogue_name_key(official)
+    return printed == official or official == printed + " δ"
+
+
 def catalogue_candidates(query, get_json=None):
     """Strict language/name/collector number matching; no fuzzy number snapping."""
     language, name, number = query["language"], query["name"], query["number"]
@@ -145,24 +161,38 @@ def catalogue_candidates(query, get_json=None):
                 return json.loads(response.read())
 
     try:
-        summaries = get_json(base + "/cards?" + urlencode({"name": clean}))
-        if not isinstance(summaries, list):
-            raise TypeError()
-        normalized = strip_accents(clean)
+        # The API distinguishes straight and curved apostrophes in its search.
+        # Keep queries specific instead of searching every card with a shared word.
+        straight = clean.translate(str.maketrans({"’": "'", "‘": "'", "ʼ": "'"}))
+        spellings = dict.fromkeys((clean, straight, straight.replace("'", "’")))
+        found = []
+        for spelling in spellings:
+            result = get_json(base + "/cards?" + urlencode({"name": spelling}))
+            if not isinstance(result, list):
+                raise TypeError()
+            found.extend(result)
         numerator = number_key(number).split("/")[0]
-        summaries = [
-            c
-            for c in summaries
-            if isinstance(c, dict)
-            and strip_accents(TCGdexClient.clean_name(c.get("name", ""))) == normalized
-            and number_key(str(c.get("localId", ""))) == numerator
-            and re.fullmatch(r"[A-Za-z0-9._-]{1,120}", str(c.get("id", "")))
-        ]
+        summaries = list(
+            {
+                c["id"]: c
+                for c in found
+                if isinstance(c, dict)
+                and catalogue_name_matches(name, c.get("name", ""))
+                and number_key(str(c.get("localId", ""))) == numerator
+                and re.fullmatch(r"[A-Za-z0-9._-]{1,120}", str(c.get("id", "")))
+            }.values()
+        )
         candidates = []
         for summary in summaries[:8]:
             detail = get_json(base + "/cards/" + summary["id"])
             if not isinstance(detail, dict):
                 raise TypeError()
+            if (
+                detail.get("id") != summary["id"]
+                or not catalogue_name_matches(name, detail.get("name", ""))
+                or number_key(str(detail.get("localId", ""))) != numerator
+            ):
+                continue
             count = (detail.get("set", {}).get("cardCount", {})).get("official")
             ref = str(detail.get("localId", "")) + (f"/{count}" if count else "")
             if "/" in number and number_key(ref) != number_key(number):
@@ -460,8 +490,7 @@ class IntakeService:
                 )
             if confirmed:
                 if (
-                    strip_accents(TCGdexClient.clean_name(values["name"]))
-                    != strip_accents(TCGdexClient.clean_name(candidate["name"]))
+                    not catalogue_name_matches(values["name"], candidate["name"])
                     or any(values[k] != candidate[k] for k in ("set_name", "language"))
                     or number_key(values["number"]) != number_key(candidate["number"])
                 ):

@@ -662,8 +662,10 @@ function renderPriceSnapshot(parent, card) {
     section.append(
       el(
         "p",
-        card.identification_status === "confirmed" && card.catalog_id
-          ? "Aucun relevé détaillé : relevez le prix pour voir le prix bas, les moyennes et les alertes."
+        card.identification_status === "confirmed"
+          ? card.catalog_id
+            ? "Aucun relevé détaillé : relevez le prix pour voir le prix bas, les moyennes et les alertes."
+            : "Identité confirmée sans lien TCGdex : utilisez « Identifier la carte » puis « Rechercher » avec le nom et la référence corrigés. Une référence sourcée peut aussi être saisie si le catalogue ne fournit pas de prix."
           : "Identifiez et confirmez l’édition pour relever son prix.",
         "help",
       ),

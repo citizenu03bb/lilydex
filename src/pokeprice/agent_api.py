@@ -28,6 +28,11 @@ class ExpectedCopy(AgentModel):
     expected_version: int = Field(ge=1)
 
 
+class ApprovedCorrection(AgentModel):
+    expected_version: int = Field(ge=1)
+    approval_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+
+
 class SaleDraft(AgentModel):
     title: str = Field(min_length=1, max_length=256)
     copies: list[ExpectedCopy] = Field(min_length=1, max_length=20)
@@ -120,6 +125,8 @@ def router(service):
             operations.extend(["photo", "package"])
         if "drafts:create" in grant["permissions"]:
             operations.append("create-draft")
+        if "corrections:apply" in grant["permissions"]:
+            operations.extend(["corrections", "apply-correction"])
         return {
             "contract_version": "1",
             "agent_id": grant["id"],
@@ -243,6 +250,30 @@ def router(service):
             request.state.agent_token_hash,
             key,
             values.model_dump(),
+            request.state.agent_request_id,
+        )
+
+    @api.get("/corrections")
+    def approved_corrections(request: Request, grant=principal):
+        from .agent_corrections import CorrectionService
+
+        with service.store.connect() as db:
+            db.execute("BEGIN")
+            return CorrectionService(service.store).pending(
+                db, request.state.agent_token_hash
+            )
+
+    @api.post("/copies/{copy_id}/apply-correction")
+    def apply_correction(
+        copy_id: str, values: ApprovedCorrection, request: Request, grant=principal
+    ):
+        from .agent_corrections import CorrectionService
+
+        return CorrectionService(service.store).apply(
+            request.state.agent_token_hash,
+            copy_id,
+            values.expected_version,
+            values.approval_sha256,
             request.state.agent_request_id,
         )
 

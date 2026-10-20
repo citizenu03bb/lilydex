@@ -2,7 +2,7 @@
 
 > **Pour qui :** toute personne qui veut déléguer un album à un agent IA.
 > **Vous y trouverez :** ce que l'agent peut faire et ne peut pas faire, le skill qui le guide, les commandes du client et les évaluations faites.
-> **Statut :** en vigueur ; pilote technique. Le choix de ne lui confier que des brouillons est expliqué dans la [fiche 0012](decisions/0012-agent-brouillons.md).
+> **Statut :** en vigueur ; pilote technique. La délégation initiale est expliquée dans la [fiche 0012](decisions/0012-agent-brouillons.md), complétée pour les corrections préautorisées par la [fiche 0014](decisions/0014-corrections-agent-autorisees.md).
 
 Un agent peut consulter **un album délégué**, préparer
 un lot prudent de doublons et créer un brouillon visible dans **Ventes**. Il
@@ -17,8 +17,9 @@ explications et le temps gagné doivent encore être évalués à l’usage ; le
 client livré n’est pas un chatbot intégré au site.
 
 Le [plan révisé](AGENT_CONTROL_PLAN.md) explique l’apport par rôle et les
-extensions possibles. Les confirmations physiques, corrections de fiches,
-réservations, publications, ventes et paiements restent hors du pilote.
+extensions possibles. Les corrections de catalogue préautorisées passent par le parcours décrit ci-dessous.
+Les confirmations physiques, réservations, publications, ventes et paiements
+restent sous les droits humains.
 
 ## Agent et skill d'exploitation
 
@@ -77,7 +78,7 @@ reste une réponse utile. Le temps gagné et l'usage quotidien restent à mesure
 uv sync --extra web --extra dev
 ```
 
-Le schéma passe de 17 à 18 au prochain démarrage de l’application ou d’une
+Le schéma est migré au prochain démarrage de l’application ou d’une
 commande de gestion qui ouvre cette base. Avant mise à jour sur une installation
 réelle, créer une sauvegarde cohérente avec la version précédente et la
 restaurer dans un dossier temporaire selon [RECOVERY.md](RECOVERY.md). Les tests
@@ -87,7 +88,7 @@ créé automatiquement.
 Sur la machine qui héberge la collection de référence, un opérateur disposant
 de l’accès local crée une délégation. Le compte délégant doit être actif ; un
 lecteur peut déléguer la consultation, un gestionnaire ou administrateur peut
-également déléguer les brouillons.
+également déléguer les brouillons et les corrections préautorisées.
 
 ```bash
 uv run pokeprice-manage --data data/inventory agent-create assistant-collection \
@@ -111,7 +112,7 @@ ce destinataire, sans constituer une restriction réseau après transmission.
 Le plafond de valeur est de 10 € par défaut (`--value-ceiling-eur`). L’agent ne
 peut pas l’augmenter. Le jeton expire après 7 jours par défaut, 30 au maximum.
 Un changement de rôle ou la désactivation du délégant s’applique aux requêtes
-suivantes ; le déclassement en lecteur retire immédiatement la création de lots.
+suivantes ; le déclassement en lecteur retire immédiatement la création de lots et les corrections.
 
 ## Préparer un lot depuis le client agent
 
@@ -159,6 +160,46 @@ Les droits courants sont vérifiés avant de retourner un ancien résultat.
 Une nouvelle création revérifie les versions, les observations et les valeurs,
 la disponibilité, la portée et le nombre d’exemplaires à conserver ensemble.
 Un conflit ne produit aucun brouillon partiel.
+
+## Appliquer des corrections autorisées
+
+L’opérateur crée un accès avec `--corrections`. Ce droit permet seulement
+l’application de plans enregistrés pour cette délégation. Il ne donne aucun
+accès général de modification et ne permet pas à l’agent d’autoriser son plan.
+Le guide scellé `pokeprice-agent` conserve son périmètre initial ; ce parcours
+est décrit ici et dans la [décision sur les corrections](decisions/0014-corrections-agent-autorisees.md).
+
+L’opérateur relit les références et les photos, recueille l’accord de la personne,
+puis prépare un fichier JSON privé. Chaque ligne contient `id`, `expected_version`
+et `catalog_id` ; `number` permet une correction explicite de la référence complète,
+et `refresh_price` indique si le relevé de prix est autorisé. Le serveur relit
+TCGdex et refuse une différence de nom, de numéro complet ou de PV.
+
+```bash
+pokeprice-manage --data /CHEMIN_COLLECTION agent-approve-corrections IDENTIFIANT_ACCES \
+  --request-file /chemin/prive/corrections.json \
+  --reason "Rattachements au catalogue et relevés approuvés par le propriétaire"
+pokeprice-agent corrections
+pokeprice-agent apply-correction UUID_EXEMPLAIRE \
+  --expected-version VERSION_EXAMINEE --approval-sha256 EMPREINTE_AUTORISEE
+```
+
+L’enregistrement du plan ne modifie aucune fiche. L’agent transmet seulement
+la version examinée et l’empreinte du plan. Le serveur contrôle les droits,
+l’album et la version avant l’écriture. Une fiche modifiée entre-temps demande
+une nouvelle revue. Après une réponse perdue, la même requête retourne le même
+reçu sans répéter l’écriture ; la révocation s’applique aussi à cette reprise.
+
+La cotation provient du relevé natif en euros et reste une référence de marché,
+pas un prix demandé. Une cotation absente, une variante incompatible ou un produit
+marchand signalé incorrect laisse le prix inconnu. Un prix déjà présent ne peut
+pas être écrasé par ce parcours. Les fiches, relevés et reçus conservent la source,
+son empreinte et l’identité `agent:IDENTIFIANT_ACCES`.
+
+L’accord porte sur le rattachement au catalogue, pas sur une observation en main.
+Les observations physiques et l’état enregistré sont conservés ; le changement
+d’identité invalide la confirmation globale de variante selon les règles de la
+fiche. Le reçu indique qu’aucune confirmation physique n’a été créée.
 
 ## Relecture dans Ventes
 

@@ -1,6 +1,6 @@
 # 0012 — Le pilote agent n'écrit que des brouillons
 
-> **Statut :** en vigueur · **Date :** 2026-10-19
+> **Statut :** complétée par la [décision 0014](0014-corrections-agent-autorisees.md) · **Date :** 2026-10-19
 
 **Contexte.** Un agent IA peut aider à préparer des ventes. Mais une
 publication, une réservation, une vente ou une correction de fiche engage le

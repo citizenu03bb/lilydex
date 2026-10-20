@@ -583,6 +583,25 @@ réception : [valeur en jeu](VALUATION.md).
 
 ## Relever les prix
 
+### Retrouver une référence après une correction
+
+Une identité confirmée sans identifiant TCGdex n'est pas nécessairement absente
+du catalogue. Depuis la fiche, utilisez **Identifier la carte**, puis
+**Rechercher** avec le nom et la référence complète corrigés ; une nouvelle
+lecture de photo n'est pas nécessaire. La recherche tolère les apostrophes
+droites ou courbes et propose les noms TCGdex portant `δ` lorsque ce suffixe
+manque dans le nom saisi. Le numéro complet, la langue et les PV restent
+contrôlés ; choisissez l'édition avant de confirmer, puis relevez son prix.
+Corriger un numéro ne rattache pas automatiquement la carte à une édition.
+
+Si la carte reste sans correspondance, confirmez son identité indépendamment
+du catalogue avant de saisir un **Prix de référence** avec sa **Source /
+métrique du prix**. Conservez la page du produit exact, sa langue et sa variante ;
+un prix saisi sans source n'est pas accepté. Si TCGdex connaît la carte mais ne
+fournit aucune cotation, ce même parcours reste disponible. L'estimation depuis
+des offres au même état se saisit séparément ; un prix absent reste indisponible
+et une offre n'est pas une vente réalisée.
+
 ### Relever le prix d'une carte
 
 Sur la fiche d'une carte confirmée avec son édition TCGdex, **Relever le prix
