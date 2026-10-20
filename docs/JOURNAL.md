@@ -23,8 +23,12 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-10-18
 
-- Les copies Drive sont chiffrées avec age avant l'envoi
-  ([sauvegardes](DAILY-BACKUPS.md)).
+- Les copies Drive sont chiffrées avec age (X25519) avant l'envoi : Drive ne
+  reçoit plus que des fichiers `.zip.age`
+  ([fiche 0003](decisions/0003-drive-depuis-le-portable-chiffre.md)). Les
+  copies envoyées avant (`.zip` sans `.age`) restent lisibles par Google
+  jusqu'à ce que la rétention Drive les mette à la corbeille ; on peut les y
+  mettre plus tôt à la main sans gêner le service.
 - Données personnelles : espace « Mon compte », registre des traitements,
   durées de conservation et procédures ([RGPD](RGPD.md)).
 - Option vision installée sur le serveur ARM, avec torch pour processeur seul ;
@@ -33,8 +37,14 @@ daté la quitte, il est versé ici dans le même commit.
 ## 2026-10-17
 
 - Le portable rapatrie chaque nuit l'archive vérifiée du serveur et l'envoie
-  sur Drive ; il ne sauvegarde plus sa propre base, devenue une copie.
+  sur Drive ; il ne sauvegarde plus sa propre base, devenue une copie. L'ancien
+  timer `pokeprice-local-backup.timer`, qui archivait `data/inventory`, est
+  désactivé (`systemctl --user disable --now pokeprice-local-backup.timer`).
+  Les archives rapatriées prennent le préfixe `oci-`, qui les distingue des
+  archives `daily-<date>.zip` faites auparavant sur le portable.
 - Rétention des archives sur Drive : les plus anciennes vont à la corbeille.
+- Délai de transfert proportionnel à la taille de l'archive, après qu'un délai
+  fixe de 240 s a interrompu trois fois l'envoi d'une archive de 790 Mo.
 
 ## 2026-10-16
 
@@ -123,8 +133,14 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-10-06
 
-- Copie Drive des sauvegardes par rclone, retéléchargée et restaurée pour
-  contrôle ([sauvegardes](DAILY-BACKUPS.md)).
+- Copie Drive des sauvegardes par un timer du portable et rclone ; elle
+  remplace une automatisation par agent (Codex), mise en pause, et ne dépend
+  plus de son quota ni de son connecteur. Réception : l'archive Drive
+  `daily-2026-10-06.zip` retéléchargée, son SHA-256 comparé au ZIP local et
+  son contenu restauré (404 exemplaires actifs) ; niveau de contrôle
+  `download-sha256-restore`. Les archives déjà sur Drive, dont les parties de
+  l'instantané initial, gardent leur contrôle par métadonnées
+  ([sauvegardes](DAILY-BACKUPS.md)).
 
 ## 2026-10-05
 
@@ -134,6 +150,9 @@ daté la quitte, il est versé ici dans le même commit.
 - Améliorations pour les six classeurs suivants
   ([document archivé](archive/IMPROVEMENTS-2026-10-05.md)).
 - Sauvegardes quotidiennes et copie externe de l'instantané initial sur Drive.
+  Les copies hors site iront dans un dossier Google Drive privé : une seule
+  permission, celle du compte propriétaire, aucun partage ; ce contrôle est
+  depuis appliqué à chaque copie.
 
 ## 2026-10-04
 

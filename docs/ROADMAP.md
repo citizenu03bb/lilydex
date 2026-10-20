@@ -184,6 +184,9 @@ premières ventes.
   remplacer la base ; les corrections passent par l'API du serveur. Pas de
   synchronisation entre les deux bases
   ([fiche 0013](decisions/0013-pas-de-synchronisation.md)).
+- **Reste :** faire remonter l'état de la copie Drive, suivie sur le
+  portable, dans la gestion du serveur ; une notification en cas d'échec de
+  sauvegarde ou de copie.
 - **Reste :** un script de contrôle unique (tests Python et JavaScript, lint
   des fichiers modifiés) ; des tests de bout en bout (Playwright sur une copie
   temporaire de la base) : saisie, relevé, estimation, série, lot ; un exercice

@@ -93,8 +93,14 @@ Le prix de référence est une tendance, pas un prix de vente.
 **Vendre.** Sélectionnez des exemplaires, créez un lot, préparez l'annonce
 (dossier ZIP avec photos), puis suivez réservation, vente, frais et retours.
 
-**Sauvegarder.** Le serveur fait une sauvegarde vérifiée chaque nuit, et une
-copie chiffrée part sur Google Drive : voir [Sauvegardes](DAILY-BACKUPS.md).
+**Sauvegarder.** Chaque nuit, le serveur archive la collection et vérifie
+l'archive par une restauration ; le portable en garde une copie et l'envoie
+chiffrée sur Google Drive. Le panneau **Sauvegardes** de la gestion, réservé
+aux administrateurs, affiche la dernière archive vérifiée, la dernière erreur
+et une alerte au-delà de 36 heures. Le bouton **Sauvegarder et vérifier
+maintenant** refait l'archive du jour, sans l'envoyer sur Drive. Le reste
+(restaurer, protéger la clé, vérifier la copie Drive) est dans
+[Sauvegardes](DAILY-BACKUPS.md).
 Avant toute opération de masse, faites une sauvegarde complète avec
 `pokeprice-manage backup`, sur la base visée (sur le serveur, avec `--data`,
 comme le décrit [Héberger Lilydex](DEPLOYMENT.md)).

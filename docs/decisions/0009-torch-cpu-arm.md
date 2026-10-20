@@ -26,4 +26,4 @@ fois son cache à jour.
 indexés par l'empreinte des images, un cache calculé sur le portable se
 réutilise sur le serveur.
 
-**Pour aller plus loin.** [Héberger Lilydex](../DEPLOYMENT.md#option-vision-contrôle-dédition-et-porte-énergie).
+**Pour aller plus loin.** [Héberger Lilydex](../DEPLOYMENT.md#loption-vision).
