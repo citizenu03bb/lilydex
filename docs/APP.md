@@ -8,7 +8,7 @@ La gestion est la partie privée de Lilydex. Vous y tenez l'inventaire de votre
 collection, [exemplaire](GLOSSAIRE.md#les-cartes) par exemplaire : photos,
 identité, variante, état, prix et ventes. La partie publique du site, la
 vitrine, est décrite plus bas ([Publier en vitrine](#publier-en-vitrine)) et
-dans ses [règles détaillées](CATALOGUE.md).
+dans ses [règles détaillées](VITRINE.md).
 
 Vos cartes peuvent être en plusieurs langues ; l'interface et ce guide sont en
 français. L'application est un serveur web écrit en Python (FastAPI) ; toutes

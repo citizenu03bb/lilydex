@@ -58,9 +58,13 @@ daté la quitte, il est versé ici dans le même commit.
   le portable ne sert plus qu'aux essais et aux sauvegardes.
 - Code publié sous licence MIT, après un [audit de sécurité](AUDIT-SECURITE.md),
   dans un dépôt neuf sans l'historique d'avant la réécriture du 12 octobre.
-- Vitrine publique livrée en quatre tranches : rôle client, publication et
-  prix affiché, vitrine sans compte, inscription et demandes de réservation.
-  La vitrine passe à la racine du site, la gestion sur `/gestion`.
+- Vitrine publique livrée en quatre tranches ([vitrine](VITRINE.md)) : rôle
+  client et séparation des routes (11 routes de gestion passent de
+  « connecté » à « équipe » ; sur 69 routes, 8 restent hors équipe, listées
+  dans un test) ; publication et prix affiché ; vitrine sans compte, essayée
+  en largeur ordinateur et téléphone sur une base temporaire ; inscription et
+  demandes de réservation, parcours complet essayé au navigateur. La vitrine
+  passe à la racine du site, la gestion sur `/gestion`.
 - Porte énergie dans le pipeline d'albums ([IA et vision](IA-VISION.md)).
 - Audit des photos des classeurs : 680 photos redécoupées, 140 corrections,
   22 cartes à retourner dans le classeur ([audit des photos](AUDIT-PHOTOS.md)).

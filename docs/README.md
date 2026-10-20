@@ -23,7 +23,7 @@ quand, est dans le [journal](JOURNAL.md).
 | [Référence des commandes](COMMANDES.md) | Chaque commande et ses options, générées depuis le code |
 | [Valeur en jeu et file d'examen](VALUATION.md) | Comment Lilydex repère les cartes qui méritent une décision humaine |
 | [Aide à l'état](CONDITION-ASSESSMENT.md) | Le verso et la proposition d'état |
-| [Vitrine](CATALOGUE.md) | La partie publique : publication, prix affiché, clients et réservations |
+| [Vitrine](VITRINE.md) | La partie publique : publication, prix affiché, clients et réservations |
 | [Guide du référentiel](PRINT_REFERENCE_GUIDE.md) | Comment Lilydex décide quelle version d'une carte vous avez, preuves à l'appui |
 | [Contrat du référentiel](PRINT_REFERENCE_CONTRACT.md) | Les règles exactes du référentiel et ses scénarios de réception |
 | [État du référentiel](PRINT_REFERENCE_IMPLEMENTATION.md) | Ce qui est mis en œuvre et ses limites |

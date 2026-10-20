@@ -137,7 +137,7 @@ Le [sommaire](docs/README.md) range chaque page selon ce que vous venez faire ; 
 [glossaire](docs/GLOSSAIRE.md) définit les termes.
 
 - **Découvrir** : [IA et vision](docs/IA-VISION.md), [banc d'essai](docs/BANC-RECONNAISSANCE.md), [décisions](docs/decisions/README.md), [feuille de route](docs/ROADMAP.md).
-- **Utiliser** : [application](docs/APP.md), [commandes](docs/COMMANDES.md), [vitrine](docs/CATALOGUE.md), [référentiel](docs/PRINT_REFERENCE_GUIDE.md).
+- **Utiliser** : [application](docs/APP.md), [commandes](docs/COMMANDES.md), [vitrine](docs/VITRINE.md), [référentiel](docs/PRINT_REFERENCE_GUIDE.md).
 - **Héberger** : [serveur](docs/DEPLOYMENT.md), [sauvegardes](docs/DAILY-BACKUPS.md), [données personnelles](docs/RGPD.md).
 - **Suivre et contribuer** : [journal](docs/JOURNAL.md), [contribuer](CONTRIBUTING.md).
 

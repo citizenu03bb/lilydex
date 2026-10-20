@@ -212,7 +212,7 @@ façon stable.
 - **Vitrine :** un service d'envoi d'e-mails (Brevo ou Mailjet, domaine deSEC
   pour SPF et DKIM) quand le volume ou les mots de passe oubliés le
   justifient ; puis des intégrations autorisées aux plateformes de vente.
-  Règles actuelles : [vitrine](CATALOGUE.md).
+  Règles actuelles : [vitrine](VITRINE.md).
 - **Pilote agent :** extensions selon le besoin, après une mesure du temps
   humain gagné ([plan](AGENT_CONTROL_PLAN.md)).
 - **Aide à l'état** calibrée sur les ventes réelles.
@@ -252,7 +252,7 @@ Les choix d'architecture et de méthode ont chacun leur
 - **Prix affiché en vitrine :** la tendance Cardmarket, avec un plancher de
   0,50 €, seulement pour les cartes NM ou EX dont l'état et la variante sont
   confirmés ; sinon un prix fixé à la main ou tiré des offres au même état
-  ([vitrine](CATALOGUE.md)).
+  ([vitrine](VITRINE.md)).
 
 ## Les risques
 

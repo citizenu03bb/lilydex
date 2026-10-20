@@ -43,6 +43,7 @@ PAGES_VIVANTES = {
     "docs/README.md",
     "docs/ROADMAP.md",
     "docs/VALUATION.md",
+    "docs/VITRINE.md",
     "skills/pokeprice-collection/SKILL.md",
 }
 
