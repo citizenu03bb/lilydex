@@ -27,7 +27,7 @@ class CardOCRResult:
     error: str = ""
 
 
-SYSTEM_OCR_PROMPT = """You are an expert OCR and condition grading engine for Pokemon trading cards (specifically French language editions).
+SYSTEM_OCR_PROMPT = """You are an expert OCR and condition grading engine for Pokemon trading cards. Cards may be in French, English, Italian, Japanese or other languages: read the text in the language printed on the card.
 Carefully examine this cropped Pokemon card image:
 1. 'name': Card name printed at the top (include Level / NIV. if present, e.g. "Arbok NIV.31", "Givrali NIV.42", "Kapoera NIV.25", "Salle de Maître"). If in Japanese, provide the Romanized or French name (e.g. "Meganium LV.54").
 2. 'hp': PV / Points de Vie (HP) number printed at top right (integer, e.g. '80 PV' -> 80. Return 0 for Trainers, Stadiums, or Energy cards).
