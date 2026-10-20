@@ -29,19 +29,19 @@ ROOT = Path(__file__).resolve().parent.parent
 # Pages qui décrivent le fonctionnement actuel, sans récit daté. Une page
 # rejoint cette liste quand elle a été réécrite (mode cliquet).
 PAGES_VIVANTES = {
-    "docs/AGENT_CONTROL.md",
     "AGENTS.md",
-    "docs/AGENT_CONTROL.md",
     "CONTRIBUTING.md",
-    "docs/APP.md",
-    "docs/AUDIT-PHOTOS.md",
-    "docs/CONDITION-ASSESSMENT.md",
-    "docs/DAILY-BACKUPS.md",
-    "docs/DEPLOYMENT.md",
     "README.en.md",
     "README.md",
     "SECURITY.md",
+    "docs/AGENT_CONTROL.md",
+    "docs/AGENT_PRICE_EVALUATION.md",
+    "docs/APP.md",
+    "docs/AUDIT-PHOTOS.md",
     "docs/COMMANDES.md",
+    "docs/CONDITION-ASSESSMENT.md",
+    "docs/DAILY-BACKUPS.md",
+    "docs/DEPLOYMENT.md",
     "docs/GLOSSAIRE.md",
     "docs/IA-VISION.md",
     "docs/PRINT_REFERENCE_GUIDE.md",
@@ -50,6 +50,7 @@ PAGES_VIVANTES = {
     "docs/ROADMAP.md",
     "docs/VALUATION.md",
     "docs/VITRINE.md",
+    "skills/pokeprice-agent-prix/SKILL.md",
     "skills/pokeprice-collection/SKILL.md",
 }
 
