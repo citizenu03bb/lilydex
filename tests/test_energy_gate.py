@@ -2,7 +2,6 @@ import json
 from types import SimpleNamespace
 
 import pytest
-import torch
 from PIL import Image
 
 from pokeprice import cli
@@ -31,6 +30,7 @@ def test_basic_energy_names(name, expected):
 
 
 def unit(*values):
+    torch = pytest.importorskip("torch")
     return torch.nn.functional.normalize(torch.tensor(values, dtype=torch.float), dim=-1)
 
 

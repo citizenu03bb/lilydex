@@ -27,9 +27,6 @@ web = [
     "fastapi>=0.115.0,<1",
     "uvicorn>=0.34.0,<1",
 ]
-cloud = [
-    "google-genai>=1.0.0",
-]
 # Independent edition check (M2): DINOv2 image similarity, local, CPU or GPU.
 vision = [
     "torch>=2.4",

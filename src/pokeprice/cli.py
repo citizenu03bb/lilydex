@@ -12,16 +12,6 @@ from dataclasses import asdict
 from pathlib import Path
 from PIL import Image
 
-try:
-    from dotenv import load_dotenv
-
-    home_env = Path.home() / ".env"
-    if home_env.exists():
-        load_dotenv(home_env)
-    load_dotenv()
-except ImportError:
-    pass
-
 from pokeprice.slicer import normalize_orientation, detect_grid_layout, slice_grid
 from pokeprice.ocr import get_ocr_provider, CardOCRResult, failed_result
 from pokeprice.energy_gate import gated_note, gated_result
@@ -461,7 +451,20 @@ def duration(seconds):
     return f"{minutes // 60} h {minutes % 60:02d} min" if minutes >= 60 else f"{minutes} min"
 
 
+def load_env():
+    """Read API keys from ~/.env and ./.env when the command runs, not on import."""
+    try:
+        from dotenv import load_dotenv
+    except ImportError:
+        return
+    home_env = Path.home() / ".env"
+    if home_env.exists():
+        load_dotenv(home_env)
+    load_dotenv()
+
+
 def main():
+    load_env()
     parser = argparse.ArgumentParser(
         prog="pokeprice",
         description="Scannez et valorisez automatiquement vos albums Pokémon avec l'IA locale Gemma 4 E4B et Cardmarket.",
