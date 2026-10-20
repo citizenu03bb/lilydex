@@ -1,4 +1,6 @@
-# Séance de vérification — réception du 20 octobre 2026
+# Séance de vérification préparée par un agent : réception
+
+> **Statut :** rapport daté du 20 octobre 2026, selon un [protocole](AGENT_REVIEW_EVALUATION.md) fixé avant l'exécution. Il n'est pas tenu à jour.
 
 **Un vrai client agent a préparé cinq contrôles recevables à partir des fiches
 et photos d'un album réel figé.** Il a recherché les priorités, examiné les cinq

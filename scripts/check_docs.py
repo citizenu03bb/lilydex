@@ -30,6 +30,7 @@ ROOT = Path(__file__).resolve().parent.parent
 # rejoint cette liste quand elle a été réécrite (mode cliquet).
 PAGES_VIVANTES = {
     "AGENTS.md",
+    "docs/AGENT_CONTROL.md",
     "CONTRIBUTING.md",
     "docs/APP.md",
     "docs/AUDIT-PHOTOS.md",

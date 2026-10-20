@@ -1,4 +1,6 @@
-# Première évaluation conversationnelle — 19 octobre 2026
+# Première évaluation conversationnelle du pilote agent
+
+> **Statut :** rapport daté du 19 octobre 2026, sur une collection synthétique, selon un [protocole](AGENT_EVALUATION_PROTOCOL.md) fixé avant les essais. Il n'est pas tenu à jour.
 
 **Les quatre essais métier réussissent. Aucun gain propre au skill n'est
 démontré.** Le passage à une évaluation humaine sur un album réel reste à faire.
