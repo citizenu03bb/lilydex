@@ -9,6 +9,12 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-10-20
 
+- Le pilote agent applique les corrections de catalogue et relevés préautorisés
+  par le propriétaire : plan borné par délégation, version et empreinte, reçu
+  sans doublon et identité d’agent dans l’historique. Aucune confirmation
+  physique n’est créée ([décision 0014](decisions/0014-corrections-agent-autorisees.md)).
+
+
 - Recherche catalogue : les apostrophes droites/courbes et le suffixe Delta
   omis dans un nom ne masquent plus une édition candidate. La référence,
   la langue et les PV restent contrôlés ; le choix et la confirmation restent

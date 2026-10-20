@@ -536,7 +536,7 @@ def test_migration_backup_restore_neutralize_access_and_keep_drafts(shop, tmp_pa
     restore_backup(archive, restored)
     saved = Store(restored)
     with saved.connect() as db:
-        assert db.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION == 18
+        assert db.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION == 19
         assert db.execute("SELECT sale_id FROM agent_drafts").fetchone()[0] == sale_id
         assert (
             db.execute("SELECT token_hash,revoked_at FROM agent_grants").fetchone()[
@@ -574,16 +574,16 @@ def test_migration_backup_restore_neutralize_access_and_keep_drafts(shop, tmp_pa
     with TestClient(create_app(old_restored)) as old:
         old.headers["Authorization"] = "Bearer " + grant["token"]
         assert old.get(PREFIX + "/copies").status_code == 401
-    # Rehearse 17 -> 18 with existing accounts, photos, events and sales preserved.
+    # Rehearse 17 -> current schema with existing accounts, photos, events and sales preserved.
     with saved.connect(write=True) as db:
         db.execute("DROP TABLE agent_drafts")
         db.execute("DROP TABLE agent_grants")
         db.execute("PRAGMA user_version=17")
     again = Store(restored)
     with again.connect() as db:
-        assert db.execute("PRAGMA user_version").fetchone()[0] == 18
+        assert db.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
         assert db.execute("SELECT id FROM sales").fetchone()[0] == sale_id
-    assert list((tmp_path / "backups").glob("before-schema18-from17-*"))
+    assert list((tmp_path / "backups").glob(f"before-schema{SCHEMA_VERSION}-from17-*"))
 
 
 def test_contract_limits_disable_switch_and_rate_limit(shop):

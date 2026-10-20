@@ -21,7 +21,7 @@ from .valuation import (
 )
 from .variant_pricing import category, compatible_quote, pricing_issue
 
-SCHEMA_VERSION = 18
+SCHEMA_VERSION = 19
 
 
 def now():
@@ -298,6 +298,10 @@ class Store:
                 from .agent import SCHEMA as AGENT_SCHEMA
 
                 db.executescript(AGENT_SCHEMA)
+            if db.execute("PRAGMA user_version").fetchone()[0] == 18:
+                from .agent_corrections import SCHEMA as CORRECTIONS_SCHEMA
+
+                db.executescript(CORRECTIONS_SCHEMA)
             db.execute("PRAGMA journal_mode=WAL")
         from .reference_service import ReferenceService
 

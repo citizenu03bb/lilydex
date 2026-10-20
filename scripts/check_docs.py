@@ -29,6 +29,7 @@ ROOT = Path(__file__).resolve().parent.parent
 # Pages qui décrivent le fonctionnement actuel, sans récit daté. Une page
 # rejoint cette liste quand elle a été réécrite (mode cliquet).
 PAGES_VIVANTES = {
+    "docs/AGENT_CONTROL.md",
     "AGENTS.md",
     "CONTRIBUTING.md",
     "docs/APP.md",

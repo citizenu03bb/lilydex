@@ -22,6 +22,8 @@ l'ancienne passe au statut « remplacée ».
 | [0012](0012-agent-brouillons.md) | Le pilote agent n'écrit que des brouillons | 2026-10-19 |
 | [0013](0013-pas-de-synchronisation.md) | Pas de synchronisation entre le portable et le serveur | 2026-10-20 |
 
+| [0014](0014-corrections-agent-autorisees.md) | L’agent applique seulement les corrections déjà autorisées | 2026-10-20 |
+
 ## Écrire une fiche
 
 Copiez une fiche existante. Le titre dit la décision, pas le sujet. Donnez les

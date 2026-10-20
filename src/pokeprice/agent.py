@@ -1,4 +1,4 @@
-"""Album-scoped agent access: read facts and create private sale drafts only."""
+"""Album-scoped agent access: reads, sale drafts and operator-approved corrections."""
 
 import hashlib
 import json
@@ -27,7 +27,9 @@ CREATE TABLE IF NOT EXISTS agent_drafts(
 PRAGMA user_version=18;
 COMMIT;
 """
-PERMISSIONS = frozenset({"copies:read", "photos:read", "drafts:create"})
+PERMISSIONS = frozenset(
+    {"copies:read", "photos:read", "drafts:create", "corrections:apply"}
+)
 MAX_ALBUM_COPIES = 2000
 MAX_DRAFT_COPIES = 20
 CARD_FIELDS = (
@@ -132,6 +134,8 @@ class AgentService:
                 raise ValueError("Compte délégant de gestion actif requis.")
             if "drafts:create" in permissions and user["role"] == "reader":
                 raise ValueError("Un lecteur ne peut pas déléguer la création de lots.")
+            if "corrections:apply" in permissions and user["role"] == "reader":
+                raise ValueError("Un lecteur ne peut pas déléguer des corrections.")
             if not db.execute("SELECT 1 FROM albums WHERE id=?", (album,)).fetchone():
                 raise ValueError("Album inconnu.")
             db.execute(
@@ -195,6 +199,7 @@ class AgentService:
         grant["permissions"] = set(json.loads(grant["permissions_json"]))
         if grant["role"] == "reader":
             grant["permissions"].discard("drafts:create")
+            grant["permissions"].discard("corrections:apply")
         if permission not in grant["permissions"]:
             raise AgentError(403, "forbidden", "Opération non déléguée à cet agent.")
         return grant

@@ -52,6 +52,11 @@ def main():
     agents.add_argument("--days", type=int, default=7)
     agents.add_argument("--photos", action="store_true")
     agents.add_argument("--drafts", action="store_true")
+    agents.add_argument(
+        "--corrections",
+        action="store_true",
+        help="Appliquer seulement des corrections préautorisées",
+    )
     agents.add_argument("--value-ceiling-eur", default="10")
     agents.add_argument(
         "--token-file",
@@ -63,6 +68,13 @@ def main():
         "agent-revoke", help="Révoquer immédiatement un accès agent"
     )
     revoke.add_argument("grant_id")
+    approve = actions.add_parser(
+        "agent-approve-corrections",
+        help="Autoriser un plan précis de rattachements catalogue",
+    )
+    approve.add_argument("grant_id")
+    approve.add_argument("--request-file", required=True)
+    approve.add_argument("--reason", required=True)
     actions.add_parser(
         "agent-schema", help="Contrat OpenAPI agent hors ligne, sans ouvrir de base"
     )
@@ -230,7 +242,12 @@ def main():
             from .inventory_import import import_collection
 
             result = import_collection(store, args.manifest)
-        elif args.action in ("agent-create", "agent-list", "agent-revoke"):
+        elif args.action in (
+            "agent-create",
+            "agent-list",
+            "agent-revoke",
+            "agent-approve-corrections",
+        ):
             from .agent import AgentService
             from .inventory import cents
 
@@ -239,6 +256,15 @@ def main():
                 result = agents.grants()
             elif args.action == "agent-revoke":
                 result = agents.revoke(args.grant_id)
+            elif args.action == "agent-approve-corrections":
+                from .agent_corrections import CorrectionService
+
+                source = Path(args.request_file)
+                if source.stat().st_size > 65536:
+                    raise ValueError("Plan limité à 64 Ko.")
+                result = CorrectionService(store).approve(
+                    args.grant_id, json.loads(source.read_text()), args.reason
+                )
             else:
                 import os
 
@@ -247,6 +273,8 @@ def main():
                     permissions.append("photos:read")
                 if args.drafts:
                     permissions.append("drafts:create")
+                if args.corrections:
+                    permissions.append("corrections:apply")
                 path = Path(args.token_file)
                 handle = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
                 grant = None

@@ -145,6 +145,7 @@ Déléguer un album à un agent
 | `--days` `DAYS` | Par défaut : `7`. |
 | `--photos` |  |
 | `--drafts` |  |
+| `--corrections` | Appliquer seulement des corrections préautorisées |
 | `--value-ceiling-eur` `VALUE_CEILING_EUR` | Par défaut : `10`. |
 | `--token-file` `TOKEN_FILE` | Nouveau fichier privé ; aucun secret sur stdout |
 
@@ -159,6 +160,16 @@ Révoquer immédiatement un accès agent
 | Argument | Effet |
 |---|---|
 | `grant_id` |  |
+
+### `pokeprice-manage agent-approve-corrections`
+
+Autoriser un plan précis de rattachements catalogue
+
+| Argument | Effet |
+|---|---|
+| `grant_id` |  |
+| `--request-file` `REQUEST_FILE` |  |
+| `--reason` `REASON` |  |
 
 ### `pokeprice-manage agent-schema`
 
@@ -325,6 +336,20 @@ Options communes :
 | `--token-file` `TOKEN_FILE` | Fichier privé du jeton ; aucune valeur secrète en argument |
 
 ### `pokeprice-agent capabilities`
+
+### `pokeprice-agent corrections`
+
+Lire les corrections préautorisées
+
+### `pokeprice-agent apply-correction`
+
+Appliquer un plan précis, sans champ libre
+
+| Argument | Effet |
+|---|---|
+| `id` |  |
+| `--expected-version` `EXPECTED_VERSION` |  |
+| `--approval-sha256` `APPROVAL_SHA256` |  |
 
 ### `pokeprice-agent copies`
 
