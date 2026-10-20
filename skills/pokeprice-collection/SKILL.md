@@ -67,7 +67,7 @@ Procédure et outils : `docs/AUDIT-PHOTOS.md` (`scripts/audit_photo_crops.py`,
 ## Prix et photos
 
 - Conserver référence, langue, PV, variante, état et validation humaine séparés.
-  Un état estimé par IA reste à confirmer. Le prix de référence et celui de la
+  Un état estimé par IA doit être confirmé. Le prix de référence et celui de la
   vente sont distincts ; le prix de référence n'est jamais décoté. Seule
   l'estimation de vente, faute d'offre au même état, part de l'état le plus
   proche avec une décote affichée (× 0,75 par cran d'état, confiance faible).
