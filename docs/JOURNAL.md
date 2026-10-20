@@ -9,6 +9,11 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-10-20
 
+- Recherche catalogue : les apostrophes droites/courbes et le suffixe Delta
+  omis dans un nom ne masquent plus une édition candidate. La référence,
+  la langue et les PV restent contrôlés ; le choix et la confirmation restent
+  explicites. La fiche distingue une identité confirmée sans lien catalogue
+  d'une carte sans cotation ([application](APP.md#relever-les-prix)).
 - Refonte de la documentation : pages au présent, journal unique, fiches de
   décision, glossaire, contrôle automatique des liens et des dates
   (`scripts/check_docs.py`). La documentation d'avant la refonte reste lisible
