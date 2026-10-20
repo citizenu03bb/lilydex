@@ -22,6 +22,7 @@ def test_dates_are_found_outside_measurement_lines_and_code():
     text = "\n".join([
         "Depuis le 16 octobre 2026, le serveur fait foi.",
         "Conditions de mesure : 31 cartes, octobre 2026.",
+        "Mis à jour le 18 octobre 2026.",
         "Archive `daily-2026-10-17.zip`.",
         "```",
         "restore oci-daily-2026-10-17.zip",
@@ -29,7 +30,7 @@ def test_dates_are_found_outside_measurement_lines_and_code():
         "Mesuré le 2026-10-18.",
     ])
     errors = check_docs.dates_interdites(text)
-    assert [e.split(":")[0] for e in errors] == ["1", "7"]
+    assert [e.split(":")[0] for e in errors] == ["1", "8"]
 
 
 def test_links_to_ignored_folders_are_dead(tmp_path):

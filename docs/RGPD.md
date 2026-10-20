@@ -1,5 +1,9 @@
 # Données personnelles : registre et procédures
 
+> **Pour qui :** la personne responsable du site, et toute personne qui veut savoir ce que Lilydex fait des données personnelles.
+> **Vous y trouverez :** le registre des traitements, les durées de conservation, la procédure pour répondre à une demande et celle à suivre en cas de violation de données.
+> **Statut :** en vigueur. L'information des personnes est publiée sur la page `/a-propos#donnees` du site.
+
 La vitrine publique fait de Lilydex un traitement de données personnelles au
 sens du RGPD. L'exemption « usage domestique » ne vaut pas pour un site ouvert
 au public. Ce document tient lieu de **registre des traitements** (article 30)
@@ -7,7 +11,7 @@ et décrit les **procédures** : demandes des personnes, violation de données.
 L'information des personnes est la page `/a-propos#donnees`. Ses durées et
 celles de [privacy.py](../src/pokeprice/privacy.py) doivent rester identiques.
 
-Le **responsable du traitement** est le propriétaire de la collection, un
+Le **responsable du traitement** est la personne qui tient la collection, un
 particulier. Son nom et son adresse de contact ne figurent pas dans ce dépôt
 public : le serveur les lit dans `POKEPRICE_CONTROLLER_NAME` et
 `POKEPRICE_CONTACT_EMAIL` (voir [DEPLOYMENT.md](DEPLOYMENT.md)). Ni délégué à la
@@ -29,7 +33,7 @@ Mis à jour le 18 octobre 2026.
 | Accès | Équipe de gestion : administrateurs (comptes et demandes), éditeurs et lecteurs (demandes, avec l'e-mail) |
 | Sous-traitants | Oracle Cloud Infrastructure, région Marseille (hébergement) ; Google Drive (copies de sauvegarde **chiffrées** avec age : Google ne peut pas les lire) |
 | Transferts hors UE | Copies chiffrées sur Google Drive, sous le Data Privacy Framework UE–États-Unis |
-| Durées | Compte refusé : 30 jours après l'inscription ; jamais validé : 90 jours ; demande sans suite : 6 mois ; compte sans demande depuis 3 ans : effacé ; sauvegardes : 12 mois au plus, puis 30 jours de corbeille |
+| Durées | Voir [les durées de conservation](#les-durées-de-conservation) |
 | Sécurité | HTTPS, cookie de session `HttpOnly`/`Secure`/`SameSite=Strict`, contrôle d'origine, limitation par adresse, service systemd isolé, sauvegardes vérifiées et chiffrées hors du serveur ([SECURITY.md](../SECURITY.md), [AUDIT-SECURITE.md](AUDIT-SECURITE.md)) |
 
 Une vente conclue reste dans les comptes du vendeur avec ses montants ; à
@@ -68,6 +72,28 @@ terminée. `forget` ne retrouve pas ce qui y a été tapé à la main.
 Les photos envoyées à Gemini pour lire les cartes ne montrent que des cartes :
 ne photographier ni personne ni document. Les photos stockées sont ré-encodées
 sans métadonnées EXIF ni GPS.
+
+## Les durées de conservation
+
+Elles sont appliquées chaque nuit, avant la sauvegarde, par
+`pokeprice-manage purge`, et doivent rester identiques à celles de la page
+`/a-propos` et de `privacy.py`.
+
+| Donnée | Durée |
+|---|---|
+| Compte client refusé | 30 jours après l'inscription |
+| Compte client jamais validé | 90 jours après l'inscription |
+| Demande sans suite (refusée, expirée, annulée) | 6 mois |
+| Client sans demande depuis 3 ans | effacé, avec ses demandes |
+| Compteurs de limitation de débit | quelques minutes à une heure, en mémoire, perdus au redémarrage |
+| Journal technique (journald) | 3 mois |
+| Archives sur le serveur | les 7 dernières nuits |
+| Archives rapatriées sur le portable | les 3 dernières |
+| Copies sur Google Drive | 7 jours, puis une par semaine sur 8 semaines, puis une par mois sur 12 mois ; 30 jours de corbeille |
+| Comptes de l'équipe | le temps de la participation |
+
+Un client effacé ne revient pas par une ancienne archive : chaque effacement
+est rejoué à la restauration ([Sauvegardes](DAILY-BACKUPS.md#effacements-de-clients-rejoués)).
 
 ## Demandes des personnes
 
@@ -108,7 +134,10 @@ utilisé par un tiers, données supprimées par erreur sans sauvegarde.
    l'ancienne).
 2. **Évaluer** : quelles données, combien de personnes, depuis quand, quel
    risque pour elles. Une copie chiffrée dont la clé n'a pas fui ne présente pas
-   de risque.
+   de risque. Attention aux copies Drive envoyées avant le chiffrement des
+   sauvegardes (`.zip` sans `.age`) : elles sont lisibles par Google jusqu'à ce
+   que la rétention les mette à la corbeille ; mettez-les à la corbeille à la
+   main si elles existent encore.
 3. **Notifier la CNIL sous 72 heures** après la découverte, sauf si la
    violation n'engendre pas de risque, par le
    [téléservice de notification](https://notifications.cnil.fr/notifications/index).

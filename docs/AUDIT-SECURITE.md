@@ -1,7 +1,8 @@
-# Audit de sécurité avant publication du dépôt — 16 octobre 2026
+# Audit de sécurité avant la publication du code
 
-Audit fait avant de rendre le code public, alors que l'application tourne déjà
-sur Internet (vitrine publique, inscription des clients ouverte).
+> **Pour qui :** toute personne qui évalue la sécurité de Lilydex.
+> **Vous y trouverez :** ce qui a été vérifié avant de rendre le dépôt public, les défauts corrigés, et ce qui a changé depuis.
+> **Statut :** rapport daté du 16 octobre 2026, fait alors que l'application tournait déjà sur Internet (vitrine publique, inscription des clients ouverte). Il n'est pas tenu à jour ; la politique en vigueur est dans [SECURITY.md](../SECURITY.md).
 
 ## Résumé
 
@@ -75,3 +76,14 @@ Corrigé le 16 octobre :
   tranche 5, avec la page de confidentialité.
 - Les limites de débit sont gardées en mémoire du processus : elles repartent
   de zéro à chaque redémarrage du service.
+
+## Ce qui a changé depuis
+
+- La suppression d'un compte client est en place : espace **Mon compte**,
+  commande `forget`, durées de conservation appliquées chaque nuit, registre
+  des traitements ([Données personnelles](RGPD.md)).
+- Les copies de sauvegarde sur Google Drive sont chiffrées avant l'envoi
+  ([Sauvegardes](DAILY-BACKUPS.md)).
+- La documentation est contrôlée par la suite de tests : aucun lien vers des
+  dossiers ignorés par git, et aucun motif d'une liste privée (nom, e-mail,
+  adresse IP), lue hors du dépôt ([Contribuer](../CONTRIBUTING.md)).

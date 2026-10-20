@@ -37,11 +37,13 @@ PAGES_VIVANTES = {
     "docs/DEPLOYMENT.md",
     "README.en.md",
     "README.md",
+    "SECURITY.md",
     "docs/COMMANDES.md",
     "docs/GLOSSAIRE.md",
     "docs/IA-VISION.md",
     "docs/PRINT_REFERENCE_GUIDE.md",
     "docs/README.md",
+    "docs/RGPD.md",
     "docs/ROADMAP.md",
     "docs/VALUATION.md",
     "docs/VITRINE.md",
@@ -60,7 +62,8 @@ RELATIF = re.compile(
     r"\b(?:désormais|pas encore|reste à|depuis le \d{1,2}|à ce jour|dorénavant)\b", re.IGNORECASE
 )
 LIEN = re.compile(r"\]\(([^)\s]+)\)")
-ZONE_PERMISE = re.compile(r"conditions de mesure", re.IGNORECASE)
+# Lignes où une date est permise : conditions d'une mesure, mention légale.
+ZONE_PERMISE = re.compile(r"conditions de mesure|^mis à jour le ", re.IGNORECASE)
 
 
 def documents() -> list[Path]:
@@ -129,7 +132,7 @@ def liens_morts(path: Path, text: str) -> list[str]:
 def dates_interdites(text: str) -> list[str]:
     errors = []
     for number, line in lignes_hors_code(text):
-        if ZONE_PERMISE.search(line):
+        if ZONE_PERMISE.search(line.strip()):
             continue
         for match in DATE.finditer(sans_code_ni_url(line)):
             errors.append(f"{number}: date dans une page vivante : « {match.group(0)} »")
