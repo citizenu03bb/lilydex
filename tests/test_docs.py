@@ -38,6 +38,15 @@ def test_links_to_ignored_folders_are_dead(tmp_path):
     assert len(errors) == 1 and "ignoré par git" in errors[0]
 
 
+def test_anchors_follow_github_slugs():
+    assert check_docs.ancre("La langue : Tesseract face au contrôle de cohérence") == (
+        "la-langue--tesseract-face-au-contrôle-de-cohérence"
+    )
+    page = check_docs.ROOT / "docs" / "JOURNAL.md"
+    errors = check_docs.liens_morts(page, "[a](GLOSSAIRE.md#les-prix) [b](GLOSSAIRE.md#absente)")
+    assert len(errors) == 1 and "ancre absente" in errors[0]
+
+
 def test_private_patterns_are_reported(tmp_path, monkeypatch):
     patterns = tmp_path / "motifs.txt"
     patterns.write_text("# commentaire\nlilydex\\.duckdns\n")

@@ -29,6 +29,11 @@ ROOT = Path(__file__).resolve().parent.parent
 # Pages qui décrivent le fonctionnement actuel, sans récit daté. Une page
 # rejoint cette liste quand elle a été réécrite (mode cliquet).
 PAGES_VIVANTES = {
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "docs/GLOSSAIRE.md",
+    "docs/IA-VISION.md",
+    "docs/README.md",
     "skills/pokeprice-collection/SKILL.md",
 }
 
@@ -72,14 +77,30 @@ def sans_code_ni_url(line: str) -> str:
     return re.sub(r"\]\([^)]*\)|https?://\S+", "", line)
 
 
+def ancre(titre: str) -> str:
+    """L'ancre que GitHub donne à un titre."""
+    titre = re.sub(r"[`*_]", "", titre.strip().lower())
+    titre = re.sub(r"[^\w\- ]", "", titre)
+    return titre.replace(" ", "-")
+
+
+def ancres(path: Path) -> set[str]:
+    text = path.read_text(encoding="utf-8")
+    return {
+        ancre(line.lstrip("#"))
+        for _, line in lignes_hors_code(text)
+        if re.match(r"#{1,6} ", line)
+    }
+
+
 def liens_morts(path: Path, text: str) -> list[str]:
     errors = []
     for number, line in lignes_hors_code(text):
-        for target in LIEN.findall(line):
-            if re.match(r"[a-z]+:", target) or target.startswith("#"):
+        for full_target in LIEN.findall(line):
+            if re.match(r"[a-z]+:", full_target):
                 continue
-            target = target.split("#", 1)[0]
-            resolved = (path.parent / target).resolve()
+            target, _, fragment = full_target.partition("#")
+            resolved = (path.parent / target).resolve() if target else path.resolve()
             try:
                 relative = resolved.relative_to(ROOT).as_posix()
             except ValueError:
@@ -89,6 +110,8 @@ def liens_morts(path: Path, text: str) -> list[str]:
                 errors.append(f"{number}: lien vers {relative}, ignoré par git (mort sur GitHub)")
             elif not resolved.exists():
                 errors.append(f"{number}: lien mort : {target}")
+            elif fragment and resolved.suffix == ".md" and fragment not in ancres(resolved):
+                errors.append(f"{number}: ancre absente : {full_target}")
     return errors
 
 
