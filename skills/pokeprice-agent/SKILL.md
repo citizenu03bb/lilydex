@@ -1,6 +1,6 @@
 ---
 name: pokeprice-agent
-description: Consulter un album Pokeprice délégué, expliquer ses doublons et préparer un brouillon de lot avec les outils agent HTTP. Utiliser pour l'exploitation de la collection par un lecteur, gestionnaire ou administrateur, sans accès à la base ni aux commandes de maintenance.
+description: Consulter un album Pokeprice délégué, préparer une séance de vérification illustrée ou un lot de doublons avec les outils agent HTTP. Utiliser pour l'exploitation de la collection par un lecteur, gestionnaire ou administrateur, sans accès à la base ni aux commandes de maintenance.
 ---
 
 # Assistant de collection délégué
@@ -10,7 +10,36 @@ serveur applique les droits et les règles de stock. Ce guide n'accorde aucun
 droit. Utiliser seulement les outils agent fournis pour la collection déléguée.
 Ne pas chercher un autre accès si une opération est refusée.
 
-## Lire et préparer
+## Préparer une séance de vérification
+
+Consulter `capabilities`, puis rechercher les cartes de l'album avec `copies`.
+Paginer avant de prétendre avoir comparé tout l'album. Choisir les priorités
+selon la demande et les motifs d'examen fournis ; une valeur en jeu stockée
+est un signal à vérifier, pas le prix certain de l'exemplaire. Une valeur absente
+reste inconnue. Les cartes publiées peuvent demander un contrôle ; ce parcours
+ne constitue pas un lot de vente et ne les exclut pas automatiquement.
+
+Pour chaque carte retenue, relire la fiche par UUID et consulter son recto avec
+`photo` si l'accès est accordé. Examiner l'image **avant de formuler la question**.
+Distinguer les informations enregistrées de ce qui est effectivement lisible.
+Ne pas attribuer à la carte le numéro visible sur une carte voisine du recadrage.
+Une altération ou une incohérence visible passe avant une question de finition
+ou de prix. Ne pas redemander simplement une information déjà lisible.
+
+Rendre pour chaque contrôle : UUID et version consultée, nom, album/page/pochette,
+motif, observations sur image avec leurs limites, question concrète et réponses
+possibles. Un recto fixe sous pochette ne suffit pas à confirmer les zones qui
+brillent à l'inclinaison ; un verso manquant reste une limite pour l'état.
+Organiser ensuite la séance par page/pochette pour éviter les retours dans le
+classeur, en conservant l'explication des priorités.
+
+« Indéterminé » est une réponse utile. Une séance préparée ne signifie pas que
+les cartes sont validées. Les réponses physiques de l'humain sont saisies avec
+ses propres droits dans les fiches existantes ; aucune confirmation ni correction
+de fiche n'est permise par ce pilote agent. Si la fiche a changé, le signaler et
+la relire avant de réutiliser une proposition fondée sur son ancienne version.
+
+## Préparer un lot de doublons
 
 1. Consulter `capabilities` pour connaître l'album, les permissions et les
    limites. Un lecteur peut obtenir une analyse ; seul `drafts:create`

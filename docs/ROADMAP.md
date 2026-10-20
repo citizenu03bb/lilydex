@@ -579,20 +579,21 @@ vérification : changer de modèle relève de la configuration, pas du code.
 
 ## Après le MVP
 
-- Pilotage par agents IA : [plan revu le 19 octobre](AGENT_CONTROL_PLAN.md).
-  Recommandation : éprouver d’abord la préparation d’un lot de doublons depuis
-  un album dans le vrai client agent, puis ajouter une seule écriture bornée
-  (suggestion ou brouillon) si le gain humain est démontré. Premier essai estimé
-  en 3 à 5 jours, puis 1 à 3 jours pour l’écriture retenue. Les jalons A1 à A5
-  de l'[archive](archive/ROADMAP-2026-10-05.md) deviennent des extensions selon
-  le besoin ; aucun engagement global de 11 à 17 jours. Le pilote peut soutenir
+- Pilotage par agents IA : [plan revu les 19–20 octobre](AGENT_CONTROL_PLAN.md).
+  Les jalons A1 à A5
+  de l'[archive](archive/ROADMAP-2026-10-05.md) restent des extensions selon
+  le besoin. Le pilote peut soutenir
   M4 sans attendre tout le MVP. **Pilote technique livré le 19 octobre** :
   [lecture HTTP/CLI, préparation de lots et brouillons dans Ventes](AGENT_CONTROL.md),
   avec contrôles de portée, prix inconnu explicite, idempotence et restauration.
   [Première évaluation conversationnelle synthétique](AGENT_EVALUATION_RESULTS.md) :
   quatre essais réussis avec/sans skill, en lecture seule et avec brouillons.
-  Aucun gain propre au skill démontré ; le gain humain et l’essai sur la
-  collection réelle restent à mesurer.
+  Aucun gain propre au skill démontré. Le parcours suivant est la préparation
+  de cinq contrôles, les observations manquantes rendant le lot peu adapté à
+  cette collection. [Réception du 20 octobre](AGENT_REVIEW_RESULTS.md) : un vrai
+  client isolé a parcouru un album réel figé et préparé cinq questions à partir
+  de ses photos, en lecture seule. Les contrôles techniques et la revue des
+  images passent ; le gain humain reste à mesurer devant le classeur.
 - Catalogue public ([plan](CATALOGUE.md)) : vitrine ouverte, visible sans compte (décision du 16 octobre) ; elle montre une sélection explicite de cartes et de champs. Un client s'inscrit pour demander une réservation ; l'administrateur l'accepte, ce qui crée un lot réservé. Le client ne voit ni notes, ni provenance, ni historique, ni acheteurs. Prix affiché selon la décision du 16 octobre. Décidé le 16 octobre : pas de service d'e-mail au départ ; un compte client reste en attente jusqu'à sa validation par un administrateur ; une demande ne bloque les cartes qu'à son acceptation ; le contact (paiement, envoi) se fait depuis la boîte du vendeur. Service d'envoi (Brevo ou Mailjet, domaine deSEC pour SPF/DKIM) quand le volume ou les mots de passe oubliés le justifient. Intégrations autorisées aux plateformes de vente ensuite.
 - Calibration de l'aide à l'évaluation de l'état sur les ventes réelles.
 - PostgreSQL seulement si plusieurs serveurs ou de nombreuses écritures

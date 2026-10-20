@@ -1,0 +1,71 @@
+{
+  "date": "2026-10-20",
+  "protocol": "docs/AGENT_REVIEW_EVALUATION.md",
+  "status": "accepted_preparation",
+  "runs": 1,
+  "client": "Codex CLI 0.155.1",
+  "model_ids": [
+    "gpt-6-astra"
+  ],
+  "seconds": 108.72,
+  "tool_calls": 16,
+  "tool_errors": 0,
+  "source_archive_sha256": "201a976208349eb51d3495746bf2f27ba5199d90b429ed3adca495b39fd47e11",
+  "source_created_at": "2026-10-19T01:06:50.061565+00:00",
+  "album_copies_read": 432,
+  "photos_delivered": 5,
+  "useful_preparation_questions": 5,
+  "checks": {
+    "exact_five_priorities": true,
+    "entire_album_read": true,
+    "capabilities_read": true,
+    "identity_version_location": true,
+    "album_matches": true,
+    "details_read": true,
+    "photo_receipts_match": true,
+    "ordered_route": true,
+    "questions_and_observations_present": true,
+    "only_read_tools": true,
+    "within_tool_budget": true
+  },
+  "permission_checks": {
+    "read_and_photos_only": true,
+    "draft_denied": true,
+    "management_denied": true
+  },
+  "isolation": {
+    "repository_mounted": false,
+    "database_mounted": false,
+    "ssh_mounted": false
+  },
+  "database_unchanged": true,
+  "revocation_verified": true,
+  "server_stopped": true,
+  "temporary_home_and_database_removed": true,
+  "secret_absent_from_artifacts": true,
+  "usage": [
+    {
+      "input_tokens": 309263,
+      "cached_input_tokens": 267520,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 3452,
+      "reasoning_output_tokens": 12
+    }
+  ],
+  "initial_receipt_status": "rejected",
+  "reception_correction": "Accept exactly one known UUID per human-readable route label, preserving order. Original model answer unchanged; no retry.",
+  "human_validations": 0,
+  "production_mutations": 0,
+  "human_time_measured": false,
+  "skill_guidance": "explicit text, not autodiscovery; no baseline comparison",
+  "qualitative_review": "same parent agent; not blind or independent; photo-to-question correspondence, no physical validation",
+  "artifacts_sha256": {
+    "manifest.json": "c07ef5f18648aaa8484643fa66d9c74ce8fa9a122483a3e1922a8339756aaef9",
+    "work/answer.json": "844edc207b9384e8d15e32625c3e20fd1aa37caffad92d6fd928b83ab6485b9f",
+    "work/tools.jsonl": "d461dab6452f14f4f5fedd457f56978f96d6c9469f89d5c8878976f43994c8e6",
+    "work/events.jsonl": "de4c780acac520798b943bd47a303de3044e08eee6f857ce6c891c708014e2a0",
+    "reception.json": "749f2814daf0b532133793eb8bf87d8ef22b89b25a036fb973744ca0a3e76768",
+    "reception-after-review.json": "9548ed81aac8dc8d661259bf1524f48a3e2d4cd3c11f92a6fc0d752baf2933f8",
+    "review_run.py": "6258a451c14790f1312b1b11a2658732793c979f96302bed145c1d1751e87613"
+  }
+}

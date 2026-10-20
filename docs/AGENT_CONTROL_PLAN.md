@@ -11,6 +11,18 @@ l’ordre et les prérequis proposés le 18 octobre. Les jalons A1–A5 de
 [l’archive](archive/ROADMAP-2026-10-05.md#pilotage-par-agents-ia--ajouté-le-5-octobre-2026)
 restent des capacités possibles, pas une liste à développer intégralement.
 
+**Point d'étape du 20 octobre :** le lot de doublons n'est pas un bon premier
+scénario sur l'instantané de cette collection : trop d'observations physiques
+manquent pour obtenir une sélection prudente. Le parcours retenu est donc la
+préparation de cinq contrôles, à partir des fiches et photos existantes, dans
+l'ordre du classeur. Il aide aussi un lecteur, sans élargir ses permissions.
+Le [protocole de réception](AGENT_REVIEW_EVALUATION.md) distingue la préparation
+par un client agent réel, la qualité des questions et les confirmations encore
+humaines. La [réception du 20 octobre](AGENT_REVIEW_RESULTS.md) accepte cinq fiches
+préparées par ce client, sans mesurer de gain humain ni valider les cartes.
+Le pilote de lots reste disponible ; aucune écriture supplémentaire
+n'est nécessaire pour éprouver ce nouveau scénario.
+
 ## Ce que l’agent apporte à la personne
 
 L’agent aide à passer d’une intention à un résultat : comprendre une demande
