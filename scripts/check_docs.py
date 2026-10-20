@@ -32,6 +32,7 @@ PAGES_VIVANTES = {
     "AGENTS.md",
     "CONTRIBUTING.md",
     "docs/APP.md",
+    "docs/AUDIT-PHOTOS.md",
     "docs/CONDITION-ASSESSMENT.md",
     "docs/DAILY-BACKUPS.md",
     "docs/DEPLOYMENT.md",
