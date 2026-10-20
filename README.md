@@ -130,7 +130,7 @@ cartes vérifiées. Ses résultats guident la roadmap.
 | [CONDITION-ASSESSMENT.md](docs/CONDITION-ASSESSMENT.md) | Verso et aide à l'évaluation de l'état |
 | [DAILY-BACKUPS.md](docs/DAILY-BACKUPS.md), [RECOVERY.md](docs/RECOVERY.md) | Sauvegardes et restauration |
 | [RGPD.md](docs/RGPD.md) | Données personnelles : registre des traitements, demandes des personnes, violation de données |
-| [DEPLOYMENT.md](docs/DEPLOYMENT.md), [TUNNEL.md](docs/TUNNEL.md) | Déploiement préparé et tunnel de développement |
+| [DEPLOYMENT.md](docs/DEPLOYMENT.md), [TUNNEL.md](docs/archive/TUNNEL-2026-10-05.md) | Déploiement préparé et tunnel de développement |
 | [EVALUATION.md](docs/EVALUATION.md) | Évaluation des logiciels existants (octobre 2026) |
 | [archive/](docs/archive/) | Roadmap et journal du 5 octobre 2026 |
 

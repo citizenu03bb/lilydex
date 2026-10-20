@@ -35,7 +35,7 @@ Ouvrir alors `http://<adresse-wifi>:3820/gestion` depuis le téléphone. L'adres
 changer avec le DHCP ; cette consultation locale utilise HTTP. Le téléphone
 utilisera l'adresse HTTPS après déploiement Internet.
 
-Depuis le 5 octobre 2026, un [lien HTTPS Cloudflare temporaire](TUNNEL.md)
+Depuis le 5 octobre 2026, un [lien HTTPS Cloudflare temporaire](archive/TUNNEL-2026-10-05.md)
 permet aussi la consultation et la gestion à distance avec le compte existant.
 Il dépend du portable et des processus locaux ; l'hébergement permanent reste
 à réaliser.

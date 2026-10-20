@@ -261,7 +261,7 @@ ne certifie pas les faits métier et ne constitue pas une livraison de M1.1.
 Explication fonctionnelle : [PRINT_REFERENCE_GUIDE.md](PRINT_REFERENCE_GUIDE.md).
 Comportement, migration et réception :
 [PRINT_REFERENCE_CONTRACT.md](PRINT_REFERENCE_CONTRACT.md).
-Contexte et enrichissement : [PRINT_REFERENCE_PROPOSAL.md](PRINT_REFERENCE_PROPOSAL.md).
+Contexte et enrichissement : [PRINT_REFERENCE_PROPOSAL.md](archive/PRINT_REFERENCE_PROPOSAL-2026-10-13.md).
 Livraison et limites : [PRINT_REFERENCE_IMPLEMENTATION.md](PRINT_REFERENCE_IMPLEMENTATION.md).
 
 ### M2 — Vérifications automatiques indépendantes (3 à 5 jours)

@@ -7,7 +7,7 @@ Explication sans détail technique : [guide fonctionnel](PRINT_REFERENCE_GUIDE.m
 
 Ce document définit le comportement à livrer ; depuis la révision 1.1, M2
 n’attend plus sa réception. Il précise
-[la proposition M1.1](PRINT_REFERENCE_PROPOSAL.md) après la consultation
+[la proposition M1.1](archive/PRINT_REFERENCE_PROPOSAL-2026-10-13.md) après la consultation
 `20261013-021806-b4b77c1f` (Claude Opus, Gemini, DeepSeek, Mistral).
 La consultation a revu le design ; elle n’a pas certifié les faits Pokémon
 ni les produits Cardmarket. Les décisions ci-dessous sont celles retenues

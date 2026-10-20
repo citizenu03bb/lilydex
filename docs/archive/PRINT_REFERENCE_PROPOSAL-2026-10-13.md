@@ -1,8 +1,10 @@
 # Proposition — M1.1 : référentiel embarqué des impressions
 
+> **Archive.** Proposition d'origine du référentiel des impressions, précisée ensuite par le [contrat](../PRINT_REFERENCE_CONTRACT.md). Le fonctionnement actuel est décrit dans le [guide du référentiel](../PRINT_REFERENCE_GUIDE.md). Le texte ci-dessous est conservé tel qu'il était ; seuls les liens ont été mis à jour.
+
 Statut : proposition du 13 octobre 2026, contrat précisé après consultation,
 non implémentée. Le comportement à livrer est défini dans
-[PRINT_REFERENCE_CONTRACT.md](PRINT_REFERENCE_CONTRACT.md) ; ce document
+[PRINT_REFERENCE_CONTRACT.md](../PRINT_REFERENCE_CONTRACT.md) ; ce document
 conserve le contexte et le périmètre de la proposition.
 
 ## Résultat recherché
@@ -21,7 +23,7 @@ moteur de classement.
 Je recommande de livrer ce socle avant M2. Les vérifications IA pourront ensuite
 comparer une observation aux impressions documentées. *Décision du 13 octobre
 après revue : le socle est livré en audit, mais M1.1 ne bloque plus M2 ; voir
-la [roadmap](ROADMAP.md).* L’enrichissement du
+la [roadmap](../ROADMAP.md).* L’enrichissement du
 référentiel se poursuivra avec les imports de M3.
 
 ## État observé
@@ -203,7 +205,7 @@ La proposition actuelle ne modifie aucune fiche et ne déclenche aucun scan.
 ## Critères de réception
 
 La réception détaillée et les invariants sont dans
-[le contrat M1.1](PRINT_REFERENCE_CONTRACT.md#9-livraison-et-réception), scénarios
+[le contrat M1.1](../PRINT_REFERENCE_CONTRACT.md#9-livraison-et-réception), scénarios
 **C01–C20**. Les exigences suivantes en résument le périmètre.
 
 - Les cas de régression donnent la bonne catégorie avec les appels réseau coupés.

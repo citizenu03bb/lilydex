@@ -1,6 +1,6 @@
 # Déploiement Internet (Oracle Cloud Always Free & VPS)
 
-Configuration d'hébergement permanent avec isolation stricte des secrets. Un [tunnel HTTPS Cloudflare temporaire](TUNNEL.md) reste utilisable pendant le développement local.
+Configuration d'hébergement permanent avec isolation stricte des secrets. Un [tunnel HTTPS Cloudflare temporaire](archive/TUNNEL-2026-10-05.md) reste utilisable pendant le développement local.
 
 ## Architecture retenue (0 € / mois)
 
