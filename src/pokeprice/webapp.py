@@ -1444,7 +1444,15 @@ def create_app(
             card = store.get(db, copy_id)
         data = (store.photos / card["photo"]).read_bytes() if card["photo"] else None
         return {
-            **intake.new(user["id"], data, {"id": copy_id, "version": card["version"]}),
+            **intake.new(
+                user["id"],
+                data,
+                {
+                    "id": copy_id,
+                    "version": card["version"],
+                    **{k: card[k] for k in ("name", "number", "language", "hp")},
+                },
+            ),
             "card": card,
         }
 

@@ -174,3 +174,20 @@ def test_sales_status_filter_hides_cancelled_lots_by_default():
         text=True,
     )
 
+
+
+def test_intake_reading_keeps_entry_preselects_exact_edition_and_proposes_notes():
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("Node.js is required")
+    root = Path(__file__).resolve().parents[1]
+    subprocess.run(
+        [
+            node,
+            str(root / "tests/web_intake_runtime.cjs"),
+            str(root / "src/pokeprice/web/app.js"),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )

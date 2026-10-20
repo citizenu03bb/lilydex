@@ -7,6 +7,14 @@
 Une page qui décrit le fonctionnement ne porte pas de date : quand un passage
 daté la quitte, il est versé ici dans le même commit.
 
+## 2026-10-21
+
+- Identification assistée corrigée (issue #2) : une lecture Gemini n'efface
+  plus un champ déjà rempli ni l'observation du tampon, une édition unique et
+  exacte est présélectionnée, une édition choisie sans confirmation garde
+  extension et identifiant catalogue en « à vérifier », et les remarques de la
+  lecture rejoignent les notes ([Ajouter une carte](APP.md#ajouter-une-carte)).
+
 ## 2026-10-20
 
 - Banc comparatif de huit modèles Gemini via Pi sur le parcours des prix
@@ -38,6 +46,7 @@ daté la quitte, il est versé ici dans le même commit.
   la langue et les PV restent contrôlés ; le choix et la confirmation restent
   explicites. La fiche distingue une identité confirmée sans lien catalogue
   d'une carte sans cotation ([application](APP.md#relever-les-prix)).
+
 - Refonte de la documentation : pages au présent, journal unique, fiches de
   décision, glossaire, contrôle automatique des liens et des dates
   (`scripts/check_docs.py`). La documentation d'avant la refonte reste lisible

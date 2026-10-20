@@ -327,6 +327,65 @@ def test_existing_intake_preserves_copy_stock_and_original_source(client):
     }
 
 
+def test_unconfirmed_choice_keeps_edition_for_review_unless_entry_changed(client):
+    token = draft(client)
+    client.post(f"/api/intake/{token}/analyze")
+    card = client.post(
+        f"/api/intake/{token}/save",
+        json=values(client, chosen_catalog_id=CANDIDATE["id"]),
+    ).json()
+    assert card["catalog_id"] == CANDIDATE["id"]
+    assert card["set_name"] == "Evolving Skies"
+    assert card["identification_status"] == "review"
+    detail = client.get(f"/api/copies/{card['id']}").json()
+    assert detail["source"]["data"]["human_confirmed"] is False
+    token = client.post("/api/intake/drafts").json()["token"]
+    client.post(
+        f"/api/intake/{token}/catalogue",
+        json={"name": "Gourgeist", "number": "077/203", "language": "en"},
+    )
+    changed = client.post(
+        f"/api/intake/{token}/save",
+        json=values(
+            client, chosen_catalog_id=CANDIDATE["id"], number="078/203", position=2
+        ),
+    ).json()
+    assert changed["catalog_id"] is None
+    assert changed["identification_status"] == "review"
+
+
+def test_existing_intake_reads_blank_fields_from_copy_and_saves_notes(client):
+    service = client.app.state.intake
+    queries = []
+
+    def remember(query):
+        queries.append(query)
+        return lookup(query)
+
+    service.lookup = remember
+    service.reader = lambda data: (
+        {**OBSERVATION, "number": "", "language": "unknown", "hp": None},
+        "{}",
+    )
+    original = client.post(
+        "/api/copies", json=values(client, set_name="", notes="Classeur bleu")
+    ).json()
+    client.put(f"/api/copies/{original['id']}/photo?version=1", content=photo())
+    token = client.post(f"/api/copies/{original['id']}/intake").json()["token"]
+    client.post(f"/api/intake/{token}/analyze")
+    assert queries == [
+        {"name": "Gourgeist", "number": "077/203", "language": "en", "hp": 120}
+    ]
+    notes = "Classeur bleu\nDéfauts visibles (lecture Gemini) : Pliure visible"
+    saved = client.post(
+        f"/api/intake/{token}/save",
+        json=values(client, chosen_catalog_id=CANDIDATE["id"], notes=notes),
+    ).json()
+    assert saved["notes"] == notes
+    assert saved["catalog_id"] == CANDIDATE["id"]
+    assert saved["identification_status"] == "review"
+
+
 def test_existing_intake_detects_concurrent_correction(client):
     original = client.post("/api/copies", json=values(client)).json()
     token = client.post(f"/api/copies/{original['id']}/intake").json()["token"]
@@ -478,11 +537,13 @@ def test_catalogue_requires_language_name_number_denominator_and_hp():
     query = {"name": "Gourgeist", "number": "077/203", "language": "en", "hp": 120}
     result = catalogue_candidates(query, get)
     assert [c["id"] for c in result["candidates"]] == ["swsh7-077"]
+    assert result["exact"]
     assert not catalogue_candidates({**query, "number": "78/203"}, get)["candidates"]
     assert not catalogue_candidates({**query, "hp": 110}, get)["candidates"]
     assert not catalogue_candidates({**query, "language": "unknown"}, get)["candidates"]
     # Incomplete references expose multiple choices instead of guessing.
-    assert len(catalogue_candidates({**query, "number": "77"}, get)["candidates"]) == 2
+    partial = catalogue_candidates({**query, "number": "77"}, get)
+    assert len(partial["candidates"]) == 2 and not partial["exact"]
 
 
 def test_invalid_observation_and_photo_are_not_silent_empty_cards():
