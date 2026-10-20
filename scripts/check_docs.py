@@ -32,6 +32,7 @@ PAGES_VIVANTES = {
     "AGENTS.md",
     "CONTRIBUTING.md",
     "docs/APP.md",
+    "docs/CONDITION-ASSESSMENT.md",
     "docs/DAILY-BACKUPS.md",
     "docs/DEPLOYMENT.md",
     "README.en.md",
@@ -41,6 +42,7 @@ PAGES_VIVANTES = {
     "docs/IA-VISION.md",
     "docs/README.md",
     "docs/ROADMAP.md",
+    "docs/VALUATION.md",
     "skills/pokeprice-collection/SKILL.md",
 }
 
