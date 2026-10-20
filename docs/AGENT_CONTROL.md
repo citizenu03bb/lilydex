@@ -23,6 +23,14 @@ restent sous les droits humains.
 
 ## Agent et skill d'exploitation
 
+Pour une demande de prix manquants, exposez le guide autonome
+[pokeprice-agent-prix](../skills/pokeprice-agent-prix/SKILL.md). Il distingue
+absence de lien, relevé non acquis et absence de cotation prouvée, puis décrit
+l’application des plans déjà autorisés. Sa [réception](AGENT_PRICE_EVALUATION.md)
+sépare les régressions du logiciel et l’évaluation du comportement d’un client.
+Choisissez le guide selon le parcours ; le guide scellé conserve les consignes
+et les résultats du pilote initial, sans servir de guide aux corrections.
+
 Le guide versionné est [pokeprice-agent](../skills/pokeprice-agent/SKILL.md).
 Il apprend au client à vérifier ses droits, respecter les quantités à conserver,
 reprendre une création sans doublon et expliquer les décisions humaines restantes.
@@ -166,8 +174,10 @@ Un conflit ne produit aucun brouillon partiel.
 L’opérateur crée un accès avec `--corrections`. Ce droit permet seulement
 l’application de plans enregistrés pour cette délégation. Il ne donne aucun
 accès général de modification et ne permet pas à l’agent d’autoriser son plan.
-Le guide scellé `pokeprice-agent` conserve son périmètre initial ; ce parcours
-est décrit ici et dans la [décision sur les corrections](decisions/0014-corrections-agent-autorisees.md).
+Le guide scellé `pokeprice-agent` conserve son périmètre initial. Le guide
+[pokeprice-agent-prix](../skills/pokeprice-agent-prix/SKILL.md) décrit la conduite
+cliente de ce parcours ; la [décision sur les corrections](decisions/0014-corrections-agent-autorisees.md)
+explique son autorisation.
 
 L’opérateur relit les références et les photos, recueille l’accord de la personne,
 puis prépare un fichier JSON privé. Chaque ligne contient `id`, `expected_version`

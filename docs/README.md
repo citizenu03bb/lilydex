@@ -26,7 +26,8 @@ quand, est dans le [journal](JOURNAL.md).
 | [Vitrine](VITRINE.md) | La partie publique : publication, prix affiché, clients et réservations |
 | [Guide du référentiel](PRINT_REFERENCE_GUIDE.md) | Comment Lilydex décide quelle version d'une carte vous avez, preuves à l'appui, et ce qui est mis en œuvre |
 | [Contrat du référentiel](PRINT_REFERENCE_CONTRACT.md) | Les règles exactes du référentiel et ses scénarios de réception |
-| [Pilote agent](AGENT_CONTROL.md) | Déléguer un album à un agent IA, qui prépare des brouillons de lots |
+| [Pilote agent](AGENT_CONTROL.md) | Déléguer un album, préparer des contrôles ou brouillons et appliquer des corrections préautorisées |
+| [Parcours des prix manquants](AGENT_PRICE_EVALUATION.md) | Guide agent dédié, cas rejouables et mesure de l’utilité |
 
 ## Héberger et exploiter
 

@@ -9,6 +9,12 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-10-20
 
+- Le guide autonome `pokeprice-agent-prix` reprend le diagnostic des prix
+  manquants et l’application des corrections déjà autorisées. Les cas
+  synthétiques rejouent les rapprochements, refus et conflits de version,
+  sans remplacer une évaluation du comportement du modèle ou du gain humain
+  ([réception](AGENT_PRICE_EVALUATION.md)).
+
 - Le pilote agent applique les corrections de catalogue et relevés préautorisés
   par le propriétaire : plan borné par délégation, version et empreinte, reçu
   sans doublon et identité d’agent dans l’historique. Aucune confirmation

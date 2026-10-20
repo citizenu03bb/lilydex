@@ -1,0 +1,234 @@
+{
+  "format": "lilydex-agent-pricing-cases-v1",
+  "provenance": "Situations métier issues de la session ; toutes les fiches et réponses fournisseur sont synthétiques, sans donnée privée ni cotation réelle.",
+  "cases": [
+    {
+      "copy": {
+        "name": "Noeunoeuf",
+        "number": "65/110",
+        "language": "fr",
+        "hp": 50
+      },
+      "catalogue": {
+        "id": "ex13-65",
+        "name": "Noeunoeuf δ",
+        "number": "65/110",
+        "hp": 50,
+        "quote_eur": 0.42
+      },
+      "expected": {
+        "outcome": "applied",
+        "reference_cents": 42
+      },
+      "id": "suffixe-delta-omis"
+    },
+    {
+      "copy": {
+        "name": "Récupération d'Énergie",
+        "number": "92/114",
+        "language": "fr",
+        "hp": null
+      },
+      "catalogue": {
+        "id": "bw1-92",
+        "name": "Récupération d’Énergie",
+        "number": "92/114",
+        "hp": null,
+        "quote_eur": 0.42
+      },
+      "expected": {
+        "outcome": "applied",
+        "reference_cents": 42
+      },
+      "id": "apostrophe-courbe"
+    },
+    {
+      "copy": {
+        "name": "Nidoran♀ NIV.12",
+        "number": "91/123",
+        "language": "fr",
+        "hp": 50
+      },
+      "catalogue": {
+        "id": "dp2-91",
+        "name": "Nidoran♀",
+        "number": "91/123",
+        "hp": 50,
+        "quote_eur": null
+      },
+      "expected": {
+        "outcome": "applied",
+        "reference_cents": null
+      },
+      "id": "catalogue-sans-cotation"
+    },
+    {
+      "copy": {
+        "name": "Énergie Plante",
+        "number": "99",
+        "language": "fr",
+        "hp": null
+      },
+      "catalogue": {
+        "id": "base1-99",
+        "name": "Énergie Plante",
+        "number": "99/102",
+        "hp": null,
+        "quote_eur": 0.42
+      },
+      "expected": {
+        "outcome": "invalid_plan",
+        "reference_cents": null
+      },
+      "id": "numero-incomplet"
+    },
+    {
+      "copy": {
+        "name": "Noeunoeuf",
+        "number": "65/111",
+        "language": "fr",
+        "hp": 50
+      },
+      "catalogue": {
+        "id": "ex13-65",
+        "name": "Noeunoeuf δ",
+        "number": "65/110",
+        "hp": 50,
+        "quote_eur": 0.42
+      },
+      "expected": {
+        "outcome": "invalid_identity",
+        "reference_cents": null
+      },
+      "id": "total-incompatible"
+    },
+    {
+      "copy": {
+        "name": "Noeunoeuf",
+        "number": "65/110",
+        "language": "fr",
+        "hp": 70
+      },
+      "catalogue": {
+        "id": "ex13-65",
+        "name": "Noeunoeuf δ",
+        "number": "65/110",
+        "hp": 50,
+        "quote_eur": 0.42
+      },
+      "expected": {
+        "outcome": "invalid_identity",
+        "reference_cents": null
+      },
+      "id": "pv-incompatibles"
+    },
+    {
+      "copy": {
+        "name": "Noeunoeuf de la Team Rocket",
+        "number": "65/110",
+        "language": "fr",
+        "hp": 50
+      },
+      "catalogue": {
+        "id": "ex13-65",
+        "name": "Noeunoeuf δ",
+        "number": "65/110",
+        "hp": 50,
+        "quote_eur": 0.42
+      },
+      "expected": {
+        "outcome": "invalid_identity",
+        "reference_cents": null
+      },
+      "id": "nom-special-different"
+    },
+    {
+      "copy": {
+        "name": "Noeunoeuf",
+        "number": "65/110",
+        "language": "fr",
+        "hp": 50
+      },
+      "catalogue": {
+        "id": "ex13-65",
+        "name": "Noeunoeuf δ",
+        "number": "65/110",
+        "hp": 50,
+        "quote_eur": 0.42
+      },
+      "expected": {
+        "outcome": "existing_reference",
+        "reference_cents": 420
+      },
+      "id": "reference-deja-saisie",
+      "existing_reference_cents": 420
+    },
+    {
+      "copy": {
+        "name": "Noeunoeuf",
+        "number": "65/110",
+        "language": "fr",
+        "hp": 50
+      },
+      "catalogue": {
+        "id": "ex13-65",
+        "name": "Noeunoeuf δ",
+        "number": "65/110",
+        "hp": 50,
+        "quote_eur": 0.42
+      },
+      "expected": {
+        "outcome": "applied",
+        "reference_cents": null
+      },
+      "id": "releve-non-autorise",
+      "refresh_price": false
+    },
+    {
+      "copy": {
+        "name": "Noeunoeuf",
+        "number": "65/110",
+        "language": "fr",
+        "hp": 50,
+        "catalog_id": "ex13-65",
+        "set_name": "Édition de test"
+      },
+      "catalogue": {
+        "id": "ex13-65",
+        "name": "Noeunoeuf δ",
+        "number": "65/110",
+        "hp": 50,
+        "quote_eur": 0.42
+      },
+      "expected": {
+        "outcome": "applied",
+        "reference_cents": 42
+      },
+      "id": "catalogue-lie-sans-releve"
+    },
+    {
+      "copy": {
+        "name": "Elektek NIV.32",
+        "number": "87/132",
+        "language": "fr",
+        "hp": 70
+      },
+      "catalogue": {
+        "id": "dp3-87",
+        "name": "Élektek",
+        "number": "87/132",
+        "hp": 70,
+        "quote_eur": 0.42
+      },
+      "expected": {
+        "outcome": "stale",
+        "reference_cents": null
+      },
+      "id": "modification-humaine-concurrente",
+      "concurrent_changes": {
+        "stamp_state": "unobserved",
+        "notes": "Observation humaine synthétique plus récente"
+      }
+    }
+  ]
+}
