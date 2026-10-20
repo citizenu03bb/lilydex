@@ -9,6 +9,13 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-10-20
 
+- Banc comparatif de huit modèles Gemini via Pi sur le parcours des prix
+  manquants et de cohérence BDD (`pokeprice-agent-prix`) : `gemini-3.1-flash-lite`
+  (18 s, 1,4 c$) et `gemini-2.5-flash-lite` (48,5 s, 0,9 c$) atteignent `8/8`
+  pour un coût onze à dix-huit fois inférieur à `gemini-3.8-flash`
+  ([résultats](AGENT_PRICE_EVALUATION.md#banc-comparatif-des-modèles-gemini),
+  [relevé](evaluations/agent-pricing-gemini-2026-10-20.json)).
+
 - Les guides de `skills/` sont exposés dans `.agents/skills` et `.codex/skills`
   et référencés dans [AGENTS.md](../AGENTS.md) pour la découverte automatique
   par les clients agents. La page [Résoudre les cartes en suspens](RESOLUTION_CARTES.md)

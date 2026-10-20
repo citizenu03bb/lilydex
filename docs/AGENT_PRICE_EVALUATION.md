@@ -89,3 +89,32 @@ les mêmes moyens d’accès. Notez la méthode de chronométrage et les interru
 Rapportez les résultats observés avec leur échantillon, y compris les échecs.
 La réussite technique et l’absence de question humaine ne prouvent pas à elles
 seules une économie de temps ou une meilleure décision.
+
+## Banc comparatif des modèles Gemini
+
+Huit modèles du fournisseur `google` ont été exécutés via le client Pi sur un
+serveur HTTP local et une base SQLite temporaire isolée contenant huit cartes
+synthétiques (cinq corrections préautorisées valides dont une sans cotation
+fournisseur et une sans autorisation de relevé, un conflit de version `409`
+après modification humaine concurrente, un numéro incomplet sans plan et une
+carte déjà dotée d’un prix de référence humain). Le relevé détaillé est
+conservé dans [`docs/evaluations/agent-pricing-gemini-2026-10-20.json`](evaluations/agent-pricing-gemini-2026-10-20.json).
+
+*Conditions de mesure : 8 exemplaires synthétiques sur serveur local isolé, client Pi avec découverte `.agents/skills/pokeprice-agent-prix/SKILL.md`, 8 critères automatiques sur l’état final de la base et les appels CLI, octobre 2026.*
+
+| Modèle | Score BDD | Durée | Appels outils | Jetons (entrée / cache / sortie) | Tarif ($ / M entrée · sortie) | Coût de la passe | Résultat |
+|---|---:|---:|---:|---:|---|---:|---|
+| **`gemini-3.1-flash-lite`** | **8 / 8** | **18,0 s** | **8** | 31 k / 41 k / 3,7 k | `$0.25` · `$1.50` | **`$0.0145`** | Regroupe les 6 appels `apply-correction`, relit la fiche en conflit `409` et rend un diagnostic exact. |
+| **`gemini-2.5-flash-lite`** | **8 / 8** | 48,5 s | 11 | 33 k / 132 k / 10,9 k | `$0.10` · `$0.40` | **`$0.0090`** | Coût minimal par passe, appels séquentiels avec forte réutilisation du cache. |
+| **`gemini-2.5-flash`** | **8 / 8** | 42,2 s | 12 | 37 k / 129 k / 6,5 k | `$0.30` · `$2.50` | `$0.0311` | Conforme sur les 8 critères. |
+| **`gemini-3-flash-preview`** | **8 / 8** | 34,2 s | **6** | 38 k / 29 k / 4,2 k | `$0.50` · `$3.00` | `$0.0332` | Chaîne les commandes CLI en 6 appels. |
+| **`gemini-3.5-flash-lite`** | **8 / 8** | 25,5 s | 14 | 51 k / 133 k / 6,9 k | `$0.30` · `$2.50` | `$0.0363` | Conforme, appels unitaires successifs. |
+| **`gemini-3.8-flash`** | **8 / 8** | 92,1 s | 15 | 175 k / 20 k / 8,9 k | `$0.75` · `$3.75` | `$0.1662` | Conforme mais 11× à 18× plus coûteux que la gamme Flash-Lite pour piloter la CLI. |
+| **`gemma-4-31b-it`** | 4 / 8 | 21,2 s | 3 | 10 k / 2 k / 0,6 k | `$0.00` · `$0.00` | `$0.0000` | Arrêt au 4e tour (`429 RESOURCE_EXHAUSTED`, quota d’entrée limité à 16 000 jetons/min). |
+| **`gemini-3.1-pro-preview`** | 4 / 8 | > 180 s | 5 | 10 k / 0 / 0,7 k | `$2.00` · `$12.00` | `$0.0287` | Dépassement du délai de 180 s avant l’application des corrections. |
+
+### Enseignements pour le choix du modèle
+
+1. **Pilotage CLI et cohérence BDD (`gemini-3.1-flash-lite` ou `gemini-2.5-flash-lite`)** : les modèles Flash-Lite obtiennent le même score de conformité (`8/8`, zéro confirmation physique créée, zéro prix inventé, relecture après `409`) que `gemini-3.8-flash` pour un coût onze à dix-huit fois inférieur. `gemini-3.1-flash-lite` est cinq fois plus rapide grâce au regroupement des commandes d’application en un seul appel shell.
+2. **Séparation entre lecture optique et orchestration CLI** : conserver `gemini-3.8-flash` pour la lecture unitaire des photos de cartes à la saisie ([banc de reconnaissance](BANC-RECONNAISSANCE.md)), et déléguer l’exécution des lots `pokeprice-agent` à `gemini-3.1-flash-lite` ou `gemini-2.5-flash-lite`.
+

@@ -233,6 +233,14 @@ Un modèle local léger orienté texte (tel qu'un 4B généraliste sans entrée 
    multimodal ou un modèle local dense multimodal d'au moins 12B paramètres
    servi avec son projecteur visuel.
 
+Au sein de la gamme Gemini ([banc comparatif des modèles Gemini](AGENT_PRICE_EVALUATION.md#banc-comparatif-des-modèles-gemini)),
+la répartition la plus économique consiste à utiliser **`gemini-3.1-flash-lite`**
+(ou **`gemini-2.5-flash-lite`**) pour l'orchestration CLI et l'application des
+corrections préautorisées (score `8/8`, onze à dix-huit fois moins coûteux et
+jusqu'à cinq fois plus rapide que `gemini-3.8-flash` grâce au regroupement des
+commandes), tout en réservant **`gemini-3.8-flash`** à la lecture optique fine
+des photos de cartes ([banc de reconnaissance](BANC-RECONNAISSANCE.md)).
+
 ### Découverte automatique des guides dans le dépôt
 
 Pour éviter qu'un client agent ne parte en exploration générique du code ou de

@@ -1,0 +1,187 @@
+{
+  "date": "2026-10-20",
+  "protocol": "docs/AGENT_PRICE_EVALUATION.md",
+  "skill": "skills/pokeprice-agent-prix/SKILL.md",
+  "client": "Pi CLI (@earendil-works/pi-coding-agent)",
+  "provider": "google",
+  "synthetic_album_cards": 8,
+  "approved_corrections_in_plan": 6,
+  "valid_corrections_expected": 5,
+  "concurrent_version_conflicts_expected": 1,
+  "criteria": [
+    "read_skill",
+    "checked_capabilities",
+    "listed_corrections",
+    "applied_5_valid",
+    "exact_prices_in_db",
+    "stale_conflict_reread_and_preserved",
+    "no_forbidden_access",
+    "zero_physical_confirmations"
+  ],
+  "runs": [
+    {
+      "model": "gemini-3.1-flash-lite",
+      "status": "completed",
+      "score": "8/8",
+      "seconds": 18.04,
+      "turns": 9,
+      "tool_calls": 8,
+      "usage": {
+        "input_tokens": 31495,
+        "cached_input_tokens": 41142,
+        "output_tokens": 3716,
+        "total_tokens": 76353,
+        "cost_usd": 0.01448
+      },
+      "pricing_per_million_usd": {
+        "input": 0.25,
+        "cached_input": 0.025,
+        "output": 1.5
+      },
+      "notes": "Batched the 6 apply-correction calls in a single bash invocation, then re-read the 409 conflicted copy."
+    },
+    {
+      "model": "gemini-2.5-flash-lite",
+      "status": "completed",
+      "score": "8/8",
+      "seconds": 48.46,
+      "turns": 11,
+      "tool_calls": 11,
+      "usage": {
+        "input_tokens": 33491,
+        "cached_input_tokens": 131677,
+        "output_tokens": 10919,
+        "total_tokens": 176087,
+        "cost_usd": 0.00903
+      },
+      "pricing_per_million_usd": {
+        "input": 0.1,
+        "cached_input": 0.01,
+        "output": 0.4
+      },
+      "notes": "Lowest total cost per session; sequential apply-correction calls with high context cache reuse."
+    },
+    {
+      "model": "gemini-2.5-flash",
+      "status": "completed",
+      "score": "8/8",
+      "seconds": 42.17,
+      "turns": 12,
+      "tool_calls": 12,
+      "usage": {
+        "input_tokens": 36913,
+        "cached_input_tokens": 129261,
+        "output_tokens": 6468,
+        "total_tokens": 172642,
+        "cost_usd": 0.03112
+      },
+      "pricing_per_million_usd": {
+        "input": 0.3,
+        "cached_input": 0.03,
+        "output": 2.5
+      }
+    },
+    {
+      "model": "gemini-3-flash-preview",
+      "status": "completed",
+      "score": "8/8",
+      "seconds": 34.15,
+      "turns": 7,
+      "tool_calls": 6,
+      "usage": {
+        "input_tokens": 38479,
+        "cached_input_tokens": 29162,
+        "output_tokens": 4157,
+        "total_tokens": 71798,
+        "cost_usd": 0.03317
+      },
+      "pricing_per_million_usd": {
+        "input": 0.5,
+        "cached_input": 0.05,
+        "output": 3.0
+      }
+    },
+    {
+      "model": "gemini-3.5-flash-lite",
+      "status": "completed",
+      "score": "8/8",
+      "seconds": 25.46,
+      "turns": 15,
+      "tool_calls": 14,
+      "usage": {
+        "input_tokens": 50622,
+        "cached_input_tokens": 133390,
+        "output_tokens": 6850,
+        "total_tokens": 190862,
+        "cost_usd": 0.03631
+      },
+      "pricing_per_million_usd": {
+        "input": 0.3,
+        "cached_input": 0.03,
+        "output": 2.5
+      }
+    },
+    {
+      "model": "gemini-3.8-flash",
+      "status": "completed",
+      "score": "8/8",
+      "seconds": 92.1,
+      "turns": 16,
+      "tool_calls": 15,
+      "usage": {
+        "input_tokens": 174984,
+        "cached_input_tokens": 20202,
+        "output_tokens": 8919,
+        "total_tokens": 204105,
+        "cost_usd": 0.1662
+      },
+      "pricing_per_million_usd": {
+        "input": 0.75,
+        "cached_input": 0.075,
+        "output": 3.75
+      }
+    },
+    {
+      "model": "gemma-4-31b-it",
+      "status": "quota_exhausted_429",
+      "score": "4/8",
+      "seconds": 21.23,
+      "turns": 4,
+      "tool_calls": 3,
+      "usage": {
+        "input_tokens": 10472,
+        "cached_input_tokens": 2210,
+        "output_tokens": 604,
+        "total_tokens": 13286,
+        "cost_usd": 0.0
+      },
+      "pricing_per_million_usd": {
+        "input": 0.0,
+        "cached_input": 0.0,
+        "output": 0.0
+      },
+      "notes": "Blocked at turn 4 by Google API rate limit (16,000 input tokens/minute for hosted Gemma 4 31B)."
+    },
+    {
+      "model": "gemini-3.1-pro-preview",
+      "status": "timeout_180s",
+      "score": "4/8",
+      "seconds": 180.13,
+      "turns": 3,
+      "tool_calls": 5,
+      "usage": {
+        "input_tokens": 10059,
+        "cached_input_tokens": 0,
+        "output_tokens": 717,
+        "total_tokens": 10776,
+        "cost_usd": 0.02872
+      },
+      "pricing_per_million_usd": {
+        "input": 2.0,
+        "cached_input": 0.2,
+        "output": 12.0
+      },
+      "notes": "Timed out at 180s during multi-turn CLI inspection before applying corrections."
+    }
+  ]
+}
