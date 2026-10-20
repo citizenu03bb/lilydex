@@ -1,8 +1,10 @@
-# Pilotage par agent — plan révisé
+# Pilotage par agent : le plan
 
-Révision du 19 octobre 2026, sur le code à `8e6a36d` (schéma 17).
-**Statut : pilote technique implémenté ; extensions conditionnelles.** Le
-[guide d’utilisation](AGENT_CONTROL.md) décrit la lecture déléguée, la préparation
+> **Pour qui :** toute personne qui veut comprendre ce qu'un agent IA peut apporter à chaque rôle, et comment le pilote pourrait s'étendre.
+> **Vous y trouverez :** l'apport attendu par rôle, ce que le pilote couvre, les extensions possibles et leurs conditions.
+> **Statut :** plan révisé le 19 octobre 2026, sur le code au commit `8e6a36d` ; pilote technique implémenté, extensions conditionnelles. Ce plan n'est pas tenu à jour au fil du code ; le mode d'emploi en vigueur est le [guide du pilote](AGENT_CONTROL.md).
+
+Le [guide d’utilisation](AGENT_CONTROL.md) décrit la lecture déléguée, la préparation
 de lots et la création de brouillons via HTTP/CLI, raccordées à Ventes. La
 réception technique utilise des données synthétiques ; le gain humain reste
 à mesurer. La branche de première écriture retenue est le lot en brouillon,
@@ -10,6 +12,18 @@ sans moteur de suggestions générique. Cette révision remplace
 l’ordre et les prérequis proposés le 18 octobre. Les jalons A1–A5 de
 [l’archive](archive/ROADMAP-2026-10-05.md#pilotage-par-agents-ia--ajouté-le-5-octobre-2026)
 restent des capacités possibles, pas une liste à développer intégralement.
+
+**Point d'étape du 20 octobre :** le lot de doublons n'est pas un bon premier
+scénario sur l'instantané de cette collection : trop d'observations physiques
+manquent pour obtenir une sélection prudente. Le parcours retenu est donc la
+préparation de cinq contrôles, à partir des fiches et photos existantes, dans
+l'ordre du classeur. Il aide aussi un lecteur, sans élargir ses permissions.
+Le [protocole de réception](AGENT_REVIEW_EVALUATION.md) distingue la préparation
+par un client agent réel, la qualité des questions et les confirmations encore
+humaines. La [réception du 20 octobre](AGENT_REVIEW_RESULTS.md) accepte cinq fiches
+préparées par ce client, sans mesurer de gain humain ni valider les cartes.
+Le pilote de lots reste disponible ; aucune écriture supplémentaire
+n'est nécessaire pour éprouver ce nouveau scénario.
 
 ## Ce que l’agent apporte à la personne
 

@@ -5,16 +5,30 @@ description: Gérer le projet pokeprice du propriétaire, ses imports d’albums
 
 # Collection Pokémon du propriétaire
 
-Projet : `~/Projects/pokeprice`. Lire `docs/APP.md` pour les commandes et
+Projet : la racine de ce dépôt. Lire `docs/APP.md` pour les commandes et
 `docs/ROADMAP.md` pour le jalon courant. La gestion repose sur FastAPI/SQLite ;
 les décisions et procédures sont dans le projet, pas dans ce skill.
 
+## Quelle base fait foi
+
+- La collection de référence est sur le serveur de production :
+  `/srv/pokeprice/inventory/collection.sqlite3`, service `pokeprice`. Toute
+  écriture (import, correction, relevé de prix) passe par l'application en ligne
+  ou par une commande lancée sur le serveur, sous l'utilisateur `pokeprice` et
+  avec `--data` explicite :
+  `sudo -u pokeprice env HOME=/srv/pokeprice /opt/pokeprice/.venv/bin/python -m pokeprice.manage --data /srv/pokeprice/inventory <commande>`.
+  Sans `--data`, la commande ouvrirait ou créerait une autre base.
+- `data/inventory/` sur le portable est une ancienne copie. N'y écrire aucune
+  modification de la collection : elle serait perdue. Le portable rapatrie les
+  sauvegardes du serveur (`docs/DAILY-BACKUPS.md`) et sert aux essais.
+- Avant toute écriture, vérifier quelle base est visée.
+
 ## Sources et corrections
 
-- La base `data/inventory/collection.sqlite3` est la source de vérité des
-  modifications faites dans l'application. Les CSV/checkpoints/corrections et
-  pages originales sont les sources archivées. Ne pas les réécrire pour une
-  correction de gestion ; utiliser l'API avec version attendue, auteur et motif.
+- La base de référence est la source de vérité des modifications faites dans
+  l'application. Les CSV/checkpoints/corrections et pages originales sont les
+  sources archivées. Ne pas les réécrire pour une correction de gestion ;
+  utiliser l'API avec version attendue, auteur et motif.
 - L'identifiant durable d'un exemplaire ne dépend plus de son emplacement.
   Une carte déplacée conserve son UUID et sa clé d'origine.
 - `pokeprice-manage import <manifeste>` ajoute les nouvelles clés uniquement.
@@ -53,8 +67,10 @@ Procédure et outils : `docs/AUDIT-PHOTOS.md` (`scripts/audit_photo_crops.py`,
 ## Prix et photos
 
 - Conserver référence, langue, PV, variante, état et validation humaine séparés.
-  Un état estimé par IA reste à confirmer. Le prix de référence et celui de la
-  vente sont distincts ; aucune décote automatique n'est appliquée.
+  Un état estimé par IA doit être confirmé. Le prix de référence et celui de la
+  vente sont distincts ; le prix de référence n'est jamais décoté. Seule
+  l'estimation de vente, faute d'offre au même état, part de l'état le plus
+  proche avec une décote affichée (× 0,75 par cran d'état, confiance faible).
 - Un prix absent reste `NULL`, jamais zéro inventé. Une correction d'identité
   ou de variante invalide le prix courant ; un nouveau relevé demande une source.
 - La photo appartient à l'exemplaire, pas seulement à l'édition. Vérifier les
@@ -66,8 +82,8 @@ Procédure et outils : `docs/AUDIT-PHOTOS.md` (`scripts/audit_photo_crops.py`,
 
 ## Sauvegarde et stock
 
-- Avant migration ou opération de masse, utiliser `pokeprice-manage backup` :
-  ZIP SQLite cohérent + photos. Ne pas copier/synchroniser le fichier SQLite
+- Avant migration ou opération de masse sur le serveur, lancer `backup` avec
+  `--data /srv/pokeprice/inventory` (forme ci-dessus) : ZIP SQLite cohérent + photos. Ne pas copier/synchroniser le fichier SQLite
   actif seul. Restaurer dans un dossier inexistant et rapprocher les comptes.
   La procédure initiale est dans `docs/RECOVERY.md`.
 - Tester les changements sur des bases temporaires. L'audit
@@ -80,6 +96,7 @@ Procédure et outils : `docs/AUDIT-PHOTOS.md` (`scripts/audit_photo_crops.py`,
   vaut pas publication d'annonce, message à un acheteur, transaction ou achat
   de service. Respecter les autorisations explicites de la session pour ces actions.
 
-Le déploiement est préparé dans `docs/DEPLOYMENT.md`. Confirmer le fournisseur,
-le domaine, le coût et la destination de sauvegarde avant la mise en ligne des
-données réelles. Le compte Google One n'est pas un hébergement applicatif.
+Le site est en production sur Oracle Cloud (`docs/DEPLOYMENT.md`). Le serveur
+fait une sauvegarde vérifiée chaque nuit ; le portable la rapatrie et en envoie
+une copie chiffrée sur Google Drive (`docs/DAILY-BACKUPS.md`). Google Drive sert
+seulement aux copies de sauvegarde, pas à l'hébergement.

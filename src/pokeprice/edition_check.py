@@ -32,8 +32,8 @@ API = "https://api.tcgdex.net/v2"
 PROTOCOL = "edition-same-name-v1"
 MAX_GALLERY = 300
 # Similarity gap (cosine) below which two prints are too close to call. On the
-# recognition bench (13 October): 1 false alarm in 27 true editions, and the most
-# similar wrong print flagged 14 times in 26. See ROADMAP M2, tranche 3.
+# recognition bench: 1 false alarm in 27 true editions, and the most similar
+# wrong print flagged 14 times in 26. See docs/decisions/0006-dinov2-marge.md.
 MARGIN = 0.05
 CARD_ID = re.compile(r"[A-Za-z0-9._%!?-]{1,120}")
 

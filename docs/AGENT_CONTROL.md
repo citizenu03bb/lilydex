@@ -1,6 +1,10 @@
-# Utiliser le premier pilote agent
+# Utiliser le pilote agent
 
-Livré le 19 octobre 2026 : un agent peut consulter **un album délégué**, préparer
+> **Pour qui :** toute personne qui veut déléguer un album à un agent IA.
+> **Vous y trouverez :** ce que l'agent peut faire et ne peut pas faire, le skill qui le guide, les commandes du client et les évaluations faites.
+> **Statut :** en vigueur ; pilote technique. Le choix de ne lui confier que des brouillons est expliqué dans la [fiche 0012](decisions/0012-agent-brouillons.md).
+
+Un agent peut consulter **un album délégué**, préparer
 un lot prudent de doublons et créer un brouillon visible dans **Ventes**. Il
 peut aussi lire les photos et télécharger le paquet d’annonce si ces accès ont
 été accordés. Le client `pokeprice-agent` appelle uniquement l’API HTTP ; il
@@ -35,8 +39,37 @@ Le [protocole conversationnel](AGENT_EVALUATION_PROTOCOL.md) compare expliciteme
 le même usage avec et sans le guide, sur des données synthétiques et dans un
 processus séparé des fichiers réels. Son adaptateur MCP est réservé au banc de
 test ; il ne remplace pas la CLI ni n'étend les droits du pilote.
-Le [rapport du 19 octobre](AGENT_EVALUATION_RESULTS.md) consigne les quatre essais
-réussis et les limites : le gain humain reste à mesurer.
+Le [rapport d'évaluation](AGENT_EVALUATION_RESULTS.md) consigne les quatre essais
+réussis et les limites : le gain humain n'est pas mesuré.
+
+## Préparer cinq contrôles dans un classeur
+
+Le skill guide aussi une séance de vérification : l'agent cherche les priorités
+dans l'album, relit les fiches et leurs photos, puis prépare des questions
+concrètes dans l'ordre des pages et pochettes. Il distingue une information
+enregistrée, ce qu'il peut lire sur l'image et ce qu'il reste à observer en main.
+Une carte publiée peut demander un contrôle ; les exclusions d'un lot de vente
+ne s'appliquent donc pas automatiquement à ce parcours.
+
+Les permissions `copies:read` et `photos:read` suffisent, y compris pour un
+lecteur. Les outils existants permettent cette préparation sans nouvelle route
+d'écriture :
+
+```bash
+pokeprice-agent capabilities
+pokeprice-agent copies --limit 100 --offset 0
+pokeprice-agent copy UUID_EXEMPLAIRE
+pokeprice-agent photo UUID_EXEMPLAIRE --side front --output /chemin/prive/recto.jpg
+```
+
+Le client doit pouvoir montrer l'image à son modèle : télécharger un fichier
+seul ne prouve pas qu'il l'a examinée. Le [banc de réception](AGENT_REVIEW_EVALUATION.md)
+teste ce parcours avec un vrai client isolé sur une copie figée de l'album réel.
+La [réception de la séance de vérification](AGENT_REVIEW_RESULTS.md) accepte les cinq préparations,
+après vérification des appels et des images, sans confirmation physique.
+La préparation n'ajoute aucune confirmation physique ; la personne répond
+ensuite dans les fiches existantes, avec ses propres droits. « Indéterminé »
+reste une réponse utile. Le temps gagné et l'usage quotidien restent à mesurer.
 
 ## Installer et préparer l’accès
 

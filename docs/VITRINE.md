@@ -1,0 +1,160 @@
+# La vitrine publique
+
+> **Pour qui :** toute personne qui veut comprendre ou faire évoluer la partie publique de Lilydex.
+> **Vous y trouverez :** ce que fait la vitrine, ce qui est public et ce qui ne l'est jamais, le prix affiché, le modèle de données, les routes, les garde-fous et les prochaines étapes.
+> **Statut :** en vigueur. Le mode d'emploi pour l'équipe est dans le [guide de l'application](APP.md#publier-en-vitrine).
+
+La vitrine est la page d'accueil du site, ouverte sans compte. Elle montre une
+sélection explicite de cartes à vendre. Un visiteur s'inscrit pour **demander
+une réservation** ; le vendeur valide le compte, puis accepte la demande en tout
+ou en partie : l'acceptation crée un **lot réservé** dans le circuit de vente
+habituel (paiement déclaré, expédition, clôture). Il n'y a ni paiement en
+ligne, ni service d'e-mail : le vendeur contacte le client depuis sa propre
+messagerie.
+
+## Les règles
+
+| Sujet | Règle |
+|---|---|
+| Visibilité | Vitrine ouverte, sans compte ; l'inscription sert seulement à demander |
+| Prix affiché | Voir [le prix affiché](#le-prix-affiché) ; plancher 0,50 € ; sous le plancher, lots ou cadeaux |
+| Comptes clients | Inscription libre ; compte **en attente** jusqu'à sa validation par un administrateur |
+| Réservation | Une demande ne bloque rien ; les cartes sont réservées à l'**acceptation** |
+| E-mail | Aucun service d'envoi ; Brevo ou Mailjet, avec un domaine deSEC pour SPF et DKIM, quand le volume ou les mots de passe oubliés le justifieront |
+| Indexation | La vitrine porte `noindex` tant que l'indexation n'est pas décidée |
+
+## Ce qui est public, et ce qui ne l'est jamais
+
+**Public**, pour une carte publiée dont tous les exemplaires sont disponibles :
+photos recto et verso, nom, extension, numéro, langue, variante, état **s'il
+est confirmé** (sinon « état visible sur les photos »), tampon et distribution,
+prix affiché et sa date, identifiant de la publication.
+
+**Jamais exposé hors de la gestion** : notes, provenance, événements, relevés
+et historique de prix, prix de référence brut, alertes, état estimé non
+confirmé, album, page et pochette, autres exemplaires, lots, ventes, acheteurs,
+comptes. L'identifiant public est celui de la publication, jamais celui de
+l'exemplaire. Les réponses publiques sont construites champ par champ, à partir
+d'une liste blanche (`Storefront` dans `listings.py`).
+
+## Le prix affiché
+
+La fonction pure `display_price` de `pricing.py` propose le prix d'un
+exemplaire, ou les raisons pour lesquelles il ne peut pas être publié seul. Le
+prix proposé est le premier disponible dans cet ordre :
+
+1. le prix saisi au moment de publier ;
+2. si l'état est confirmé, l'estimation sur les offres Cardmarket au même état,
+   arrondie au dixième supérieur ;
+3. si l'état est confirmé, le prix saisi à la main sur la fiche, arrondi de
+   même ;
+4. la tendance du dernier relevé, arrondie au dixième supérieur, si la variante
+   est confirmée, l'état MT, NM ou EX et la tendance inférieure à 10 €.
+
+Aucune décote selon l'état n'est appliquée. Le plancher de 0,50 € se compare
+au montant avant l'arrondi : une carte à 0,41 € va dans un lot ou se donne. Un
+lot publié d'un bloc doit valoir au moins 0,50 €. Le prix figé dans une
+publication ne change que si le vendeur le change ; un relevé plus récent est
+seulement signalé.
+
+## Le modèle de données
+
+Chaque évolution de la base suit la règle du projet : copie de la base avant la
+migration, transaction, `PRAGMA user_version` incrémenté.
+
+- `users` accueille le rôle `client`, avec `email` (unique, insensible à la
+  casse, vide pour les comptes de l'équipe), `display_name`, `status`
+  (`pending`, `active`, `refused`) et `consent_at`.
+- `listings` : une publication. `id` (public), `state` (`online`, `offline`),
+  `price_cents`, `price_mode` (`trend`, `manual`, `offers`), `price_source`,
+  `price_date`, `published_at`, `published_by`, `version`. Ses exemplaires
+  sont dans `listing_items(listing_id, copy_id)` : une seule ligne pour une
+  carte, plusieurs pour un lot. L'index `single_listing` garantit qu'un
+  exemplaire n'est que dans une publication en ligne.
+- `requests` : `id`, `client_id`, `status` (`sent`, `accepted`,
+  `partially_accepted`, `refused`, `expired`, `cancelled`), `message`,
+  `sale_id` (le lot créé à l'acceptation), `created_at`, `expires_at`,
+  `version`.
+- `request_items` : `request_id`, `listing_id`, `price_cents` figé à la
+  demande, `outcome` (`pending`, `accepted`, `unavailable`, `refused`).
+
+Après l'acceptation, le client voit le statut du lot : `reserved`, `sold`,
+`shipped`, `completed`, `cancelled` ou `returned`.
+
+## Les routes
+
+**Publiques**, sans cookie, en lecture seule, limitées à 300 lectures par
+minute et par adresse :
+
+- `GET /` : la vitrine (`web/storefront.html`, `.js`, `.css`), séparée de la
+  gestion : elle ne charge aucun code de gestion. `/vitrine` y redirige.
+- `GET /a-propos` : qui vend, comment se passe un achat, données conservées,
+  contact, code source.
+- `GET /api/public/listings` : recherche (nom, extension, numéro), langue, prix
+  maximum, tri, pagination ; seulement les publications en ligne dont tous les
+  exemplaires sont disponibles.
+- `GET /api/public/listings/{id}` et `GET /api/public/listings/{id}/photo` :
+  détail et photo par identifiant de publication, 404 si la carte n'est plus
+  publiée.
+- `POST /api/public/signup` : e-mail, nom, mot de passe de 10 caractères au
+  moins, lecture de l'information sur les données ; crée un compte `pending`.
+  La réponse et son délai sont les mêmes, que l'adresse soit connue ou non ;
+  5 inscriptions par heure et par adresse au plus.
+
+**Client** (session, rôle `client` actif) :
+
+- `GET`, `PATCH /api/me`, `GET /api/me/export`, `POST /api/me/delete` : voir,
+  corriger, exporter ou supprimer son compte.
+- `GET`, `POST /api/me/requests` et `POST /api/me/requests/{id}/cancel` : les
+  demandes.
+- `POST /api/login` (commun) : un compte `pending` reçoit « compte en attente
+  de validation », seulement après un mot de passe juste et sans session ; un
+  compte `refused` est traité comme inconnu ; une session cesse dès que le
+  compte n'est plus actif.
+
+**Équipe** :
+
+- `GET /api/clients`, `PATCH /api/clients/{id}` : valider, refuser, désactiver.
+- `GET`, `PUT`, `DELETE /api/copies/{id}/listing`, `GET`, `POST /api/listings`,
+  `POST /api/listings/{id}/unpublish` : publier, changer le prix, retirer. Le
+  rôle gestion publie ; la consultation voit seulement.
+- `GET /api/requests`, `POST /api/requests/{id}/accept` (les cartes retenues),
+  `POST /api/requests/{id}/refuse` (avec un motif). L'acceptation est une
+  transaction unique : elle crée le lot, le réserve et marque `unavailable` les
+  cartes déjà prises ; si un exemplaire est réservé entre-temps, le brouillon
+  est annulé. La contrainte `single_reservation` arbitre deux acceptations
+  concurrentes.
+
+## Les garde-fous
+
+- **Séparation des rôles.** Les routes de gestion exigent un compte de
+  l'équipe (`staff` : admin, editor ou reader) ; les routes `/api/me/*`, un
+  client. Un test (`tests/test_storefront_access.py`) parcourt toutes les
+  routes et vérifie qu'un client reçoit 403 partout ailleurs que dans
+  `/api/public/*` et `/api/me/*` ; la liste des routes ouvertes hors `staff` y
+  est fixée. Les clients n'apparaissent pas dans `/api/users`.
+- **Sessions.** Cookies `HttpOnly`, `SameSite=Strict` et `Secure` derrière
+  HTTPS ; toute requête qui modifie vérifie l'en-tête `Origin`.
+- **Débit.** Lectures publiques, inscriptions, connexions et demandes sont
+  limitées.
+- **Demandes.** Dix demandes en attente au plus par client ; une demande sans
+  réponse expire au bout de 7 jours, constaté à la lecture.
+- **Données des clients.** Durées de conservation appliquées chaque nuit par
+  `purge`, droits exercés dans **Mon compte**, effacement par `forget` : voir
+  [Données personnelles](RGPD.md).
+- **Indexation.** `noindex` sur la vitrine ; `X-Robots-Tag: noindex, nofollow`
+  sur la gestion et l'API.
+
+## Les prochaines étapes
+
+- L'interface multilingue de la vitrine, d'abord en anglais : elle rejoint
+  l'internationalisation de toute l'interface ([feuille de route](ROADMAP.md#prévu)).
+- Un essai de bout en bout automatisé sur une copie de la base (jalon M5).
+- La décision sur l'indexation par les moteurs de recherche.
+- Un service d'envoi d'e-mails, puis des intégrations autorisées aux
+  plateformes de vente.
+
+**Critère de réception**, tenu : un visiteur voit les cartes publiées sans
+compte ; un client inscrit et validé envoie une demande ; son acceptation crée
+un lot réservé ; deux acceptations concurrentes ne réservent jamais deux fois le
+même exemplaire ; aucune réponse publique ou client ne contient de champ privé.

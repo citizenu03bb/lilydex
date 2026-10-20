@@ -1,5 +1,7 @@
 # Améliorations pour les six prochains classeurs
 
+> **Archive.** Ce plan d'améliorations a été réalisé ; le fonctionnement qui en résulte est décrit dans le [guide de l'application](../APP.md) et les [sauvegardes](../DAILY-BACKUPS.md). Le texte ci-dessous est conservé tel qu'il était ; seuls les liens ont été mis à jour.
+
 Décision du 5 octobre 2026 : implémenter les recommandations avec priorité à
 la conservation des données et au scan Android en série. Destination externe
 choisie par le propriétaire : dossier privé Google Drive « Poképrice — sauvegardes ».
@@ -81,7 +83,7 @@ actuellement désactivée.
 Le service local de sauvegarde et son timer ont été exécutés avec succès ;
 l'automation Drive est active. Le ZIP local est restauré, les copies Drive
 sont contrôlées par métadonnées. Les sources initiales sont copiées en sept
-parties privées. Voir [DAILY-BACKUPS.md](DAILY-BACKUPS.md) pour les limites
+parties privées. Voir [DAILY-BACKUPS.md](../DAILY-BACKUPS.md) pour les limites
 de disponibilité et le téléchargement de contrôle encore à effectuer.
 
 **Mise à jour du 6 octobre :** transfert déterministe livré avec rclone,

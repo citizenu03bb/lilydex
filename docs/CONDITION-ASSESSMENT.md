@@ -1,59 +1,75 @@
-# Verso et aide à l'évaluation de l'état
+# Le verso et l'aide à l'état
 
-Décision du 5 octobre 2026 : ajouter le verso au même exemplaire, puis proposer
-une évaluation Gemini explicite, distincte de l'état validé par le propriétaire.
+> **Pour qui :** toute personne qui photographie le verso de ses cartes ou demande une proposition d'état.
+> **Vous y trouverez :** le parcours, ce que le modèle reçoit et rend, les garde-fous, la conservation des données et ce qui est vérifié.
+> **Statut :** en vigueur. Le mode d'emploi pas à pas est dans le [guide de l'application](APP.md#le-verso-et-létat).
 
-## Parcours
+L'état d'une carte (de MT à PO, sur l'échelle de Cardmarket) se décide carte en
+main. Lilydex aide en deux temps : il garde une photo du verso avec celle du
+recto, puis, si vous le demandez, propose un état à partir de ces photos. La
+proposition reste une aide : c'est une personne qui retient l'état.
+
+## Le parcours
 
 La fiche présente le recto et le verso, chacun avec capture, téléversement,
-préparation et agrandissement. Le verso ne crée pas un exemplaire supplémentaire
-et ne sert pas à reconnaître l'édition. Une nouvelle carte rejoint cette fiche
-après son enregistrement pour permettre la seconde photo.
+préparation et agrandissement. Le verso ne crée pas un exemplaire de plus et ne
+sert pas à reconnaître l'édition. Après l'enregistrement d'une nouvelle carte,
+la fiche propose d'ajouter le verso.
 
-« Évaluer l'état » transmet les photos entières normalisées avant les corrections
-locales au modèle `gemini-3.8-flash`. L'action annonce cette transmission. Les
-photos anciennes dont la version avant correction n'est pas disponible restent
-utilisables, avec cette limite signalée. Aucun appel n'est déclenché par un upload.
+**Évaluer l'état** transmet à Gemini (`gemini-3.8-flash`) les photos entières
+normalisées, avant les corrections locales. L'action annonce cet envoi.
+Téléverser une photo n'envoie rien : l'évaluation ne part que si vous la
+demandez. Une photo ancienne dont la version avant correction n'est pas
+disponible reste utilisable, avec cette limite signalée.
 
-Le résultat contient un état proposé, les défauts par face, une justification,
-la qualité des photos et les limites de l'examen. Il peut être indéterminable.
-Le verso absent, le flou, les reflets et les contours coupés doivent être signalés.
-Une proposition NM demande deux faces exploitables. Aucune note PSA/BGS, mesure
-de confiance inventée ou estimation de prix n'est demandée.
+## Ce que rend le modèle
 
-La proposition et sa provenance sont immuables : modèle, version du protocole,
-photos réellement envoyées, réponse brute, auteur et date. Elle n'écrase jamais
-l'état courant, même non confirmé. Le propriétaire peut choisir l'état final,
-confirmer son examen de la carte et enregistrer un motif. La validation est
-auditée séparément. Une proposition fondée sur des photos remplacées devient
-obsolète et ne peut plus être validée. Les modifications concurrentes de la fiche
-sont refusées par son numéro de version.
+Un état proposé, les défauts de chaque face, une justification, la qualité des
+photos et les limites de l'examen. La proposition peut être **indéterminable**.
+Un verso absent, le flou, les reflets et les contours coupés doivent être
+signalés. Aucune note PSA ou BGS, aucune confiance chiffrée et aucune
+estimation de prix ne sont demandées.
 
-## Données et conservation
+## Les garde-fous
 
-Le schéma SQLite 5 ajoute trois références facultatives aux exemplaires : recto
-avant correction, verso préparé et verso avant correction. Une table conserve
-les évaluations. Les photos restent adressées par hash et privées. Les anciens
-exemplaires, états, prix, stocks et identifiants restent identiques lors de la
-migration. Les originaux historiques sont retrouvés uniquement lorsque leur
-preuve de préparation correspond à la photo courante.
+- Le serveur applique ses propres règles, sans les déléguer au prompt : une
+  proposition NM exige deux faces exploitables, les originaux et une qualité
+  suffisante, sinon elle est retirée ; une face absente est inscrite dans les
+  limites.
+- La proposition et sa provenance sont immuables : modèle, version du
+  protocole, photos réellement envoyées, réponse brute, auteur et date.
+- Elle n'écrase jamais l'état courant, même non confirmé. Vous choisissez
+  l'état final, confirmez avoir examiné la carte et inscrivez un motif ; cette
+  validation est enregistrée à part.
+- Une proposition fondée sur des photos remplacées devient obsolète et ne peut
+  plus être validée. Les modifications concurrentes de la fiche sont refusées
+  par son numéro de version.
+- Le modèle reçoit l'original, pas la photo retouchée.
 
-Les sauvegardes portent toutes les versions de photos et les évaluations. Leur
-restauration vérifie aussi les photos du verso et les pièces de l'évaluation.
-L'export JSON conserve la totalité de la provenance ; l'export HTML autonome
-inclut le verso. Une proposition IA n'est jamais exportée comme un état confirmé.
+## Les données
 
-## Validation
+Chaque exemplaire peut référencer, en plus de sa photo du recto, le recto avant
+correction, le verso préparé et le verso avant correction ; les évaluations
+ont leur propre table. Les photos restent privées et nommées par leur
+empreinte. Les originaux historiques ne sont retrouvés que si leur preuve de
+préparation correspond à la photo courante.
 
-Tester sur des collections temporaires : migration 4→5, recto/verso séparés,
-originaux transmis, droits de lecture/écriture, erreurs du fournisseur,
-réponses incohérentes, évaluation sans mutation de la fiche, confirmation humaine,
-photos remplacées, concurrence, sauvegarde/restauration et export hors connexion.
-Sauvegarder avant migration de la collection réelle ; conserver le tunnel HTTPS
-et redémarrer chaque serveur individuellement après validation.
+Les sauvegardes emportent toutes les versions des photos et les évaluations ;
+la restauration vérifie aussi les photos du verso et les pièces de
+l'évaluation. L'export JSON garde toute la provenance ; l'export HTML autonome
+inclut le verso. Une proposition n'est jamais exportée comme un état confirmé.
 
-Le 5 octobre 2026, le propriétaire confirme le fonctionnement attendu du parcours photo
-Android verso/état. Le format de réponse Gemini a été validé séparément avec
-deux mires synthétiques, pour lesquelles le modèle a reconnu l'absence de carte
-réelle. Ces éléments valident le fonctionnement du parcours et le format des
-réponses ; ils ne mesurent pas la fiabilité des états proposés sur des cartes réelles.
+## Ce qui est vérifié
+
+Les tests portent, sur des collections temporaires, sur la migration, la
+séparation du recto et du verso, l'envoi des originaux, les droits de lecture
+et d'écriture, les erreurs du fournisseur, les réponses incohérentes,
+l'évaluation sans modification de la fiche, la confirmation humaine, les photos
+remplacées, la concurrence, la sauvegarde, la restauration et l'export hors
+connexion.
+
+Le parcours a été confirmé à l'usage sur Android, et le format de réponse
+validé sur deux mires synthétiques, que le modèle a bien reconnues sans carte.
+**La fiabilité des états proposés sur de vraies cartes n'est pas mesurée** :
+présentez l'évaluation comme une aide. Sa calibration sur les ventes réelles
+est prévue après le MVP ([feuille de route](ROADMAP.md#prévu)).

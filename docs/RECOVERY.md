@@ -1,73 +1,86 @@
-# Instantané et restauration de la collection
+# Instantané initial de la collection
 
-État vérifié le 4 octobre 2026, avant l'évaluation des applications.
+> **Pour qui :** toute personne qui doit retrouver les fichiers d'origine de la collection (photos des pages de classeurs, rapports de numérisation, corrections).
+> **Vous y trouverez :** ce que contient l'instantané, où il est conservé, comment le vérifier, le restaurer et régénérer la bibliothèque sans réseau.
+> **Statut :** rapport daté. L'instantané a été pris le 4 octobre 2026, avant la création de l'application de gestion ; il ne bouge plus. La collection gérée se sauvegarde chaque nuit : voir [Sauvegardes](DAILY-BACKUPS.md).
 
-L'instantané contient **368 fichiers, dont les 80 photos originales** des trois
-albums, les CSV, checkpoints, corrections, exports et sources du projet.
-L'archive mesure 590 050 645 octets, soit environ 590 Mo.
+## Ce que contient l'instantané
 
-Emplacement : [outputs/snapshots/20261004T170658Z](../outputs/snapshots/20261004T170658Z/).
-Conserver ensemble `collection.tar.gz`, `manifest.json` et `SHA256SUMS`.
-Le manifeste détaille les chemins d'origine, tailles et SHA-256 des fichiers,
-ainsi que le commit et l'état des modifications Git au moment de la capture.
-L'archive contient également son manifeste.
+**368 fichiers, dont les 80 photos originales** des trois premiers classeurs,
+les CSV, checkpoints, corrections, exports et sources du projet de l'époque.
+L'archive pèse 590 050 645 octets, environ 590 Mo.
 
-**Copie externe réalisée le 5 octobre 2026** dans le dossier privé
-Snapshot initial — 4 octobre 2026 (dossier Drive privé),
-sous Poképrice — sauvegardes (dossier Drive privé).
-Le transfert est limité à 100 Mio par fichier : les sept parties de
-`collection.tar.gz` reproduisent localement le SHA-256 initial après concaténation.
-Les manifestes, sommes de contrôle et `RESTAURER.txt` sont également copiés.
-Tailles, dossier parent et permissions ont été relus pour les fichiers Drive :
-seul le propriétaire a accès.
+L'archive quotidienne de la collection gérée ne contient pas ces 80 grandes
+photos de pages de classeurs : elles ne sont que dans l'instantané.
 
-**Restauration depuis Drive vérifiée le 12 octobre 2026** avec le remote rclone
-`gdrive` : les sept parties téléchargées passent `SHA256SUMS.parts`, l'archive
-reconstituée passe `SHA256SUMS`, `freeze_collection.py verify` et `restore`
-contrôlent 368 fichiers, et la régénération sans réseau donne les mêmes résultats
-que le tableau ci-dessous (401 vignettes identiques). Preuve :
-`outputs/evaluation/step0/recovery-check/validation-drive-2026-10-12.json`.
-Les sommes de contrôle détectent une altération ; elles ne chiffrent pas les photos.
-Voir [DAILY-BACKUPS.md](DAILY-BACKUPS.md) pour la collection gérée et l'application récente.
+Trois fichiers vont ensemble : `collection.tar.gz`, `manifest.json` et
+`SHA256SUMS`. Le manifeste donne le chemin d'origine, la taille et l'empreinte
+SHA-256 de chaque fichier, ainsi que le commit et l'état des modifications Git
+au moment de la capture ; l'archive contient aussi son manifeste.
 
-## Vérification et restauration
+Ne sont pas inclus : les dépendances Python, les modèles d'IA, les dossiers Git
+et les fichiers `.env*`, `.pem` et `.key`. Les sources et le verrou `uv.lock`
+sont inclus. Les identifiants de services se reconfigurent à part.
 
-Depuis la racine du projet, avec Python 3.12 ou supérieur, sans l'option `-O` :
+## Où il est conservé
+
+- **Sur le portable**, dans `outputs/snapshots/20261004T170658Z/`, hors du
+  dépôt public.
+- **Sur Google Drive**, dans le dossier privé des sauvegardes. Le connecteur
+  Drive utilisé alors limitait chaque transfert à 100 Mio : `collection.tar.gz`
+  y est découpé en sept parties de 90 Mio au plus, qui reconstituent exactement
+  l'archive, avec `SHA256SUMS.parts`, `parts.json`, le manifeste initial et
+  `RESTAURER.txt`. Tailles, dossier parent et permissions des fichiers Drive
+  ont été relus : seul le propriétaire du compte y a accès.
+- Les artefacts installables et les sources de la livraison de l'application
+  sont aussi sur Drive. Pour reconstruire l'application de gestion, partez du
+  dépôt Git (ou d'une wheel récente), pas du code de l'instantané, antérieur à
+  l'application.
+
+Les sommes de contrôle détectent une altération ; elles ne chiffrent pas les
+photos.
+
+## Vérifier et restaurer
+
+Depuis la racine du projet, avec Python 3.12 ou plus récent, sans l'option `-O` :
 
 ```bash
 python scripts/freeze_collection.py verify outputs/snapshots/20261004T170658Z
-python scripts/freeze_collection.py restore outputs/snapshots/20261004T170658Z /tmp/pokeprice-restored
+python scripts/freeze_collection.py restore outputs/snapshots/20261004T170658Z /tmp/collection-restauree
 ```
 
 La destination doit être inexistante. La restauration vérifie l'archive avant
-extraction, puis chaque fichier extrait. Elle crée `project/`, `photos/` et
-`snapshot-manifest.json` ; elle ne remplace pas les dossiers d'origine.
+l'extraction, puis chaque fichier extrait. Elle crée `project/`, `photos/` et
+`snapshot-manifest.json`, sans toucher aux dossiers d'origine.
 
-Le script `freeze_collection.py` fait partie de l'instantané. Une copie externe
-du dossier de sauvegarde permet donc de retrouver ce script en extrayant
-`project/scripts/freeze_collection.py` de l'archive avec un outil d'archivage.
-Les dépendances Python, modèles IA, dossiers Git et fichiers `.env*`, `.pem` et
-`.key` ne sont pas inclus. Les sources et le verrou `uv.lock` sont inclus ; les
-identifiants de services devront être reconfigurés séparément si nécessaire.
+`freeze_collection.py` fait partie de l'instantané : depuis une simple copie
+du dossier, on retrouve le script en extrayant
+`project/scripts/freeze_collection.py` avec un outil d'archivage.
 
-## Régénération vérifiée sans réseau
+Depuis Drive : téléchargez les sept parties, contrôlez-les avec
+`SHA256SUMS.parts`, concaténez-les dans l'ordre, puis contrôlez l'archive
+reconstituée avec `SHA256SUMS` avant de la restaurer comme ci-dessus.
+`RESTAURER.txt`, rangé avec les parties, accompagne cette restauration.
 
-Le contrôle suivant utilise les modules du **projet restauré**, bloque les
-sockets réseau et régénère la bibliothèque avec les photos restaurées :
+## Régénérer la bibliothèque sans réseau
+
+Ce contrôle utilise les modules du **projet restauré**, bloque le réseau et
+régénère la bibliothèque avec les photos restaurées :
 
 ```bash
 # L'environnement Python doit contenir les dépendances du projet.
-.venv/bin/python scripts/verify_collection_snapshot.py /tmp/pokeprice-restored /tmp/pokeprice-recovery-check
+uv run python scripts/verify_collection_snapshot.py /tmp/collection-restauree /tmp/controle-restauration
 ```
 
-Le dossier de résultat doit lui aussi être inexistant. Ce contrôle est lié à
-l'instantané actuel : ses assertions attendent les comptes et corrections
-validés ci-dessous. Le script de contrôle a été ajouté après la capture ; il se
-trouve dans le projet courant. Pour une régénération ultérieure sans ce script,
-adapter les chemins du manifeste vers `project/` et `photos/<album-id>/`, puis
-utiliser la commande `library` du projet restauré.
+Le dossier de résultat doit lui aussi être inexistant. Les assertions du script
+attendent les comptes et corrections de cet instantané. Le script a été ajouté
+après la capture : il est dans le projet courant, pas dans l'instantané. Sans
+lui, adaptez les chemins du manifeste vers `project/` et `photos/<album-id>/`,
+puis utilisez la commande `library` du projet restauré.
 
-Résultat de l'exercice déjà effectué :
+## Les vérifications faites
+
+**Restauration et régénération locales** (Python 3.13.2) :
 
 | Contrôle | Résultat |
 | --- | ---: |
@@ -81,15 +94,24 @@ Résultat de l'exercice déjà effectué :
 
 Les photos des entrées exclues sont conservées. Les CSV et données JSON
 régénérés sont identiques, hormis les chemins des rapports déplacés par la
-restauration. Octillery 58/127, Kirlia 51/127, Capidextre 35/100,
-Fossile Crâne 120/127 et PokéNav 81/106 sont contrôlés explicitement.
+restauration. Octillery 58/127, Kirlia 51/127, Capidextre 35/100, Fossile Crâne
+120/127 et PokéNav 81/106 sont contrôlés explicitement. Le résultat comprend
+aussi un échantillon de 20 exemplaires et leurs photos, utilisé pour
+l'[évaluation des logiciels existants](EVALUATION.md).
 
-Preuve : [validation.json](../outputs/evaluation/step0/recovery-check/validation.json).
-La restauration et la régénération ont été exécutées avec Python 3.13.2.
-Le résultat comprend aussi un échantillon de 20 exemplaires et leurs photos,
-utilisé pour l'[évaluation](EVALUATION.md).
+**Restauration depuis Drive**, le 12 octobre 2026, avec le remote rclone
+`gdrive` : les sept parties téléchargées passent `SHA256SUMS.parts`, l'archive
+reconstituée passe `SHA256SUMS`, `freeze_collection.py verify` et `restore`
+contrôlent 368 fichiers, et la régénération sans réseau redonne le tableau
+ci-dessus (401 vignettes identiques).
 
-Pour une prochaine capture, `python scripts/freeze_collection.py create`
-produit un nouveau dossier daté et vérifie son contenu. Les snapshots et les
-installations d'évaluation sont exclus pour éviter de les archiver à nouveau.
-Un nouvel instantané ne remplace pas celui-ci.
+Les preuves de ces deux contrôles (`validation.json`,
+`validation-drive-2026-10-12.json`) sont conservées hors du dépôt public, dans
+`outputs/evaluation/step0/recovery-check/`.
+
+## Faire un nouvel instantané
+
+`python scripts/freeze_collection.py create` produit un nouveau dossier daté et
+vérifie son contenu. Les instantanés et les installations d'évaluation en sont
+exclus, pour ne pas les archiver à nouveau. Un nouvel instantané ne remplace pas
+celui-ci.

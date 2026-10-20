@@ -15,9 +15,10 @@ from collections import Counter
 from .ocr import CardOCRResult
 
 PROTOCOL = "energy-gate-v1"
-# On the six binders of 14 October (1,305 pockets, DINOv2 small): 162/164 basic
-# Energies gated and no other card, Double Énergie Incolore included, which a
-# margin of 0.08 still lets through. See ROADMAP M3.
+# On six binders (1,305 pockets, DINOv2 small): 162/164 basic Energies gated and
+# no other card, while a margin of 0.08 still let a Double Énergie Incolore
+# through. Leave-one-out protocol and results: scripts/eval_energy_gate.py and
+# docs/BANC-RECONNAISSANCE.md.
 MARGIN = 0.10
 MIN_REFERENCES = 20
 TYPES = {

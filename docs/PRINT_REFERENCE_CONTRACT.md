@@ -1,17 +1,14 @@
-# M1.1 — Contrat des observations, de la résolution et des cotations
+# Contrat du référentiel des impressions
 
-Version du contrat : **1.1**, 13 octobre 2026 (révision après revue : §3, §5,
-§6, §7, §8). **Implémentation partielle en mode audit ; M1.1 non réceptionné.**
-Explication sans détail technique : [guide fonctionnel](PRINT_REFERENCE_GUIDE.md). État et limites :
-[PRINT_REFERENCE_IMPLEMENTATION.md](PRINT_REFERENCE_IMPLEMENTATION.md).
+> **Pour qui :** toute personne qui fait évoluer le référentiel des impressions, ou veut connaître ses règles exactes.
+> **Vous y trouverez :** les informations et leurs autorités, les observations, le périmètre et les preuves, l'identité de prix, le contrat du résolveur, la conservation des cotations, les attestations humaines, la reproductibilité, et les scénarios de réception C01 à C20.
+> **Statut :** version 1.1 du contrat, en vigueur ; mise en œuvre partielle, en mode audit, non réceptionnée. Historique des versions en bas de page. L'explication sans détail technique et l'état de la mise en œuvre sont dans le [guide du référentiel](PRINT_REFERENCE_GUIDE.md).
 
-Ce document définit le comportement à livrer ; depuis la révision 1.1, M2
-n’attend plus sa réception. Il précise
-[la proposition M1.1](PRINT_REFERENCE_PROPOSAL.md) après la consultation
-`20261013-021806-b4b77c1f` (Claude Opus, Gemini, DeepSeek, Mistral).
-La consultation a revu le design ; elle n’a pas certifié les faits Pokémon
-ni les produits Cardmarket. Les décisions ci-dessous sont celles retenues
-pour l’implémentation, avec leurs critères de réception.
+Ce document définit le comportement attendu du référentiel (le jalon M1.1 de la
+[feuille de route](ROADMAP.md)) et ses critères de réception. Les contrôles
+automatiques (jalon M2) n'attendent pas cette réception : ils confrontent leurs
+propositions aux candidats et preuves de ce contrat là où une règle couvre la
+carte.
 
 ## 1. Informations et autorités distinctes
 
@@ -393,3 +390,13 @@ n’est pas masquée pour respecter un quota de cartes à examiner.
 et leur portée explicite, l’audit explique tous les changements de sélection,
 et une restauration reproduit une décision historique. Ce document seul ne
 déclare ni ces scénarios exécutés ni M1.1 livré.
+
+## Historique des versions
+
+- **1.1 — 13 octobre 2026.** Révision après revue des sections 3, 5, 6, 7 et 8 ;
+  les contrôles automatiques (M2) n'attendent plus la réception du référentiel.
+  Le contrat précise la [proposition d'origine](archive/PRINT_REFERENCE_PROPOSAL-2026-10-13.md)
+  après une relecture par plusieurs modèles (Claude Opus, Gemini, DeepSeek,
+  Mistral). Cette relecture a revu la conception ; elle n'a certifié ni les
+  faits Pokémon ni les produits Cardmarket.
+- **1.0 — 13 octobre 2026.** Première version.

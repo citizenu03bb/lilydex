@@ -1,96 +1,179 @@
-# Déploiement Internet (Oracle Cloud Always Free & VPS)
+# Héberger Lilydex
 
-Configuration d'hébergement permanent avec isolation stricte des secrets. Un [tunnel HTTPS Cloudflare temporaire](TUNNEL.md) reste utilisable pendant le développement local.
+> **Pour qui :** toute personne qui installe ou exploite Lilydex sur un serveur.
+> **Vous y trouverez :** l'architecture, l'installation pas à pas, la mise à jour, la façon de lancer une commande sur le serveur, l'option vision et les vérifications après une mise en ligne.
+> **Statut :** en vigueur. Les choix sont expliqués dans les fiches [0002](decisions/0002-oracle-cloud-serveur-fait-foi.md), [0003](decisions/0003-drive-depuis-le-portable-chiffre.md) et [0009](decisions/0009-torch-cpu-arm.md).
 
-## Architecture retenue (0 € / mois)
+Lilydex tourne sur un serveur Linux derrière Caddy, qui fournit HTTPS. La base
+du serveur fait foi ; le portable du mainteneur rapatrie les sauvegardes et
+garde seul l'accès à Google Drive.
 
-- **Serveur :** Instance **Oracle Cloud (OCI) Always Free** sous Ubuntu 24.04 LTS (`VM.Standard.A1.Flex` ARM Ampere 1 à 4 OCPU / 6 à 24 Go RAM, ou `VM.Standard.E2.1.Micro` AMD 1 Go RAM + 2 Go swap), disque persistant de 47 à 100 Go. Alternatives VPS dédiées chiffrées en octobre 2026 : Scaleway `STARDUST1-S` IPv6 (~1,10 € TTC/mois), Netcup `VPS piko G11s` 1 vCore / 1 Go / 30 Go SSD (~2,25 € TTC/mois), Hetzner `CX23` (~6,59 € TTC/mois).
-- **HTTPS direct sans frais de domaine :** Caddy en frontal sur les ports `80`/`443` avec un sous-domaine gratuit pointant en `A` vers l'IP publique OCI ([deSEC.io](https://desec.io) en `.dedyn.io` ou [DuckDNS](https://www.duckdns.org) en `.duckdns.org`), et certificat Let's Encrypt automatique.
-- **Cloisonnement des secrets :**
-  - **Aucun jeton OAuth Google Drive (`rclone.conf`) ni identifiant de dossier Drive (`POKEPRICE_DRIVE_FOLDER`)** n'est copié sur le serveur cloud.
-  - L'adresse de contact (`POKEPRICE_CONTACT_EMAIL`) et le nom du responsable du traitement (`POKEPRICE_CONTROLLER_NAME`) affichés sur la page « À propos » sont lus dans ce même fichier, jamais versionnés dans le dépôt public. `oci-sync-secrets.sh` réécrit le fichier entier : il les reprend de `~/.env` du portable.
-  - Le provisionnement limite la conservation du journal systemd (adresses IP des visiteurs) à trois mois, et le service de sauvegarde applique chaque nuit les durées de conservation des données clients (`purge`) avant l'archive.
-  - Seule la clé `GEMINI_API_KEY` (ou `GOOGLE_API_KEY`) et `POKEPRICE_HOST` résident sur le serveur dans `/etc/pokeprice/pokeprice.env` (`root:pokeprice`, mode `0640`), transférés de machine à machine par flux SSH chiffré sans jamais s'afficher en clair.
-  - Le serveur exécute `backup-daily` chaque nuit à 03 h (`Europe/Paris`) dans `/srv/pokeprice/backups` (avec restauration de contrôle et rétention des 7 derniers ZIP). Chaque nuit à 03 h 15, le portable rapatrie par SSH la dernière archive vérifiée du serveur (`pokeprice-drive-backup.timer`, commande `backup-server-drive`), en contrôle le SHA-256 et la restauration, puis l'envoie sur Google Drive, dont il garde seul le jeton. Il ne fabrique jamais d'archive depuis sa base `data/inventory`, périmée depuis le 16 octobre 2026 (voir [DAILY-BACKUPS.md](DAILY-BACKUPS.md)).
+## L'architecture
 
-## Fichiers et scripts fournis (`deploy/`)
+| Élément | Choix |
+|---|---|
+| Serveur | Oracle Cloud, offre gratuite (Always Free) : instance ARM Ampere `VM.Standard.A1.Flex` (1 à 4 cœurs, 6 à 24 Go de mémoire) ou AMD `VM.Standard.E2.1.Micro` (1 Go, plus 2 Go d'échange) ; disque de 47 à 100 Go. L'option vision demande l'instance ARM. |
+| Système | Oracle Linux 8 ou 9 (utilisateur `opc`) ou Ubuntu 22.04 ou 24.04 (utilisateur `ubuntu`) : les scripts gèrent les deux. |
+| HTTPS | Caddy sur les ports 80 et 443, certificat Let's Encrypt automatique, sous-domaine gratuit pointé en `A` vers l'adresse du serveur ([deSEC](https://desec.io) en `.dedyn.io` ou [DuckDNS](https://www.duckdns.org) en `.duckdns.org`). |
+| Application | Service systemd `pokeprice`, sous l'utilisateur `pokeprice`, code dans `/opt/pokeprice`, données dans `/srv/pokeprice/inventory`, écoute sur `127.0.0.1:3820`. |
+| Sauvegardes | Chaque nuit sur le serveur, rapatriées et copiées chiffrées sur Drive par le portable : voir [Sauvegardes](DAILY-BACKUPS.md). |
 
-- `deploy/pokeprice.service` : service applicatif (`User=pokeprice`, `ProtectSystem=strict`, `ProtectHome=true`, cookie HTTPS `--secure-cookie`, hôte autorisé `${POKEPRICE_HOST}`, base et photos sous `/srv/pokeprice/inventory`).
-- `deploy/pokeprice-backup.service` et `.timer` : sauvegarde quotidienne vérifiée (`backup-daily`) sous `/srv/pokeprice/backups`, avec rétention des 7 dernières archives quotidiennes.
-- `deploy/Caddyfile.example` : modèle HTTPS et proxy local vers `127.0.0.1:3820`.
-- `deploy/oci-provision.sh` : provisionnement idempotent d'Ubuntu 24.04 sur OCI (fuseau `Europe/Paris`, swap 2 Go, ouverture des ports `80`/`443` dans `iptables` local OCI, installation de Caddy et `uv`, création de l'utilisateur `pokeprice` et de `/srv/pokeprice`).
-- `deploy/oci-sync-secrets.sh` : transfert direct (`stdin` SSH, `set +x`, `umask 0077`) de `GEMINI_API_KEY` depuis `~/.env` vers `/etc/pokeprice/pokeprice.env` sans affichage.
-- `deploy/oci-deploy.sh` : synchronisation des seuls fichiers suivis par Git (`git ls-files`), installation du `.venv` avec les options `web` et `vision` (voir [Option vision](#option-vision-contrôle-dédition-et-porte-énergie)), restauration initiale de la dernière archive vérifiée `data/backups/daily-*.zip`, activation de `systemd` et Caddy, puis test de `/health`.
-- `deploy/pokeprice-drive-backup.service` et `.timer` (unités utilisateur du portable) : `backup-server-drive --host opc@<IP_OCI>`, soit rapatriement SSH de la dernière `daily-*.zip` du serveur dans `data/oci-backups/oci-daily-*.zip`, contrôle SHA-256 et restauration, puis copie Drive retéléchargée et restaurée.
-- `deploy/oci-pull-backup.sh` : raccourci manuel de `backup-server-pull` (ou de `backup-server-drive` avec `--push-drive`). Il rapatrie la dernière sauvegarde quotidienne du serveur dans `data/oci-backups/oci-daily-*.zip`, avec contrôle SHA-256 et restauration de contrôle.
+Autres hébergeurs possibles, sur un petit serveur privé payant : Scaleway
+`STARDUST1-S` en IPv6 (environ 1,10 € TTC par mois), Netcup `VPS piko G11s`,
+1 cœur, 1 Go, 30 Go (environ 2,25 €), Hetzner `CX23` (environ 6,59 €).
+*Conditions de mesure : prix relevés en octobre 2026.*
 
-## Procédure d'installation
+## Où vivent les secrets
 
-Depuis le portable (après création de l'instance OCI, ouverture des ports TCP 80/443 dans la *Security List* OCI et création de l'enregistrement DNS `A`) :
+- **Sur le serveur**, dans `/etc/pokeprice/pokeprice.env` (propriétaire
+  `root:pokeprice`, mode `0640`), et nulle part ailleurs :
+  - `GEMINI_API_KEY` (ou `GOOGLE_API_KEY`), pour la lecture des photos ;
+  - `POKEPRICE_HOST`, le nom de domaine accepté par l'application ;
+  - `POKEPRICE_CONTACT_EMAIL` et `POKEPRICE_CONTROLLER_NAME`, l'adresse de
+    contact et le nom du responsable du traitement affichés sur la page
+    « À propos ». Ils ne sont jamais versionnés.
+- **Sur le portable seulement** : le jeton Google Drive (configuration
+  rclone, `rclone.conf`), l'identifiant du dossier Drive et la clé de chiffrement des
+  sauvegardes. Aucun n'est copié sur le serveur.
+
+`deploy/oci-sync-secrets.sh` réécrit le fichier du serveur en entier à partir
+du `~/.env` du portable, par un flux SSH chiffré, sans jamais afficher un
+secret.
+
+## Installer un serveur
+
+Avant de commencer : créez l'instance, ouvrez les ports TCP 80 et 443 dans la
+*Security List* d'Oracle Cloud, et créez l'enregistrement DNS `A` de votre
+sous-domaine. Remplacez `<utilisateur>` par `opc` (Oracle Linux) ou `ubuntu`.
+
+1. **Préparer le système.** Fuseau `Europe/Paris`, 2 Go d'échange, Caddy,
+   `uv`, Git et rsync, pare-feu local (firewalld ou iptables) ouvert sur 80 et
+   443, utilisateur `pokeprice` et dossier `/srv/pokeprice`, journal système
+   conservé trois mois (il contient les adresses IP des visiteurs). Le script
+   peut être relancé sans risque.
+
+   ```bash
+   ssh <utilisateur>@<ip-serveur> 'sudo bash -s' < deploy/oci-provision.sh
+   ```
+
+2. **Transférer les secrets** depuis le `~/.env` du portable.
+
+   ```bash
+   ./deploy/oci-sync-secrets.sh <utilisateur>@<ip-serveur> <sous-domaine>
+   ```
+
+3. **Déployer.** Le script copie les seuls fichiers suivis par Git dans
+   `/opt/pokeprice`, installe Python et l'environnement avec les options `web`
+   et `vision`, marque les exécutables pour SELinux sur Oracle Linux, installe
+   les unités systemd et la configuration Caddy, puis vérifie `/health`.
+
+   ```bash
+   ./deploy/oci-deploy.sh <utilisateur>@<ip-serveur> <sous-domaine>
+   ```
+
+   **Si le serveur n'a aucune base**, le script crée une archive
+   quotidienne *à partir de la base du portable* (`data/inventory`) et la
+   restaure sur le serveur. C'est le bon comportement pour une toute première
+   installation. **Pour réinstaller un serveur perdu**, ne le laissez pas
+   faire : la base du portable est une ancienne copie. Restaurez d'abord sur le
+   serveur la dernière archive rapatriée (`data/oci-backups/oci-daily-<date>.zip`,
+   voir [Sauvegardes](DAILY-BACKUPS.md#restaurer-une-archive)) dans
+   `/srv/pokeprice/inventory`, puis lancez le déploiement, qui conserve une
+   base existante.
+
+4. **Installer la copie Drive sur le portable** : clé de chiffrement, fichier
+   `~/.config/pokeprice/backup.env` et unités utilisateur, comme le décrit
+   [Sauvegardes](DAILY-BACKUPS.md#installer-la-copie-drive-sur-le-portable).
+
+## Mettre à jour le code
+
+Relancez `oci-deploy.sh` : il recopie le code suivi par Git, réinstalle
+l'environnement, redémarre le service et garde la base. Avant une version qui
+migre la base, rapatriez et testez une sauvegarde :
 
 ```bash
-# 1. Provisionner le système distant
-ssh ubuntu@<IP_OCI> 'sudo bash -s' < deploy/oci-provision.sh
-
-# 2. Transférer la clé Gemini sans jamais l'afficher
-./deploy/oci-sync-secrets.sh ubuntu@<IP_OCI> <sous-domaine.dedyn.io>
-
-# 3. Déployer le code, restaurer la collection et activer HTTPS
-./deploy/oci-deploy.sh ubuntu@<IP_OCI> <sous-domaine.dedyn.io>
+./deploy/oci-pull-backup.sh <utilisateur>@<ip-serveur>
 ```
 
-Pour rapatrier et vérifier à la main la dernière sauvegarde du serveur, puis l'envoyer sur Google Drive :
+Restaurez ensuite l'archive rapatriée dans un dossier temporaire et lancez-y la
+nouvelle version : la migration se teste sur cette copie. Au démarrage, le
+serveur copie aussi sa base dans `/srv/pokeprice/backups/before-schema…` avant
+de la migrer.
+
+## Lancer une commande sur le serveur
+
+Sur le serveur, lancez toujours `pokeprice-manage` sous l'utilisateur
+`pokeprice`, avec le Python du déploiement et `--data` explicite :
 
 ```bash
-.venv/bin/python -m pokeprice.manage backup-server-pull --host opc@<IP_OCI>
-.venv/bin/python -m pokeprice.manage backup-server-drive --host opc@<IP_OCI> --rclone ~/.local/bin/rclone --remote gdrive
+sudo -u pokeprice env HOME=/srv/pokeprice /opt/pokeprice/.venv/bin/python -m pokeprice.manage --data /srv/pokeprice/inventory <commande>
 ```
 
-Installer ou mettre à jour les unités du portable (l'ancien `pokeprice-local-backup.timer`, qui sauvegardait la base périmée, est désactivé) :
+**Sans `--data`, la commande viserait `data/inventory` dans le dossier
+courant**, une autre base, vide : rien ne s'appliquerait à la collection, et
+une commande d'écriture créerait une base parasite. La liste des commandes est
+dans la [référence des commandes](COMMANDES.md#pokeprice-manage).
 
-```bash
-systemctl --user disable --now pokeprice-local-backup.timer
-install -m 0644 deploy/pokeprice-drive-backup.service deploy/pokeprice-drive-backup.timer ~/.config/systemd/user/
-systemctl --user daemon-reload
-systemctl --user enable --now pokeprice-drive-backup.timer
-```
+## Les fichiers de `deploy/`
 
-## Option vision (contrôle d’édition et porte énergie)
+| Fichier | Rôle |
+|---|---|
+| `oci-provision.sh` | Prépare le système (voir l'étape 1). |
+| `oci-sync-secrets.sh` | Transfère les secrets (`stdin` SSH, `set +x`, `umask 0077`), sans affichage. |
+| `oci-deploy.sh` | Déploie le code, l'environnement, la base initiale, les unités et Caddy. |
+| `pokeprice.service` | Le service de l'application. Durcissement : `User=pokeprice`, `NoNewPrivileges`, `PrivateTmp`, `ProtectSystem=strict` (système en lecture seule), `ProtectHome` (dossiers personnels masqués), écriture limitée à `/srv/pokeprice` ; cookie de session marqué `Secure` (`--secure-cookie`) ; seul l'hôte `${POKEPRICE_HOST}` est accepté. |
+| `pokeprice-backup.service` et `.timer` | Chaque nuit vers 3 h : durées de conservation des données clients (`purge`), puis archive vérifiée (`backup-daily`), 7 archives gardées. |
+| `Caddyfile.example` | HTTPS, compression, corps de requête limité à 9 Mo, relais vers `127.0.0.1:3820`. |
+| `pokeprice-drive-backup.service` et `.timer` | Unités utilisateur **du portable** : rapatriement, chiffrement et copie Drive à 3 h 15. |
+| `oci-pull-backup.sh` | Raccourci de `backup-server-pull` (ou de `backup-server-drive` avec `--push-drive`) : rapatrie et contrôle la dernière archive du serveur. |
 
-`oci-deploy.sh` installe l’option `vision` (torch, transformers) : elle sert au
-contrôle de l’édition par l’image dans l’application et à
-`scan --energy-gate`. Sans elle, l’application affiche « Contrôle indisponible
-sur ce serveur ». Sur aarch64 (instance A1), torch vient de l’index CPU de
-PyTorch (`[tool.uv.sources]` de `pyproject.toml`) : la roue PyPI y ajouterait
-plusieurs Go de bibliothèques CUDA inutiles sans GPU.
+## L'option vision
 
-Mesuré le 18 octobre 2026 sur l’instance A1 (2 OCPU, 10 Go de RAM) :
+`oci-deploy.sh` installe l'option `vision` (torch, transformers). Elle sert au
+contrôle de l'édition par l'image dans l'application et à `scan --energy-gate`
+([IA et vision](IA-VISION.md)). Sans elle, l'application affiche « Contrôle
+indisponible sur ce serveur ». Sur aarch64, torch vient de l'index « CPU » de
+PyTorch (`[tool.uv.sources]` dans `pyproject.toml`) : la roue de PyPI y
+ajouterait plusieurs Go de bibliothèques CUDA inutiles sans carte graphique.
 
-- **Disque :** le `.venv` pèse 912 Mo, le modèle `facebook/dinov2-small` 85 Mo
-  (`/srv/pokeprice/.cache/huggingface`).
-- **Mémoire :** 129 Mo pour le service au repos. Le modèle n’est chargé qu’au
-  premier contrôle. La banque de la porte énergie monte à 1,2 Go quand elle
-  calcule les vecteurs de toute la collection (1 767 exemplaires en 2 min 44),
-  puis 310 Mo et 2 s une fois son cache à jour. L’instance `E2.1.Micro`
-  (1 Go de RAM) ne suffit pas.
+| Mesure | Valeur |
+|---|---|
+| Environnement Python (`.venv`) | 912 Mo |
+| Modèle `facebook/dinov2-small` (`/srv/pokeprice/.cache/huggingface`) | 85 Mo |
+| Service au repos | 129 Mo de mémoire ; le modèle n'est chargé qu'au premier contrôle |
+| Banque de la porte énergie, premier calcul | 1,2 Go de mémoire, 2 min 44 pour 1 767 exemplaires |
+| Banque de la porte énergie, cache à jour | 310 Mo, 2 s |
+
+*Conditions de mesure : instance A1, 2 cœurs, 10 Go de mémoire, octobre 2026.*
+
+L'instance `E2.1.Micro` (1 Go) ne suffit pas.
 
 Les caches vivent sous `/srv/pokeprice/inventory/references` : images TCGdex
-de référence, vecteurs du contrôle d’édition (`dinov2-small.pt`) et de la porte
+de référence, vecteurs du contrôle d'édition (`dinov2-small.pt`) et de la porte
 énergie (`energy-bank.pt`). Ils ne sont pas dans les sauvegardes et se
-recalculent seuls. Les photos étant nommées par leur SHA-256, les vecteurs d’un
-autre poste restent valables ; pour éviter le premier calcul, reprendre ceux du
-portable :
+recalculent seuls. Les photos étant nommées par leur empreinte SHA-256, les
+vecteurs calculés sur un autre poste restent valables. Pour éviter le premier
+calcul, reprenez ceux du portable :
 
 ```bash
-rsync -az --ignore-existing --no-owner --no-group --rsync-path="sudo rsync" data/inventory/references/ opc@<IP_OCI>:/srv/pokeprice/inventory/references/
-rsync -az --no-owner --no-group --rsync-path="sudo rsync" ~/.cache/huggingface/hub/models--facebook--dinov2-small opc@<IP_OCI>:/srv/pokeprice/.cache/huggingface/hub/
-ssh opc@<IP_OCI> 'sudo chown -R pokeprice:pokeprice /srv/pokeprice/inventory/references /srv/pokeprice/.cache && sudo chmod -R go-rwx /srv/pokeprice/inventory/references /srv/pokeprice/.cache'
+rsync -az --ignore-existing --no-owner --no-group --rsync-path="sudo rsync" data/inventory/references/ <utilisateur>@<ip-serveur>:/srv/pokeprice/inventory/references/
+rsync -az --no-owner --no-group --rsync-path="sudo rsync" ~/.cache/huggingface/hub/models--facebook--dinov2-small <utilisateur>@<ip-serveur>:/srv/pokeprice/.cache/huggingface/hub/
+ssh <utilisateur>@<ip-serveur> 'sudo chown -R pokeprice:pokeprice /srv/pokeprice/inventory/references /srv/pokeprice/.cache && sudo chmod -R go-rwx /srv/pokeprice/inventory/references /srv/pokeprice/.cache'
 ```
 
-## Vérifications avant et après publication
+## Vérifier une mise en ligne
 
-- Vérifier `https://<domaine>/health`, la connexion HTTPS, l'expiration/déconnexion, le refus (`401`) sans session sur les cartes, photos, exports et sauvegardes, et un parcours Android réel.
-- Vérifier le timer avec `systemctl list-timers pokeprice-backup.timer` et le journal `journalctl -u pokeprice-backup.service`.
-- Côté portable : `systemctl --user list-timers pokeprice-drive-backup.timer` et `journalctl --user -u pokeprice-drive-backup.service`.
-- Avant une mise à jour de schéma, exécuter `./deploy/oci-pull-backup.sh opc@<IP_OCI>` et tester la migration sur une restauration de `data/oci-backups/oci-daily-*.zip`.
+- `https://<sous-domaine>/health` répond ; la connexion HTTPS, l'expiration et
+  la déconnexion fonctionnent ; sans session, les cartes, photos, exports et
+  sauvegardes de la gestion répondent `401` ; un parcours réel sur un téléphone
+  Android passe.
+- Sur le serveur : `systemctl list-timers pokeprice-backup.timer` et
+  `sudo journalctl -u pokeprice-backup.service`.
+- Sur le portable : `systemctl --user list-timers pokeprice-drive-backup.timer`
+  et `journalctl --user -u pokeprice-drive-backup.service`.
 
+## Pendant le développement
+
+Pour montrer l'application depuis le portable sans serveur, un tunnel HTTPS
+temporaire est possible ; il a servi avant l'hébergement permanent
+([document archivé](archive/TUNNEL-2026-10-05.md)).

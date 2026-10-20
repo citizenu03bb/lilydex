@@ -4,6 +4,8 @@ Run only through evaluate_agent_control.py. No arbitrary shell, URL or path is
 accepted from the model. This is a test adapter, not a supported MCP service.
 """
 
+import base64
+import hashlib
 import json
 import os
 import re
@@ -73,6 +75,19 @@ TOOLS = [
     ),
 ]
 
+PHOTO_TOOL = tool(
+    "photo",
+    "Consulter la photographie d'un exemplaire délégué : image et empreinte SHA-256.",
+    {"id": {"type": "string"}, "side": {"type": "string", "enum": ["front", "back"]}},
+    ["id"],
+)
+
+
+def available_tools():
+    return (
+        TOOLS[:3] + [PHOTO_TOOL] if os.environ.get("EVAL_TASK") == "review" else TOOLS
+    )
+
 
 def cli(*args):
     process = subprocess.run(
@@ -89,13 +104,13 @@ def cli(*args):
 
 def invoke(name, args):
     # Reject extra keys even if a client does not enforce the advertised schema.
-    spec = next((t for t in TOOLS if t["name"] == name), None)
+    spec = next((t for t in available_tools() if t["name"] == name), None)
     if not spec or set(args) - set(spec["inputSchema"]["properties"]):
         raise ValueError("Outil ou paramètres inconnus.")
     if name == "capabilities":
         return cli("capabilities")
     if name == "copies":
-        return cli(
+        result = cli(
             "copies",
             "--query",
             args.get("query", ""),
@@ -104,8 +119,68 @@ def invoke(name, args):
             "--offset",
             args.get("offset", 0),
         )
+        if os.environ.get("EVAL_TASK") == "review":
+            # The full detail remains available through copy; only shorten the
+            # discovery pages so the client can actually read the entire album.
+            result["items"] = [
+                {
+                    **{
+                        key: card[key]
+                        for key in (
+                            "id",
+                            "version",
+                            "name",
+                            "page",
+                            "position",
+                            "language",
+                            "stock_state",
+                            "has_front",
+                            "published",
+                        )
+                    },
+                    "valuation": {
+                        key: card["valuation"][key]
+                        for key in (
+                            "risk_cents",
+                            "risk_incomplete",
+                            "needs_review",
+                            "review_codes",
+                        )
+                    },
+                }
+                for card in result["items"]
+            ]
+        return result
     if name in ("copy", "draft"):
         return cli(name, args["id"])
+    if name == "photo":
+        side = args.get("side", "front")
+        if side not in ("front", "back"):
+            raise ValueError("Face de photo invalide.")
+        workspace = Path(os.environ.get("EVAL_WORKSPACE", "/work"))
+        path = workspace / ("photo-" + uuid.uuid4().hex + ".jpg")
+        cli("photo", args["id"], "--side", side, "--output", path)
+        body = path.read_bytes()
+        if len(body) > 8 * 1024 * 1024:
+            path.unlink()
+            raise ValueError("Photo trop volumineuse pour ce banc (8 Mo).")
+        metadata = {
+            "copy_id": args["id"],
+            "side": side,
+            "bytes": len(body),
+            "sha256": hashlib.sha256(body).hexdigest(),
+            "file": path.name,
+        }
+        return {
+            "content": [
+                {"type": "text", "text": json.dumps(metadata)},
+                {
+                    "type": "image",
+                    "mimeType": "image/jpeg",
+                    "data": base64.b64encode(body).decode(),
+                },
+            ]
+        }
     if name == "prepare_lot":
         result = cli(
             "prepare-lot",
@@ -168,31 +243,55 @@ def main():
         elif method == "ping":
             result = {}
         elif method == "tools/list":
-            result = {"tools": TOOLS}
+            result = {"tools": available_tools()}
         elif method == "tools/call":
             count += 1
             params = request["params"]
             try:
-                if count > 12:
-                    raise ValueError("Budget de 12 appels atteint.")
+                maximum = min(40, int(os.environ.get("EVAL_MAX_TOOL_CALLS", "12")))
+                if count > maximum:
+                    raise ValueError(f"Budget de {maximum} appels atteint.")
                 value = invoke(params["name"], params.get("arguments", {}))
-                result = {
-                    "content": [
-                        {"type": "text", "text": json.dumps(value, ensure_ascii=False)}
-                    ]
-                }
+                result = (
+                    value
+                    if params["name"] == "photo"
+                    else {
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": json.dumps(value, ensure_ascii=False),
+                            }
+                        ]
+                    }
+                )
             except (ValueError, KeyError, OSError, subprocess.TimeoutExpired) as exc:
                 result = {
                     "isError": True,
                     "content": [{"type": "text", "text": str(exc)}],
                 }
-            with Path("/work/tools.jsonl").open("a") as log:
+            # Images are delivered to the client, but the audit needs only
+            # their digest and the receipt, not another base64 copy.
+            logged = {
+                **result,
+                "content": [
+                    {key: value for key, value in block.items() if key != "data"}
+                    if block["type"] == "image"
+                    else block
+                    for block in result["content"]
+                ],
+            }
+            workspace = Path(os.environ.get("EVAL_WORKSPACE", "/work"))
+            with open(
+                workspace / "tools.jsonl",
+                "a",
+                opener=lambda p, flags: os.open(p, flags, 0o600),
+            ) as log:
                 log.write(
                     json.dumps(
                         {
                             "name": params["name"],
                             "arguments": params.get("arguments", {}),
-                            "result": result,
+                            "result": logged,
                         },
                         ensure_ascii=False,
                     )

@@ -1,0 +1,560 @@
+[
+ {
+  "copy_id": "banc-01",
+  "label": "Solochi 94/124 [fr]",
+  "name": "Solochi",
+  "number": "94/124",
+  "photo": "photos/banc-01.jpg",
+  "truth": {
+   "catalog_id": "bw6-94",
+   "language": "fr",
+   "foil": false,
+   "art_holo": false,
+   "stamp": false,
+   "reverse": false,
+   "fake": false,
+   "verified_variant": true
+  },
+  "tcgdex_name_en": "Deino"
+ },
+ {
+  "copy_id": "banc-02",
+  "label": "Chamallot 69/97 [fr]",
+  "name": "Chamallot",
+  "number": "69/97",
+  "photo": "photos/banc-02.jpg",
+  "truth": {
+   "catalog_id": "ex3-69",
+   "language": "fr",
+   "foil": false,
+   "art_holo": false,
+   "stamp": false,
+   "reverse": false,
+   "fake": false,
+   "verified_variant": true
+  },
+  "tcgdex_name_en": "Numel"
+ },
+ {
+  "copy_id": "banc-03",
+  "label": "Balbuto 52/101 [fr]",
+  "name": "Balbuto",
+  "number": "52/101",
+  "photo": "photos/banc-03.jpg",
+  "truth": {
+   "catalog_id": "ex5-52",
+   "language": "fr",
+   "foil": false,
+   "art_holo": false,
+   "stamp": false,
+   "reverse": false,
+   "fake": false,
+   "verified_variant": true
+  },
+  "tcgdex_name_en": "Baltoy"
+ },
+ {
+  "copy_id": "banc-04",
+  "label": "Baggaïd 74/99 [fr]",
+  "name": "Baggaïd",
+  "number": "74/99",
+  "photo": "photos/banc-04.jpg",
+  "truth": {
+   "catalog_id": "bw4-74",
+   "language": "fr",
+   "foil": true,
+   "art_holo": true,
+   "stamp": false,
+   "reverse": false,
+   "fake": false,
+   "verified_variant": true
+  },
+  "tcgdex_name_en": "Scrafty"
+ },
+ {
+  "copy_id": "banc-05",
+  "label": "Pikachu 5/12 [fr]",
+  "name": "Pikachu",
+  "number": "5/12",
+  "photo": "photos/banc-05.jpg",
+  "truth": {
+   "catalog_id": "2013bw-5",
+   "language": "fr",
+   "foil": false,
+   "art_holo": true,
+   "stamp": false,
+   "reverse": false,
+   "fake": false,
+   "verified_variant": true
+  },
+  "tcgdex_name_en": null
+ },
+ {
+  "copy_id": "banc-06",
+  "label": "Clic 75/114 [fr]",
+  "name": "Clic",
+  "number": "75/114",
+  "photo": "photos/banc-06.jpg",
+  "truth": {
+   "catalog_id": "bw1-75",
+   "language": "fr",
+   "foil": true,
+   "art_holo": false,
+   "stamp": false,
+   "reverse": true,
+   "fake": false,
+   "verified_variant": true
+  },
+  "tcgdex_name_en": "Klang"
+ },
+ {
+  "copy_id": "banc-07",
+  "label": "Baggiguane 10/12 [fr]",
+  "name": "Baggiguane",
+  "number": "10/12",
+  "photo": "photos/banc-07.jpg",
+  "truth": {
+   "catalog_id": "2013bw-10",
+   "language": "fr",
+   "foil": false,
+   "art_holo": true,
+   "stamp": false,
+   "reverse": false,
+   "fake": false,
+   "verified_variant": true
+  },
+  "tcgdex_name_en": null
+ },
+ {
+  "copy_id": "banc-08",
+  "label": "Aquali 12/64 [fr]",
+  "name": "Aquali",
+  "number": "12/64",
+  "photo": "photos/banc-08.jpg",
+  "truth": {
+   "catalog_id": "base2-12",
+   "language": "fr",
+   "foil": false,
+   "art_holo": true,
+   "stamp": false,
+   "reverse": false,
+   "fake": false,
+   "verified_variant": true
+  },
+  "tcgdex_name_en": "Vaporeon"
+ },
+ {
+  "copy_id": "banc-09",
+  "label": "Octillery 58/127 [fr]",
+  "name": "Octillery",
+  "number": "58/127",
+  "photo": "photos/banc-09.jpg",
+  "truth": {
+   "catalog_id": "pl1-58",
+   "language": "fr",
+   "foil": true,
+   "art_holo": false,
+   "stamp": false,
+   "reverse": true,
+   "fake": false,
+   "verified_variant": true
+  },
+  "tcgdex_name_en": "Octillery"
+ },
+ {
+  "copy_id": "banc-10",
+  "label": "Cacnea 47/100 [fr]",
+  "name": "Cacnea",
+  "number": "47/100",
+  "photo": "photos/banc-10.jpg",
+  "truth": {
+   "catalog_id": "ex14-47",
+   "language": "fr",
+   "foil": true,
+   "art_holo": true,
+   "stamp": true,
+   "reverse": false,
+   "fake": false,
+   "verified_variant": true
+  },
+  "tcgdex_name_en": "Cacnea"
+ },
+ {
+  "copy_id": "banc-11",
+  "label": "Celebi 29/40 [fr]",
+  "name": "Celebi",
+  "number": "29/40",
+  "photo": "photos/banc-11.jpg",
+  "truth": {
+   "catalog_id": "np-29",
+   "language": "fr",
+   "foil": false,
+   "art_holo": true,
+   "stamp": false,
+   "reverse": false,
+   "fake": false,
+   "verified_variant": true
+  },
+  "tcgdex_name_en": "Celebi"
+ },
+ {
+  "copy_id": "banc-12",
+  "label": "Brindibou 2/15 [fr]",
+  "name": "Brindibou",
+  "number": "2/15",
+  "photo": "photos/banc-12.jpg",
+  "truth": {
+   "catalog_id": "2022swsh-2",
+   "language": "fr",
+   "foil": false,
+   "art_holo": true,
+   "stamp": false,
+   "reverse": false,
+   "fake": false,
+   "verified_variant": true
+  },
+  "tcgdex_name_en": "Rowlet"
+ },
+ {
+  "copy_id": "banc-13",
+  "label": "Barboach 54/107 [it]",
+  "name": "Barboach",
+  "number": "54/107",
+  "photo": "photos/banc-13.jpg",
+  "truth": {
+   "catalog_id": "ex8-54",
+   "language": "it",
+   "foil": true,
+   "art_holo": true,
+   "stamp": true,
+   "reverse": false,
+   "fake": false,
+   "verified_variant": true
+  },
+  "tcgdex_name_en": "Barboach"
+ },
+ {
+  "copy_id": "banc-14",
+  "label": "Pikachu 78/110 [fr]",
+  "name": "Pikachu",
+  "number": "78/110",
+  "photo": "photos/banc-14.jpg",
+  "truth": {
+   "catalog_id": "ex13-78",
+   "language": "fr",
+   "foil": true,
+   "art_holo": true,
+   "stamp": true,
+   "reverse": false,
+   "fake": false,
+   "verified_variant": true
+  },
+  "tcgdex_name_en": "Pikachu"
+ },
+ {
+  "copy_id": "banc-15",
+  "label": "Scobolide 39/98 [fr]",
+  "name": "Scobolide",
+  "number": "39/98",
+  "photo": "photos/banc-15.jpg",
+  "truth": {
+   "catalog_id": "bw2-39",
+   "language": "fr",
+   "foil": false,
+   "art_holo": false,
+   "stamp": false,
+   "reverse": false,
+   "fake": false,
+   "verified_variant": true
+  },
+  "tcgdex_name_en": "Whirlipede"
+ },
+ {
+  "copy_id": "banc-16",
+  "label": "Kapoera 101/146 [fr]",
+  "name": "Kapoera",
+  "number": "101/146",
+  "photo": "photos/banc-16.jpg",
+  "truth": {
+   "catalog_id": "dp6-101",
+   "language": "fr",
+   "foil": false,
+   "art_holo": false,
+   "stamp": false,
+   "reverse": false,
+   "fake": false,
+   "verified_variant": true
+  },
+  "tcgdex_name_en": "Hitmontop"
+ },
+ {
+  "copy_id": "banc-17",
+  "label": "Vieil Ambre 84/100 [fr]",
+  "name": "Vieil Ambre",
+  "number": "84/100",
+  "photo": "photos/banc-17.jpg",
+  "truth": {
+   "catalog_id": "dp5-84",
+   "language": "fr",
+   "foil": false,
+   "art_holo": false,
+   "stamp": false,
+   "reverse": false,
+   "fake": false,
+   "verified_variant": true
+  },
+  "tcgdex_name_en": "Old Amber"
+ },
+ {
+  "copy_id": "banc-18",
+  "label": "Recherche d'énergie 86/100 [fr]",
+  "name": "Recherche d'énergie",
+  "number": "86/100",
+  "photo": "photos/banc-18.jpg",
+  "truth": {
+   "catalog_id": "ex14-86",
+   "language": "fr",
+   "foil": false,
+   "art_holo": false,
+   "stamp": false,
+   "reverse": false,
+   "fake": false,
+   "verified_variant": true
+  },
+  "tcgdex_name_en": "Energy Search"
+ },
+ {
+  "copy_id": "banc-19",
+  "label": "Super Bonbon 85/101 [fr]",
+  "name": "Super Bonbon",
+  "number": "85/101",
+  "photo": "photos/banc-19.jpg",
+  "truth": {
+   "catalog_id": "bw10-85",
+   "language": "fr",
+   "foil": false,
+   "art_holo": false,
+   "stamp": false,
+   "reverse": false,
+   "fake": false,
+   "verified_variant": true
+  },
+  "tcgdex_name_en": "Rare Candy"
+ },
+ {
+  "copy_id": "banc-20",
+  "label": "Cendre Sacrée 96/106 [fr]",
+  "name": "Cendre Sacrée",
+  "number": "96/106",
+  "photo": "photos/banc-20.jpg",
+  "truth": {
+   "catalog_id": "xy2-96",
+   "language": "fr",
+   "foil": false,
+   "art_holo": false,
+   "stamp": false,
+   "reverse": false,
+   "fake": false,
+   "verified_variant": true
+  },
+  "tcgdex_name_en": "Sacred Ash"
+ },
+ {
+  "copy_id": "banc-21",
+  "label": "Transfert 95/102 [fr]",
+  "name": "Transfert",
+  "number": "95/102",
+  "photo": "photos/banc-21.jpg",
+  "truth": {
+   "catalog_id": "base1-95",
+   "language": "fr",
+   "foil": false,
+   "art_holo": false,
+   "stamp": false,
+   "reverse": false,
+   "fake": false,
+   "verified_variant": true
+  },
+  "tcgdex_name_en": "Switch"
+ },
+ {
+  "copy_id": "banc-22",
+  "label": "Mudbray 061/100 C [en]",
+  "name": "Mudbray",
+  "number": "061/100 C",
+  "photo": "photos/banc-22.jpg",
+  "truth": {
+   "catalog_id": null,
+   "language": "en",
+   "foil": null,
+   "art_holo": null,
+   "stamp": null,
+   "reverse": null,
+   "fake": true,
+   "verified_variant": false
+  },
+  "tcgdex_name_en": null
+ },
+ {
+  "copy_id": "banc-23",
+  "label": "Gulpin 98/146 [en]",
+  "name": "Gulpin",
+  "number": "98/146",
+  "photo": "photos/banc-23.jpg",
+  "truth": {
+   "catalog_id": "dp6-98",
+   "language": "en",
+   "foil": null,
+   "art_holo": null,
+   "stamp": null,
+   "reverse": null,
+   "fake": false,
+   "verified_variant": false
+  },
+  "tcgdex_name_en": null
+ },
+ {
+  "copy_id": "banc-24",
+  "label": "Gliscor E4 62/111 [en]",
+  "name": "Gliscor E4",
+  "number": "62/111",
+  "photo": "photos/banc-24.jpg",
+  "truth": {
+   "catalog_id": "pl2-62",
+   "language": "en",
+   "foil": null,
+   "art_holo": null,
+   "stamp": null,
+   "reverse": null,
+   "fake": false,
+   "verified_variant": false
+  },
+  "tcgdex_name_en": null
+ },
+ {
+  "copy_id": "banc-25",
+  "label": "Charizard 4/130 [en]",
+  "name": "Charizard",
+  "number": "4/130",
+  "photo": "photos/banc-25.jpg",
+  "truth": {
+   "catalog_id": "base4-4",
+   "language": "en",
+   "foil": null,
+   "art_holo": null,
+   "stamp": null,
+   "reverse": null,
+   "fake": false,
+   "verified_variant": false
+  },
+  "tcgdex_name_en": null
+ },
+ {
+  "copy_id": "banc-26",
+  "label": "Gourgeist 077/203 [en]",
+  "name": "Gourgeist",
+  "number": "077/203",
+  "photo": "photos/banc-26.jpg",
+  "truth": {
+   "catalog_id": "swsh7-77",
+   "language": "en",
+   "foil": null,
+   "art_holo": null,
+   "stamp": null,
+   "reverse": null,
+   "fake": false,
+   "verified_variant": false
+  },
+  "tcgdex_name_en": null
+ },
+ {
+  "copy_id": "banc-27",
+  "label": "Zarbi K 58/64 [fr]",
+  "name": "Zarbi K",
+  "number": "58/64",
+  "photo": "photos/banc-27.jpg",
+  "truth": {
+   "catalog_id": "neo3-58",
+   "language": "fr",
+   "foil": null,
+   "art_holo": null,
+   "stamp": null,
+   "reverse": null,
+   "fake": false,
+   "verified_variant": false
+  },
+  "tcgdex_name_en": "Unown [K]"
+ },
+ {
+  "copy_id": "banc-28",
+  "label": "Fossile Crâne 120/127 [fr]",
+  "name": "Fossile Crâne",
+  "number": "120/127",
+  "photo": "photos/banc-28.jpg",
+  "truth": {
+   "catalog_id": "pl1-120",
+   "language": "fr",
+   "foil": null,
+   "art_holo": null,
+   "stamp": null,
+   "reverse": null,
+   "fake": false,
+   "verified_variant": false
+  },
+  "tcgdex_name_en": "Skull Fossil"
+ },
+ {
+  "copy_id": "banc-29",
+  "label": "Hypocean 70/146 [fr]",
+  "name": "Hypocean",
+  "number": "70/146",
+  "photo": "photos/banc-29.jpg",
+  "truth": {
+   "catalog_id": "dp6-70",
+   "language": "fr",
+   "foil": null,
+   "art_holo": null,
+   "stamp": null,
+   "reverse": null,
+   "fake": false,
+   "verified_variant": false
+  },
+  "tcgdex_name_en": "Seadra"
+ },
+ {
+  "copy_id": "banc-30",
+  "label": "PokéNav 81/106 [fr]",
+  "name": "PokéNav",
+  "number": "81/106",
+  "photo": "photos/banc-30.jpg",
+  "truth": {
+   "catalog_id": "ex9-81",
+   "language": "fr",
+   "foil": null,
+   "art_holo": null,
+   "stamp": null,
+   "reverse": null,
+   "fake": false,
+   "verified_variant": false
+  },
+  "tcgdex_name_en": "PokéNav"
+ },
+ {
+  "copy_id": "banc-31",
+  "label": "Méthode d'entraînement du Prof. Orme 79/101 [fr]",
+  "name": "Méthode d'entraînement du Prof. Orme",
+  "number": "79/101",
+  "photo": "photos/banc-31.jpg",
+  "truth": {
+   "catalog_id": "ex15-79",
+   "language": "fr",
+   "foil": null,
+   "art_holo": null,
+   "stamp": null,
+   "reverse": null,
+   "fake": false,
+   "verified_variant": false
+  },
+  "tcgdex_name_en": "Professor Elm's Training Method"
+ }
+]

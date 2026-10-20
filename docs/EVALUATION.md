@@ -1,12 +1,13 @@
-# Évaluation des applications de collection Pokémon
+# Évaluation des logiciels de collection existants
 
-Évaluation du 4 octobre 2026, sur des copies de données, après l'instantané
-et l'exercice de [restauration](RECOVERY.md).
+> **Pour qui :** toute personne qui se demande pourquoi Lilydex n'est pas construit sur un logiciel libre existant.
+> **Vous y trouverez :** la recommandation, ce qui a été testé, la comparaison avec les besoins de Lilydex, les constats par logiciel et la façon de reprendre les essais.
+> **Statut :** rapport daté du 4 octobre 2026, fait sur des copies de données, après l'[instantané initial](RECOVERY.md) et sa restauration. Il n'est pas tenu à jour ; la décision qui en découle est la [fiche 0001](decisions/0001-application-maison.md). Le projet s'appelait alors pokeprice.
 
 **Recommandation : compléter pokeprice avec une application de gestion légère,
 FastAPI et SQLite. Aucun des trois candidats n'est directement adapté à nos
 exemplaires physiques, à leurs corrections et au suivi de leur vente.**
-PokéCollect serait le candidat le plus intéressant à adapter si nous préférons
+PokéCollect serait le candidat le plus intéressant à adapter s'il fallait
 reprendre une interface et un scan existants, mais le fork resterait conséquent.
 Cette recommandation ne constitue pas une mise en œuvre de l'étape 2.
 
@@ -25,7 +26,7 @@ Le service Docker de la machine était inactif ; aucun service système n'a ét�
 installé ou démarré. Les serveurs d'essai écoutaient uniquement sur `127.0.0.1`.
 
 L'échantillon comprend **20 exemplaires**, avec trois Pikachu 5/12, deux Zarbi L,
-deux variantes d'Arbok, des cartes FR/EN/JP, cinq prix absents, des références et
+deux variantes d'Arbok, des cartes FR/EN/JA, cinq prix absents, des références et
 PV corrigés et une identité non résolue. Les exclusions sont dans un fichier
 séparé ; aucune carte au verso n'a été ajoutée au stock d'essai.
 
@@ -36,23 +37,23 @@ Les adaptations d'import sont des scripts autour des API existantes, sans
 modification fonctionnelle du code des candidats.
 
 Les 368 fichiers de l'instantané, dont les 80 photos, étaient inchangés après
-les essais : [contrôle d'intégrité](../outputs/evaluation/source_integrity.json).
+les essais : contrôle d'intégrité (`outputs/evaluation/source_integrity.json`, hors du dépôt public).
 Les mises à jour de documentation postérieures sont naturellement hors de cet
 instantané. Les données et preuves des essais restent dans `outputs/evaluation/`.
-Un [contrôle final](../outputs/evaluation/final-source-integrity.json) confirme
+Un contrôle final (`outputs/evaluation/final-source-integrity.json`, hors du dépôt public) confirme
 que seuls le README et la roadmap archivés ont changé, pour documenter ces
 résultats ; les autres fichiers et les 80 photos restent identiques.
 
-## Comparaison selon nos besoins
+## Comparaison avec les besoins de Lilydex
 
 | Critère | Bindarr | PokéCollect | PokéCollector, lecture du code uniquement |
 | --- | --- | --- | --- |
-| Exemplaire durable et provenance de nos corrections | Entrées distinctes, mais import/export incomplet et pas d'historique adapté | Fiche distincte par carte ; import de provenance et historique à ajouter | Quantités regroupées selon les attributs ; modèle à compléter pour chaque exemplaire |
+| Exemplaire durable et provenance des corrections | Entrées distinctes, mais import/export incomplet et pas d'historique adapté | Fiche distincte par carte ; import de provenance et historique à ajouter | Quantités regroupées selon les attributs ; modèle à compléter pour chaque exemplaire |
 | Photo personnelle propre à chaque exemplaire | Photo commune à l'édition | 20 chemins de photos distincts ; affichage actuellement défectueux | Photo commune à une édition pour un utilisateur |
-| Langues, états, variantes et emplacement | Langues/variantes possibles ; grades à remapper ; placement par API supplémentaire | Langues/états/variantes possibles ; positions en collection conservées | Modèle riche ; fidélité à nos données non testée |
+| Langues, états, variantes et emplacement | Langues/variantes possibles ; grades à remapper ; placement par API supplémentaire | Langues/états/variantes possibles ; positions en collection conservées | Modèle riche ; fidélité aux données de la collection non testée |
 | Hors catalogue et prix réellement inconnu | Références locales possibles ; prix absent converti en zéro dans l'import essayé | Référence manuelle possible ; cinq prix absents conservés | Cartes personnalisées possibles ; import/prix non testés |
 | Consultation privée et plusieurs rôles | API authentifiée ; illustrations accessibles sans connexion ; rôles à adapter | API authentifiée ; images accessibles sans connexion ; compte de gestion unique | Photos protégées côté API ; rôles et déploiement non testés |
-| Sauvegarde complète et export HTML autonome | SQLite vérifié ; fichiers photo à sauvegarder séparément ; notre HTML à intégrer | ZIP restauré avec toutes les tables et 40 images ; notre HTML à intégrer | Non testé |
+| Sauvegarde complète et export HTML autonome | SQLite vérifié ; fichiers photo à sauvegarder séparément ; export HTML de pokeprice à intégrer | ZIP restauré avec toutes les tables et 40 images ; export HTML de pokeprice à intégrer | Non testé |
 | Réservations, vente par exemplaire, frais et retours | À développer | À développer | Journal d'échanges/transactions utile ; parcours complet et réservation non validés |
 
 Une API qui exige une connexion n'assure pas à elle seule la confidentialité des
@@ -65,7 +66,7 @@ de sécurité exhaustif.
 ## Bindarr : bon rangement, migration insuffisante
 
 L'import JSON adapté à son format accepte les 20 entrées. Le même import relancé
-porte le total à **40** : il faut ajouter notre correspondance d'identifiants
+porte le total à **40** : il faut ajouter la correspondance d'identifiants
 et un import relançable sans doublons. Les emplacements et notes fournis dans
 ce payload ne sont pas repris : **0/20** pour chacun. Des appels supplémentaires
 ont permis de placer les 20 entrées dans leurs albums, pages et pochettes.
@@ -73,7 +74,7 @@ Cela distingue une limite de l'import natif d'une impossibilité de rangement.
 
 L'export JSON contient les références et emplacements, mais ne restitue ni
 l'identifiant de l'entrée physique, ni les notes, ni la devise. Un aller-retour
-par cet export ne suffit donc pas à conserver notre source de vérité.
+par cet export ne suffit donc pas à conserver la source de vérité de la collection.
 L'édition de Kirlia par la route de modification d'un exemplaire a répondu
 HTTP 200 tout en conservant l'ancien identifiant catalogue et l'ancien numéro :
 cette route ne permet pas la correction d'identité essayée.
@@ -83,7 +84,7 @@ EUR importés ont pris la devise USD par défaut. Deux Arbok de variantes
 différentes ont également partagé la valeur de la première édition mise en
 cache. Ces défauts concernent le parcours de migration essayé ; ils ne prouvent
 pas que tous les fournisseurs ou tous les parcours de prix de Bindarr se
-comportent ainsi. Notre provenance, date, métrique, devise et variante devront
+comportent ainsi. La provenance, date, métrique, devise et variante devront
 être conservées explicitement.
 
 La photo personnelle est attachée à l'identifiant de l'édition. Charger une
@@ -97,7 +98,7 @@ sauvegarde. La recherche « Pikachu » dans l'interface française donne une
 édition et **3 exemplaires**, ce qui convient à la consultation des doublons.
 L'interface de Bindarr n'a été validée que sur ordinateur pendant cet essai.
 
-Preuve : [bindarr-results.json](../outputs/evaluation/bindarr-results.json).
+Preuve : bindarr-results.json (`outputs/evaluation/bindarr-results.json`, hors du dépôt public).
 Code examiné : `backend/src/routes/importExport.js`,
 `backend/src/routes/collection.js`, `backend/src/backup.js` dans la version figée.
 
@@ -111,12 +112,12 @@ La recherche « Pikachu » affiche les trois exemplaires séparément.
 Le schéma de création ignore cependant les identifiants TCGdex fournis :
 **0 conservé sur 18 transmis**. Un enrichissement ultérieur pourrait retrouver
 un identifiant en ligne, mais ne remplace pas une migration fidèle de nos
-références déjà vérifiées. Nos identifiants d'origine, statut de validation,
+références déjà vérifiées. Les identifiants d'origine, statut de validation,
 PV et historique de corrections n'ont pas de champs dédiés dans ce parcours.
 Les notes de correction sont conservées, ce qui ne constitue pas un historique
 structuré. Un adaptateur et une évolution du schéma restent nécessaires.
 
-Les applications ne connaissent pas notre statut `unresolved`. L'énergie
+Les applications ne connaissent pas le statut `unresolved`. L'énergie
 encore à vérifier possède une référence et un prix candidats dans les sources :
 les transmettre comme une fiche ordinaire rend cette incertitude invisible.
 L'import de production devra garder le statut et exclure le prix candidat des
@@ -142,15 +143,15 @@ L'interface est en allemand/anglais ; une traduction française reste à faire.
 Le compte de gestion est unique dans la configuration standard. Les rôles
 lecteur/gestionnaire, le cycle de vente et l'export HTML autonome sont à ajouter.
 
-Preuves : [pokecollect-results.json](../outputs/evaluation/pokecollect-results.json),
-[diagnostic des images](../outputs/evaluation/pokecollect-image-regression.json),
-[capture en largeur mobile](../outputs/evaluation/screenshots/pokecollect-owned-mobile.png).
+Preuves : pokecollect-results.json (`outputs/evaluation/pokecollect-results.json`, hors du dépôt public),
+diagnostic des images (`outputs/evaluation/pokecollect-image-regression.json`, hors du dépôt public),
+capture en largeur mobile (`outputs/evaluation/screenshots/pokecollect-owned-mobile.png`, hors du dépôt public).
 
 ## PokéCollector : journal intéressant, photos trop regroupées
 
 La collection regroupe les quantités par utilisateur, édition, variante,
 langue, état et autres attributs. Une nouvelle acquisition compatible augmente
-une quantité. Cela diffère de notre besoin d'un identifiant durable pour chaque
+une quantité. Cela diffère du besoin d'un identifiant durable pour chaque
 carte physique, même si deux cartes ont les mêmes attributs.
 
 `CollectionCardPhoto` impose une photo par couple utilisateur/édition : deux
@@ -158,7 +159,7 @@ exemplaires de la même édition partagent cette photo. Le journal `Trade` /
 `TradeItem` apporte des mouvements entrants/sortants, quantités, valeurs, notes
 et références à l'origine. Il serait utile pour les échanges et ventes simples,
 mais ne démontre pas à lui seul la réservation, les frais, l'expédition et
-les retours dont nous avons besoin.
+les retours nécessaires.
 Source : [modèles de la version examinée](https://github.com/Git-Romer/pokecollector/blob/d18db13770cebf6cc800ea9569bec3f37b9df533/backend/models.py).
 
 Ces écarts de modèle sont visibles sans installation. Ils ne justifient pas
@@ -177,8 +178,8 @@ hébergé. Ce contrôle porte sur les versions figées, sans analyse juridique.
 | --- | --- | --- |
 | Adapter Bindarr | Migration fidèle, photos par exemplaire, corrections d'identité, prix/provenance, rôles privés et ventes | Le gain du rangement et de SQLite compense mal les changements de modèle nécessaires |
 | Adapter PokéCollect | Import fidèle, historique, rôles/photos privés, français, ventes, export autonome ; bug photo et licence à résoudre | Meilleur candidat si son scan et son interface deviennent prioritaires ; PostgreSQL reste une dépendance |
-| Adapter PokéCollector | Exemplaires et photos distincts, migration/historique, parcours de vente à compléter ; exploitation PostgreSQL et AGPL | Journal utile, mais pas de raccourci démontré pour notre inventaire |
-| Compléter pokeprice | Backend, interface de gestion, comptes et ventes ; réutiliser les données, corrections, photos et export autonome | Direction recommandée pour notre périmètre actuel |
+| Adapter PokéCollector | Exemplaires et photos distincts, migration/historique, parcours de vente à compléter ; exploitation PostgreSQL et AGPL | Journal utile, mais pas de raccourci démontré pour l'inventaire de la collection |
+| Compléter pokeprice | Backend, interface de gestion, comptes et ventes ; réutiliser les données, corrections, photos et export autonome | Direction recommandée pour le périmètre de l'époque |
 
 Il reste du développement dans toutes les options. L'essai n'établit pas
 qu'un fork serait plus rapide qu'une application ciblée. L'estimation initiale
@@ -191,7 +192,10 @@ peu simultanément, avec stockage persistant et sauvegardes. PostgreSQL deviendr
 pertinent si les contraintes évoluent. Voir les
 [usages recommandés par SQLite](https://www.sqlite.org/whentouse.html).
 
-## Prochain jalon proposé
+## Prochain jalon proposé à l'époque
+
+*Cette section décrit la suite telle qu'elle était prévue le 4 octobre 2026 ;
+elle a été réalisée depuis (voir le [journal](JOURNAL.md)).*
 
 Étape 2 de la [roadmap](ROADMAP.md) : définir les éditions, exemplaires durables,
 corrections, prix sourcés et mouvements de stock, puis importer les **401 cartes**
@@ -202,7 +206,7 @@ l'interface ou de choisir l'hébergement.
 
 La copie externe de l'instantané reste à effectuer. Les essais n'incluent ni
 audit de sécurité complet, ni caméra/OCR, ni fonctionnement hors connexion des
-candidats, ni déploiement Internet, ni test sur Android physique. Notre export
+candidats, ni déploiement Internet, ni test sur Android physique. L'export
 HTML autonome existant reste conservé et sa régénération hors réseau est validée.
 
 ## Reprendre ou auditer les essais
@@ -216,7 +220,7 @@ bases jetables** et ne doivent pas être lancées contre la collection réelle.
 Ils sont des preuves d'essai local, pas un importateur de production.
 
 L'échantillon et ses hashes sont dans
-[step0/recovery-check/sample/](../outputs/evaluation/step0/recovery-check/sample/).
+step0/recovery-check/sample/ (`outputs/evaluation/step0/recovery-check/sample/`, hors du dépôt public).
 Les résultats JSON et sauvegardes permettent d'examiner les constats sans
 relancer les applications. Les serveurs temporaires sont arrêtés à la fin de
 l'évaluation ; aucune application n'est publiée sur Internet.
