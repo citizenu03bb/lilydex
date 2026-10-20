@@ -14,7 +14,8 @@ en couleur.
 **Décision.** Une illustration mate ne vaut jamais preuve de Standard quand
 une reverse possible vaut cher. Si la version Foil vaut au moins le seuil de
 valeur (10 € par défaut) ou n'a pas de prix connu, la règle demande un examen
-physique, sous un éclairage rasant qui fait apparaître une bande arc-en-ciel.
+physique, sous un éclairage rasant qui fait apparaître une bande arc-en-ciel sur une
+surface foil (photo de référence : Drackhaus 64/132).
 Sous le seuil, une reverse proposée Standard est tolérée.
 
 **Conséquences.**

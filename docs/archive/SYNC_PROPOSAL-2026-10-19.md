@@ -5,7 +5,7 @@
 Statut : proposition d'architecture du 19 octobre 2026 (code à `479a4b3`, schéma
 18 dans le code, bases en schéma 17), non implémentée. Ce document précise et
 étend le chantier « Synchronisation portable ↔ lilydex » de la
-[roadmap M5](../ROADMAP.md#m5--exploitation-1-à-3-jours-selon-lhébergement), en
+[roadmap M5](../ROADMAP.md#m5--exploitation-1-à-3-jours), en
 couvrant à la fois le rapatriement rapide, la simulation locale sans risque et
 la promotion contrôlée vers le serveur de production.
 

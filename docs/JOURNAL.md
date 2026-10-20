@@ -38,9 +38,14 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-10-16
 
-- Le serveur Oracle Cloud devient la référence de la collection : la journée
-  de travail faite sur le portable y est reportée, puis le portable ne sert
-  plus qu'aux essais et aux sauvegardes.
+- Le serveur Oracle Cloud devient la référence de la collection
+  ([fiche 0002](decisions/0002-oracle-cloud-serveur-fait-foi.md)). Une journée
+  de travail faite sur le portable seulement (65 cartes importées,
+  51 identifications, 832 relevés, 680 photos redécoupées) y est reportée en
+  remplaçant la base du serveur par celle du portable : c'était possible sans
+  perte parce que 22 tables sur 24 étaient identiques à la sauvegarde
+  d'origine ; les comptes et les sessions du serveur ont été conservés. Depuis,
+  le portable ne sert plus qu'aux essais et aux sauvegardes.
 - Code publié sous licence MIT, après un [audit de sécurité](AUDIT-SECURITE.md),
   dans un dépôt neuf sans l'historique d'avant la réécriture du 12 octobre.
 - Vitrine publique livrée en quatre tranches : rôle client, publication et
@@ -58,17 +63,51 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-10-13
 
+- Gemini retenu seul lecteur de texte ; l'agent Antigravity écarté (69 à
+  117 s et plus de 50 000 jetons pour une photo)
+  ([fiche 0004](decisions/0004-gemini-seul-lecteur.md)).
 - Contrôles indépendants (jalon M2), tranches 1 à 3 : lecture de la finition
   et proposition de variante, lecture à la saisie avec le banc d'essai en
   test de non-régression, contrôle de l'édition par l'image (DINOv2).
 - Référentiel des impressions en mode audit (jalon M1.1) : contrat, socle, et
   premier cas de bout en bout, EX Fantômes Holon 78 en français
   ([guide du référentiel](PRINT_REFERENCE_GUIDE.md)).
-- Audit des variantes Foil clos : toutes les Foil confirmées à l'œil.
+- Audit des variantes Foil clos : les 8 Foil signalées par une alerte du
+  relevé confirmées une à une, 14 autres dans la journée, les 35 dernières de
+  l'album Platinium en groupe sur observation (reverse, absence de tampon
+  constatée). Dix sont des reverses Noir & Blanc que TCGdex ne répertorie pas.
+- File « À examiner » : 31 cartes sur 403 (7,7 %) au seuil de 10 €, toutes en
+  attente d'un prix ; elle en comptait 34 à 10 € et 57 à 5 € avant le
+  nettoyage du jour. La borne de 15 % du critère de M1 est abandonnée.
+- Premier cas de bout en bout du référentiel : le Pikachu 78/110 français
+  d'EX Fantômes Holon a une correspondance Cardmarket prouvée (produit 277048,
+  reverse). L'encyclopédie officielle française n'a aucune carte de cette
+  extension, et Cardmarket refuse la capture automatisée : la preuve a coûté
+  environ une heure, plus deux minutes d'enregistrement de page.
+- Le référentiel ne bloque plus M2 : son premier paquet de règles, anglais, ne
+  résout aucune des 404 cartes de la collection (395 FR, 6 EN, 2 JA, 1 IT), et
+  les 27 cartes des familles de régression sont françaises ou italienne.
+- Prix saisi à la main pour les cartes sans cote TCGdex, et verdict humain sur
+  le produit Cardmarket associé par TCGdex, avec détection des produits
+  partagés entre numéros voisins ([valeur en jeu](VALUATION.md)).
 
 ## 2026-10-12
 
-- Valeur prudente et file « À examiner » (jalon M1) ([valeur en jeu](VALUATION.md)).
+- Point de départ de la feuille de route du MVP : 405 exemplaires dans
+  4 classeurs, 401 identités confirmées, 12 cartes relevées en détail,
+  1 estimation de vente, 1 lot réservé. Écarts relevés : aucune valeur en jeu
+  calculée (23 Rare Holo marquées Foil, sous-cotées d'environ 330 €),
+  contrôles du banc non branchés, reverses indétectables, tunnel instable
+  (cinq coupures en deux heures).
+- Valeur prudente et file « À examiner » (jalon M1) ([valeur en jeu](VALUATION.md)) :
+  57 cartes sur 405 (14 %) dans la file au seuil de 10 €, les quatre éditions
+  de valeur attendues comprises. Avec la finition observée et la confirmation
+  physique, la file passe à 73 sur 405 (18 %) : aucun contrôle n'est masqué
+  pour tenir la borne de 15 %.
+- Catégorie Standard ou Foil calculée depuis les observations physiques et les
+  métadonnées de l'édition, imposée aussi par le serveur ; les corrections
+  anciennes sans finition reviennent dans la file sans être déclarées
+  erronées. Audit en lecture seule : `scripts/audit_variant_categories.py`.
 - Premier relevé TCGdex de toute la collection.
 - Restauration de l'instantané initial depuis Drive, vérifiée
   ([instantané](RECOVERY.md)).

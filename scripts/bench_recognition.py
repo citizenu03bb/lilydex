@@ -505,7 +505,7 @@ def run_agent(name):
 REFUSE = {
     ("Gliscor E4", "62/111"): "haut coupé : le nom n’est pas sur la photo",
 }
-# Minimum scores per measure (ROADMAP M2), without the photos to refuse.
+# Minimum scores per measure (docs/BANC-RECONNAISSANCE.md), without the photos to refuse.
 # Number and edition by Gemini cost time, not money, when missed: their floor is
 # the lowest of four live runs (13 October: 24, 24, 23, 25 and 20, 21, 18, 22),
 # below the known noise. Safety measures keep the 7 October scores, never lowered.
