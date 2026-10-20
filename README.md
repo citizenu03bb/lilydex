@@ -108,7 +108,7 @@ Ouvrez <http://127.0.0.1:3820/gestion> et créez le compte administrateur (mot d
 caractères au moins) ; la racine du site est la vitrine. La collection part vide : base,
 photos et sauvegardes vivent dans `data/`, que git ignore. Pour la remplir, l'ouvrir au
 téléphone sur votre Wi-Fi ou importer vos classeurs numérisés, suivez le
-[guide de l'application](docs/APP.md#démarrage).
+[guide de l'application](docs/APP.md#démarrer).
 
 La lecture des photos est facultative. Elle demande une clé `GEMINI_API_KEY` ou
 `GOOGLE_API_KEY` dans `~/.env` ou dans un `.env` du dossier de lancement ; la clé reste sur le

@@ -68,6 +68,8 @@ daté la quitte, il est versé ici dans le même commit.
 ## 2026-10-14
 
 - Six nouveaux classeurs numérisés et importés.
+- `repair-pages` appliqué : 210 exemplaires des classeurs Diamond & Pearl et
+  Platinium reculent d'une page (la couverture avait été comptée comme page 1).
 - Tesseract écarté sur mesure ; la langue est contrôlée par cohérence
   ([fiche 0005](decisions/0005-langue-sans-tesseract.md)).
 
@@ -118,7 +120,10 @@ daté la quitte, il est versé ici dans le même commit.
   métadonnées de l'édition, imposée aussi par le serveur ; les corrections
   anciennes sans finition reviennent dans la file sans être déclarées
   erronées. Audit en lecture seule : `scripts/audit_variant_categories.py`.
-- Premier relevé TCGdex de toute la collection.
+- Premier relevé TCGdex de toute la collection (`pokeprice-manage prices`) :
+  379 cartes ; 20 sans cote TCGdex.
+- Noms dans six langues pour la recherche : premier passage de
+  `pokeprice-manage names`, 1 136 requêtes TCGdex en 7 min 37 s, puis aucune.
 - Restauration de l'instantané initial depuis Drive, vérifiée
   ([instantané](RECOVERY.md)).
 - Historique git réécrit pour en retirer les données personnelles.
@@ -127,6 +132,8 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-10-07
 
+- Filtres du lien « Voir les offres Cardmarket » (langue, `minCondition`,
+  `isReverseHolo`) vérifiés sur Cardmarket.
 - Banc d'essai de reconnaissance : Gemini, Tesseract, DINOv2, CLIP et des
   agents Claude mesurés sur des cartes vérifiées
   ([banc d'essai](BANC-RECONNAISSANCE.md)).
@@ -148,7 +155,23 @@ daté la quitte, il est versé ici dans le même commit.
   ([document archivé](archive/TUNNEL-2026-10-05.md)).
 - Verso et aide à l'évaluation de l'état ([aide à l'état](CONDITION-ASSESSMENT.md)).
 - Améliorations pour les six classeurs suivants
-  ([document archivé](archive/IMPROVEMENTS-2026-10-05.md)).
+  ([document archivé](archive/IMPROVEMENTS-2026-10-05.md)) : saisie en série
+  avec reprise, alertes de doublon, vue par édition, préparation des photos
+  par lot avec annulation, brouillon d'annonce, panneau des sauvegardes.
+  Réception : tests sur bases temporaires, reprise après rafraîchissement dans
+  Chrome, vue par édition avec filtre et adresse, rendu mobile à 390 × 844 sans
+  débordement ; la série sur un vrai téléphone Android reste à réceptionner
+  (jalon M3).
+- Parcours de lot explicite (sélection gardée entre pages et recherches,
+  retrait individuel, récapitulatif mobile, brouillon sans réserver), vérifié
+  dans le navigateur.
+- Saisie assistée par photo essayée sur une copie : une vraie lecture Gemini de
+  Gourgeist retrouve `077/203`, anglais, 120 PV, et le catalogue propose
+  Evolving Skies. Capture par la caméra, réglages photo et parcours verso et
+  état confirmés à l'usage sur Android et avec une webcam. Le format de
+  l'évaluation de l'état a été validé sur deux mires synthétiques, reconnues
+  sans carte ; la fiabilité des états proposés sur de vraies cartes n'est pas
+  mesurée.
 - Sauvegardes quotidiennes et copie externe de l'instantané initial sur Drive.
   Les copies hors site iront dans un dossier Google Drive privé : une seule
   permission, celle du compte propriétaire, aucun partage ; ce contrôle est
@@ -161,7 +184,12 @@ daté la quitte, il est versé ici dans le même commit.
 - Trois logiciels existants évalués ; une application maison est retenue
   ([évaluation](EVALUATION.md), [fiche 0001](decisions/0001-application-maison.md)).
 - Première application de gestion locale (FastAPI et SQLite) et premier import
-  de trois classeurs, réimport sans doublon.
+  de trois classeurs : 401 exemplaires, puis réimport sans ajout (401 reconnus).
+  Comptes par album 111 / 110 / 180, 347 éditions, 400 identités confirmées,
+  22 sans prix, une non résolue ; vignettes identiques à la bibliothèque
+  d'origine. La sauvegarde finale, restaurée dans une base distincte, garde les
+  dix tables métier et les 401 photos identiques. Essais d'interface sur une
+  copie ; premier essai concluant sur un vrai téléphone Android par le Wi-Fi.
 
 ## 2026-10-03
 
