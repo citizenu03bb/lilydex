@@ -563,7 +563,7 @@ def main():
     lookup_p = subparsers.add_parser(
         "lookup", help="Recherche directe du prix d'une carte par nom"
     )
-    lookup_p.add_argument("name", help="Nom français de la carte (ex: Darkrai)")
+    lookup_p.add_argument("name", help="Nom de la carte, cherché dans le catalogue français puis anglais (ex: Darkrai)")
     lookup_p.add_argument(
         "number", nargs="?", default=None, help="Numéro ou fraction (ex: 4/106)"
     )

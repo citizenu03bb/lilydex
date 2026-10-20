@@ -31,6 +31,7 @@ ROOT = Path(__file__).resolve().parent.parent
 PAGES_VIVANTES = {
     "AGENTS.md",
     "CONTRIBUTING.md",
+    "docs/COMMANDES.md",
     "docs/GLOSSAIRE.md",
     "docs/IA-VISION.md",
     "docs/README.md",

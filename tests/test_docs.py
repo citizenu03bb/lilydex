@@ -52,3 +52,12 @@ def test_private_patterns_are_reported(tmp_path, monkeypatch):
     patterns.write_text("# commentaire\nlilydex\\.duckdns\n")
     monkeypatch.setenv("POKEPRICE_PRIVATE_PATTERNS", str(patterns))
     assert [p.pattern for p in check_docs.motifs_prives()] == ["lilydex\\.duckdns"]
+
+
+def test_command_reference_is_up_to_date():
+    spec = importlib.util.spec_from_file_location("gen_commandes", ROOT / "scripts/gen_commandes.py")
+    gen = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(gen)
+    assert (ROOT / "docs/COMMANDES.md").read_text(encoding="utf-8") == gen.generer(), (
+        "Référence des commandes périmée : lancer python scripts/gen_commandes.py"
+    )

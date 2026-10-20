@@ -20,6 +20,7 @@ quand, est dans le [journal](JOURNAL.md).
 | Page | Ce que vous y trouvez |
 |---|---|
 | [Guide de l'application](APP.md) | Démarrer, saisir des cartes, photos, variantes, prix, lots, imports et exports |
+| [Référence des commandes](COMMANDES.md) | Chaque commande et ses options, générées depuis le code |
 | [Valeur en jeu et file d'examen](VALUATION.md) | Comment Lilydex repère les cartes qui méritent une décision humaine |
 | [Aide à l'état](CONDITION-ASSESSMENT.md) | Le verso et la proposition d'état |
 | [Vitrine](CATALOGUE.md) | La partie publique : publication, prix affiché, clients et réservations |
