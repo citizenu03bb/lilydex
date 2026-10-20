@@ -47,6 +47,58 @@ les photos et les documents de référence archivés. Les versions de schéma
 1 à 12 sont migrées explicitement. Sauvegarder avant de démarrer une nouvelle
 version qui migre la base.
 
+## Les parcours principaux
+
+**Numériser un classeur.** Photographiez chaque page, puis lancez :
+
+```bash
+uv run pokeprice scan <dossier-photos> --grid 3x3 -o <album.csv>
+```
+
+La commande découpe chaque page en pochettes, lit chaque carte et la rapproche
+du catalogue TCGdex ; toutes ses options sont dans la
+[référence des commandes](COMMANDES.md#pokeprice-scan). Ajoutez ensuite
+l'album au manifeste et importez-le avec `pokeprice-manage import`. Un
+réimport n'ajoute aucun doublon et n'écrase aucune correction faite dans
+l'application. Les corrections des rapports de numérisation d'origine passent
+par `pokeprice scan --corrections` ; celles faites dans l'application vivent
+dans la base et s'exportent avec `pokeprice-manage export`.
+
+**Saisir des cartes une à une ou en série** (**Collection → Ajouter une
+carte**, ou **Saisie en série**) : photo, lecture Gemini, choix de l'édition,
+recto et verso. Sur ordinateur, la caméra affiche une mire de cadrage ; un
+téléphone peut servir de webcam (montage plus bas). Le serveur recadre,
+redresse et équilibre chaque photo ; l'original est toujours conservé.
+
+**Vérifier la variante.** Une carte est **Standard** si elle est telle
+qu'imprimée d'origine, Rare Holo comprise, et **Foil** si elle brille
+davantage : reverse (fond holographique hors illustration) ou illustration
+holo sur une carte normalement mate. Le symbole de rareté ne suffit pas à
+trancher ; la fiche indique la version standard selon TCGdex. Un **tampon**
+imprimé sur l'illustration (une promo, par exemple « EX Fantômes Holon ») se
+saisit dans son propre champ. Voir le [glossaire](GLOSSAIRE.md#les-variantes).
+
+**Relever le prix et estimer la vente**, depuis la fiche ou sur une sélection :
+
+- **Relever le prix (TCGdex)** enregistre un relevé daté (prix bas, moyennes,
+  tendance) ; la tendance devient la référence, avec des alertes à partir de
+  2 € (variante douteuse, marché instable, peu d'offres) ;
+- **Voir les offres Cardmarket** ouvre la page filtrée sur la langue, l'état
+  et la variante ;
+- **Estimer le prix de vente** : collez les offres copiées depuis cette page ;
+  l'estimation est la médiane des offres au même état.
+
+Le prix de référence est une tendance, pas un prix de vente.
+
+**Vendre.** Sélectionnez des exemplaires, créez un lot, préparez l'annonce
+(dossier ZIP avec photos), puis suivez réservation, vente, frais et retours.
+
+**Sauvegarder.** Le serveur fait une sauvegarde vérifiée chaque nuit, et une
+copie chiffrée part sur Google Drive : voir [Sauvegardes](DAILY-BACKUPS.md).
+Avant toute opération de masse, faites une sauvegarde complète avec
+`pokeprice-manage backup`, sur la base visée (sur le serveur, avec `--data`,
+comme le décrit [Héberger Lilydex](DEPLOYMENT.md)).
+
 ## Référentiel M1.1 en mode audit
 
 L’ajout et la correction permettent de saisir la finition observée, l’état du
