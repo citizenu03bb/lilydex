@@ -47,7 +47,7 @@ DATE = re.compile(
     re.IGNORECASE,
 )
 RELATIF = re.compile(
-    r"\b(?:désormais|pas encore|reste à|depuis le|à ce jour|dorénavant)\b", re.IGNORECASE
+    r"\b(?:désormais|pas encore|reste à|depuis le \d{1,2}|à ce jour|dorénavant)\b", re.IGNORECASE
 )
 LIEN = re.compile(r"\]\(([^)\s]+)\)")
 ZONE_PERMISE = re.compile(r"conditions de mesure", re.IGNORECASE)
