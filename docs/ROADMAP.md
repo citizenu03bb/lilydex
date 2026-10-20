@@ -114,7 +114,7 @@ leur correspond ([fiche 0011](decisions/0011-referentiel-mode-audit.md)).
 preuves d'impression et de marché sur leur périmètre, le paquet fonctionne hors
 ligne et une restauration reproduit une décision historique. Une consultation
 de modèles ne certifie pas les faits. Voir le [contrat](PRINT_REFERENCE_CONTRACT.md)
-et l'[état de la mise en œuvre](PRINT_REFERENCE_IMPLEMENTATION.md).
+et l'[état de la mise en œuvre](PRINT_REFERENCE_GUIDE.md#ce-qui-est-mis-en-œuvre).
 
 ### M2 — Contrôles automatiques indépendants (3 à 5 jours)
 

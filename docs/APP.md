@@ -561,7 +561,7 @@ décisions, les cotations liées et leurs événements, et les pièces rangées 
 fois chacune dans `reference_documents/` (PDF, JSON ou HTML). Une pièce
 manquante ou altérée est signalée ; aucun téléchargement automatique ne
 rétablit son statut de preuve. Détails et limites :
-[état de la mise en œuvre](PRINT_REFERENCE_IMPLEMENTATION.md).
+[état de la mise en œuvre](PRINT_REFERENCE_GUIDE.md#ce-qui-est-mis-en-œuvre).
 
 ### Repérer les cartes à examiner
 

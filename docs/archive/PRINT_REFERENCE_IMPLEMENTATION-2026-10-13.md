@@ -1,5 +1,7 @@
 # Livraison du socle M1.1 — 13 octobre 2026
 
+> **Archive.** Rapport de la première livraison du référentiel. L'état actuel, ses limites et la procédure de preuve sont dans le [guide du référentiel](../PRINT_REFERENCE_GUIDE.md#ce-qui-est-mis-en-œuvre). Le texte ci-dessous est conservé tel qu'il était ; seuls les liens ont été mis à jour.
+
 **Mode audit. M1.1 reste ouvert.** Le contrat (révision 1.1) reste la cible de
 réception. La couverture et la preuve de marché ne sont pas déduites de tests
 synthétiques.
@@ -131,7 +133,7 @@ sont les pièces réalistes.
 | Indomptable | 81–90 | Une version brillante dans la liste ; 85 = Slowking Prime | Ne décrit pas à elle seule la zone qui brille |
 | Destinées Futures | 74 | Scrafty rare Holo dans le jeu de base | Autres distributions non fermées |
 
-Les [listes officielles de départ](archive/PRINT_REFERENCE_PROPOSAL-2026-10-13.md#sources-de-départ)
+Les [listes officielles de départ](PRINT_REFERENCE_PROPOSAL-2026-10-13.md#sources-de-départ)
 sont archivées hors paquet, une fois par SHA-256. Le JSON contient faits,
 localisateurs, dates d’accès, périmètres et empreintes. Il ne prétend pas que
 ces documents anglais certifient les impressions françaises ou italiennes,

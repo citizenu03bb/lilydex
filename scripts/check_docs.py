@@ -40,6 +40,7 @@ PAGES_VIVANTES = {
     "docs/COMMANDES.md",
     "docs/GLOSSAIRE.md",
     "docs/IA-VISION.md",
+    "docs/PRINT_REFERENCE_GUIDE.md",
     "docs/README.md",
     "docs/ROADMAP.md",
     "docs/VALUATION.md",
