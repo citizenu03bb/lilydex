@@ -9,6 +9,12 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-10-21
 
+- Lecture locale par Ollama rétablie : Gemma 4 raisonnait avant de répondre
+  et épuisait son budget de jetons, si bien que `pokeprice scan` renvoyait des
+  réponses vides ; la requête désactive ce raisonnement. Sur deux pages de
+  classeur, le prompt multilingue n'invente plus de nom français pour des
+  énergies anglaises et lit les cartes françaises comme avant.
+
 - Identification assistée corrigée (issue #2) : une lecture Gemini n'efface
   plus un champ déjà rempli ni l'observation du tampon, une édition unique et
   exacte est présélectionnée, une édition choisie sans confirmation garde
