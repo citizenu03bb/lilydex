@@ -190,12 +190,21 @@ sans photo, ou partir d'une photo :
    la langue, les PV et le texte d'un éventuel tampon ; l'application cherche
    l'extension dans TCGdex, sans chercher de prix. Une photo dont le recto
    n'est pas lisible est refusée : reprenez-la. La lecture est une
-   proposition : un champ qu'elle ne lit pas garde sa valeur, l'observation du
-   tampon déjà notée est conservée, et ses doutes de lecture et défauts
-   visibles s'ajoutent au champ **Notes**, à la suite des notes existantes.
+   proposition :
+   - un champ qu'elle ne lit pas garde la valeur affichée dans le formulaire,
+     et la recherche dans le catalogue part de cette valeur ;
+   - l'observation du tampon déjà notée est conservée, sauf si Gemini lit un
+     tampon sur une carte notée « absence constatée » : le texte lu est alors
+     proposé et l'observation repasse à « non examiné », à vérifier en main ;
+   - une référence lue différente de celle du formulaire vide l'extension,
+     qui ne correspond plus ;
+   - ses doutes de lecture et défauts visibles s'ajoutent au champ **Notes**,
+     à la suite des notes existantes.
 4. **Choisissez une édition proposée**, par son nom ou son illustration.
-   Quand une seule édition correspond exactement à la référence complète, elle
-   est présélectionnée. La comparaison montre **Votre exemplaire** et **Carte
+   Quand une seule édition correspond exactement au nom imprimé et à la
+   référence complète, elle est présélectionnée ; une édition trouvée parce
+   que le nom lu omet le suffixe Delta (δ) est seulement proposée. Cliquer de
+   nouveau sur l'édition choisie rétablit ses valeurs après une modification. La comparaison montre **Votre exemplaire** et **Carte
    du catalogue** côte à côte, avec un zoom indépendant jusqu'à 400 %.
    Comparez l'illustration, puis cochez la confirmation : l'identité est alors
    **confirmée**. Sans la case cochée, l'édition choisie renseigne l'extension

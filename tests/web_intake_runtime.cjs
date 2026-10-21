@@ -206,4 +206,19 @@ assert.equal(zooms, 1);
 assert.equal(intakeState.chosen, "pl2-73");
 assert.equal(form.elements.set_name.value, "Autre");
 assert.ok(button.selected);
+
+// Choosing the same edition again after an edit restores its values.
+form.elements.set_name.value = "Typo";
+button.click();
+assert.equal(intakeState.chosen, "pl2-73");
+assert.equal(form.elements.set_name.value, "Autre");
+
+// An edition without a set name clears the extension: the server compares it.
+form.elements.set_name.value = "Ancienne extension";
+const unnamed = { ...candidate, id: "pl2-74", set_name: "", number: "74/111" };
+run("showIntakeCandidates(result)", {
+  result: { candidates: [unnamed], exact: true, message: "Comparez." },
+});
+assert.equal(intakeState.chosen, "pl2-74");
+assert.equal(form.elements.set_name.value, "");
 console.log("Intake identification checks passed");

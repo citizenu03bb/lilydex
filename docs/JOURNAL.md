@@ -16,10 +16,12 @@ daté la quitte, il est versé ici dans le même commit.
   énergies anglaises et lit les cartes françaises comme avant.
 
 - Identification assistée corrigée (issue #2) : une lecture Gemini n'efface
-  plus un champ déjà rempli ni l'observation du tampon, une édition unique et
-  exacte est présélectionnée, une édition choisie sans confirmation garde
-  extension et identifiant catalogue en « à vérifier », et les remarques de la
-  lecture rejoignent les notes ([Ajouter une carte](APP.md#ajouter-une-carte)).
+  plus un champ déjà rempli et ne réinitialise plus un tampon noté, sauf pour
+  proposer un tampon qu'elle lit ; une édition unique, au nom et à la
+  référence exacts, est présélectionnée ; une édition choisie sans
+  confirmation garde extension et identifiant catalogue en « à vérifier » ;
+  les remarques de la lecture rejoignent les notes
+  ([Ajouter une carte](APP.md#ajouter-une-carte)).
 
 ## 2026-10-20
 

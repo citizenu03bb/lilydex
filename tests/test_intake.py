@@ -386,6 +386,28 @@ def test_existing_intake_reads_blank_fields_from_copy_and_saves_notes(client):
     assert saved["identification_status"] == "review"
 
 
+def test_unread_fields_fall_back_on_the_entry_before_the_stored_copy(client):
+    """What the user corrected in the dialog wins over the stored copy."""
+    service = client.app.state.intake
+    queries = []
+
+    def remember(query):
+        queries.append(query)
+        return lookup(query)
+
+    service.lookup = remember
+    service.reader = lambda data: (
+        {**OBSERVATION, "number": "", "language": "unknown", "hp": None},
+        "{}",
+    )
+    original = client.post("/api/copies", json=values(client, set_name="")).json()
+    client.put(f"/api/copies/{original['id']}/photo?version=1", content=photo())
+    token = client.post(f"/api/copies/{original['id']}/intake").json()["token"]
+    entry = {"name": "Gourgeist", "number": "078/203", "language": "fr", "hp": 110}
+    assert client.post(f"/api/intake/{token}/analyze", json=entry).status_code == 200
+    assert queries == [entry]
+
+
 def test_existing_intake_detects_concurrent_correction(client):
     original = client.post("/api/copies", json=values(client)).json()
     token = client.post(f"/api/copies/{original['id']}/intake").json()["token"]

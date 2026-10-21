@@ -246,10 +246,14 @@ def catalogue_candidates(query, get_json=None):
                 }
             )
         incomplete = len(summaries) > 8
+        # An omitted Delta suffix may suggest an edition, never preselect it.
+        same_name = len(candidates) == 1 and catalogue_name_key(
+            name
+        ) == catalogue_name_key(candidates[0]["name"])
         return {
             "candidates": candidates,
-            # One edition, a complete reference and no truncated search.
-            "exact": len(candidates) == 1 and not incomplete and "/" in number,
+            # One edition, its exact name, a complete reference, no truncated search.
+            "exact": same_name and not incomplete and "/" in number,
             "message": (
                 "Recherche limitée : précisez la référence complète."
                 if incomplete
@@ -438,7 +442,7 @@ class IntakeService:
             self.persist(token, owner)
         return result
 
-    def analyze(self, token, owner):
+    def analyze(self, token, owner, current=None):
         draft = self.draft(token, owner)
         if draft["photo"] is None:
             raise ValueError("Ajoutez une photo du recto pour la lecture.")
@@ -456,8 +460,16 @@ class IntakeService:
             self.reading.add(owner)
         try:
             observation, raw = self.reader(draft["photo"])
-            # An unreadable field falls back on what the stored copy already says.
-            known = draft["existing"] or {}
+            # An unreadable field falls back on the entry as the user left it,
+            # then on what the stored copy already says.
+            known = {
+                **(draft["existing"] or {}),
+                **{
+                    k: v
+                    for k, v in (current or {}).items()
+                    if v not in ("", None, "unknown")
+                },
+            }
             query = {
                 k: observation[k]
                 if observation[k] not in ("", None, "unknown")

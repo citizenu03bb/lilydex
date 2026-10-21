@@ -201,6 +201,15 @@ class IntakeQuery(Model):
     hp: int | None = Field(default=None, ge=0, le=5000)
 
 
+class IntakeEntry(Model):
+    """The entry as shown when a reading starts: fallback for unread fields."""
+
+    name: str = Field(default="", max_length=256)
+    number: str = Field(default="", max_length=80)
+    language: str = Field(default="unknown", pattern=r"^(?:[a-z]{2,3}|unknown)$")
+    hp: int | None = Field(default=None, ge=0, le=5000)
+
+
 class IntakeSave(CardCreate):
     chosen_catalog_id: str | None = Field(default=None, max_length=120)
     human_confirmed: bool = False
@@ -1514,9 +1523,13 @@ def create_app(
         return {"discarded": True}
 
     @app.post("/api/intake/{token}/analyze")
-    def intake_analyze(token: str, user=Depends(editor)):
+    def intake_analyze(
+        token: str, entry: IntakeEntry | None = None, user=Depends(editor)
+    ):
         try:
-            return intake.analyze(token, user["id"])
+            return intake.analyze(
+                token, user["id"], entry.model_dump() if entry else None
+            )
         except RuntimeError as exc:
             raise HTTPException(502, str(exc)) from None
 

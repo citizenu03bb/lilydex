@@ -3188,13 +3188,14 @@ function intakeReading(current, observation) {
   next.notes = intakeNotes(current.notes || "", observation);
   return next;
 }
-// Choosing an edition fills the entry; a value the catalogue lacks is kept.
+// Choosing an edition fills the entry; a value the catalogue lacks is kept,
+// except the extension, which the server compares with the edition's own.
 function intakeCandidateFields(current, candidate) {
   return {
     ...current,
     name: candidate.printed_name || candidate.name || current.name,
     number: candidate.printed_number || candidate.number || current.number,
-    set_name: candidate.set_name || current.set_name,
+    set_name: candidate.set_name ?? current.set_name,
     language: candidate.language || current.language,
     hp: candidate.hp == null ? current.hp : String(candidate.hp),
   };
@@ -3222,15 +3223,16 @@ function showIntakeCandidates(result) {
       `Choisir ${candidate.name}, ${candidate.set_name}, ${candidate.number}`,
     );
     const choose = () => {
-      if (intakeState.chosen === candidate.id) return;
+      const shown = () =>
+        intakeFormValues(["name", "number", "set_name", "language", "hp"]);
+      // Choosing it again after an edit restores the edition's values.
+      if (intakeState.chosen === candidate.id) {
+        setIntakeFormValues(intakeCandidateFields(shown(), candidate));
+        return;
+      }
       clearIntakeChoice();
       intakeState.chosen = candidate.id;
-      setIntakeFormValues(
-        intakeCandidateFields(
-          intakeFormValues(["name", "number", "set_name", "language", "hp"]),
-          candidate,
-        ),
-      );
+      setIntakeFormValues(intakeCandidateFields(shown(), candidate));
       button.classList.add("selected");
       if (candidate.image && intakeState.hasPhoto) {
         for (const [label, src] of [
@@ -3380,7 +3382,8 @@ async function runIntake(analysis) {
   try {
     const result = await api(
       `/intake/${intakeState.token}/${analysis ? "analyze" : "catalogue"}`,
-      { method: "POST", ...(analysis ? {} : { body: JSON.stringify(query) }) },
+      // A reading sends the entry too: an unread field keeps what is shown.
+      { method: "POST", body: JSON.stringify(query) },
     );
     if (generation !== intakeState.generation) return;
     if (result.observation) {
