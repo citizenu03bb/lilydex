@@ -3109,6 +3109,7 @@ async function startIntake(existing = null, series = null) {
       "album_id",
       "page",
       "position",
+      "notes",
     ])
       form.elements[key].value = existing[key] ?? "";
     form.elements.reason.value = "Identification assistée de cet exemplaire";
@@ -3151,11 +3152,68 @@ async function startIntake(existing = null, series = null) {
     }
   }
 }
+const intakeNumberKey = (value) =>
+  String(value || "")
+    .replace(/\s+/g, "")
+    .toUpperCase()
+    .split("/")
+    .map((part) => (/^\d+$/.test(part) ? String(Number(part)) : part))
+    .join("/");
+function intakeNotes(notes, observation) {
+  const lines = [
+    observation.notes?.trim() && "Lecture Gemini : " + observation.notes.trim(),
+    observation.flaws?.trim() &&
+      "Défauts visibles (lecture Gemini) : " + observation.flaws.trim(),
+  ].filter((line) => line && !notes.includes(line));
+  return [notes.trimEnd(), ...lines].filter(Boolean).join("\n");
+}
+// A reading is a proposal: an empty or unknown value never erases the entry.
+function intakeReading(current, observation) {
+  const next = { ...current };
+  for (const key of ["name", "number", "language", "hp"]) {
+    const value = String(observation[key] ?? "").trim();
+    if (value && value !== "unknown") next[key] = value;
+  }
+  if (
+    current.number &&
+    intakeNumberKey(next.number) !== intakeNumberKey(current.number)
+  )
+    next.set_name = "";
+  // A printed stamp marks a promo variant: proposed, never silently dropped.
+  const stamp = (observation.stamp_text || "").trim();
+  if (stamp) {
+    next.stamp = stamp;
+    if (current.stamp_state === "absent") next.stamp_state = "unobserved";
+  }
+  next.notes = intakeNotes(current.notes || "", observation);
+  return next;
+}
+// Choosing an edition fills the entry; a value the catalogue lacks is kept,
+// except the extension, which the server compares with the edition's own.
+function intakeCandidateFields(current, candidate) {
+  return {
+    ...current,
+    name: candidate.printed_name || candidate.name || current.name,
+    number: candidate.printed_number || candidate.number || current.number,
+    set_name: candidate.set_name ?? current.set_name,
+    language: candidate.language || current.language,
+    hp: candidate.hp == null ? current.hp : String(candidate.hp),
+  };
+}
+function intakeFormValues(keys) {
+  const form = $("add-form");
+  return Object.fromEntries(keys.map((key) => [key, form.elements[key].value]));
+}
+function setIntakeFormValues(values) {
+  const form = $("add-form");
+  for (const [key, value] of Object.entries(values))
+    form.elements[key].value = value ?? "";
+}
 function showIntakeCandidates(result) {
   clearIntakeChoice();
   $("intake-candidates").replaceChildren();
   $("intake-catalogue-message").textContent = result.message;
-  const form = $("add-form");
+  const choices = [];
   for (const candidate of result.candidates) {
     const entry = el("article", undefined, "intake-candidate-entry");
     const button = el("button", undefined, "intake-candidate");
@@ -3164,28 +3222,17 @@ function showIntakeCandidates(result) {
       "aria-label",
       `Choisir ${candidate.name}, ${candidate.set_name}, ${candidate.number}`,
     );
-    if (candidate.image) {
-      const image = el("img");
-      image.src = candidate.image;
-      image.alt = `Illustration catalogue de ${candidate.name}`;
-      image.loading = "lazy";
-      entry.append(CardMedia.zoomButton(image));
-    }
-    button.append(
-      el("strong", candidate.name),
-      el("span", candidate.set_name),
-      el("span", `${candidate.number} · ${candidate.language.toUpperCase()}`),
-    );
-    button.addEventListener("click", () => {
+    const choose = () => {
+      const shown = () =>
+        intakeFormValues(["name", "number", "set_name", "language", "hp"]);
+      // Choosing it again after an edit restores the edition's values.
+      if (intakeState.chosen === candidate.id) {
+        setIntakeFormValues(intakeCandidateFields(shown(), candidate));
+        return;
+      }
       clearIntakeChoice();
       intakeState.chosen = candidate.id;
-      for (const key of ["name", "number", "set_name", "language", "hp"])
-        form.elements[key].value =
-          (key === "name"
-            ? candidate.printed_name || candidate.name
-            : key === "number"
-              ? candidate.printed_number || candidate.number
-              : candidate[key]) ?? "";
+      setIntakeFormValues(intakeCandidateFields(shown(), candidate));
       button.classList.add("selected");
       if (candidate.image && intakeState.hasPhoto) {
         for (const [label, src] of [
@@ -3203,14 +3250,40 @@ function showIntakeCandidates(result) {
       }
       $("intake-confirm-label").hidden = false;
       if (typeof Workflows !== "undefined") Workflows.changed();
-    });
+    };
+    if (candidate.image) {
+      const image = el("img");
+      image.src = candidate.image;
+      image.alt = `Illustration catalogue de ${candidate.name}`;
+      image.loading = "lazy";
+      // Enlarging an illustration also chooses it.
+      const zoom = CardMedia.zoomButton(image);
+      zoom.addEventListener("click", choose);
+      entry.append(zoom);
+    }
+    button.append(
+      el("strong", candidate.name),
+      el("span", candidate.set_name),
+      el("span", `${candidate.number} · ${candidate.language.toUpperCase()}`),
+    );
+    button.addEventListener("click", choose);
     entry.append(button);
     $("intake-candidates").append(entry);
+    choices.push(choose);
+  }
+  // A single exact edition is preselected; confirming it stays a human gesture.
+  if (result.exact && choices.length === 1) {
+    choices[0]();
+    $("intake-catalogue-message").textContent =
+      "Une seule édition correspond exactement : elle est présélectionnée. Comparez l’illustration, puis cochez la confirmation.";
   }
 }
+// Editing the entry keeps the chosen edition but asks for a new confirmation.
 for (const key of ["name", "number", "set_name", "language", "hp"]) {
-  $("add-form").elements[key].addEventListener("input", clearIntakeChoice);
-  $("add-form").elements[key].addEventListener("change", clearIntakeChoice);
+  for (const event of ["input", "change"])
+    $("add-form").elements[key].addEventListener(event, () => {
+      $("intake-confirm").checked = false;
+    });
 }
 $("add-card").addEventListener("click", () =>
   startIntake().catch((e) => toast(e.message)),
@@ -3309,31 +3382,28 @@ async function runIntake(analysis) {
   try {
     const result = await api(
       `/intake/${intakeState.token}/${analysis ? "analyze" : "catalogue"}`,
-      { method: "POST", ...(analysis ? {} : { body: JSON.stringify(query) }) },
+      // A reading sends the entry too: an unread field keeps what is shown.
+      { method: "POST", body: JSON.stringify(query) },
     );
     if (generation !== intakeState.generation) return;
     if (result.observation) {
-      for (const key of ["name", "number", "language", "hp"])
-        form.elements[key].value = result.observation[key] ?? "";
-      // A printed stamp marks a promo variant: proposed, never silently dropped.
-      form.elements.stamp.value = result.observation.stamp_text || "";
-      form.elements.stamp_state.value = "unobserved";
-      form.elements.set_name.value = "";
+      const keys = ["name", "number", "language", "hp", "set_name"];
+      setIntakeFormValues(
+        intakeReading(
+          intakeFormValues([...keys, "stamp", "stamp_state", "notes"]),
+          result.observation,
+        ),
+      );
     }
     showIntakeCandidates(result);
     if (typeof Workflows !== "undefined") Workflows.changed();
     intakeBusy(
       false,
       result.observation
-        ? [
-            "Lecture proposée : vérifiez les champs.",
-            result.observation.notes,
-            result.observation.flaws
-              ? "Défauts visibles : " + result.observation.flaws
-              : "",
-          ]
-            .filter(Boolean)
-            .join(" ")
+        ? "Lecture proposée : vérifiez les champs." +
+            (result.observation.notes?.trim() || result.observation.flaws?.trim()
+              ? " Les remarques et défauts lus sont ajoutés aux notes."
+              : "")
         : "Recherche terminée.",
     );
   } catch (e) {

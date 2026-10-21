@@ -42,6 +42,7 @@ const fields = Object.fromEntries(
     "distribution",
     "distribution_state",
     "reason",
+    "notes",
     "album_id",
     "page",
     "position",

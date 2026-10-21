@@ -25,6 +25,7 @@ const Workflows = (() => {
       "distribution",
       "distribution_state",
       "reason",
+      "notes",
       "album_id",
       "page",
       "position",
@@ -128,7 +129,9 @@ const Workflows = (() => {
       const latest = meta.searches.at(-1);
       if (latest) showIntakeCandidates(latest);
       if (saved.chosen_catalog_id) {
-        const candidate = $("intake-candidates").querySelectorAll("button");
+        const candidate = $("intake-candidates").querySelectorAll(
+          ".intake-candidate",
+        );
         const ids = (latest?.candidates || []).map((c) => c.id);
         const index = ids.indexOf(saved.chosen_catalog_id);
         if (index >= 0) candidate[index]?.click();
@@ -137,6 +140,7 @@ const Workflows = (() => {
     for (const [key, value] of Object.entries(saved))
       if (form().elements[key]) form().elements[key].value = value ?? "";
     intakeState.chosen = saved.chosen_catalog_id || null;
+    if (!intakeState.chosen) clearIntakeChoice();
     $("intake-confirm").checked = Boolean(saved.human_confirmed);
     if (intakeState.chosen) $("intake-confirm-label").hidden = false;
     backToken = session.data.back_token;

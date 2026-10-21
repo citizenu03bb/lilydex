@@ -128,3 +128,13 @@ def test_equivalent_printed_name_can_be_saved_only_after_explicit_edition_choice
     )
     assert card["name"] == query["name"] and card["reference_cents"] is None
     assert not card["variant_confirmed"] and not card["condition_confirmed"]
+
+
+def test_name_missing_its_delta_suffix_is_never_an_exact_match():
+    """The δ edition may be proposed, but never preselected without a choice."""
+    query = {"name": "Noeunoeuf", "number": "65/110", "language": "fr", "hp": 50}
+    result = catalogue_candidates(query, lookup([detail()]))
+    assert [c["id"] for c in result["candidates"]] == ["test-65"]
+    assert result["exact"] is False
+    exact = catalogue_candidates({**query, "name": "Noeunoeuf δ"}, lookup([detail()]))
+    assert exact["exact"] is True

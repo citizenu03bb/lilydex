@@ -143,6 +143,23 @@ def catalogue_name_matches(printed, official):
     return printed == official or official == printed + " δ"
 
 
+def candidate_mismatch(values, candidate):
+    """Why the entry no longer describes the chosen edition, or None."""
+    if (
+        not catalogue_name_matches(values["name"], candidate["name"])
+        or any(values[k] != candidate[k] for k in ("set_name", "language"))
+        or number_key(values["number"]) != number_key(candidate["number"])
+    ):
+        return "La saisie a changé depuis le choix d’édition. Recherchez et confirmez à nouveau."
+    if (
+        values.get("hp") is not None
+        and candidate["hp"] is not None
+        and str(values["hp"]) != str(candidate["hp"])
+    ):
+        return "Les PV ne correspondent pas à l’édition choisie."
+    return None
+
+
 def catalogue_candidates(query, get_json=None):
     """Strict language/name/collector number matching; no fuzzy number snapping."""
     language, name, number = query["language"], query["name"], query["number"]
@@ -229,8 +246,14 @@ def catalogue_candidates(query, get_json=None):
                 }
             )
         incomplete = len(summaries) > 8
+        # An omitted Delta suffix may suggest an edition, never preselect it.
+        same_name = len(candidates) == 1 and catalogue_name_key(
+            name
+        ) == catalogue_name_key(candidates[0]["name"])
         return {
             "candidates": candidates,
+            # One edition, its exact name, a complete reference, no truncated search.
+            "exact": same_name and not incomplete and "/" in number,
             "message": (
                 "Recherche limitée : précisez la référence complète."
                 if incomplete
@@ -419,7 +442,7 @@ class IntakeService:
             self.persist(token, owner)
         return result
 
-    def analyze(self, token, owner):
+    def analyze(self, token, owner, current=None):
         draft = self.draft(token, owner)
         if draft["photo"] is None:
             raise ValueError("Ajoutez une photo du recto pour la lecture.")
@@ -437,11 +460,23 @@ class IntakeService:
             self.reading.add(owner)
         try:
             observation, raw = self.reader(draft["photo"])
-            result = self.search(
-                token,
-                owner,
-                {k: observation[k] for k in ("name", "number", "language", "hp")},
-            )
+            # An unreadable field falls back on the entry as the user left it,
+            # then on what the stored copy already says.
+            known = {
+                **(draft["existing"] or {}),
+                **{
+                    k: v
+                    for k, v in (current or {}).items()
+                    if v not in ("", None, "unknown")
+                },
+            }
+            query = {
+                k: observation[k]
+                if observation[k] not in ("", None, "unknown")
+                else known.get(k, observation[k])
+                for k in ("name", "number", "language", "hp")
+            }
+            result = self.search(token, owner, query)
             with self.lock:
                 draft.update(
                     observation=observation,
@@ -488,24 +523,14 @@ class IntakeService:
                 raise ValueError(
                     "Choisissez une édition proposée avant de confirmer l’identité."
                 )
-            if confirmed:
-                if (
-                    not catalogue_name_matches(values["name"], candidate["name"])
-                    or any(values[k] != candidate[k] for k in ("set_name", "language"))
-                    or number_key(values["number"]) != number_key(candidate["number"])
-                ):
-                    raise ValueError(
-                        "La saisie a changé depuis le choix d’édition. Recherchez et confirmez à nouveau."
-                    )
-                if (
-                    values.get("hp") is not None
-                    and candidate["hp"] is not None
-                    and str(values["hp"]) != str(candidate["hp"])
-                ):
-                    raise ValueError("Les PV ne correspondent pas à l’édition choisie.")
+            mismatch = candidate and candidate_mismatch(values, candidate)
+            if confirmed and mismatch:
+                raise ValueError(mismatch)
+            # A chosen edition that still matches the entry is kept, even
+            # unconfirmed: only the human confirmation makes the identity sure.
             values = {
                 **values,
-                "catalog_id": candidate["id"] if confirmed else None,
+                "catalog_id": candidate["id"] if candidate and not mismatch else None,
                 "identification_status": "confirmed" if confirmed else "review",
             }
             reason = values.pop("reason")
@@ -521,7 +546,8 @@ class IntakeService:
             }
             if draft["existing"]:
                 existing = draft["existing"]
-                # Identification does not change stock, photo, condition or notes.
+                # Identification does not change stock, photo or condition;
+                # notes change only when the form sends them.
                 changes = {
                     k: values[k]
                     for k in (
@@ -537,6 +563,7 @@ class IntakeService:
                         "distribution_state",
                         "catalog_id",
                         "identification_status",
+                        "notes",
                     )
                     if k in values
                 }

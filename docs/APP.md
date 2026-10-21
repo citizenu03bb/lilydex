@@ -189,11 +189,29 @@ sans photo, ou partir d'une photo :
 3. **Cliquez sur Lire la carte.** Gemini propose le nom imprimé, la référence,
    la langue, les PV et le texte d'un éventuel tampon ; l'application cherche
    l'extension dans TCGdex, sans chercher de prix. Une photo dont le recto
-   n'est pas lisible est refusée : reprenez-la.
-4. **Choisissez une édition proposée.** La comparaison montre **Votre
-   exemplaire** et **Carte du catalogue** côte à côte, avec un zoom
-   indépendant jusqu'à 400 %. Comparez l'illustration, puis cochez la
-   confirmation. Sans elle, l'exemplaire reste **à vérifier**.
+   n'est pas lisible est refusée : reprenez-la. La lecture est une
+   proposition :
+   - un champ qu'elle ne lit pas garde la valeur affichée dans le formulaire,
+     et la recherche dans le catalogue part de cette valeur ;
+   - l'observation du tampon déjà notée est conservée, sauf si Gemini lit un
+     tampon sur une carte notée « absence constatée » : le texte lu est alors
+     proposé et l'observation repasse à « non examiné », à vérifier en main ;
+   - une référence lue différente de celle du formulaire vide l'extension,
+     qui ne correspond plus ;
+   - ses doutes de lecture et défauts visibles s'ajoutent au champ **Notes**,
+     à la suite des notes existantes.
+4. **Choisissez une édition proposée**, par son nom ou son illustration.
+   Quand une seule édition correspond exactement au nom imprimé et à la
+   référence complète, elle est présélectionnée ; une édition trouvée parce
+   que le nom lu omet le suffixe Delta (δ) est seulement proposée. Cliquer de
+   nouveau sur l'édition choisie rétablit ses valeurs après une modification. La comparaison montre **Votre exemplaire** et **Carte
+   du catalogue** côte à côte, avec un zoom indépendant jusqu'à 400 %.
+   Comparez l'illustration, puis cochez la confirmation : l'identité est alors
+   **confirmée**. Sans la case cochée, l'édition choisie renseigne l'extension
+   et l'identifiant catalogue, et l'exemplaire reste **à vérifier**. Modifier
+   le nom, la référence, l'extension, la langue ou les PV décoche la
+   confirmation ; si la saisie ne correspond plus à l'édition choisie, celle-ci
+   n'est pas enregistrée.
 5. **Enregistrez.** La photo et l'identité sont enregistrées ensemble. La fiche
    propose ensuite d'ajouter le verso.
 
@@ -203,7 +221,8 @@ vide.
 
 Pour une carte déjà en stock, ouvrez sa fiche puis **Identifier la carte** :
 l'opération complète cet exemplaire sans en créer un autre ; son emplacement,
-sa photo, son stock, ses notes et son état physique sont conservés. Une
+sa photo, son stock et son état physique sont conservés ; ses notes, reprises
+dans le formulaire, ne changent que par ce que vous y laissez. Une
 modification concurrente de la fiche oblige à reprendre la préparation.
 
 La lecture, les recherches dans le catalogue et la confirmation sont gardées
