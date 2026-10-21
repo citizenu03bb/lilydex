@@ -156,6 +156,9 @@ class OllamaVisionProvider:
             "images": [b64_img],
             "stream": False,
             "format": "json",
+            # Gemma 4 thinks by default: its reasoning would use up num_predict
+            # and leave an empty answer. The JSON reply needs no reasoning.
+            "think": False,
             "options": {
                 "num_ctx": 4096,
                 "num_predict": num_predict,
