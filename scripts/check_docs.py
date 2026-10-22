@@ -73,7 +73,7 @@ ZONE_PERMISE = re.compile(r"conditions de mesure|^mis à jour le ", re.IGNORECAS
 
 def documents() -> list[Path]:
     paths = [ROOT / name for name in ("README.md", "README.en.md", "CONTRIBUTING.md",
-                                      "AGENTS.md", "SECURITY.md")]
+                                      "AGENTS.md", "SECURITY.md", "CASE-STUDY.md")]
     paths += sorted((ROOT / "docs").rglob("*.md"))
     paths += sorted((ROOT / "skills").glob("*/SKILL.md"))
     paths += sorted((ROOT / ".github").rglob("*.md")) if (ROOT / ".github").exists() else []

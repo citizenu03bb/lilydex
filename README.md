@@ -15,7 +15,7 @@ Le paquet Python et ses commandes s'appellent `pokeprice`, `pokeprice-manage` et
 > its evidence. On 27 to 31 hand-verified cards from one collection, no unsafe variant proposal
 > above the value threshold, 22 of 27 editions confirmed by image alone with one false alarm, and
 > Tesseract rejected after measurement. The interface and detailed docs are in French:
-> [English overview](README.en.md).
+> [English overview](README.en.md) · [case study](CASE-STUDY.md) (design, operations, security).
 
 <p align="center">
   <img src="docs/images/vitrine.png" alt="La vitrine publique de Lilydex sur ordinateur : recherche, filtres et grille de cartes photographiées, avec leur prix" width="70%">
