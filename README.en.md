@@ -6,7 +6,8 @@ Lilydex digitises, identifies, prices and sells a multilingual Pokémon card col
 called `pokeprice`, `pokeprice-manage` and `pokeprice-agent`.
 
 The interface and the detailed documentation are in French; this page summarises the project
-for non-French readers. The [French README](README.md) is the reference.
+for non-French readers. The [French README](README.md) is the reference. How it was designed,
+run and secured: [case study](CASE-STUDY.md).
 
 ## What it does
 
