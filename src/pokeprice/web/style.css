@@ -1808,3 +1808,47 @@ dialog.card-viewer::backdrop {
   font-size: 0.85rem;
   color: var(--muted);
 }
+.audience-period {
+  flex: none;
+}
+.audience-chart {
+  margin-bottom: 24px;
+}
+.audience-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 180px;
+  border-bottom: 1px solid var(--line);
+}
+.audience-bar {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+}
+.audience-bar span {
+  width: 100%;
+  min-height: 1px;
+  background: var(--green);
+  border-radius: 4px 4px 0 0;
+}
+.audience-bar:hover span {
+  background: var(--ink);
+}
+.audience-list {
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+}
+.audience-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.9rem;
+}
+.audience-list li span {
+  overflow-wrap: anywhere;
+}

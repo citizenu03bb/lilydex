@@ -57,6 +57,14 @@
           <button class="nav-button" data-view="sales">Ventes</button>
           <button
             class="nav-button"
+            data-view="audience"
+            id="audience-nav"
+            hidden
+          >
+            Statistiques
+          </button>
+          <button
+            class="nav-button"
             data-view="settings"
             id="settings-nav"
             hidden
@@ -260,6 +268,45 @@
             <p id="sales-count" aria-live="polite"></p>
           </div>
           <div id="sales-list" class="sales-list"></div>
+        </section>
+        <section id="audience-view" hidden>
+          <div class="heading">
+            <div>
+              <p class="eyebrow">VITRINE</p>
+              <h1>Statistiques de visite</h1>
+              <p class="subtitle">
+                Comptage anonyme, sans cookie : un visiteur est le même appareil
+                le même jour. Robots, équipe et refus de suivi sont exclus.
+              </p>
+            </div>
+            <label class="audience-period"
+              >Période<select id="audience-days">
+                <option value="7">7 derniers jours</option>
+                <option value="30" selected>30 derniers jours</option>
+                <option value="90">90 derniers jours</option>
+                <option value="365">12 derniers mois</option>
+              </select></label
+            >
+          </div>
+          <div class="stats" id="audience-stats"></div>
+          <section class="panel audience-chart">
+            <h2 id="audience-chart-title">Visiteurs par jour</h2>
+            <div id="audience-bars" class="audience-bars"></div>
+            <p id="audience-range" class="help"></p>
+          </section>
+          <div class="settings-grid audience-grid">
+            <section class="panel">
+              <h2>Cartes les plus consultées</h2>
+              <ol id="audience-listings" class="audience-list"></ol>
+            </section>
+            <section class="panel">
+              <h2>Provenance</h2>
+              <p>Sites dont viennent les visiteurs ; les accès directs n’y figurent pas.</p>
+              <ol id="audience-referrers" class="audience-list"></ol>
+              <h2>Appareils</h2>
+              <ul id="audience-devices" class="audience-list"></ul>
+            </section>
+          </div>
         </section>
         <section id="settings-view" hidden>
           <div class="heading">

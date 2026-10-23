@@ -892,6 +892,21 @@ dans le dossier restauré s'il est à côté : une archive antérieure à un
 effacement ne fait pas revenir le client. Voir aussi
 [Données personnelles](RGPD.md).
 
+### Statistiques de visite
+
+L'onglet **Statistiques**, réservé aux administrateurs, montre la fréquentation
+de la vitrine sur 7 jours, 30 jours, 90 jours ou 12 mois : visiteurs, pages
+vues, cartes ouvertes, demandes et inscriptions, visiteurs par jour (par
+semaine sur 12 mois), cartes les plus consultées, sites d'origine et part des
+téléphones. Une carte compte comme consultée quand un visiteur ouvre sa fiche.
+
+Le comptage est anonyme et sans cookie. Un visiteur est le même appareil le
+même jour : le total d'une période additionne les jours, et un appareil venu
+deux jours compte deux fois. Les robots, les comptes de l'équipe et les
+navigateurs qui refusent le suivi ne sont pas comptés ; un redémarrage du
+service ne fausse rien. Les totaux restent 25 mois dans `audience.sqlite3`, à
+côté de la base ; ils ne font pas partie des sauvegardes.
+
 ## Consulter la collection
 
 ### Rechercher et filtrer
