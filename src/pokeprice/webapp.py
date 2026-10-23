@@ -31,6 +31,7 @@ from PIL import Image, ImageOps
 from pydantic import BaseModel, ConfigDict, Field, StrictBool
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
+from .audience import Audience, counted
 from .condition_assessment import ConditionService, assessment_rows, read_condition
 from .intake import IntakeService, catalogue_candidates, normalize_photo, read_photo
 from .inventory import Conflict, Store, cents, now
@@ -651,12 +652,34 @@ def create_app(
             path="/",
         )
 
+    audience = Audience(store.root, allowed_hosts)
+
+    def count_visit(request, kind, key):
+        """Count a storefront visit; the seller's team is not an audience."""
+        headers = request.headers
+        if request.method != "GET" or not counted(headers.get("user-agent", ""), headers):
+            return
+        if request.cookies.get("pokeprice_session"):
+            try:
+                if current_user(request)["role"] != "client":
+                    return
+            except HTTPException:
+                pass
+        try:
+            audience.record(
+                kind, key, request.client.host if request.client else "local",
+                headers["user-agent"], headers.get("referer", ""),
+            )
+        except sqlite3.Error:
+            pass  # A lost count never costs a visitor the page.
+
     # The public storefront is the home page; management lives at /gestion.
     @app.get("/", response_class=HTMLResponse)
     def home(request: Request):
         if request.url.query:
             # Former management links (/?view=sales, filters) keep working.
             return RedirectResponse("/gestion?" + request.url.query, status_code=301)
+        count_visit(request, "page", "accueil")
         return static.joinpath("storefront.html").read_text()
 
     # The seller's contact comes from the server's environment, never from the
@@ -668,7 +691,8 @@ def create_app(
     controller_name = os.environ.get("POKEPRICE_CONTROLLER_NAME", "").strip()[:120]
 
     @app.get("/a-propos", response_class=HTMLResponse)
-    def about():
+    def about(request: Request):
+        count_visit(request, "page", "a-propos")
         contact = (
             f'<a href="mailto:{html.escape(contact_email)}">{html.escape(contact_email)}</a>'
             if contact_email
@@ -858,11 +882,37 @@ def create_app(
         item: int = Query(default=0, ge=0, le=500),
         side: Literal["front", "back"] = "front",
         size: Literal["full", "thumb"] = "thumb",
+        request: Request = None,
         _=Depends(public_rate),
     ):
-        return FileResponse(
-            storefront.photo(listing_id, item, side, size), media_type="image/jpeg"
-        )
+        path = storefront.photo(listing_id, item, side, size)
+        if (size, item, side) == ("full", 0, "front"):
+            # The storefront loads this photo exactly when a visitor opens the card.
+            count_visit(request, "listing", listing_id)
+        return FileResponse(path, media_type="image/jpeg")
+
+    @app.get("/api/audience")
+    def audience_report(
+        days: int = Query(default=30, ge=7, le=365), user=Depends(admin)
+    ):
+        report = audience.report(days)
+        for row in report["listings"]:
+            try:
+                listing = storefront.get(row["id"])
+                row["title"] = listing["title"] or " · ".join(
+                    i["name"] for i in listing["items"]
+                )
+            except KeyError:
+                row["title"] = ""  # Sold or withdrawn since.
+        start = report["from"]
+        with store.connect() as db:
+            report["signups"] = db.execute(
+                "SELECT COUNT(*) FROM users WHERE role='client' AND created_at>=?", (start,)
+            ).fetchone()[0]
+            report["requests"] = db.execute(
+                "SELECT COUNT(*) FROM requests WHERE created_at>=?", (start,)
+            ).fetchone()[0]
+        return report
 
     @app.get("/api/setup")
     def setup_state():

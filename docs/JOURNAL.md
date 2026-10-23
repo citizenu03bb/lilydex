@@ -9,6 +9,11 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-10-23
 
+- La gestion a un onglet **Statistiques** : fréquentation de la vitrine
+  comptée sans cookie ni adresse conservée (empreinte salée effacée chaque
+  soir, totaux 25 mois), robots et équipe exclus. Registre RGPD et notice
+  `/a-propos` complétés.
+
 - Exploitation : les sauvegardes ponctuelles ont une rétention (3 dernières,
   sinon 14 jours ; 5 copies d'avant migration), après qu'elles ont rempli le
   disque du serveur ; une sauvegarde est refusée avant d'écrire si la place

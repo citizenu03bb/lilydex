@@ -155,6 +155,7 @@ async function showWorkspace(user) {
   $("workspace").hidden = false;
   $("account-label").textContent = user.username;
   $("settings-nav").hidden = user.role !== "admin";
+  $("audience-nav").hidden = user.role !== "admin";
   $("backup-link").hidden = user.role !== "admin";
   $("add-card").hidden = !editAllowed();
   $("create-lot").hidden = !editAllowed();
@@ -166,6 +167,7 @@ async function showWorkspace(user) {
   await loadCards();
   if (state.view === "sales") await loadSales();
   if (state.view === "settings") await loadUsers();
+  if (state.view === "audience") await loadAudience();
   if (typeof Workflows !== "undefined") await Workflows.refresh();
 }
 function collectionQuery() {
@@ -254,7 +256,8 @@ function restoreLocation() {
   if ($("stock-filter").value === "deleted" && state.user?.role !== "admin")
     $("stock-filter").value = "";
   changeView(
-    view === "sales" || (view === "settings" && state.user?.role === "admin")
+    view === "sales" ||
+      (["settings", "audience"].includes(view) && state.user?.role === "admin")
       ? view
       : "collection",
     false,
@@ -548,7 +551,7 @@ function changeView(view, remember = true) {
   state.view = view;
   for (const button of document.querySelectorAll("[data-view]"))
     button.classList.toggle("active", button.dataset.view === view);
-  for (const name of ["collection", "sales", "settings"])
+  for (const name of ["collection", "sales", "settings", "audience"])
     $(name + "-view").hidden = name !== view;
   if (remember) syncLocation("push");
 }
@@ -2320,6 +2323,88 @@ async function loadClients() {
     box.append(row);
   }
 }
+async function loadAudience() {
+  const data = await api("/audience?days=" + $("audience-days").value);
+  const number = (n) => n.toLocaleString("fr-FR");
+  const date = (day, options) =>
+    new Date(day + "T12:00:00").toLocaleDateString("fr-FR", options);
+  $("audience-stats").replaceChildren(
+    ...[
+      [data.visitors, "visiteurs (cumul des jours)"],
+      [data.page_views, "pages vues"],
+      [data.listing_views, "cartes consultées"],
+      [data.requests, `demandes · ${data.signups} inscription(s)`],
+    ].map(([value, label]) => {
+      const tile = el("div", undefined, "stat");
+      tile.append(el("strong", number(value)), el("span", label));
+      return tile;
+    }),
+  );
+  // A year of days would make hairline bars: weeks then, Monday first.
+  let points = data.days.map((d) => ({ ...d, label: date(d.day, { weekday: "short", day: "numeric", month: "short" }) }));
+  const weekly = points.length > 120;
+  if (weekly) {
+    const weeks = [];
+    for (const d of data.days) {
+      const monday = new Date(d.day + "T12:00:00");
+      monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+      const key = monday.toISOString().slice(0, 10);
+      if (weeks.at(-1)?.key !== key)
+        weeks.push({ key, visitors: 0, pages: 0, label: "semaine du " + date(key, { day: "numeric", month: "short" }) });
+      weeks.at(-1).visitors += d.visitors;
+      weeks.at(-1).pages += d.pages;
+    }
+    points = weeks;
+  }
+  const top = Math.max(1, ...points.map((p) => p.visitors));
+  $("audience-bars").replaceChildren(
+    ...points.map((p) => {
+      const bar = el("div", undefined, "audience-bar");
+      const fill = el("span");
+      fill.style.height = `${(p.visitors / top) * 100}%`;
+      const text = `${p.label} : ${number(p.visitors)} visiteur(s), ${number(p.pages)} page(s)`;
+      bar.title = text;
+      bar.setAttribute("aria-label", text);
+      bar.setAttribute("role", "img");
+      bar.append(fill);
+      return bar;
+    }),
+  );
+  $("audience-chart-title").textContent = weekly ? "Visiteurs par semaine" : "Visiteurs par jour";
+  $("audience-range").textContent =
+    `Du ${date(data.from, { day: "numeric", month: "long", year: "numeric" })} au ${date(data.to, { day: "numeric", month: "long", year: "numeric" })} · maximum ${number(top)} visiteur(s) ${weekly ? "par semaine" : "par jour"}. Survolez une barre pour le détail.`;
+  const list = (id, rows, empty) =>
+    $(id).replaceChildren(
+      ...(rows.length
+        ? rows.map(([name, count]) => {
+            const item = el("li");
+            item.append(el("span", name), el("strong", number(count)));
+            return item;
+          })
+        : [el("li", empty, "help")]),
+    );
+  list(
+    "audience-listings",
+    data.listings.map((l) => [l.title || "Carte retirée de la vitrine", l.count]),
+    "Aucune carte ouverte sur la période.",
+  );
+  list(
+    "audience-referrers",
+    data.referrers.map((r) => [r.domain, r.count]),
+    "Aucun site référent sur la période.",
+  );
+  list(
+    "audience-devices",
+    [
+      ["Ordinateur", data.devices.desktop],
+      ["Téléphone ou tablette", data.devices.mobile],
+    ],
+    "",
+  );
+}
+$("audience-days").addEventListener("change", () =>
+  loadAudience().catch((e) => toast(e.message)),
+);
 function matchesSalesFilter(sale, filter) {
   if (filter === "all") return true;
   if (filter === "draft" || filter === "reserved" || filter === "cancelled")
@@ -2610,6 +2695,7 @@ for (const button of document.querySelectorAll("[data-view]"))
     try {
       if (button.dataset.view === "sales") await loadSales();
       if (button.dataset.view === "settings") await loadUsers();
+      if (button.dataset.view === "audience") await loadAudience();
     } catch (e) {
       toast(e.message);
     }
@@ -2649,6 +2735,7 @@ window.addEventListener("popstate", async () => {
     await loadCards();
     if (state.view === "sales") await loadSales();
     if (state.view === "settings") await loadUsers();
+    if (state.view === "audience") await loadAudience();
   } catch (error) {
     toast(error.message);
   }

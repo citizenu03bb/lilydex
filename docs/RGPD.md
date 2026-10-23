@@ -20,7 +20,7 @@ données sensibles, ni suivi à grande échelle, ni profilage.
 
 ## Registre des traitements
 
-Mis à jour le 18 octobre 2026.
+Mis à jour le 23 octobre 2026.
 
 ### 1. Comptes clients et demandes de réservation
 
@@ -67,6 +67,21 @@ Les lots vendus ailleurs (salon, autre site) n'enregistrent pas d'acheteur. Les
 d'un acheteur au-delà du temps de l'envoi : les retirer une fois la vente
 terminée. `forget` ne retrouve pas ce qui y a été tapé à la main.
 
+### 5. Mesure d'audience de la vitrine
+
+| | |
+|---|---|
+| Finalité | Savoir combien de personnes visitent la vitrine, ce qu'elles y regardent et d'où elles viennent |
+| Base légale | Intérêt légitime ; mesure exemptée de consentement selon les critères de la CNIL (sans cookie, anonyme, réservée au site, sans recoupement) |
+| Personnes | Visiteurs de la vitrine, hors robots, équipe de gestion et navigateurs qui refusent le suivi (`Sec-GPC` ou `DNT`) |
+| Données | Totaux par jour : visiteurs, pages vues, cartes ouvertes, domaine du site d'origine, ordinateur ou téléphone. Pour distinguer un visiteur dans la journée : une empreinte de l'adresse IP et du navigateur, salée par une valeur tirée au hasard chaque jour |
+| Accès | Administrateurs, page **Statistiques** de la gestion |
+| Durées | Empreintes et sel : effacés à la fin du jour ; totaux : 25 mois |
+
+L'adresse IP n'est jamais écrite : seule son empreinte salée l'est, et le sel
+disparaît avec la journée. Les totaux sont dans `audience.sqlite3`, à côté de
+la base de la collection, hors des sauvegardes.
+
 ### Hors traitement
 
 Les photos envoyées à Gemini pour lire les cartes ne montrent que des cartes :
@@ -87,6 +102,8 @@ Elles sont appliquées chaque nuit, avant la sauvegarde, par
 | Client sans demande depuis 3 ans | effacé, avec ses demandes |
 | Compteurs de limitation de débit | quelques minutes à une heure, en mémoire, perdus au redémarrage |
 | Journal technique (journald) | 3 mois |
+| Empreintes de visite et leur sel | effacés à la fin du jour |
+| Totaux de la mesure d'audience | 25 mois |
 | Archives sur le serveur | les 7 dernières nuits |
 | Archives rapatriées sur le portable | les 3 dernières |
 | Copies sur Google Drive | 7 jours, puis une par semaine sur 8 semaines, puis une par mois sur 12 mois ; 30 jours de corbeille |
