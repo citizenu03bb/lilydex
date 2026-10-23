@@ -94,7 +94,8 @@ Une proposition d'identité appliquée sans validation humaine laisse la fiche e
 une carte identifiée peut rester sans `reference_cents`. Le guide
 [`pokeprice-agent-prix`](../skills/pokeprice-agent-prix/SKILL.md) et le
 [parcours des prix manquants](AGENT_PRICE_EVALUATION.md) structurent leur
-résolution en lot.
+résolution en lot. Le [plan d'action](PLAN-PRIX-MANQUANTS.md) applique ce
+parcours à la collection.
 
 ### Étape 1 — Séparer les quatre causes d'absence de prix
 
