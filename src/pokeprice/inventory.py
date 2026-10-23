@@ -949,12 +949,14 @@ class Store:
                 ),
                 "confirmed_without_price": sum(
                     r["identification_status"] == "confirmed"
+                    and not r["valuation"].get("bulk")
                     and (
                         r["reference_cents"] is None
                         or bool(r["valuation"]["price_variant_issue"])
                     )
                     for r in rows
                 ),
+                "bulk": sum(bool(r["valuation"].get("bulk")) for r in rows),
                 "available": sum(r["stock_state"] == "available" for r in rows),
                 "albums": albums,
                 "valuation_totals": data["valuation_totals"],

@@ -452,3 +452,46 @@ def test_api_accepts_the_price_sorts(client):
             response = client.get(endpoint, params={"sort": sort})
             assert response.status_code == 200 and response.json()["total"] == 1
         assert client.get(endpoint, params={"sort": "cost"}).status_code == 422
+
+
+def energy(**overrides):
+    return card(
+        **{"catalog_id": None, "name": "Énergie Feu", "set_name": "", "number": "", **overrides}
+    )
+
+
+@pytest.mark.parametrize("name", ["Énergie Feu", "Fighting Energy", "ÉNERGIE", "Énergie de base"])
+def test_confirmed_basic_energy_without_quote_is_bulk_not_missing_price(name):
+    result = assess(energy(name=name))
+    assert result["bulk"] and result["prudent_cents"] is None
+    assert not any(r["code"] == "missing_price" for r in result["reasons"])
+    assert not result["needs_review"]
+
+
+@pytest.mark.parametrize(
+    "name", ["Double Énergie Incolore", "Énergie Plasma", "Récupération d'Énergie"]
+)
+def test_special_energies_and_trainers_keep_their_price_search(name):
+    result = assess(energy(name=name))
+    assert not result["bulk"] and result["needs_review"]
+
+
+def test_unconfirmed_energy_is_a_proposal_not_bulk():
+    result = assess(energy(identification_status="unresolved"))
+    assert not result["bulk"] and result["needs_review"]
+
+
+def test_quoted_basic_energy_keeps_its_price():
+    result = assess(card(name="Énergie Feu"), summarize(CARD, False))
+    assert not result["bulk"] and result["prudent_cents"] is not None
+
+
+def test_bulk_copies_are_counted_apart_from_missing_prices():
+    cards = [
+        {"valuation": assess(energy())},
+        {"valuation": assess(card(name="Double Énergie Incolore"))},
+        {"valuation": assess(card(), summarize(CARD, False))},
+    ]
+    result = totals(cards)
+    assert result["bulk_copies"] == 1 and result["copies"] == 3
+    assert result["trend_missing"] == 1 and result["trend_known"] == 1
