@@ -7,20 +7,21 @@
 ## Le constat
 
 Sur 1 737 exemplaires, 276 n'ont pas de prix de référence. La moitié sont des
-énergies de base, que Lilydex ne cote jamais par choix
+énergies de base (137), que Lilydex ne cote jamais par choix
 ([fiche 0010](decisions/0010-porte-energie.md)). Le reste relève de quatre
 causes, chacune avec son propre remède.
 
 | Groupe | Exemplaires | Cause | Action |
 |---|---:|---|---|
-| Énergies de base | 140 | Jamais cotées par conception : 83 passées par la porte énergie (non identifiées), 49 confirmées sans lien catalogue, 8 à vérifier | [A1](#a1--sortir-les-énergies-de-base-du-compteur) |
-| À vérifier | 71 | Une identité est proposée, pas confirmée : le prix est retiré en attendant ; toutes ont une photo | [A2](#a2--confirmer-en-lot-les-identités-proposées) |
+| Énergies de base | 137 | Jamais cotées par conception : 82 passées par la porte énergie (non identifiées), 49 confirmées sans lien catalogue, 6 à vérifier | [A1](#a1--sortir-les-énergies-de-base-du-compteur) |
+| À vérifier | 73 | Une identité est proposée, pas confirmée : le prix est retiré en attendant ; toutes ont une photo | [A2](#a2--confirmer-en-lot-les-identités-proposées) |
 | Liées, sans cotation en euros | 40 | Le relevé TCGdex existe, sans montant Cardmarket (35 Standard, 5 Foil), surtout des extensions anciennes | [A5](#a5--laisser-inconnu-ce-que-le-marché-ne-cote-pas) |
-| À identifier | 14 | Aucune lecture exploitable ; toutes ont une photo | [A3](#a3--identifier-les-14-cartes-restantes) |
+| À identifier | 15 | Aucune lecture exploitable ; toutes ont une photo | [A3](#a3--identifier-les-15-cartes-restantes) |
 | Confirmées sans lien | 11 | Identité saisie à la main, jamais rattachée au catalogue | [A4](#a4--rattacher-les-11-cartes-confirmées-sans-lien) |
 
 *Conditions de mesure : requêtes en lecture seule sur la base du serveur, le
-23 octobre 2026 ; une énergie est repérée à son nom.*
+23 octobre 2026 ; une énergie de base est repérée à son nom par la règle de la
+porte énergie, qui exclut les énergies spéciales et les dresseurs.*
 
 ## Les principes
 
@@ -39,7 +40,7 @@ causes, chacune avec son propre remède.
 **Objectif :** que « sans prix » ne compte plus les 140 énergies de base, qui
 ont une valeur de vrac et non une cote à chercher.
 
-**Décision à prendre par le propriétaire,** entre :
+**Décidé : option 1** ([fiche 0015](decisions/0015-energies-de-base-en-vrac.md)). Les options étaient :
 
 1. **Une règle dans le code** (recommandée) : une énergie de base confirmée
    est classée « vrac », comptée à part dans les totaux et proposée en lot,
@@ -49,11 +50,13 @@ ont une valeur de vrac et non une cote à chercher.
    prix du vrac sur Cardmarket : plus rapide à écrire, mais 140 saisies et une
    valeur qui vieillit.
 
+Reste à confirmer en lot les 88 énergies proposées par la porte ou à vérifier.
+
 **Fin :** le compteur « sans prix » ne contient plus d'énergie de base.
 
 ### A2 — Confirmer en lot les identités proposées
 
-**Objectif :** confirmer les 71 identités proposées ; le relevé TCGdex arrive
+**Objectif :** confirmer les 73 identités proposées ; le relevé TCGdex arrive
 avec la confirmation.
 
 1. Préparer une planche de contrôle (`scripts/audit_photo_identity.py
@@ -70,9 +73,9 @@ avec la confirmation.
 **Fin :** aucune carte « à vérifier » avec un lien catalogue ; les cartes
 écartées passent en A3.
 
-### A3 — Identifier les 14 cartes restantes
+### A3 — Identifier les 15 cartes restantes
 
-**Objectif :** donner une identité aux 14 cartes « À identifier ».
+**Objectif :** donner une identité aux 15 cartes « À identifier ».
 
 1. Contrôler les découpes (`scripts/audit_photo_crops.py`) : une pochette mal
    découpée tronque souvent le nom ou le numéro.
@@ -114,13 +117,13 @@ pas en euros.
 
 | Ordre | Action | Effort | Effet sur « sans prix » |
 |---|---|---|---|
-| 1 | A1 — énergies de base | une décision, puis une petite modification ou des saisies | −140 |
-| 2 | A2 — identités proposées | une séance sur planche | jusqu'à −71 |
+| 1 | A1 — énergies de base | règle faite ; confirmer en lot les 88 proposées | −137 |
+| 2 | A2 — identités proposées | une séance sur planche | jusqu'à −73 |
 | 3 | A4 — confirmées sans lien | 11 fiches | jusqu'à −11 |
-| 4 | A3 — à identifier | une séance, carte en main pour le reste | jusqu'à −14 |
+| 4 | A3 — à identifier | une séance, carte en main pour le reste | jusqu'à −15 |
 | 5 | A5 — sans cotation | au fil des ventes | — |
 
-Après A1 et A2, il resterait environ 65 exemplaires sans prix, si les
+Après A1 et A2, il resterait environ 66 exemplaires sans prix, si les
 identités proposées se confirment presque toutes. Aucune de ces actions ne
 demande d'examen physique de variante : ce travail reste dans la file
 « À examiner ».
