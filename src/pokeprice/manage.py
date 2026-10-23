@@ -160,6 +160,11 @@ def main():
         action="store_true",
         help="Seulement les cartes jamais relevées",
     )
+    prices.add_argument(
+        "--unpriced",
+        action="store_true",
+        help="Seulement les cartes sans prix de référence, relevées ou non",
+    )
     prices.add_argument("--limit", type=int, default=None)
     prices.add_argument(
         "--actor", default="manage", help="Auteur inscrit dans l'historique"
@@ -407,6 +412,7 @@ def main():
                 args.actor,
                 album=args.album,
                 only_missing=args.only_missing,
+                unpriced=args.unpriced,
                 limit=args.limit,
             )
             from .names import NameCatalog

@@ -114,6 +114,14 @@ courant**, une autre base, vide : rien ne s'appliquerait à la collection, et
 une commande d'écriture créerait une base parasite. La liste des commandes est
 dans la [référence des commandes](COMMANDES.md#pokeprice-manage).
 
+**Lancez-la depuis un dossier que `pokeprice` peut lire**, par exemple `cd /tmp`
+ou le dossier du code (`/opt/pokeprice`). Ce n'est pas propre à Oracle Cloud :
+sur tout hébergement où le service a son propre utilisateur, `sudo -u` garde le
+dossier courant. Depuis le dossier personnel de l'administrateur ou un dossier
+privé (mode `0700`), `uv` ne peut pas lire sa configuration et Python ne peut
+pas ouvrir un script relatif : la commande échoue, parfois sans message.
+Donnez aussi des chemins absolus aux fichiers.
+
 ## Les fichiers de `deploy/`
 
 | Fichier | Rôle |

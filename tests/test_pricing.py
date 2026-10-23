@@ -407,6 +407,8 @@ def test_refresh_many_snapshots_confirmed_cards_and_reports_failures(client):
     assert summary["reference_after_cents"] == 625
     again = service.refresh_many("manage", only_missing=True)
     assert again["selected"] == 1  # Only the failed one was never snapshotted.
+    unpriced = service.refresh_many("manage", unpriced=True)
+    assert unpriced["selected"] == 1  # The priced card is left alone.
     assert client.get(f"/api/copies/{good['id']}").json()["price_snapshot"]
 
 

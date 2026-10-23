@@ -41,8 +41,16 @@ pokeprice-agent copy UUID_EXEMPLAIRE
 | Observation physique ou variante incertaine | Conservez cette incertitude ; un rattachement ou un prix ne confirme ni finition ni état. |
 
 Ne confondez pas les apostrophes droites/courbes ou un suffixe Delta omis avec
-une absence du catalogue. Le rapprochement logiciel gère ces équivalences ;
-le numéro complet, les PV et les noms spéciaux restent discriminants. Une
+une absence du catalogue. Le rapprochement logiciel gère ces équivalences pour
+proposer une édition ; une approbation exige en revanche le nom exact, suffixe δ
+compris, et une langue connue. Le numéro complet, les PV et les noms spéciaux
+restent discriminants.
+
+Un prix absent malgré un rattachement n'est plus, en général, une absence de
+cotation : le relevé complète TCGdex par le guide des prix officiel de
+Cardmarket. Restent un produit signalé incorrect sans correspondance unique
+dans le guide, une édition ou variante spéciale à préciser dans les
+observations, ou une carte promotionnelle hors des extensions connues. Une
 correspondance candidate ne devient pas une identité confirmée sans choix autorisé.
 
 Les outils agent ne proposent pas de recherche libre TCGdex, de relevé libre
