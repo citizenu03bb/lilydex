@@ -72,14 +72,17 @@ class CardmarketGuide:
     def __init__(self, directory, store=None, fetch=download, get_json=fetch_tcgdex):
         self.directory, self.store = Path(directory), store
         self.fetch, self.get_json = fetch, get_json
-        self.failed_at = 0.0
+        self.failed_at = None  # monotonic time of the last failed download
         self._loaded = None
 
     def _path(self, name):
         """The day's file; an older copy serves while Cardmarket is unreachable."""
         path = self.directory / name
         fresh = path.exists() and time.time() - path.stat().st_mtime < MAX_AGE_SECONDS
-        if fresh or time.monotonic() - self.failed_at < 600:
+        retry_later = (
+            self.failed_at is not None and time.monotonic() - self.failed_at < 600
+        )
+        if fresh or retry_later:
             return path if path.exists() else None
         try:
             data = self.fetch(FILES[name])

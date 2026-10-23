@@ -87,7 +87,9 @@ def test_a_tcgdex_quote_is_never_replaced(guide):
     assert guide.complete(data) is data
 
 
-def test_unreachable_cardmarket_keeps_the_previous_files_or_changes_nothing(tmp_path):
+def test_unreachable_cardmarket_keeps_the_previous_files_or_changes_nothing(tmp_path, monkeypatch):
+    # A freshly booted machine has a small monotonic clock (CI runners).
+    monkeypatch.setattr("pokeprice.cardmarket_guide.time.monotonic", lambda: 5.0)
     def offline(url):
         raise OSError("hors ligne")
 
