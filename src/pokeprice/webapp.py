@@ -50,6 +50,7 @@ from .listings import Listings, Storefront
 from .privacy import Privacy
 from .reservations import Reservations, valid_email
 from .variant_catalogue import VariantCatalogue
+from .catalogue_image import CatalogueImages
 from .variant_pricing import category
 from .edition_check import EditionCheckService, propose_edition
 from .verification import (
@@ -519,6 +520,7 @@ def create_app(
         ),
     )
     app.state.variant_catalogue = variant_catalogue
+    catalogue_images = CatalogueImages(store, variant_catalogue.fetch)
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=allowed_hosts)
     static = Path(__file__).with_name("web")
     failures = {}
@@ -1586,6 +1588,12 @@ def create_app(
                 data,
                 draft["existing"]["id"] if draft["existing"] else draft["copy_id"],
             )
+
+    @app.get("/api/copies/{copy_id}/catalogue")
+    def catalogue(copy_id: str, user=Depends(staff)):
+        with store.connect() as db:
+            card = store.get(db, copy_id)
+        return catalogue_images.get(card)
 
     @app.get("/api/copies/{copy_id}/photo")
     def photo(
