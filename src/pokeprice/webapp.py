@@ -521,7 +521,12 @@ def create_app(
     )
     app.state.variant_catalogue = variant_catalogue
     catalogue_images = CatalogueImages(store, variant_catalogue.fetch)
-    app.add_middleware(TrustedHostMiddleware, allowed_hosts=allowed_hosts)
+    # The public name, plus loopback: commands run on the server itself (the agent
+    # client's default URL) reach the app without going out through Caddy.
+    app.add_middleware(
+        TrustedHostMiddleware,
+        allowed_hosts=list(dict.fromkeys([*allowed_hosts, "127.0.0.1", "localhost"])),
+    )
     static = Path(__file__).with_name("web")
     failures = {}
     login_lock = threading.Lock()

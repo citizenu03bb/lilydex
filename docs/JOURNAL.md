@@ -7,6 +7,21 @@
 Une page qui décrit le fonctionnement ne porte pas de date : quand un passage
 daté la quitte, il est versé ici dans le même commit.
 
+## 2026-10-23
+
+- Exemplaires sans prix ramenés de 276 à 71 ([plan d'action](PLAN-PRIX-MANQUANTS.md)) :
+  les énergies de base confirmées partent en vrac
+  ([fiche 0015](decisions/0015-energies-de-base-en-vrac.md)), 88 énergies
+  proposées par la porte confirmées sur planche, et 68 identités « à
+  vérifier » confirmées en lot, avec leur relevé TCGdex, après tri DINOv2 et
+  coches du propriétaire. Une sauvegarde précède chaque lot.
+
+- La fiche montre l'image TCGdex de l'édition à côté du recto, avec ses liens
+  TCGdex et Cardmarket ; l'image anglaise remplace une image française
+  absente. La galerie du contrôle d'édition exclut les cartes TCG Pocket, qui
+  faussaient des doutes et des désaccords. Les commandes lancées sur le
+  serveur atteignent l'application par la boucle locale.
+
 ## 2026-10-21
 
 - Lecture locale par Ollama rétablie : Gemma 4 raisonnait avant de répondre

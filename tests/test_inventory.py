@@ -780,3 +780,14 @@ def test_browser_api_link_keeps_filters_without_changing_json_api(inventory):
         )
         media = visitor.get("/assets/media.js")
         assert media.status_code == 200 and "getUserMedia" in media.text
+
+
+def test_a_public_instance_still_answers_commands_run_on_the_server(tmp_path):
+    with Store(tmp_path / "prod").connect(write=True) as db:
+        add_user(db, UserCreate(username="owner", password="Collection-test-2026!", role="admin"))
+    app = create_app(tmp_path / "prod", allowed_hosts=["lilydex.example.org"], secure_cookie=True)
+    for host in ("127.0.0.1", "lilydex.example.org"):
+        with TestClient(app, base_url=f"http://{host}") as client:
+            assert client.get("/api/setup").status_code == 200
+    with TestClient(app, base_url="http://evil.example.com") as client:
+        assert client.get("/api/setup").status_code == 400

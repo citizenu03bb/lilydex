@@ -86,9 +86,16 @@ def same_name_gallery(card, get_json):
                 isinstance(item, dict)
                 and item.get("name") == detail["name"]
                 and CARD_ID.fullmatch(str(item.get("id", "")))
+                and not digital_only(item)
             ):
                 gallery.setdefault(item["id"], reference(item, language))
     return list(gallery.values())[:MAX_GALLERY]
+
+
+def digital_only(item):
+    """TCG Pocket prints (series ``tcgp``) exist only in the app, never in a binder."""
+    parts = urlsplit(str(item.get("image") or "")).path.split("/")
+    return len(parts) > 2 and parts[2] == "tcgp"
 
 
 def reference(item, language):
