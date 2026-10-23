@@ -1730,6 +1730,47 @@ function renderVariantCheck(parent, card, previous = null) {
   if (previous) previous.replaceWith(panel);
   else parent.append(panel);
 }
+// Beside the front photo: the edition as TCGdex shows it, to compare by eye.
+async function renderCatalogueFigure(faces, c) {
+  const figure = el("figure", undefined, "catalogue-figure");
+  figure.append(el("figcaption", "Catalogue TCGdex"));
+  faces.firstElementChild.after(figure);
+  let info;
+  try {
+    info = await api(`/copies/${c.id}/catalogue`);
+  } catch {
+    figure.append(el("p", "Catalogue injoignable : rouvrez la fiche plus tard.", "help"));
+    return;
+  }
+  if (info.image) {
+    const image = el("img");
+    image.src = info.image;
+    image.alt = `Catalogue TCGdex de ${c.name} (${info.catalog_id})`;
+    figure.append(image);
+  } else figure.append(el("p", "TCGdex n’a pas d’image de cette édition.", "help"));
+  figure.append(
+    el(
+      "p",
+      "Impression standard de l’édition : TCGdex ne montre ni les reverses ni les tampons.",
+      "help",
+    ),
+  );
+  const links = el("div", undefined, "intake-actions");
+  for (const [label, href] of [
+    [`Données TCGdex (${info.served_language})`, info.tcgdex_url],
+    c.cardmarket_url
+      ? ["Produit Cardmarket", c.cardmarket_url]
+      : ["Chercher sur Cardmarket", c.cardmarket_search_url],
+  ]) {
+    if (!href) continue;
+    const link = el("a", label);
+    link.href = href;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    links.append(link);
+  }
+  figure.append(links);
+}
 async function openDetail(id) {
   const c = await api("/copies/" + id + "?threshold=" + reviewThreshold());
   state.detail = c;
@@ -1785,6 +1826,7 @@ async function openDetail(id) {
     faces.append(figure);
   }
   photo.append(faces);
+  if (c.catalog_id) renderCatalogueFigure(faces, c);
   photo.append(
     el("p", `${c.album} · page ${c.page}, pochette ${c.position}`),
     el(

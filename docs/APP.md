@@ -357,6 +357,14 @@ standard selon TCGdex, dont les variantes sont parfois incomplètes. Le pipeline
 d'albums marque Foil toute carte brillante ; une alerte signale les cartes Foil
 dont TCGdex ne connaît pas de reverse.
 
+Une fiche liée au catalogue montre, à côté du recto, l'**image TCGdex** de
+l'édition, avec un lien vers ses données TCGdex et vers Cardmarket ;
+l'agrandissement affiche le recto, le verso et cette image côte à côte. Cette
+image est celle de l'impression standard : elle aide à vérifier l'édition, pas
+la variante, car TCGdex ne montre ni les reverses ni les tampons. L'image est
+demandée à TCGdex à la première ouverture de la fiche, puis gardée en cache ;
+une édition sans image est redemandée après une semaine.
+
 La fiche sépare la **finition observée sur la carte** (mate, holo, holo avec
 cadre brillant, reverse, spéciale) et la **catégorie de prix calculée**. Le
 serveur déduit la catégorie de la finition, du tampon et des données de
