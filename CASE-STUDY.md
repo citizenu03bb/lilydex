@@ -11,16 +11,20 @@ working with AI coding agents.
 
 ## The problem
 
-A collection of more than 1,700 physical copies across several binders, in
-French, English, Japanese and Italian, had to be photographed, identified card
-by card, priced from sourced data and sold without mistakes that cost money.
+A collection of 1,737 physical copies (1,121 distinct editions) across
+several binders, mostly French with English, Spanish, Italian and Japanese
+cards, had to be photographed, identified card by card, priced from sourced
+data and sold without mistakes that cost money. The public storefront lists
+1,416 of them for sale.
 Three open-source collection managers were tried on copies of the data first.
 None kept photos per physical copy (they attach a photo to the edition), and
 all would have needed their data model changed for correction history, price
 provenance, private roles and sales. A focused FastAPI and SQLite application
 was written instead ([decision 0001](docs/decisions/0001-application-maison.md)).
 
-*Measurement conditions: copy count from the energy-gate bench, October 2026.*
+*Measurement conditions: collection counts from the admin view; storefront
+count from the public listings API (1,376 French, 21 Spanish, 18 English,
+1 Italian); 23 October 2026.*
 
 ## The domain was the hard part
 
@@ -69,7 +73,9 @@ flowchart LR
   catalogue images), *to examine* (a person in front of the binder, in page
   order, sorted by money at risk). Neither code nor agent ever confirms a
   variant or a condition from a photo
-  ([resolution guide](docs/RESOLUTION_CARTES.md)).
+  ([resolution guide](docs/RESOLUTION_CARTES.md)). At the €10 threshold,
+  399 of the 1,737 copies wait for that physical check, and 100 identified
+  copies still have no price the system can prove.
 - **A sale estimate is not a trend.** Catalogue prices give a reference trend.
   The estimate uses the median of pasted same-condition Cardmarket offers, with
   a quartile range; the Cardmarket API is closed to new users and the site is
