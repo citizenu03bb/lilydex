@@ -134,6 +134,7 @@ async function refreshSummary() {
     [s.editions, "éditions identifiées"],
     [s.available, "disponibles"],
     [s.confirmed_without_price, "identifiées sans prix"],
+    ...(s.bulk ? [[s.bulk, "énergies de base en vrac"]] : []),
   ]) {
     const box = el("div", undefined, "stat");
     box.append(el("strong", value), el("span", label));
@@ -200,7 +201,7 @@ function renderValuationTotals(target, values) {
     box.append(
       el("span", label),
       el("strong", money(values[key + "_cents"])),
-      el("small", `${values[key + "_known"]}/${values.copies} exemplaires · ${values[key + "_missing"]} sans prix`),
+      el("small", `${values[key + "_known"]}/${values.copies} exemplaires · ${values[key + "_missing"]} sans prix${values.bulk_copies ? ` · ${values.bulk_copies} en vrac` : ""}`),
     );
     target.append(box);
   }
@@ -619,6 +620,8 @@ function renderPriceSnapshot(parent, card) {
     const value = card.valuation;
     section.append(el("p", `Tendance : ${money(value.trend_cents)} · Prudente : ${money(value.prudent_cents)} · Estimation de vente : ${money(value.sale_estimate_cents)}`));
     section.append(el("p", `Valeur en jeu : ${money(value.risk_cents)}${value.risk_incomplete ? " · prix incomplets" : ""} · seuil ${money(value.threshold_cents)}. Maximum prudent des variantes et éditions plausibles, sans décote d’état.`, "help"));
+    if (value.bulk)
+      section.append(el("p", "Énergie de base : vendue en vrac, en lot, sans cote à chercher. Elle est comptée à part dans les totaux.", "help"));
     if (value.manual_price)
       section.append(el("p", `Valeur manuelle : TCGdex ne fournit pas de prix prudent, la référence saisie (${money(value.manual_price.amount_cents)}, ${value.manual_price.source}) en tient lieu. Sans moyenne à 30 jours, elle reste marquée incomplète.`, "help"));
     if (card.variant_confirmed && value.variant_catalog_warning)

@@ -3,6 +3,7 @@
 import math
 from decimal import Decimal, ROUND_HALF_UP
 
+from .energy_gate import basic_energy
 from .variant_pricing import category, pricing_issue
 
 DEFAULT_THRESHOLD_CENTS = 1000
@@ -276,7 +277,14 @@ def assess(
                 f"vérifiez que la page montre votre n° {own}, puis confirmez-la ou signalez-la incorrecte.",
             }
         )
-    if (
+    # A confirmed basic Energy is sold by the lot: there is no quote to chase (0015).
+    bulk = bool(
+        confirmed
+        and not issue
+        and current.get("prudent_cents") is None
+        and basic_energy(card.get("name", ""))[0]
+    )
+    if not bulk and (
         risk is None
         or material_unknown
         or (confirmed and current.get("prudent_cents") is None)
@@ -354,6 +362,7 @@ def assess(
         "manual_price": manual,
         "market_product": market_product,
         "price_variant_issue": issue,
+        "bulk": bulk,
         "needs_review": bool(reasons),
         "reasons": reasons,
         "hypotheses": hypotheses,
@@ -421,6 +430,7 @@ def assess_binding(card, resolution, quotes, *, threshold_cents=1000):
         "manual_price": None,
         "market_product": None,
         "price_variant_issue": None if eligible else reasons[0]["label"],
+        "bulk": False,
         "needs_review": bool(reasons),
         "reasons": reasons,
         "hypotheses": [],
@@ -430,6 +440,7 @@ def assess_binding(card, resolution, quotes, *, threshold_cents=1000):
 def totals(cards):
     """Known subtotals always carry coverage; an entirely missing total is null."""
     result = {}
+    bulk = sum(bool(c["valuation"].get("bulk")) for c in cards)
     for key in ("trend", "prudent", "sale_estimate"):
         known = [
             c["valuation"][key + "_cents"]
@@ -438,7 +449,9 @@ def totals(cards):
         ]
         result[key + "_cents"] = sum(known) if known else None
         result[key + "_known"] = len(known)
-        result[key + "_missing"] = len(cards) - len(known)
+        # Bulk copies have no price by design; they are counted apart.
+        result[key + "_missing"] = len(cards) - len(known) - bulk
+    result["bulk_copies"] = bulk
     result["copies"] = len(cards)
     result["review_count"] = sum(c["valuation"]["needs_review"] for c in cards)
     return result

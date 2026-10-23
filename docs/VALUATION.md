@@ -56,6 +56,15 @@ l'emporte toujours. Le relevé échoue alors avec un message explicite (erreur
 numéro, avec le code imprimé de l'extension quand il est connu (« Darkrai GE 4 »
 ouvre directement la bonne page).
 
+### Une énergie de base
+
+Une énergie de base confirmée et sans cotation (Énergie Feu, Fighting
+Energy…) est classée **vrac** : elle se vend en lot, sans cote à chercher, et
+ne porte pas le motif « prix à actualiser ». Les énergies spéciales, comme la
+Double Énergie Incolore, gardent leur recherche de prix ; une énergie de base
+cotée garde sa cote ; une énergie seulement proposée par la porte énergie reste
+à confirmer ([fiche 0015](decisions/0015-energies-de-base-en-vrac.md)).
+
 ### Un produit Cardmarket douteux
 
 TCGdex attribue parfois un même produit Cardmarket à deux cartes d'une
@@ -139,8 +148,9 @@ La collection complète et les résultats filtrés affichent séparément :
 - **Estimation de vente** : les dernières offres collées pour l'identité, la
   variante et l'état actuels, hors frais et port.
 
-Chaque montant indique le nombre d'exemplaires couverts et ceux sans prix ; un
-total entièrement inconnu s'affiche indisponible. Les totaux portent sur tous
+Chaque montant indique le nombre d'exemplaires couverts, ceux sans prix et
+ceux en vrac, comptés à part et sans montant ; un total entièrement inconnu
+s'affiche indisponible. Les totaux portent sur tous
 les résultats filtrés, avant la pagination, et comptent chaque exemplaire une
 fois dans l'affichage par édition.
 

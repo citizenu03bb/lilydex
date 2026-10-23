@@ -21,8 +21,8 @@ l'ancienne passe au statut « remplacée ».
 | [0011](0011-referentiel-mode-audit.md) | Le référentiel des impressions en mode audit | 2026-10-13 |
 | [0012](0012-agent-brouillons.md) | Le pilote agent n'écrit que des brouillons | 2026-10-19 |
 | [0013](0013-pas-de-synchronisation.md) | Pas de synchronisation entre le portable et le serveur | 2026-10-20 |
-
 | [0014](0014-corrections-agent-autorisees.md) | L’agent applique seulement les corrections déjà autorisées | 2026-10-20 |
+| [0015](0015-energies-de-base-en-vrac.md) | Les énergies de base confirmées partent en vrac | 2026-10-23 |
 
 ## Écrire une fiche
 

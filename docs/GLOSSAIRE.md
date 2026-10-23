@@ -51,6 +51,7 @@
 | **Estimation de vente** | sale estimate | La médiane des offres Cardmarket collées, au même état ; faute d'offre à cet état, une décote affichée de 0,75 par cran d'état. |
 | **Prix de vitrine** | storefront price | Le prix public figé au moment de publier une carte. |
 | **Lot** | lot | Des exemplaires vendus ensemble, du brouillon à la clôture : réservation, vente, paiement déclaré, expédition, retour. |
+| **Vrac** | bulk | Une carte sans cote propre, vendue en lot : une énergie de base confirmée sans cotation en fait partie. |
 
 ## Le contrôle
 
