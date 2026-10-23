@@ -34,12 +34,15 @@ CREATE TABLE IF NOT EXISTS seen(day TEXT NOT NULL, visitor TEXT NOT NULL,
 
 
 def counted(agent, headers):
-    """Robots, prefetches and visitors who ask not to be followed are left out."""
+    """Robots and visitors who object through Global Privacy Control are left out.
+
+    A page Chrome preloads from the address bar is counted: the visitor then
+    sees it without a second request. Do Not Track, abandoned by browsers and
+    often left on by default, would hide real visitors.
+    """
     if not agent or BOTS.search(agent):
         return False
-    if "prefetch" in (headers.get("sec-purpose", "") + headers.get("purpose", "")):
-        return False
-    return headers.get("sec-gpc") != "1" and headers.get("dnt") != "1"
+    return headers.get("sec-gpc") != "1"
 
 
 def referrer_domain(referrer, own_hosts):

@@ -48,8 +48,11 @@ def test_the_storefront_counts_visitors_but_not_robots_nor_the_team(shop):  # no
     visitor.get("/", headers={"user-agent": "Googlebot/2.1"})
     visitor.get("/", headers={"user-agent": BROWSER, "sec-gpc": "1"})
     admin.get("/", headers={"user-agent": BROWSER})
+    # Do Not Track is often on by default; Chrome shows a preloaded page without asking again.
+    visitor.get("/", headers={"user-agent": PHONE, "dnt": "1"})
+    visitor.get("/", headers={"user-agent": PHONE, "sec-purpose": "prefetch;prerender"})
     report = admin.get("/api/audience", params={"days": 7}).json()
-    assert report["visitors"] == 1 and report["pages"] == {"accueil": 1, "a-propos": 1}
+    assert report["visitors"] == 2 and report["pages"] == {"accueil": 3, "a-propos": 1}
     assert report["listings"] == [{"id": lot["id"], "count": 1, "title": "Deux cartes"}]
     assert report["signups"] == 0 and report["requests"] == 0
     assert visitor.get("/api/audience").status_code == 401

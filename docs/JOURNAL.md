@@ -9,6 +9,11 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-10-23
 
+- Statistiques : « Do Not Track » n'exclut plus une visite (une visite de
+  contrôle depuis un Chrome qui l'envoyait n'était pas comptée), les pages que
+  Chrome précharge sont comptées, et une erreur d'enregistrement va au journal
+  du service. Global Privacy Control reste respecté.
+
 - La gestion a un onglet **Statistiques** : fréquentation de la vitrine
   comptée sans cookie ni adresse conservée (empreinte salée effacée chaque
   soir, totaux 25 mois), robots et équipe exclus. Registre RGPD et notice

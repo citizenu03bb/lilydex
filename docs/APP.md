@@ -903,8 +903,11 @@ téléphones. Une carte compte comme consultée quand un visiteur ouvre sa fiche
 Le comptage est anonyme et sans cookie. Un visiteur est le même appareil le
 même jour : le total d'une période additionne les jours, et un appareil venu
 deux jours compte deux fois. Les robots, les comptes de l'équipe et les
-navigateurs qui refusent le suivi ne sont pas comptés ; un redémarrage du
-service ne fausse rien. Les totaux restent 25 mois dans `audience.sqlite3`, à
+navigateurs qui s'y opposent par Global Privacy Control (`Sec-GPC`) ne sont
+pas comptés. Le signal « Do Not Track », abandonné par les navigateurs et
+souvent activé par défaut, n'exclut personne. Une page que Chrome précharge
+depuis la barre d'adresse est comptée. Un redémarrage du service ne fausse
+rien. Les totaux restent 25 mois dans `audience.sqlite3`, à
 côté de la base ; ils ne font pas partie des sauvegardes.
 
 ## Consulter la collection
