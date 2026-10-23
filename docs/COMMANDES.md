@@ -274,6 +274,7 @@ Relevé TCGdex des identités confirmées (prix et variantes)
 |---|---|
 | `--album` `ALBUM` | Limiter à un album (identifiant) |
 | `--only-missing` | Seulement les cartes jamais relevées |
+| `--unpriced` | Seulement les cartes sans prix de référence, relevées ou non |
 | `--limit` `LIMIT` |  |
 | `--actor` `ACTOR` | Auteur inscrit dans l'historique Par défaut : `manage`. |
 

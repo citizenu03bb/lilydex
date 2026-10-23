@@ -346,9 +346,14 @@ Une archive ne contient pas :
 
 | Où | Règle |
 |---|---|
-| Serveur | Les 7 dernières archives quotidiennes. Les archives manuelles et les copies d'avant migration ne sont jamais supprimées par cette rotation. |
+| Serveur | Les 7 dernières archives quotidiennes. Les archives ponctuelles (faites avant un lot ou à la main) : les 3 plus récentes sont toujours gardées, les autres 14 jours. Les copies d'avant migration : les 5 plus récentes. Cette rotation passe après chaque archive quotidienne réussie. |
 | Portable | Les 3 dernières archives rapatriées, faute de place sur le disque. Cette limite ne touche pas Drive. |
 | Drive | Toutes les archives des 7 jours les plus récents qui en ont une, puis la plus récente de chacune des 8 dernières semaines et de chacun des 12 derniers mois. Seules comptent les semaines et les mois qui ont une archive. Les autres archives vont à la corbeille Drive, d'où elles restent récupérables 30 jours. |
+
+Les archives ponctuelles ne sont ni rapatriées ni copiées sur Drive : rapatriez
+celles qui doivent durer au-delà de 14 jours. Une sauvegarde est refusée avant
+d'écrire si le disque n'a pas la place de l'archive plus une marge de 512 Mo :
+un disque plein bloquerait aussi l'application.
 
 La rétention Drive s'applique après chaque copie vérifiée. Elle ne vise que les
 archives `daily-*` et `oci-daily-*` du dossier de sauvegarde, fichiers `.zip`

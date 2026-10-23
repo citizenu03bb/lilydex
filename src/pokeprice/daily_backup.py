@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 import tempfile
+import time
 from datetime import datetime
 from functools import wraps
 from pathlib import Path
@@ -12,6 +13,11 @@ from zoneinfo import ZoneInfo
 
 from .inventory import now
 from .inventory_backup import backup, restore_backup
+
+# Occasional backups (before a batch, a migration…) are not mirrored off the server.
+OCCASIONAL_KEEP = 3
+OCCASIONAL_DAYS = 14
+SCHEMA_COPIES_KEEP = 5
 
 
 def configured_drive_folder():
@@ -105,10 +111,36 @@ def daily(store, *, force=False):
     else:
         verified = verify(target)
     record_local(store, verified)
-    # Only daily archives managed here are eligible; manual backups remain intact.
     for old in sorted(folder.glob("daily-????-??-??.zip"), reverse=True)[7:]:
         old.unlink()
+    prune_occasional(folder)
     return verified
+
+
+def prune_occasional(folder, now_=None):
+    """Occasional backups: the 3 latest always stay, others for 14 days.
+
+    Before-schema copies keep their 5 latest. Daily archives are pruned above.
+    Returns the names removed.
+    """
+    now_ = now_ or time.time()
+    removed = []
+    archives = sorted(
+        (p for p in folder.glob("*.zip") if not p.name.startswith("daily-")),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
+    for path in archives[OCCASIONAL_KEEP:]:
+        if now_ - path.stat().st_mtime > OCCASIONAL_DAYS * 86400:
+            path.unlink()
+            removed.append(path.name)
+    schema = sorted(
+        folder.glob("before-schema*.sqlite3"), key=lambda p: p.stat().st_mtime, reverse=True
+    )
+    for path in schema[SCHEMA_COPIES_KEEP:]:
+        path.unlink()
+        removed.append(path.name)
+    return removed
 
 
 @serialized

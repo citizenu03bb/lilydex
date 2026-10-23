@@ -9,6 +9,12 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-10-23
 
+- Exploitation : les sauvegardes ponctuelles ont une rétention (3 dernières,
+  sinon 14 jours ; 5 copies d'avant migration), après qu'elles ont rempli le
+  disque du serveur ; une sauvegarde est refusée avant d'écrire si la place
+  manque. `prices --unpriced` relève les cartes sans prix de référence. Après
+  un produit Cardmarket jugé incorrect, le relevé cherche le bon dans le guide.
+
 - Le relevé de prix complète TCGdex par le guide des prix officiel de
   Cardmarket quand TCGdex ne donne pas de cote : 45 des 47 cartes liées sans
   cote en trouvent une ([fiche 0016](decisions/0016-guide-des-prix-cardmarket.md)).

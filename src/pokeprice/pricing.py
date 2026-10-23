@@ -102,6 +102,7 @@ def fetch_card_with_guide(guide):
             return data
         return guide.complete(data)
 
+    fetch.guide = guide
     return fetch
 
 
@@ -461,7 +462,14 @@ class PriceService:
         return json.loads(row[0]) if row else None
 
     def refresh_many(
-        self, actor, *, album="", only_missing=False, limit=None, workers=4
+        self,
+        actor,
+        *,
+        album="",
+        only_missing=False,
+        unpriced=False,
+        limit=None,
+        workers=4,
     ):
         """Snapshot every confirmed identity; one failure never stops the others."""
         from concurrent.futures import ThreadPoolExecutor
@@ -477,7 +485,12 @@ class PriceService:
                     "SELECT DISTINCT copy_id FROM events WHERE kind='price-snapshot'"
                 )
             }
-        rows = [r for r in rows if not (only_missing and r["id"] in done)][:limit]
+        rows = [
+            r
+            for r in rows
+            if not (only_missing and r["id"] in done)
+            and not (unpriced and r["reference_cents"] is not None)
+        ][:limit]
 
         def one(row):
             try:
@@ -580,6 +593,27 @@ class PriceService:
             raise ValueError(issue)
         with self.store.connect() as db:
             verdict = self.store.market_verdicts(db).get(card["catalog_id"])
+        if applicable(verdict, snapshot["id_product"]) == "wrong":
+            # The guide may know the print's own product (decision 0016).
+            guide = getattr(self.fetch, "guide", None)
+            rematched = (
+                guide.complete(
+                    {**data, "pricing": {**(data.get("pricing") or {}), "cardmarket": {}}}
+                )
+                if guide
+                else data
+            )
+            product = ((rematched.get("pricing") or {}).get("cardmarket") or {}).get(
+                "idProduct"
+            )
+            if isinstance(product, int) and product != snapshot["id_product"]:
+                data = rematched
+                decision = category(card, summarize(data, card["foil"]))
+                if decision["mode"] == "automatic":
+                    card = {**card, "foil": decision["foil"]}
+                snapshot = summarize(data, card["foil"])
+                if issue := pricing_issue(card, snapshot):
+                    raise ValueError(issue)
         if applicable(verdict, snapshot["id_product"]) == "wrong":
             raise ValueError(
                 "Le produit Cardmarket que TCGdex associe à cette carte a été "

@@ -7,6 +7,7 @@ import io
 import json
 import os
 import re
+import shutil
 import sqlite3
 import tempfile
 import zipfile
@@ -14,6 +15,9 @@ from contextlib import closing
 from pathlib import Path
 
 from .inventory import SCHEMA_VERSION, Store, now
+
+# Room left for the app and the restore check after an archive is written.
+FREE_SPACE_MARGIN = 512 * 2**20
 
 
 def backup(store, destination):
@@ -52,6 +56,15 @@ def backup(store, destination):
                 name: hashlib.sha256(body).hexdigest() for name, body in files.items()
             },
         }
+        # A full disk would also starve the running app: refuse before writing.
+        needed = sum(len(body) for body in files.values()) + FREE_SPACE_MARGIN
+        free = shutil.disk_usage(destination.parent).free
+        if free < needed:
+            raise OSError(
+                f"Espace disque insuffisant pour la sauvegarde : {free // 2**20} Mo libres, "
+                f"{needed // 2**20} Mo nécessaires. Libérez de la place (anciennes "
+                "sauvegardes ponctuelles, caches) avant de recommencer."
+            )
         # Private from its first byte: a chmod after writing leaves a readable window.
         handle = os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
         try:

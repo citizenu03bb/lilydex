@@ -61,6 +61,15 @@ Procédure et outils : `docs/AUDIT-PHOTOS.md` (`scripts/audit_photo_crops.py`,
   libellé affirmerait une confirmation humaine.
 - « À identifier » signifie souvent un dos visible. Signaler à part les cartes
   face cachée ou tête en bas, sans patch : on les corrige dans le classeur.
+  Sur une page transparente, un dos peut aussi être un fantôme : la pochette
+  est vide de ce côté et laisse voir la carte d'en face. Faire vérifier une
+  pochette par le propriétaire avant de mettre ces fiches à la corbeille.
+- Une approbation de rattachement exige une identité conforme à TCGdex : nom
+  exact (suffixe δ compris, « Unown W » et non « Unown [W] »), langue connue
+  (une langue « unknown » fait chercher en anglais). Aligner nom et langue,
+  avec motif, avant d'approuver ; approuver carte par carte pour qu'un refus
+  ne bloque pas le lot. Une délégation couvre un album et 20 cartes par
+  approbation ; la révoquer dès le lot appliqué.
 - La langue s'observe carte par carte : beaucoup d'énergies anglaises étaient
   enregistrées sous un nom français.
 
@@ -81,6 +90,16 @@ Procédure et outils : `docs/AUDIT-PHOTOS.md` (`scripts/audit_photo_crops.py`,
   les nouvelles corrections de la base.
 
 ## Sauvegarde et stock
+
+- Sur le serveur, lancer les commandes depuis `/tmp` avec des chemins absolus :
+  `sudo -u pokeprice` depuis un dossier qu'il ne peut pas lire échoue, parfois
+  sans message (`docs/DEPLOYMENT.md`).
+- Vérifier l'espace disque (`df -h /`) avant une sauvegarde ou un lot : une
+  archive pèse environ 800 Mo. Les archives ponctuelles sont gardées 14 jours
+  (les 3 dernières toujours) et ne quittent pas le serveur : rapatrier celles
+  qui doivent durer (`docs/DAILY-BACKUPS.md`).
+- `prices --unpriced` relève les cartes sans prix de référence ;
+  `--only-missing`, seulement celles jamais relevées.
 
 - Avant migration ou opération de masse sur le serveur, lancer `backup` avec
   `--data /srv/pokeprice/inventory` (forme ci-dessus) : ZIP SQLite cohérent + photos. Ne pas copier/synchroniser le fichier SQLite

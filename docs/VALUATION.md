@@ -84,7 +84,9 @@ personne, qui vaut pour cet identifiant du catalogue et ce produit seulement :
 
 - **vérifié** : le doute est levé ;
 - **incorrect** : les prix TCGdex de cette carte sont écartés et ses références
-  TCGdex retirées ; le relevé est refusé, et la valeur manuelle prend le relais ;
+  TCGdex retirées ; le relevé cherche alors le bon produit dans le guide des prix
+  Cardmarket (même extension, même nom, mêmes attaques) et n'est refusé que
+  s'il ne le trouve pas ; la valeur manuelle prend alors le relais ;
 - **annulé** : retour au comportement automatique.
 
 Si TCGdex change de produit, l'ancien verdict ne s'applique plus.

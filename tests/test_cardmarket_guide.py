@@ -141,3 +141,31 @@ def test_a_print_absent_from_the_guide_keeps_the_clear_tcgdex_message(tmp_path, 
     with pytest.raises(NoCardmarketQuote):
         fetch_card_with_guide(guide)("xx1-1", "fr")
     assert not has_quote({"trend": None, "avg30-holo": None})
+
+
+def test_a_product_judged_wrong_is_replaced_by_the_guide_match(tmp_path, monkeypatch):
+    def tcgdex_with_neighbour_product(catalog_id, language, *, require_price=False):
+        return {"id": catalog_id, "name": "Unown L", "_acquisition": {"provider": "TCGdex"},
+                "pricing": {"cardmarket": {"idProduct": 277994, "trend": 2.0, "avg30": 2.0}}}
+
+    monkeypatch.setattr(pricing, "fetch_catalogue_card", tcgdex_with_neighbour_product)
+    store = Store(tmp_path / "inventory")
+    guide = CardmarketGuide(tmp_path / "cm", store, fetch=files, get_json=TCGDEX.get)
+    with TestClient(create_app(store.root, price_fetch=fetch_card_with_guide(guide))) as client:
+        client.post("/api/setup", json={"username": "pat", "password": "Collection-test-2026!"})
+        client.post("/api/albums", json={"name": "Test"})
+        card = client.post("/api/copies", json=values(
+            client, name="Zarbi L", number="91/106", set_name="Duels au Sommets", language="fr",
+            hp=60, catalog_id="dp4-91", identification_status="confirmed")).json()
+        card = client.post(f"/api/copies/{card['id']}/price-refresh",
+                           json={"expected_version": card["version"]}).json()
+        assert card["reference_cents"] == 200
+        judged = client.post(f"/api/copies/{card['id']}/market-product", json={
+            "expected_version": card["version"], "verdict": "wrong",
+            "reason": "Le produit est celui de Unown [L] [Laugh]"})
+        assert judged.status_code == 200, judged.text
+        version = client.get(f"/api/copies/{card['id']}").json()["version"]
+        after = client.post(f"/api/copies/{card['id']}/price-refresh", json={"expected_version": version})
+    assert after.status_code == 200, after.text
+    assert after.json()["reference_cents"] == 45
+    assert after.json()["price_snapshot"]["cardmarket_guide"]["id_product"] == 277993
