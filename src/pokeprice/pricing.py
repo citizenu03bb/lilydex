@@ -36,6 +36,7 @@ CARDMARKET_CONDITIONS = {
     "PO": 7,
 }
 SOURCE = "TCGdex · Cardmarket"
+GUIDE_SOURCE = "Cardmarket · guide des prix"
 # Below this value cards are sold in bulk lots: warnings would only be noise.
 MATERIAL_EUR = 2.0
 
@@ -85,6 +86,23 @@ def fetch_catalogue_card(catalog_id, language, *, require_price=False):
 def fetch_card(catalog_id, language):
     """Card JSON with pricing; the Cardmarket product is shared by all languages."""
     return fetch_catalogue_card(catalog_id, language, require_price=True)
+
+
+def fetch_card_with_guide(guide):
+    """fetch_card, completed by Cardmarket's price guide when TCGdex has no quote."""
+    from .cardmarket_guide import has_quote
+
+    def fetch(catalog_id, language):
+        try:
+            data = fetch_card(catalog_id, language)
+        except NoCardmarketQuote as missing:
+            data = guide.complete(fetch_catalogue_card(catalog_id, language))
+            if not has_quote((data.get("pricing") or {}).get("cardmarket")):
+                raise missing
+            return data
+        return guide.complete(data)
+
+    return fetch
 
 
 def summarize(data, foil):
@@ -153,8 +171,10 @@ def summarize(data, foil):
         warnings.append(
             "Le prix bas est très inférieur à la tendance : peu d’offres comparables."
         )
+    guide = (data.get("_acquisition") or {}).get("cardmarket_guide")
     return {
-        "source": SOURCE,
+        "source": GUIDE_SOURCE if guide else SOURCE,
+        "cardmarket_guide": guide,
         "acquisition": data.get("_acquisition")
         or {"provider": "TCGdex", "requested_language": None, "served_language": None},
         "requested_language": (data.get("_acquisition") or {}).get(
@@ -575,7 +595,7 @@ class PriceService:
         changes = {
             "foil": bool(card["foil"]),
             "reference_cents": cents(snapshot["reference_eur"]),
-            "price_source": f"{SOURCE} {snapshot['reference_field']}",
+            "price_source": f"{snapshot['source']} {snapshot['reference_field']}",
             "price_date": snapshot["updated"] or snapshot["observed_at"],
         }
         with self.store.connect(write=True) as db:
@@ -588,7 +608,7 @@ class PriceService:
                     changes,
                     version,
                     actor,
-                    "Relevé de prix TCGdex",
+                    f"Relevé de prix {snapshot['source']}",
                     _db=db,
                     _category_snapshot=snapshot,
                 )

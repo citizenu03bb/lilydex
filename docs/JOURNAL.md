@@ -9,6 +9,10 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-10-23
 
+- Le relevé de prix complète TCGdex par le guide des prix officiel de
+  Cardmarket quand TCGdex ne donne pas de cote : 45 des 47 cartes liées sans
+  cote en trouvent une ([fiche 0016](decisions/0016-guide-des-prix-cardmarket.md)).
+
 - Exemplaires sans prix ramenés de 276 à 71 ([plan d'action](PLAN-PRIX-MANQUANTS.md)) :
   les énergies de base confirmées partent en vrac
   ([fiche 0015](decisions/0015-energies-de-base-en-vrac.md)), 88 énergies

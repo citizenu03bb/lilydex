@@ -25,6 +25,7 @@ from .print_reference import (
     resolve,
     validate_ruleset,
 )
+from .valuation import AUTOMATIC_SOURCES
 
 
 # Photographed copies are print evidence too (contract §3), stored like documents.
@@ -65,7 +66,7 @@ def legacy_quote(card):
     return {
         "binding_key": None,
         "metric": "manual_reference"
-        if not (card.get("price_source") or "").startswith("TCGdex")
+        if not (card.get("price_source") or "").startswith(AUTOMATIC_SOURCES)
         else "unknown",
         "amount_cents": card["reference_cents"],
         "currency": "EUR",

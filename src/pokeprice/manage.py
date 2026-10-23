@@ -396,10 +396,14 @@ def main():
             plan = candidates(store)
             result = apply(store, plan) if args.apply else {"candidates": plan}
         elif args.action == "prices":
+            from .cardmarket_guide import CardmarketGuide
             from .market_product import MarketProducts
-            from .pricing import PriceService
+            from .pricing import PriceService, fetch_card_with_guide
 
-            result = PriceService(store, market=MarketProducts(store)).refresh_many(
+            guide = CardmarketGuide(store.root / "cardmarket", store)
+            result = PriceService(
+                store, fetch_card_with_guide(guide), market=MarketProducts(store)
+            ).refresh_many(
                 args.actor,
                 album=args.album,
                 only_missing=args.only_missing,

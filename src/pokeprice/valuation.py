@@ -101,6 +101,10 @@ def other_cards(shared):
     )
 
 
+# Sources written by a price refresh, as opposed to a reference typed by a person.
+AUTOMATIC_SOURCES = ("TCGdex", "Cardmarket · guide des prix")
+
+
 def manual_reference(card):
     """A dated reference typed by a person, as opposed to a TCGdex refresh."""
     amount_cents = card.get("reference_cents")
@@ -110,7 +114,7 @@ def manual_reference(card):
         or isinstance(amount_cents, bool)
         or amount_cents < 0
         or not source
-        or source.startswith("TCGdex")
+        or source.startswith(AUTOMATIC_SOURCES)
         or not card.get("price_date")
     ):
         return None

@@ -46,7 +46,15 @@ utiles, pas à fixer un prix.
 
 ### Une carte sans cotation TCGdex
 
-Quand TCGdex ne fournit aucun prix prudent pour la catégorie de l'exemplaire
+Quand TCGdex ne donne pas la cote d'une carte, le relevé la cherche dans le
+**guide des prix officiel de Cardmarket**, un fichier public mis à jour chaque
+jour. Le produit est celui que donne TCGdex, ou la seule carte de la même
+extension qui porte le même nom anglais et les mêmes attaques et pouvoirs. Le
+relevé indique alors la source « Cardmarket · guide des prix », la date du
+fichier, le produit et la méthode ; c'est une cote comme une autre, pas une
+valeur manuelle ([fiche 0016](decisions/0016-guide-des-prix-cardmarket.md)).
+
+Quand ni TCGdex ni le guide ne fournissent de prix prudent pour la catégorie de l'exemplaire
 (carte sans cotation Cardmarket, comme les promos Nintendo ou certains Zarbi),
 une référence saisie à la main, datée et sourcée hors TCGdex, en tient lieu. Le
 plus souvent, c'est une tendance seule : la valeur reste marquée incomplète,

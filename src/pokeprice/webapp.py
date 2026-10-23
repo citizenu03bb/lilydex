@@ -44,8 +44,10 @@ from .pricing import (
     cardmarket_search_url,
     cardmarket_url,
     fetch_card,
+    fetch_card_with_guide,
     fetch_catalogue_card,
 )
+from .cardmarket_guide import CardmarketGuide
 from .listings import Listings, Storefront
 from .privacy import Privacy
 from .reservations import Reservations, valid_email
@@ -508,7 +510,13 @@ def create_app(
         store, market_fetch or (fetch_tcgdex if price_fetch is None else None)
     )
     app.state.market = market
-    pricing = PriceService(store, price_fetch or fetch_card, market)
+    # Tests inject their source; the app completes TCGdex with Cardmarket's guide.
+    pricing = PriceService(
+        store,
+        price_fetch
+        or fetch_card_with_guide(CardmarketGuide(store.root / "cardmarket", store)),
+        market,
+    )
     app.state.pricing = pricing
     variant_catalogue = VariantCatalogue(
         store,
