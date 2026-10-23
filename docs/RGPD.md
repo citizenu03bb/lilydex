@@ -73,7 +73,7 @@ terminée. `forget` ne retrouve pas ce qui y a été tapé à la main.
 |---|---|
 | Finalité | Savoir combien de personnes visitent la vitrine, ce qu'elles y regardent et d'où elles viennent |
 | Base légale | Intérêt légitime ; mesure exemptée de consentement selon les critères de la CNIL (sans cookie, anonyme, réservée au site, sans recoupement) |
-| Personnes | Visiteurs de la vitrine, hors robots, équipe de gestion et navigateurs qui refusent le suivi (`Sec-GPC` ou `DNT`) |
+| Personnes | Visiteurs de la vitrine, hors robots, équipe de gestion et navigateurs qui s'y opposent par Global Privacy Control (`Sec-GPC`) |
 | Données | Totaux par jour : visiteurs, pages vues, cartes ouvertes, domaine du site d'origine, ordinateur ou téléphone. Pour distinguer un visiteur dans la journée : une empreinte de l'adresse IP et du navigateur, salée par une valeur tirée au hasard chaque jour |
 | Accès | Administrateurs, page **Statistiques** de la gestion |
 | Durées | Empreintes et sel : effacés à la fin du jour ; totaux : 25 mois |

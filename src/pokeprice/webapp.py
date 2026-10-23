@@ -5,6 +5,7 @@ import hmac
 import html
 import io
 import json
+import logging
 import os
 import re
 import secrets
@@ -670,8 +671,9 @@ def create_app(
                 kind, key, request.client.host if request.client else "local",
                 headers["user-agent"], headers.get("referer", ""),
             )
-        except sqlite3.Error:
-            pass  # A lost count never costs a visitor the page.
+        except sqlite3.Error as error:
+            # A lost count never costs a visitor the page, but it shows in the journal.
+            logging.getLogger("uvicorn.error").warning("Visite non comptée : %s", error)
 
     # The public storefront is the home page; management lives at /gestion.
     @app.get("/", response_class=HTMLResponse)
