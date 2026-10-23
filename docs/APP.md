@@ -363,6 +363,8 @@ l'agrandissement affiche le recto, le verso et cette image côte à côte. Cette
 image est celle de l'impression standard : elle aide à vérifier l'édition, pas
 la variante, car TCGdex ne montre ni les reverses ni les tampons. L'image est
 demandée à TCGdex à la première ouverture de la fiche, puis gardée en cache ;
+quand l'édition n'a pas d'image dans la langue de la carte, l'image anglaise,
+de même illustration, la remplace ;
 une édition sans image est redemandée après une semaine.
 
 La fiche sépare la **finition observée sur la carte** (mate, holo, holo avec
@@ -499,7 +501,8 @@ seuil ou n'a pas de prix connu. Voir le [banc d'essai](BANC-RECONNAISSANCE.md).
 
 Dans la fiche, **Comparer aux images TCGdex** compare la photo du recto aux
 images de toutes les impressions de même nom, dans la langue de la carte et en
-anglais. Le calcul se fait sur le serveur avec DINOv2, sans lire le texte :
+anglais. Les cartes de TCG Pocket, le jeu numérique, en sont exclues : elles ne
+peuvent pas être dans un classeur. Le calcul se fait sur le serveur avec DINOv2, sans lire le texte :
 c'est un contrôle indépendant de la lecture qui a proposé l'édition. Il est
 enregistré comme une lecture et ne modifie pas la fiche.
 

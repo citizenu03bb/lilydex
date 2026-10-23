@@ -126,6 +126,8 @@ suivantes ; le déclassement en lecteur retire immédiatement la création de lo
 
 Configurer le client avec **l’URL de la collection de référence**, sans copier
 sa base sur le poste client. HTTPS est obligatoire, sauf pour la boucle locale.
+Sur le serveur lui-même, l’URL par défaut (`http://127.0.0.1:3820`) fonctionne :
+l’application accepte la boucle locale en plus de son nom public.
 Les redirections HTTP ne sont pas suivies et aucun cookie personnel n’est utilisé.
 
 ```bash

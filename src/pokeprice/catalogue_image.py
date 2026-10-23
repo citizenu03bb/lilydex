@@ -58,12 +58,21 @@ class CatalogueImages:
             self.failures[key] = time.monotonic()
             return links(card, {})
         image = data.get("image") if data.get("id") == card["catalog_id"] else ""
+        served = (data.get("_acquisition") or {}).get("served_language")
+        if not image and served != "en":
+            # Some French prints have data but no French scan: the artwork is the same.
+            try:
+                english = self.fetch(card["catalog_id"], "en")
+            except Exception:  # noqa: BLE001 - keep the answer without an image
+                english = {}
+            if english.get("id") == card["catalog_id"] and english.get("image"):
+                image, served = english["image"], "en"
         parsed = urlsplit(image if isinstance(image, str) else "")
         if parsed.scheme != "https" or parsed.netloc != "assets.tcgdex.net":
             image = ""
         entry = {
             "image": image,
-            "served_language": (data.get("_acquisition") or {}).get("served_language"),
+            "served_language": served,
         }
         with self.store.connect(write=True) as db:
             db.execute(

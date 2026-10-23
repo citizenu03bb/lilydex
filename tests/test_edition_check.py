@@ -224,3 +224,17 @@ def test_new_confirmed_copy_is_checked_at_intake(tmp_path):
         assert len(reader.calls) == 1 and len(detail["edition_checks"]) == 1
         kinds = [e["kind"] for e in detail["history"]]
         assert "verification-failed" in kinds and "verification" in kinds
+
+
+def test_gallery_leaves_out_tcg_pocket_prints():
+    def with_pocket(url):
+        found = tcgdex(url)
+        if isinstance(found, list):
+            found.append({"id": "A1-141", "name": "Gourgeist",
+                          "image": "https://assets.tcgdex.net/fr/tcgp/A1/141"})
+        return found
+
+    gallery = same_name_gallery({"catalog_id": "xy4-56", "language": "fr"}, with_pocket)
+    assert "A1-141" not in [g["id"] for g in gallery]
+    assert edition_check.digital_only({"image": "https://assets.tcgdex.net/en/tcgp/B2/132"})
+    assert not edition_check.digital_only({"image": "https://assets.tcgdex.net/fr/dp/dp6/80"})

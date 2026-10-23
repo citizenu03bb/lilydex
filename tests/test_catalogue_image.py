@@ -92,3 +92,16 @@ def test_catalogue_needs_a_staff_session(tmp_path):
         client.cookies.clear()
         response = client.get(f"/api/copies/{copy_id}/catalogue")
     assert response.status_code == 401
+
+
+def test_print_without_a_french_scan_shows_the_english_one(tmp_path):
+    def fetch(catalog_id, language):
+        if language == "en":
+            return {"id": catalog_id, "image": "https://assets.tcgdex.net/en/dp/dp6/89"}
+        return {"id": catalog_id, "_acquisition": {"served_language": "fr"}}
+
+    with client_with(tmp_path, fetch) as client:
+        copy_id = create(client, catalog_id="dp6-89", language="fr")
+        info = client.get(f"/api/copies/{copy_id}/catalogue").json()
+    assert info["image"] == "https://assets.tcgdex.net/en/dp/dp6/89/high.webp"
+    assert info["served_language"] == "en"
