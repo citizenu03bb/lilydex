@@ -95,8 +95,9 @@ function label(listing) {
 
 function tile(listing) {
   const li = el("li", undefined, "tile");
-  const open = el("button", undefined, "tile-open");
-  open.type = "button";
+  // A real link: middle click or "open in a new tab" reach the card's address.
+  const open = el("a", undefined, "tile-open");
+  open.href = cardPath(listing);
   const first = listing.items[0];
   const figure = el("div", undefined, "tile-photo");
   if (first.photos.includes("front")) {
@@ -114,7 +115,11 @@ function tile(listing) {
     text.append(el("p", facts(first).slice(0, 3).join(" · "), "tile-facts"));
   text.append(el("p", euros(listing.price_cents), "price"));
   open.append(figure, text);
-  open.addEventListener("click", () => show(listing));
+  open.addEventListener("click", (event) => {
+    if (event.button || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    show(listing);
+  });
   li.append(open);
   return li;
 }
