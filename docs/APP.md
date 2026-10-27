@@ -98,7 +98,7 @@ Chaque personne a son propre compte, avec l'un de ces rôles :
 | Gestion (`editor`) | En plus : corriger les fiches, publier, gérer les lots et les ventes |
 | Administration (`admin`) | En plus : gérer les comptes, les clients de la vitrine, les sauvegardes, supprimer un exemplaire |
 
-L'administrateur ajoute un compte dans l'onglet **Gestion**, panneau « Donner
+L'administrateur ajoute un compte dans l'onglet **Réglages**, panneau « Donner
 un accès », ou avec la commande `user` et `--role editor` ou `--role reader`.
 Pour retirer un accès, décochez « Compte actif » puis cliquez sur « Modifier
 l'accès ». Changer le rôle d'un compte ou le désactiver ferme ses sessions. Le
@@ -900,6 +900,8 @@ de la vitrine sur 7 jours, 30 jours, 90 jours ou 12 mois : visiteurs, pages
 vues, cartes ouvertes, demandes et inscriptions, visiteurs par jour (par
 semaine sur 12 mois), cartes les plus consultées, sites d'origine et part des
 téléphones. Une carte compte comme consultée quand un visiteur ouvre sa fiche.
+Chaque barre du graphique se touche, se clique ou se rejoint au clavier pour
+afficher le détail du jour sous le graphique.
 
 Le comptage est anonyme et sans cookie. Un visiteur est le même appareil le
 même jour : le total d'une période additionne les jours, et un appareil venu
@@ -935,8 +937,10 @@ l'album, l'examen et le tri ; le volet **Plus de filtres** déplie le stock,
 l'identification, la variante et le seuil de valeur, et signale le nombre de
 filtres secondaires actifs. Chaque filtre actif apparaît sous forme de pastille
 cliquable pour être retiré d'un clic. La collection affiche le nombre
-d'exemplaires et d'éditions, avec une pagination, et regroupe les tableaux de
-valeurs détaillées dans un tiroir repliable.
+d'exemplaires et d'éditions, avec une pagination (précédent, suivant, ou un
+numéro de page à saisir), et regroupe les tableaux de valeurs détaillées dans
+un tiroir repliable. Pendant le chargement, la grille l'annonce et grise les
+cartes qu'elle va remplacer.
 **Afficher → Éditions et quantités** regroupe les exemplaires sans les
 fusionner : les compteurs de stock portent sur l'édition entière, les
 exemplaires affichés respectent les filtres.

@@ -9,6 +9,11 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-10-27
 
+- Gestion : la grille annonce son chargement, la pagination donne le numéro
+  de page et permet d'y sauter, l'onglet « Gestion » devient « Réglages », les
+  barres des statistiques se lisent au toucher et au clavier, et l'en-tête de
+  la collection est plus compact sur téléphone.
+
 - Vitrine : les thèmes s'appellent Clair, Sombre et Dense (boutons de 40 px
   sur écran tactile), le panier devient « Ma sélection » pour ne plus se
   confondre avec « Mes demandes », le filtre de langue ne propose que les

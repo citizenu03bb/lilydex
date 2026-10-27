@@ -268,7 +268,13 @@ async function loadCards() {
   syncLocation();
   const query = collectionQuery();
   const grouped = $("display-mode")?.value === "editions";
-  const data = await api((grouped ? "/editions?" : "/copies?") + query);
+  $("cards").setAttribute("aria-busy", "true");
+  let data;
+  try {
+    data = await api((grouped ? "/editions?" : "/copies?") + query);
+  } finally {
+    if (generation === state.request) $("cards").removeAttribute("aria-busy");
+  }
   if (generation !== state.request) return;
   state.total = data.total;
   state.visibleCards = grouped
@@ -429,9 +435,14 @@ async function loadCards() {
     );
   $("previous").disabled = state.offset === 0;
   $("next").disabled = state.offset + state.limit >= data.total;
+  const pages = Math.max(1, Math.ceil(data.total / state.limit));
+  $("page-number").max = String(pages);
+  $("page-number").value = String(Math.floor(state.offset / state.limit) + 1);
+  $("page-count").textContent = `sur ${pages}`;
   $("page-label").textContent = data.total
-    ? `${state.offset + 1}–${Math.min(state.offset + state.limit, data.total)} sur ${data.total}`
+    ? `Cartes ${state.offset + 1}–${Math.min(state.offset + state.limit, data.total)} sur ${data.total}`
     : "0 résultat";
+  document.querySelector(".pagination").hidden = false;
   selectionBar();
   for (const bar of document.querySelectorAll("lilydex-filter-bar"))
     bar.refreshChips?.();
@@ -2411,20 +2422,23 @@ async function loadAudience() {
   const top = Math.max(1, ...points.map((p) => p.visitors));
   $("audience-bars").replaceChildren(
     ...points.map((p) => {
-      const bar = el("div", undefined, "audience-bar");
+      // A button: a tap or the keyboard shows the detail, not only a hover.
+      const bar = el("button", undefined, "audience-bar");
+      bar.type = "button";
       const fill = el("span");
       fill.style.height = `${(p.visitors / top) * 100}%`;
       const text = `${p.label} : ${number(p.visitors)} visiteur(s), ${number(p.pages)} page(s)`;
       bar.title = text;
       bar.setAttribute("aria-label", text);
-      bar.setAttribute("role", "img");
+      const show = () => { $("audience-detail").textContent = text; };
+      for (const kind of ["click", "focus", "mouseenter"]) bar.addEventListener(kind, show);
       bar.append(fill);
       return bar;
     }),
   );
   $("audience-chart-title").textContent = weekly ? "Visiteurs par semaine" : "Visiteurs par jour";
   $("audience-range").textContent =
-    `Du ${date(data.from, { day: "numeric", month: "long", year: "numeric" })} au ${date(data.to, { day: "numeric", month: "long", year: "numeric" })} · maximum ${number(top)} visiteur(s) ${weekly ? "par semaine" : "par jour"}. Survolez une barre pour le détail.`;
+    `Du ${date(data.from, { day: "numeric", month: "long", year: "numeric" })} au ${date(data.to, { day: "numeric", month: "long", year: "numeric" })} · maximum ${number(top)} visiteur(s) ${weekly ? "par semaine" : "par jour"}. Touchez ou survolez une barre pour le détail.`;
   const list = (id, rows, empty) =>
     $(id).replaceChildren(
       ...(rows.length
@@ -2824,6 +2838,14 @@ $("previous").addEventListener("click", () => {
 });
 $("next").addEventListener("click", () => {
   state.offset += state.limit;
+  syncLocation("push");
+  loadCards().catch((e) => toast(e.message));
+});
+// 44 pages are too many to walk: a page number goes straight there.
+$("page-number").addEventListener("change", () => {
+  const pages = Math.max(1, Math.ceil(state.total / state.limit));
+  const page = Math.min(pages, Math.max(1, Math.round(Number($("page-number").value)) || 1));
+  state.offset = (page - 1) * state.limit;
   syncLocation("push");
   loadCards().catch((e) => toast(e.message));
 });
