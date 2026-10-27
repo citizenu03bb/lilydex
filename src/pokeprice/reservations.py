@@ -5,8 +5,10 @@ the same transaction as the request's answer: a cancellation or another answer
 to the same request either comes first and wins, or waits and is refused.
 """
 
+import hashlib
 import json
 import re
+import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
 
@@ -14,6 +16,18 @@ from .inventory import Conflict, now
 
 EXPIRY = timedelta(days=7)
 OPEN_LIMIT = 10  # Open requests per client, against abuse.
+GUEST_LIMIT = 3  # Open requests per address, when sent without signing in.
+LINK_EXPIRY = timedelta(days=7)
+# Schema 20: one-time links the seller sends from their own mailbox, so that a
+# client chooses a password; only the token's hash is kept.
+SCHEMA = """
+BEGIN IMMEDIATE;
+CREATE TABLE IF NOT EXISTS password_links(token_hash TEXT PRIMARY KEY,
+ user_id TEXT NOT NULL REFERENCES users(id), created_by TEXT NOT NULL,
+ created_at TEXT NOT NULL, expires_at TEXT NOT NULL);
+PRAGMA user_version=20;
+COMMIT;
+"""
 EMAIL = re.compile(r"^[^@\s]{1,64}@[^@\s]{1,189}\.[^@\s.]{2,}$")
 SALE_STATUS = {
     "draft": "Acceptée",
@@ -102,6 +116,44 @@ class Reservations:
             db.execute("DELETE FROM sessions WHERE user_id=?", (client_id,))
         return {"ok": True}
 
+    def password_link(self, client_id, actor):
+        """A new one-time link replaces the previous ones; the token is shown once."""
+        token = secrets.token_urlsafe(32)
+        timestamp = datetime.now(timezone.utc)
+        with self.store.connect(write=True) as db:
+            row = db.execute(
+                "SELECT status,disabled FROM users WHERE id=? AND role='client'", (client_id,)
+            ).fetchone()
+            if not row:
+                raise KeyError("Client introuvable.")
+            if row["status"] == "refused" or row["disabled"]:
+                raise Conflict("Ce compte est refusé ou désactivé : validez-le d’abord.")
+            db.execute("DELETE FROM password_links WHERE user_id=?", (client_id,))
+            expires_at = (timestamp + LINK_EXPIRY).isoformat()
+            db.execute(
+                "INSERT INTO password_links VALUES(?,?,?,?,?)",
+                (hashlib.sha256(token.encode()).hexdigest(), client_id, actor,
+                 timestamp.isoformat(), expires_at),
+            )
+        return {"token": token, "expires_at": expires_at}
+
+    def use_link(self, db, token, password_hash):
+        """Set the password a link was made for; the link proves the address."""
+        row = db.execute(
+            "SELECT u.id,u.username,u.role FROM password_links l JOIN users u ON u.id=l.user_id "
+            "WHERE l.token_hash=? AND l.expires_at>? AND u.role='client' "
+            "AND u.status!='refused' AND u.disabled=0",
+            (hashlib.sha256(token.encode()).hexdigest(), now()),
+        ).fetchone()
+        if not row:
+            raise ValueError("Ce lien n’est plus valable : demandez-en un autre au vendeur.")
+        db.execute(
+            "UPDATE users SET password_hash=?,status='active' WHERE id=?", (password_hash, row["id"])
+        )
+        db.execute("DELETE FROM password_links WHERE user_id=?", (row["id"],))
+        db.execute("DELETE FROM sessions WHERE user_id=?", (row["id"],))
+        return dict(row)
+
     # -- Requests ---------------------------------------------------------
 
     def expire(self, db):
@@ -167,42 +219,84 @@ class Reservations:
             ]
 
     def create(self, client_id, listing_ids, message):
+        prices = self.prices(listing_ids)
+        with self.store.connect(write=True) as db:
+            return self.insert(db, client_id, prices(db), message, OPEN_LIMIT)
+
+    def guest(self, email, display_name, listing_ids, message, unusable_hash):
+        """A request without signing in: the address is checked when the seller replies.
+
+        An unknown address gets a pending account without a usable password; a
+        known one gets the request, unless its account is closed to requests.
+        Either way the answer is the same: it never tells who has an account.
+        """
+        email = valid_email(email)
+        prices = self.prices(listing_ids)
+        with self.store.connect(write=True) as db:
+            if not db.execute("SELECT 1 FROM users WHERE role='admin' LIMIT 1").fetchone():
+                raise Conflict("La boutique n’est pas encore ouverte aux réservations.")
+            chosen = prices(db)
+            row = db.execute(
+                "SELECT id,role,status,disabled FROM users WHERE email=? OR username=?", (email, email)
+            ).fetchone()
+            if row and (row["role"] != "client" or row["status"] == "refused" or row["disabled"]):
+                return
+            if row:
+                client_id = row["id"]
+            else:
+                client_id, timestamp = str(uuid.uuid4()), now()
+                db.execute(
+                    "INSERT INTO users(id,username,password_hash,role,created_at,email,"
+                    "display_name,status,consent_at) VALUES(?,?,?,?,?,?,?,?,?)",
+                    (client_id, email, unusable_hash, "client", timestamp, email,
+                     display_name.strip(), "pending", timestamp),
+                )
+            self.insert(db, client_id, chosen, message, GUEST_LIMIT)
+
+    def prices(self, listing_ids):
+        """Check the choice now; read each card's price inside the request's transaction."""
         if not listing_ids or len(listing_ids) != len(set(listing_ids)):
             raise ValueError("Choisissez des cartes distinctes.")
-        with self.store.connect(write=True) as db:
+
+        def read(db):
             self.expire(db)
-            open_count = db.execute(
-                "SELECT COUNT(*) FROM requests WHERE client_id=? AND status='sent'",
-                (client_id,),
-            ).fetchone()[0]
-            if open_count >= OPEN_LIMIT:
-                raise Conflict("Trop de demandes en attente : attendez une réponse du vendeur.")
             prices = {}
             for listing_id in listing_ids:
                 rows = self.storefront.rows(db, listing_id)
                 if not rows:
                     raise Conflict("Une carte n’est plus disponible : actualisez la vitrine.")
                 prices[listing_id] = rows[0]["price_cents"]
-            timestamp = datetime.now(timezone.utc)
-            request = {
-                "id": str(uuid.uuid4()),
-                "client_id": client_id,
-                "status": "sent",
-                "message": message.strip(),
-                "created_at": timestamp.isoformat(),
-                "updated_at": timestamp.isoformat(),
-                "expires_at": (timestamp + EXPIRY).isoformat(),
-            }
-            db.execute(
-                "INSERT INTO requests(" + ",".join(request) + ") VALUES("
-                + ",".join("?" for _ in request) + ")",
-                list(request.values()),
-            )
-            db.executemany(
-                "INSERT INTO request_items(request_id,listing_id,price_cents) VALUES(?,?,?)",
-                [(request["id"], l, prices[l]) for l in listing_ids],
-            )
-            return self.describe(db, db.execute("SELECT * FROM requests WHERE id=?", (request["id"],)).fetchone())
+            return prices
+
+        return read
+
+    def insert(self, db, client_id, prices, message, limit):
+        open_count = db.execute(
+            "SELECT COUNT(*) FROM requests WHERE client_id=? AND status='sent'",
+            (client_id,),
+        ).fetchone()[0]
+        if open_count >= limit:
+            raise Conflict("Trop de demandes en attente : attendez une réponse du vendeur.")
+        timestamp = datetime.now(timezone.utc)
+        request = {
+            "id": str(uuid.uuid4()),
+            "client_id": client_id,
+            "status": "sent",
+            "message": message.strip(),
+            "created_at": timestamp.isoformat(),
+            "updated_at": timestamp.isoformat(),
+            "expires_at": (timestamp + EXPIRY).isoformat(),
+        }
+        db.execute(
+            "INSERT INTO requests(" + ",".join(request) + ") VALUES("
+            + ",".join("?" for _ in request) + ")",
+            list(request.values()),
+        )
+        db.executemany(
+            "INSERT INTO request_items(request_id,listing_id,price_cents) VALUES(?,?,?)",
+            [(request["id"], l, p) for l, p in prices.items()],
+        )
+        return self.describe(db, db.execute("SELECT * FROM requests WHERE id=?", (request["id"],)).fetchone())
 
     def cancel(self, client_id, request_id, version):
         with self.store.connect(write=True) as db:
@@ -226,7 +320,7 @@ class Reservations:
             self.expire(db)
             result = []
             for row in db.execute(
-                "SELECT r.*,u.email,u.display_name FROM requests r JOIN users u ON u.id=r.client_id "
+                "SELECT r.*,u.email,u.display_name,u.status AS client_status FROM requests r JOIN users u ON u.id=r.client_id "
                 "ORDER BY CASE r.status WHEN 'sent' THEN 0 ELSE 1 END, r.created_at DESC"
             ).fetchall():
                 request = self.describe(db, row, staff=True)
@@ -324,4 +418,8 @@ class Reservations:
                     ("accepted" if listing_id in chosen else "refused", request_id, listing_id),
                 )
             self.log(db, row, actor, status, "Demande de la vitrine acceptée")
+            # Accepting means the seller writes to the client: that is the account's validation.
+            db.execute(
+                "UPDATE users SET status='active' WHERE id=? AND status='pending'", (row["client_id"],)
+            )
         return {"ok": True, "sale_id": sale_id, "status": status}

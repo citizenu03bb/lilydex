@@ -28,8 +28,8 @@ Mis à jour le 23 octobre 2026.
 |---|---|
 | Finalité | Permettre à un visiteur de réserver des cartes et au vendeur de lui répondre |
 | Base légale | Mesures précontractuelles à la demande de la personne (art. 6.1.b) |
-| Personnes | Clients inscrits sur la vitrine |
-| Données | E-mail (aussi identifiant), nom affiché, mot de passe haché (scrypt), dates d'inscription et de lecture de la notice, statut du compte, demandes (cartes, prix, message, réponse du vendeur) |
+| Personnes | Clients de la vitrine : inscrits, ou ayant envoyé une demande sans compte |
+| Données | E-mail (aussi identifiant), nom affiché, mot de passe haché (scrypt) s'il a été choisi, dates d'inscription ou de première demande et de lecture de la notice, statut du compte, demandes (cartes, prix, message, réponse du vendeur), empreinte d'un lien de mot de passe en cours (7 jours au plus) |
 | Accès | Équipe de gestion : administrateurs (comptes et demandes), éditeurs et lecteurs (demandes, avec l'e-mail) |
 | Sous-traitants | Oracle Cloud Infrastructure, région Marseille (hébergement) ; Google Drive (copies de sauvegarde **chiffrées** avec age : Google ne peut pas les lire) |
 | Transferts hors UE | Copies chiffrées sur Google Drive, sous le Data Privacy Framework UE–États-Unis |
@@ -97,7 +97,7 @@ Elles sont appliquées chaque nuit, avant la sauvegarde, par
 | Donnée | Durée |
 |---|---|
 | Compte client refusé | 30 jours après l'inscription |
-| Compte client jamais validé | 90 jours après l'inscription |
+| Compte client jamais validé | 90 jours après l'inscription ou la dernière demande |
 | Demande sans suite (refusée, expirée, annulée) | 6 mois |
 | Client sans demande depuis 3 ans | effacé, avec ses demandes |
 | Compteurs de limitation de débit | quelques minutes à une heure, en mémoire, perdus au redémarrage |
@@ -120,7 +120,8 @@ e-mail :
 
 1. **Vérifier l'identité** : la demande doit venir de l'adresse du compte, ou
    le client se connecte et utilise **Mon compte**. Ne rien envoyer à une autre
-   adresse.
+   adresse. Un client sans mot de passe peut aussi recevoir un lien de mot de
+   passe, puis tout faire lui-même.
 2. **Répondre sous un mois** (art. 12). Ce délai peut être prolongé de deux
    mois pour une demande complexe, en prévenant la personne.
 3. Selon la demande :

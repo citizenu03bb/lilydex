@@ -9,6 +9,11 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-10-27
 
+- Vitrine : une réservation se demande sans compte, avec un nom et un e-mail ;
+  accepter la demande valide le client. Le vendeur envoie depuis sa
+  messagerie un lien à usage unique pour choisir ou changer un mot de passe
+  (schéma 20, [fiche 0018](decisions/0018-reservation-sans-compte.md)).
+
 - Gestion : la grille annonce son chargement, la pagination donne le numéro
   de page et permet d'y sauter, l'onglet « Gestion » devient « Réglages », les
   barres des statistiques se lisent au toucher et au clavier, et l'en-tête de

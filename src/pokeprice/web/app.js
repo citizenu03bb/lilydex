@@ -2282,6 +2282,9 @@ async function loadRequests() {
       el("h3", `${request.display_name || request.email} · ${money(request.total_cents)} · ${request.status_label}`),
       el("p", `${request.email} · le ${new Date(request.created_at).toLocaleDateString("fr-FR")}`, "sale-meta"),
     );
+    // Sent without an account: your first e-mail is what checks the address.
+    if (request.client_status === "pending")
+      card.append(el("p", "E-mail non vérifié : accepter la demande valide le client.", "sale-meta"));
     if (request.message) card.append(el("p", `Message : ${request.message}`));
     if (request.decision) card.append(el("p", `Réponse : ${request.decision}`, "sale-meta"));
     const list = el("ul", undefined, "request-lines");
@@ -2356,13 +2359,13 @@ async function loadClients() {
     return;
   }
   box.replaceChildren();
-  if (!clients.length) box.append(el("p", "Aucune inscription pour l’instant.", "help"));
+  if (!clients.length) box.append(el("p", "Aucun client pour l’instant.", "help"));
   const labels = { pending: "en attente", active: "actif", refused: "refusé" };
   for (const client of clients) {
     const row = el("div", undefined, "user-access");
     row.append(
       el("strong", client.display_name || client.email),
-      el("span", ` · ${client.email} · ${client.disabled ? "désactivé" : labels[client.status]} · inscrit le ${new Date(client.created_at).toLocaleDateString("fr-FR")}`),
+      el("span", ` · ${client.email} · ${client.disabled ? "désactivé" : labels[client.status]} · depuis le ${new Date(client.created_at).toLocaleDateString("fr-FR")}`),
     );
     const act = (text, status, disabled) => {
       const button = el("button", text);
@@ -2383,6 +2386,27 @@ async function loadClients() {
     if (client.status !== "active" || client.disabled) act("Valider", "active", false);
     if (client.status === "pending") act("Refuser", "refused", false);
     if (client.status === "active" && !client.disabled) act("Désactiver", "active", true);
+    if (client.status !== "refused" && !client.disabled) {
+      // No e-mail service: the seller pastes the link into their own reply.
+      const link = el("button", "Lien de mot de passe");
+      link.type = "button";
+      link.addEventListener("click", async () => {
+        try {
+          const made = await api(`/clients/${client.id}/password-link`, { method: "POST" });
+          const url = `${location.origin}/#mot-de-passe=${made.token}`;
+          const until = new Date(made.expires_at).toLocaleDateString("fr-FR");
+          try {
+            await navigator.clipboard.writeText(url);
+            toast(`Lien copié, valable une fois jusqu’au ${until} : collez-le dans votre e-mail à ${client.email}.`);
+          } catch {
+            prompt(`Lien valable une fois jusqu’au ${until}, à envoyer à ${client.email} :`, url);
+          }
+        } catch (e) {
+          toast(e.message);
+        }
+      });
+      row.append(link);
+    }
     box.append(row);
   }
 }

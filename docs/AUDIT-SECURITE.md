@@ -70,8 +70,13 @@ Corrigé le 16 octobre :
 
 ## Points à suivre
 
-- Inscriptions sans captcha : limitées à 5 par heure et par adresse et soumises
-  à validation ; surveiller la liste « en attente ».
+- Inscriptions et demandes sans compte, sans captcha : 5 de chaque par heure
+  et par adresse IP, 3 demandes en attente par e-mail. Une demande ne bloque
+  aucune carte ; une adresse usurpée se repère à la réponse du vendeur.
+  Surveiller les demandes « E-mail non vérifié ».
+- Liens de mot de passe : jeton de 256 bits, empreinte seule en base, usage
+  unique, 7 jours ; le jeton reste après le `#` et quitte l'adresse à
+  l'ouverture.
 - Suppression d'un compte client et de ses données (RGPD) : prévue en
   tranche 5, avec la page de confidentialité.
 - Les limites de débit sont gardées en mémoire du processus : elles repartent

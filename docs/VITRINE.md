@@ -5,20 +5,22 @@
 > **Statut :** en vigueur. Le mode d'emploi pour l'équipe est dans le [guide de l'application](APP.md#publier-en-vitrine).
 
 La vitrine est la page d'accueil du site, ouverte sans compte. Elle montre une
-sélection explicite de cartes à vendre. Un visiteur s'inscrit pour **demander
-une réservation** ; le vendeur valide le compte, puis accepte la demande en tout
-ou en partie : l'acceptation crée un **lot réservé** dans le circuit de vente
-habituel (paiement déclaré, expédition, clôture). Il n'y a ni paiement en
-ligne, ni service d'e-mail : le vendeur contacte le client depuis sa propre
-messagerie.
+sélection explicite de cartes à vendre. Un visiteur **demande une réservation**
+avec son nom et son e-mail, sans compte ni mot de passe ; le vendeur accepte la
+demande en tout ou en partie : l'acceptation crée un **lot réservé** dans le
+circuit de vente habituel (paiement déclaré, expédition, clôture) et valide le
+client. Il n'y a ni paiement en ligne, ni service d'e-mail : le vendeur
+contacte le client depuis sa propre messagerie, et c'est sa réponse qui
+vérifie l'adresse.
 
 ## Les règles
 
 | Sujet | Règle |
 |---|---|
-| Visibilité | Vitrine ouverte, sans compte ; l'inscription sert seulement à demander |
+| Visibilité | Vitrine ouverte, sans compte ; un compte sert seulement à suivre ses demandes |
 | Prix affiché | Voir [le prix affiché](#le-prix-affiché) ; plancher 0,50 € ; sous le plancher, lots ou cadeaux |
-| Comptes clients | Inscription libre ; compte **en attente** jusqu'à sa validation par un administrateur |
+| Comptes clients | Créés par une première demande (sans mot de passe) ou par l'inscription ; **en attente** jusqu'à l'acceptation d'une demande ou la validation par un administrateur |
+| Mot de passe | Choisi par un lien à usage unique que le vendeur colle dans son e-mail ; le même lien sert en cas d'oubli |
 | Réservation | Une demande ne bloque rien ; les cartes sont réservées à l'**acceptation** |
 | E-mail | Aucun service d'envoi ; Brevo ou Mailjet, avec un domaine deSEC pour SPF et DKIM, quand le volume ou les mots de passe oubliés le justifieront |
 | Indexation | La vitrine porte `noindex` tant que l'indexation n'est pas décidée |
@@ -84,7 +86,11 @@ migration, transaction, `PRAGMA user_version` incrémenté.
 
 - `users` accueille le rôle `client`, avec `email` (unique, insensible à la
   casse, vide pour les comptes de l'équipe), `display_name`, `status`
-  (`pending`, `active`, `refused`) et `consent_at`.
+  (`pending`, `active`, `refused`) et `consent_at`. Un client né d'une demande
+  sans compte a pour mot de passe le hachage d'une valeur aléatoire oubliée
+  aussitôt : aucune connexion n'est possible avant un lien.
+- `password_links` : `token_hash`, `user_id`, `created_by`, `created_at`,
+  `expires_at`.
 - `listings` : une publication. `id` (public), `state` (`online`, `offline`),
   `price_cents`, `price_mode` (`trend`, `manual`, `offers`), `price_source`,
   `price_date`, `published_at`, `published_by`, `version`. Ses exemplaires
@@ -120,6 +126,18 @@ minute et par adresse :
   moins, lecture de l'information sur les données ; crée un compte `pending`.
   La réponse et son délai sont les mêmes, que l'adresse soit connue ou non ;
   5 inscriptions par heure et par adresse au plus.
+- `POST /api/public/requests` : la demande sans compte (cartes, message, nom,
+  e-mail, lecture de l'information sur les données). Une adresse inconnue
+  reçoit un compte `pending` sans mot de passe utilisable ; une adresse
+  connue reçoit la demande, sauf un compte refusé, désactivé ou de l'équipe,
+  qui ne reçoit rien. La réponse et son délai sont les mêmes dans tous les
+  cas ; 5 demandes par heure et par adresse IP, 3 demandes en attente par
+  e-mail au plus.
+- `POST /api/public/password` : jeton d'un lien et nouveau mot de passe ; active
+  le compte, efface ses autres liens et sessions, puis ouvre une session. Le
+  lien a la forme `/#mot-de-passe=<jeton>` : le jeton reste après le `#`, que
+  le navigateur n'envoie jamais au serveur ni dans le `Referer`, et la vitrine
+  le retire de l'adresse dès l'ouverture.
 
 **Client** (session, rôle `client` actif) :
 
@@ -135,13 +153,17 @@ minute et par adresse :
 **Équipe** :
 
 - `GET /api/clients`, `PATCH /api/clients/{id}` : valider, refuser, désactiver.
+- `POST /api/clients/{id}/password-link` (administrateur) : un lien à usage
+  unique, valable 7 jours, qui remplace les précédents ; seule l'empreinte
+  SHA-256 du jeton est gardée (`password_links`). Refusé pour un compte refusé
+  ou désactivé.
 - `GET`, `PUT`, `DELETE /api/copies/{id}/listing`, `GET`, `POST /api/listings`,
   `POST /api/listings/{id}/unpublish` : publier, changer le prix, retirer. Le
   rôle gestion publie ; la consultation voit seulement.
 - `GET /api/requests`, `POST /api/requests/{id}/accept` (les cartes retenues),
   `POST /api/requests/{id}/refuse` (avec un motif). L'acceptation est une
-  transaction unique : elle crée le lot, le réserve et marque `unavailable` les
-  cartes déjà prises ; si un exemplaire est réservé entre-temps, le brouillon
+  transaction unique : elle crée le lot, le réserve, valide un client en
+  attente et marque `unavailable` les cartes déjà prises ; si un exemplaire est réservé entre-temps, le brouillon
   est annulé. La contrainte `single_reservation` arbitre deux acceptations
   concurrentes.
 
@@ -175,6 +197,6 @@ minute et par adresse :
   plateformes de vente.
 
 **Critère de réception**, tenu : un visiteur voit les cartes publiées sans
-compte ; un client inscrit et validé envoie une demande ; son acceptation crée
+compte et envoie une demande avec son seul e-mail ; son acceptation crée
 un lot réservé ; deux acceptations concurrentes ne réservent jamais deux fois le
 même exemplaire ; aucune réponse publique ou client ne contient de champ privé.

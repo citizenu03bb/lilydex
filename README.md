@@ -36,8 +36,8 @@ correction, variantes, prix, lots et ventes. Les rapports de numérisation s'y i
 doublon ni perte de vos corrections.
 
 **Vendre** (vitrine publique, à la racine du site). Une sélection de cartes se consulte sans
-compte. Un client inscrit, validé par un administrateur, demande une réservation, qui devient
-un lot.
+compte, et une réservation se demande avec un simple e-mail. Le vendeur répond depuis sa
+messagerie ; s'il accepte, la demande devient un lot et le client est validé.
 
 **Déléguer à un agent.** Un agent IA peut travailler sur un album, avec sa propre clé d'accès,
 révocable à tout moment : il prépare seulement des brouillons de lots ; une personne publie,

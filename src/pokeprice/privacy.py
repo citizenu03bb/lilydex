@@ -97,6 +97,7 @@ class Privacy:
             db.execute("DELETE FROM request_items WHERE request_id=?", (request_id,))
             db.execute("DELETE FROM requests WHERE id=?", (request_id,))
         db.execute("DELETE FROM sessions WHERE user_id=?", (user["id"],))
+        db.execute("DELETE FROM password_links WHERE user_id=?", (user["id"],))
         db.execute("DELETE FROM users WHERE id=?", (user["id"],))
         return {"erased": user["id"], "requests": len(request_ids), "lots": len(sale_ids)}
 
@@ -113,7 +114,7 @@ class Privacy:
                 last = max(created, moment(user["last_request"])) if user["last_request"] else created
                 if user["status"] == "refused" and at - created > REFUSED_ACCOUNTS:
                     due.append((user, "Compte refusé"))
-                elif user["status"] == "pending" and at - created > PENDING_ACCOUNTS:
+                elif user["status"] == "pending" and at - last > PENDING_ACCOUNTS:
                     due.append((user, "Compte jamais validé"))
                 elif at - last > INACTIVE_CLIENTS:
                     due.append((user, "Client inactif"))

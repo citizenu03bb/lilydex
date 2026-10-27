@@ -15,7 +15,7 @@
     <header class="top">
       <nav class="account" aria-label="Compte">
         <lilydex-theme-picker></lilydex-theme-picker>
-        <button id="basket-open" type="button" hidden>Ma sélection (0)</button>
+        <button id="basket-open" type="button">Ma sélection (0)</button>
         <button id="requests-open" type="button" hidden>Mes demandes</button>
         <button id="account-open" type="button" hidden>Mon compte</button>
         <button id="logout" type="button" hidden>Déconnexion</button>
@@ -84,9 +84,10 @@
     </main>
     <footer class="foot">
       <p>
-        Pour réserver, créez un compte : le vendeur le valide, puis vous
-        envoyez une demande. Rien n’est bloqué avant que le vendeur l’accepte ;
-        il vous contacte ensuite par e-mail pour le paiement et l’envoi.
+        Pour réserver, ajoutez des cartes à votre sélection et envoyez la
+        demande avec votre e-mail, sans créer de compte. Rien n’est bloqué
+        avant que le vendeur l’accepte ; il vous écrit ensuite pour le paiement
+        et l’envoi.
       </p>
       <p class="seller"><a href="/a-propos">À propos et contact</a> · <a href="/gestion">Espace vendeur</a></p>
     </footer>
@@ -102,11 +103,20 @@
         <label>Mot de passe<input name="password" type="password" autocomplete="current-password" required minlength="10" /></label>
         <p class="error" role="alert" hidden></p>
         <button class="primary">Se connecter</button>
+        <p class="help">
+          Mot de passe oublié, ou jamais choisi ? Écrivez au vendeur
+          (<a href="/a-propos">contact</a>) : il vous envoie un lien pour en
+          choisir un.
+        </p>
       </form>
     </dialog>
     <dialog id="signup" aria-labelledby="signup-title">
       <form method="dialog"><button class="close" aria-label="Fermer">×</button></form>
       <h2 id="signup-title">Créer un compte</h2>
+      <p class="help">
+        Un compte n’est pas nécessaire pour réserver : il sert à suivre vos
+        demandes en ligne, une fois validé par le vendeur.
+      </p>
       <form id="signup-form" class="stack">
         <label>Nom affiché<input name="display_name" autocomplete="name" required maxlength="80" /></label>
         <label>E-mail<input name="email" type="email" autocomplete="email" required maxlength="254" /></label>
@@ -132,9 +142,37 @@
       <ul id="basket-items" class="lines"></ul>
       <p id="basket-total" class="price"></p>
       <form id="basket-form" class="stack">
+        <fieldset id="basket-guest" class="stack">
+          <legend>Pour vous répondre, sans créer de compte</legend>
+          <label>Votre nom<input name="display_name" autocomplete="name" required maxlength="80" /></label>
+          <label>E-mail<input name="email" type="email" autocomplete="email" required maxlength="254" /></label>
+          <p class="help">
+            Le vendeur vous répond à cette adresse. Votre nom, votre e-mail et
+            votre demande servent uniquement à traiter la réservation :
+            <a href="/a-propos#donnees">vos données</a>.
+          </p>
+          <label class="check"><input name="consent" type="checkbox" required /> J’ai lu l’information sur mes données.</label>
+        </fieldset>
         <label>Message au vendeur (facultatif)<textarea name="message" rows="3" maxlength="1000" placeholder="Envoi postal, remise en main propre…"></textarea></label>
         <p class="error" role="alert" hidden></p>
         <button class="primary">Envoyer la demande</button>
+      </form>
+    </dialog>
+    <dialog id="password" aria-labelledby="password-title">
+      <form method="dialog"><button class="close" aria-label="Fermer">×</button></form>
+      <h2 id="password-title">Choisir votre mot de passe</h2>
+      <form id="password-form" class="stack">
+        <p class="help">
+          Le vendeur vous a envoyé ce lien : il ne sert qu’une fois. Avec ce
+          mot de passe et votre e-mail, vous suivez vos demandes.
+        </p>
+        <label>Mot de passe (10 caractères au moins)<input name="password" type="password" autocomplete="new-password" required minlength="10" /></label>
+        <p class="help">
+          Choisissez un mot de passe propre à Lilydex : n’utilisez jamais celui
+          d’un autre site.
+        </p>
+        <p class="error" role="alert" hidden></p>
+        <button class="primary">Enregistrer et me connecter</button>
       </form>
     </dialog>
     <dialog id="requests" aria-labelledby="requests-title">

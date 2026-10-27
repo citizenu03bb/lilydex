@@ -536,7 +536,7 @@ def test_migration_backup_restore_neutralize_access_and_keep_drafts(shop, tmp_pa
     restore_backup(archive, restored)
     saved = Store(restored)
     with saved.connect() as db:
-        assert db.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION == 19
+        assert db.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION >= 19
         assert db.execute("SELECT sale_id FROM agent_drafts").fetchone()[0] == sale_id
         assert (
             db.execute("SELECT token_hash,revoked_at FROM agent_grants").fetchone()[
