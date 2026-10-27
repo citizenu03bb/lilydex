@@ -47,7 +47,8 @@ message. Les filtres s'écrivent après le `#` (`/#q=eevee&langue=en&tri=price`)
 le serveur ne les voit pas, et `/` garde sa redirection des anciens liens de
 gestion. Le bouton Retour ferme la fiche ouverte. Les vignettes sont des liens
 vers cette adresse : un clic ouvre la fiche sur place, un clic milieu ou
-Ctrl+clic l'ouvre dans un nouvel onglet.
+Ctrl+clic l'ouvre dans un nouvel onglet. Le filtre de langue ne propose que les langues
+d'au moins une carte en vente (`languages` dans la réponse de recherche).
 
 **Jamais exposé hors de la gestion** : notes, provenance, événements, relevés
 et historique de prix, prix de référence brut, alertes, état estimé non

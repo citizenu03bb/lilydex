@@ -842,8 +842,9 @@ inscriptions par heure et par adresse au plus. Un client se connecte avec son
 e-mail ; il n'apparaît jamais parmi les comptes de l'équipe, ne peut pas
 recevoir de rôle de gestion et n'accède à aucune action de gestion.
 
-Un client connecté ajoute des cartes à **Ma demande** (gardée dans son
-navigateur), écrit un message (envoi, remise en main propre) et l'envoie.
+Un client connecté ajoute des cartes à **Ma sélection** (gardée dans son
+navigateur), écrit un message (envoi, remise en main propre) et l'envoie : la
+sélection devient une demande.
 **Une demande ne bloque rien.** Il suit ses demandes dans **Mes demandes** et
 peut annuler une demande en attente ; dix demandes en attente au plus par
 client ; une demande sans réponse expire au bout de 7 jours.
@@ -919,11 +920,13 @@ propos propose quatre modes, mémorisés dans le navigateur :
 
 - **Auto** (par défaut) : suit le réglage clair ou sombre de l'appareil
   (`prefers-color-scheme`) ;
-- **Herbier** : thème clair éditorial sur papier ivoire ;
-- **Vault** : thème sombre à contraste élevé pour l'examen des cartes brillantes
-  et des bords ;
-- **Atelier** : thème clair technique à densité accrue pour les sessions de
-  vérification.
+- **Clair** (thème Herbier) : thème clair éditorial sur papier ivoire ;
+- **Sombre** (thème Vault) : thème sombre à contraste élevé pour l'examen des
+  cartes brillantes et des bords ;
+- **Dense** (thème Atelier) : thème clair technique à densité accrue pour les
+  sessions de vérification.
+
+Sur un écran tactile ou étroit, les boutons du sélecteur font 40 px de haut.
 
 ### Rechercher et filtrer
 

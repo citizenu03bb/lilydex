@@ -9,6 +9,11 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-10-27
 
+- Vitrine : les thèmes s'appellent Clair, Sombre et Dense (boutons de 40 px
+  sur écran tactile), le panier devient « Ma sélection » pour ne plus se
+  confondre avec « Mes demandes », le filtre de langue ne propose que les
+  langues en vente et « Afficher plus » indique où l'on en est.
+
 - Dépendances : Pillow 13, filelock 4.2, setuptools 84.2, opentelemetry-api
   1.45.1 et certifi à jour, qui ferment les 49 alertes Dependabot ouvertes.
   Python 3.11 devient le minimum ([fiche 0017](decisions/0017-python-3-11-minimum.md)).

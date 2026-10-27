@@ -162,10 +162,10 @@ function show(listing) {
   const action = el("p", undefined, "detail-action");
   if (state.me) {
     const inBasket = state.basket.some((x) => x.id === listing.id);
-    const add = el("button", inBasket ? "Déjà dans ma demande" : "Ajouter à ma demande", "primary");
+    const add = el("button", inBasket ? "Déjà dans ma sélection" : "Ajouter à ma sélection", "primary");
     add.type = "button";
     add.disabled = inBasket;
-    const view = el("button", "Voir ma demande");
+    const view = el("button", "Voir ma sélection");
     view.type = "button";
     view.hidden = !inBasket;
     view.addEventListener("click", () => {
@@ -177,11 +177,11 @@ function show(listing) {
     add.addEventListener("click", () => {
       state.basket.push({ id: listing.id, label: label(listing), price_cents: listing.price_cents });
       saveBasket();
-      add.textContent = "Ajoutée à ma demande";
+      add.textContent = "Ajoutée à ma sélection";
       add.disabled = true;
       view.hidden = false;
       const count = state.basket.length;
-      added.textContent = `${count} carte${count > 1 ? "s" : ""} dans votre demande.`;
+      added.textContent = `${count} carte${count > 1 ? "s" : ""} dans votre sélection.`;
     });
     action.append(add, view, added);
   } else {
@@ -276,7 +276,7 @@ function renderAccount() {
   const signedIn = Boolean(state.me);
   for (const id of ["login-open", "signup-open"]) $(id).hidden = signedIn;
   for (const id of ["basket-open", "requests-open", "account-open", "logout"]) $(id).hidden = !signedIn;
-  $("basket-open").textContent = `Ma demande (${state.basket.length})`;
+  $("basket-open").textContent = `Ma sélection (${state.basket.length})`;
 }
 
 async function whoAmI() {
@@ -313,7 +313,7 @@ function renderBasket() {
   const total = state.basket.reduce((sum, x) => sum + x.price_cents, 0);
   $("basket-total").textContent = state.basket.length
     ? `Total indicatif : ${euros(total)} (hors frais d’envoi)`
-    : "Votre demande est vide : ouvrez une carte pour l’ajouter.";
+    : "Votre sélection est vide : ouvrez une carte pour l’ajouter.";
   $("basket-form").hidden = !state.basket.length;
 }
 
@@ -381,6 +381,11 @@ async function load(reset = true) {
     state.items = reset ? result.items : state.items.concat(result.items);
     state.total = result.total;
     state.approximate = Boolean(result.approximate);
+    // Languages without a single card on sale would only lead to an empty page.
+    // Safari ignores hidden options in a select: they are disabled as well.
+    for (const option of $("language").options)
+      option.hidden = option.disabled = Boolean(option.value) &&
+        option.value !== $("language").value && !result.languages?.includes(option.value);
   } catch (error) {
     $("error").textContent =
       typeof error.message === "string" ? error.message : "La vitrine ne répond pas.";
@@ -392,6 +397,7 @@ async function load(reset = true) {
     ? `${state.total} annonce${state.total > 1 ? "s" : ""}${state.approximate ? ` · résultats approchés pour « ${$("q").value.trim()} »` : ""}`
     : "Aucune carte ne correspond pour l’instant.";
   $("more").hidden = state.items.length >= state.total;
+  $("more").textContent = `Afficher plus · ${state.items.length.toLocaleString("fr-FR")} sur ${state.total.toLocaleString("fr-FR")}`;
 }
 
 let typing;
