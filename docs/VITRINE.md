@@ -15,8 +15,9 @@ vérifie l'adresse.
 
 La vitrine s'affiche sous le nom **Les cartes de Lily**. Ce nom vient de
 `SITE_NAME` (`src/pokeprice/brand.py`), que le serveur insère dans chaque page à
-la place de `{{site_name}}`. Son en-tête compact présente la collection, sans
-bouton d'exploration : la recherche est directement visible. **Comment réserver** reste accessible, y compris sur téléphone, à côté
+la place de `{{site_name}}` ; le logotype (`{{site_wordmark}}`) le coupe avant
+son dernier « de ». Son en-tête compact présente la collection, sans bouton
+d'exploration : la recherche est directement visible. **Comment réserver** reste accessible, y compris sur téléphone, à côté
 de **Ma sélection**. Le menu **Compte** réunit connexion, inscription, suivi
 des demandes et choix du thème. La palette crème, sauge et terracotta suit les
 thèmes Clair, Sombre et Dense ; les polices restent locales et la politique de

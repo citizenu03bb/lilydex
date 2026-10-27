@@ -29,5 +29,6 @@ personnelles en dérive son nom (`les-cartes-de-lily-mes-donnees.json`).
 - Le dépôt GitHub, l'adresse `lilydex.duckdns.org` et les identifiants
   techniques gardent `lilydex` : les renommer ne changerait rien pour un
   visiteur, et les clés de stockage lui feraient perdre sa sélection.
-- Le logotype de la vitrine (« Les cartes » au-dessus de « de Lily ») est un
-  dessin : il ne suit pas `SITE_NAME` et se modifie à la main.
+- Le logotype de la vitrine suit aussi `SITE_NAME` : le nom est coupé avant
+  son dernier « de », « Les cartes » au-dessus de « de Lily ». Un nom sans
+  « de » s'affiche en entier en italique.
