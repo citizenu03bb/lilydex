@@ -752,7 +752,7 @@ def create_app(
         name: Literal[
             "app.js", "media.js", "workflows.js", "gallery.js", "style.css",
             "storefront.js", "storefront.css", "themes.css", "components.js",
-            "logo.png", "apple-touch-icon.png",
+            "logo.png", "apple-touch-icon.png", "mascotte.png",
         ],
     ):
         return FileResponse(static / name)

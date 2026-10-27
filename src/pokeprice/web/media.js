@@ -52,7 +52,8 @@ const CardMedia = (() => {
     for (const image of document.querySelectorAll(
       "#workspace img, #detail-dialog img, #add-dialog img, #photo-dialog img",
     )) {
-      if (image.closest("button")) continue;
+      // The logo is decoration, not a photo to inspect.
+      if (image.closest("button") || image.classList.contains("brand-mark")) continue;
       const parent = image.parentNode,
         next = image.nextSibling;
       parent.insertBefore(zoomButton(image), next);

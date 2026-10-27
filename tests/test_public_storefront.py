@@ -152,7 +152,8 @@ def test_every_page_shows_the_logo_and_its_tab_icon(shop):
     icon = visitor.get("/favicon.ico")
     assert icon.status_code == 200 and icon.headers["content-type"] == "image/x-icon"
     assert icon.content[:4] == b"\x00\x00\x01\x00"  # ICO header
-    for name in ("logo.png", "apple-touch-icon.png"):
+    assert 'src="/assets/mascotte.png"' in visitor.get("/a-propos").text
+    for name in ("logo.png", "apple-touch-icon.png", "mascotte.png"):
         image = visitor.get(f"/assets/{name}")
         assert image.status_code == 200 and image.content[:8] == b"\x89PNG\r\n\x1a\n"
 

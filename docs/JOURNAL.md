@@ -9,6 +9,9 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-10-27
 
+- À propos : la mascotte, la même danseuse en pied, illustre « Qui vend ? ».
+  Dans la gestion, le logo n'ouvre plus la visionneuse des photos.
+
 - Identité : un logo (une danseuse de flamenco en chibi, un lys dans le
   chignon, un éventail de cartes) remplace le « L » des en-têtes, et l'onglet
   a son icône : `/favicon.ico` ne répond plus 404. Les images sont générées en
