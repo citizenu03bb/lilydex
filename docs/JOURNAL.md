@@ -7,6 +7,14 @@
 Une page qui décrit le fonctionnement ne porte pas de date : quand un passage
 daté la quitte, il est versé ici dans le même commit.
 
+## 2026-10-27
+
+- Audit d'ergonomie de la vitrine et de la gestion. Vitrine : le badge ne
+  promet plus de verso (aucune annonce n'en a), l'état non confirmé est dit,
+  une publication en masse se lit de A à Z, les cartes apparaissent dès le
+  premier écran mobile, le bouton de réservation reste visible. Gestion : la
+  fiche d'exemplaire perd ses doublons et replie les outils et champs techniques.
+
 ## 2026-10-23
 
 - Statistiques : « Do Not Track » n'exclut plus une visite (une visite de
