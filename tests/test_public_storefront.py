@@ -91,6 +91,26 @@ def test_a_bulk_publication_reads_in_name_order(shop):
     assert pages == expected
 
 
+def test_search_knows_other_languages_and_forgives_one_slip(shop):
+    admin, visitor, store, cards, single, lot = shop
+    with store.connect() as db:
+        db.execute("UPDATE copies SET name='Évoli', catalog_id='base2-51' WHERE id=?", (cards[0]["id"],))
+        db.execute(
+            "INSERT INTO catalog_names VALUES('base2-51','en','Eevee','test','2026-10-27')"
+        )
+    search = lambda q: visitor.get("/api/public/listings", params={"q": q}).json()
+    found = search("eevee")
+    assert [l["id"] for l in found["items"]] == [single["id"]] and "approximate" not in found
+    assert search("evoli")["total"] == 1
+    slipped = search("eeveee")
+    assert [l["id"] for l in slipped["items"]] == [single["id"]] and slipped["approximate"]
+    assert search("evloi")["approximate"]  # two letters swapped
+    assert search("eevxx")["total"] == 0
+    assert search("evol")["total"] == 1 and "approximate" not in search("evol")
+    # Short words need an exact match: one slip in three letters is another word.
+    assert search("evx")["total"] == 0
+
+
 def test_withdrawn_or_reserved_publications_leave_the_storefront(shop):
     admin, visitor, store, cards, single, lot = shop
     admin.delete(f"/api/copies/{single['items'][0]['id']}/listing")
@@ -129,6 +149,17 @@ def test_the_storefront_is_home_and_management_has_its_own_address(shop):
     assert old_link.status_code == 301 and old_link.headers["location"] == "/gestion?view=sales&q=Zarbi"
     former = visitor.get("/vitrine", follow_redirects=False)
     assert former.status_code == 301 and former.headers["location"] == "/"
+
+
+def test_a_card_has_its_own_address(shop):
+    admin, visitor, store, cards, single, lot = shop
+    page = visitor.get(f"/carte/{single['id']}")
+    assert page.status_code == 200 and "/assets/storefront.js" in page.text
+    gone = visitor.get("/carte/absente")
+    # Still the storefront, which says the card is no longer for sale.
+    assert gone.status_code == 404 and "/assets/storefront.js" in gone.text
+    assert admin.delete(f"/api/copies/{single['items'][0]['id']}/listing").status_code == 200
+    assert visitor.get(f"/carte/{single['id']}").status_code == 404
 
 
 def test_https_deployments_ask_browsers_to_stay_on_https(shop):

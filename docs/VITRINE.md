@@ -35,6 +35,18 @@ Le tri « Les plus récentes » range les publications par jour, puis par nom : 
 publication en masse se lit dans l'ordre alphabétique. Les tris par prix
 départagent les égalités de la même façon.
 
+La recherche lit le nom de la carte, son extension, son numéro et ses noms du
+catalogue TCGdex dans les autres langues (`catalog_names`) : « eevee » trouve
+Évoli. Sans résultat exact, elle pardonne une faute de frappe (lettre en trop,
+en moins, changée ou inversée) dans les mots de cinq lettres ou plus, et la
+page annonce des résultats approchés.
+
+Chaque carte a son adresse, `/carte/<identifiant de la publication>`, que la
+fiche permet de copier. Une carte retirée renvoie 404 avec la vitrine et un
+message. Les filtres s'écrivent après le `#` (`/#q=eevee&langue=en&tri=price`) :
+le serveur ne les voit pas, et `/` garde sa redirection des anciens liens de
+gestion. Le bouton Retour ferme la fiche ouverte.
+
 **Jamais exposé hors de la gestion** : notes, provenance, événements, relevés
 et historique de prix, prix de référence brut, alertes, état estimé non
 confirmé, album, page et pochette, autres exemplaires, lots, ventes, acheteurs,

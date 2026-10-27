@@ -747,6 +747,18 @@ def create_app(
     def storefront_page():
         return RedirectResponse("/", status_code=301)
 
+    # A card's own address, to share it: the storefront opens on its fiche.
+    @app.get("/carte/{listing_id}", response_class=HTMLResponse)
+    def card_page(listing_id: str, request: Request, _=Depends(public_rate)):
+        page = static.joinpath("storefront.html").read_text()
+        try:
+            storefront.get(listing_id)
+        except KeyError:
+            # The page still loads and says the card is no longer for sale.
+            return HTMLResponse(page, status_code=404)
+        count_visit(request, "page", "carte")
+        return page
+
     @app.get("/api/public/listings")
     def public_listings(
         q: str = Query(default="", max_length=200),

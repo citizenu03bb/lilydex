@@ -1,6 +1,7 @@
 """Storefront publications: a single card or a lot, each at one displayed price."""
 
 import json
+import re
 import sqlite3
 import uuid
 
@@ -269,6 +270,26 @@ def public_item(index, card):
     }
 
 
+def one_slip(a, b):
+    """True when b is a with one letter added, removed, changed or swapped."""
+    if a == b or abs(len(a) - len(b)) > 1:
+        return a == b
+    i = 0
+    while i < min(len(a), len(b)) and a[i] == b[i]:
+        i += 1
+    if len(a) == len(b):
+        return a[i + 1 :] == b[i + 1 :] or (a[i : i + 2] == b[i : i + 2][::-1] and a[i + 2 :] == b[i + 2 :])
+    longer, shorter = (a, b) if len(a) > len(b) else (b, a)
+    return longer[i + 1 :] == shorter[i:]
+
+
+def near(term, text):
+    """A search term found as is, or within one slip of a word for terms of five letters or more."""
+    if term in text:
+        return True
+    return len(term) >= 5 and any(one_slip(term, word) for word in re.findall(r"\w+", text))
+
+
 class Storefront:
     """Read-only view of online publications whose copies are all available."""
 
@@ -329,22 +350,37 @@ class Storefront:
             ):
                 card = dict(row)
                 cards.setdefault(card.pop("listing_id"), []).append(card)
-        found = []
+            # Visitors search in their own language: Eevee finds Évoli.
+            names = dict(
+                db.execute(
+                    "SELECT catalog_id, group_concat(name, ' ') FROM catalog_names GROUP BY catalog_id"
+                ).fetchall()
+            )
+        candidates = []
         for row in rows:
             items = cards.get(row["id"], [])
             if not items:
                 continue
+            if language and not any(c["language"] == language for c in items):
+                continue
+            if max_cents is not None and row["price_cents"] > max_cents:
+                continue
             text = normalized(
-                " ".join(f"{c['name']} {c['set_name']} {c['number']}" for c in items)
+                " ".join(
+                    f"{c['name']} {names.get(c['catalog_id'], '')} {c['set_name']} {c['number']}"
+                    for c in items
+                )
                 + " "
                 + row["title"]
             )
-            if (
-                all(t in text for t in terms)
-                and (not language or any(c["language"] == language for c in items))
-                and (max_cents is None or row["price_cents"] <= max_cents)
-            ):
-                found.append((row["published_at"][:10], self.public(row, items)))
+            candidates.append((row, items, text))
+        approximate = False
+        matching = [p for p in candidates if all(t in p[2] for t in terms)]
+        if terms and not matching:
+            # One slip of the keyboard is forgiven, and the page says so.
+            matching = [p for p in candidates if all(near(t, p[2]) for t in terms)]
+            approximate = bool(matching)
+        found = [(row["published_at"][:10], self.public(row, items)) for row, items, _ in matching]
         # A bulk publication takes minutes: within one day the name, then the id,
         # set the order, so it reads naturally and pages never overlap.
         found.sort(key=lambda p: (normalized(p[1]["title"] or p[1]["items"][0]["name"]), p[1]["id"]))
@@ -353,7 +389,10 @@ class Storefront:
         if sort in ("price", "price_desc"):
             found.sort(key=lambda p: p[1]["price_cents"], reverse=sort == "price_desc")
         found = [listing for _, listing in found]
-        return {"items": found[offset : offset + limit], "total": len(found)}
+        result = {"items": found[offset : offset + limit], "total": len(found)}
+        if approximate:
+            result["approximate"] = True
+        return result
 
     def get(self, listing_id):
         with self.store.connect() as db:
