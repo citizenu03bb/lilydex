@@ -224,18 +224,100 @@ dialog::backdrop {
   cursor: pointer;
   color: var(--muted);
 }
-.faces {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 10px;
+/* The fiche is a viewer: the photo first, the facts below it or beside it. */
+.viewer-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
 }
-.faces img {
-  width: 100%;
+.viewer-bar form {
+  margin-left: auto;
+}
+.viewer-bar .close {
+  float: none;
+}
+#detail-previous,
+#detail-next {
+  min-width: 42px;
+  font-size: 1.3rem;
+  line-height: 1;
+}
+.viewer-photo {
+  position: relative;
+  margin: 0;
+}
+.stage {
+  display: grid;
+  place-items: center;
+  min-height: 200px;
+  border-radius: var(--radius-md, 10px);
+  background: var(--photo-well, var(--line));
+  /* Horizontal swipes belong to the viewer; scrolling and zoom to the browser. */
+  touch-action: pan-y pinch-zoom;
+  user-select: none;
+}
+.stage img {
+  display: block;
+  max-width: 100%;
   /* The whole card stays in view, and the reserve button close to it. */
   max-height: 62vh;
   object-fit: contain;
-  border-radius: var(--radius-md, 10px);
-  background: var(--photo-well, var(--line));
+  -webkit-user-drag: none;
+}
+#detail-flip {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+}
+.viewer-photo figcaption {
+  margin-top: 6px;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+@media (min-width: 601px) {
+  #detail.full[open] {
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    max-width: none;
+    max-height: none;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    display: grid;
+    grid-template: "bar bar" auto "photo body" minmax(0, 1fr) / minmax(0, 1fr) min(380px, 38vw);
+    gap: 0 20px;
+    overflow: hidden;
+  }
+  #detail.full .viewer-bar {
+    grid-area: bar;
+  }
+  #detail.full .viewer-photo {
+    grid-area: photo;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  #detail.full .stage {
+    flex: 1;
+    min-height: 0;
+  }
+  #detail.full .stage img {
+    width: 100%;
+    height: 100%;
+    max-height: none;
+  }
+  #detail.full #detail-body {
+    grid-area: body;
+    overflow: auto;
+  }
+  #detail.full .detail-action {
+    bottom: 0;
+    margin: 12px 0 0;
+    padding: 12px 0;
+  }
 }
 .facts {
   padding-left: 18px;
@@ -254,6 +336,8 @@ dialog::backdrop {
   margin-bottom: 10px;
 }
 .account > button,
+.viewer-bar button:not(.close),
+#detail-flip,
 .detail-action button,
 .stack button,
 .lines button,
@@ -416,8 +500,32 @@ fieldset.stack legend {
 .detail-action .notice:empty {
   display: none;
 }
-/* On a phone the first cards show without scrolling past the whole header. */
+/* On a phone the first cards show without scrolling past the whole header,
+   and a card opens on the whole screen. */
 @media (max-width: 600px) {
+  #detail {
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    max-width: none;
+    max-height: none;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    padding: 12px;
+  }
+  #detail .stage img {
+    max-height: 66vh;
+    max-height: 66dvh;
+  }
+  #detail-full {
+    display: none;
+  }
+  #detail .detail-action {
+    bottom: -12px;
+    margin: 12px -12px -12px;
+    padding: 12px;
+  }
   .about .mascot {
     width: 104px;
     margin-left: 12px;

@@ -130,10 +130,87 @@ function cardPath(listing) {
   return `/carte/${encodeURIComponent(listing.id)}`;
 }
 
-function show(listing) {
-  if (location.pathname !== cardPath(listing)) {
-    history.pushState({ card: listing.id }, "", cardPath(listing) + location.hash);
+// The fiche is also a viewer: one photo at a time, the neighbouring cards of
+// the list a swipe or an arrow key away.
+function faces(listing) {
+  return listing.items.flatMap((item) => item.photos.map((side) => ({ item, side })));
+}
+
+function drawFace() {
+  const listing = state.current;
+  const all = faces(listing);
+  const face = all[state.face];
+  const stage = $("detail-stage");
+  if (face) {
+    const image = el("img");
+    image.src = photo(listing, face.item, face.side, "full");
+    image.alt = `${face.side === "front" ? "Recto" : "Verso"} de ${face.item.name}`;
+    stage.replaceChildren(image);
+  } else stage.replaceChildren(el("p", "Photo indisponible", "help"));
+  const flip = $("detail-flip");
+  flip.hidden = all.length < 2;
+  // One card: recto and verso. A lot: every photo in turn.
+  flip.textContent =
+    listing.items.length > 1
+      ? `Photo ${state.face + 1}/${all.length} ›`
+      : face?.side === "front" ? "Verso" : "Recto";
+  $("detail-caption").textContent = face
+    ? [face.side === "front" ? "Recto" : "Verso", listing.items.length > 1 && face.item.name]
+        .filter(Boolean)
+        .join(" · ")
+    : "";
+}
+
+function flip() {
+  const count = faces(state.current).length;
+  if (count < 2) return;
+  state.face = (state.face + 1) % count;
+  drawFace();
+}
+
+const position = () => state.items.findIndex((x) => x.id === state.current?.id);
+
+function drawNav() {
+  const index = position();
+  // A card opened from its address may not be in the list loaded behind it.
+  for (const id of ["detail-previous", "detail-next", "detail-position"]) $(id).hidden = index < 0;
+  if (index < 0) return;
+  $("detail-previous").disabled = index === 0;
+  $("detail-next").disabled = index === state.items.length - 1 && state.items.length >= state.total;
+  $("detail-position").textContent = `${index + 1} / ${state.total}`;
+  // Only the next photo to show is fetched ahead, to spare mobile data.
+  for (const neighbour of [state.items[index - 1], state.items[index + 1]]) {
+    const item = neighbour?.items[0];
+    if (item?.photos.includes("front")) new Image().src = photo(neighbour, item, "front", "full");
   }
+}
+
+async function step(delta) {
+  if (state.stepping || position() < 0) return;
+  state.stepping = true;
+  try {
+    if (position() + delta >= state.items.length && state.items.length < state.total) {
+      state.offset = state.items.length;
+      await load(false);
+    }
+    const next = state.items[position() + delta];
+    if (next && $("detail").open) show(next, true);
+  } finally {
+    state.stepping = false;
+  }
+}
+
+function show(listing, replace = false) {
+  if (location.pathname !== cardPath(listing)) {
+    const address = cardPath(listing) + location.hash;
+    // Going from card to card keeps one history entry: Back returns to the list.
+    if (replace) history.replaceState(history.state, "", address);
+    else history.pushState({ card: listing.id }, "", address);
+  }
+  state.current = listing;
+  state.face = 0;
+  drawFace();
+  drawNav();
   const body = $("detail-body");
   body.replaceChildren();
   body.append(el("h2", title(listing), undefined));
@@ -144,19 +221,11 @@ function show(listing) {
   for (const item of listing.items) {
     const block = el("section", undefined, "detail-item");
     if (listing.items.length > 1) block.append(el("h3", item.name));
-    const faces = el("div", undefined, "faces");
-    for (const side of item.photos) {
-      const image = el("img");
-      image.src = photo(listing, item, side, "full");
-      image.alt = `${side === "front" ? "Recto" : "Verso"} de ${item.name}`;
-      image.loading = "lazy";
-      faces.append(image);
-    }
     const list = el("ul", undefined, "facts");
     for (const fact of facts(item)) list.append(el("li", fact));
     if (!item.photos.includes("back"))
       list.append(el("li", "Verso non photographié : demandez-le dans votre message"));
-    block.append(faces, list);
+    block.append(list);
     body.append(block);
   }
   const action = el("p", undefined, "detail-action");
@@ -201,7 +270,52 @@ function show(listing) {
   action.append(share, shared);
   body.append(action);
   if (!$("detail").open) $("detail").showModal();
+  $("detail").scrollTop = $("detail-body").scrollTop = 0;
 }
+
+$("detail-previous").addEventListener("click", () => step(-1));
+$("detail-next").addEventListener("click", () => step(1));
+$("detail-flip").addEventListener("click", flip);
+$("detail").addEventListener("keydown", (event) => {
+  if (event.altKey || event.ctrlKey || event.metaKey) return;
+  if (event.target.closest("input, select, textarea")) return;
+  if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+    event.preventDefault();
+    step(event.key === "ArrowLeft" ? -1 : 1);
+  } else if (event.key === "r" || event.key === "R") flip();
+  else if (event.key === "f" || event.key === "F") fullView(!$("detail").classList.contains("full"));
+});
+
+// A horizontal swipe on the photo changes card; vertical scroll and pinch zoom stay native.
+let swipe = null;
+$("detail-stage").addEventListener("pointerdown", (event) => {
+  swipe = event.isPrimary && event.pointerType !== "mouse" ? { x: event.clientX, y: event.clientY } : null;
+});
+$("detail-stage").addEventListener("pointercancel", () => (swipe = null));
+$("detail-stage").addEventListener("pointerup", (event) => {
+  if (!swipe) return;
+  const dx = event.clientX - swipe.x;
+  const dy = event.clientY - swipe.y;
+  swipe = null;
+  if (Math.abs(dx) > 50 && Math.abs(dx) > 1.5 * Math.abs(dy)) step(dx < 0 ? 1 : -1);
+});
+
+// On a computer the fiche can take the whole screen; a phone always shows it so.
+// The choice is a per-visitor convenience, kept on the device.
+const FULL = "lilydex-viewer-full";
+function fullView(on) {
+  $("detail").classList.toggle("full", on);
+  $("detail-full").setAttribute("aria-pressed", String(on));
+  $("detail-full").textContent = on ? "Réduire" : "Plein écran";
+  try {
+    if (on) localStorage.setItem(FULL, "1");
+    else localStorage.removeItem(FULL);
+  } catch {}
+}
+$("detail-full").addEventListener("click", () => fullView(!$("detail").classList.contains("full")));
+try {
+  fullView(localStorage.getItem(FULL) === "1");
+} catch {}
 
 // Closing the fiche goes back to the list, as the browser's Back button does.
 // The open attribute is watched: some browsers skip the dialog's close event.
@@ -435,6 +549,7 @@ async function load(reset = true) {
     : "Aucune carte ne correspond pour l’instant.";
   $("more").hidden = state.items.length >= state.total;
   $("more").textContent = `Afficher plus · ${state.items.length.toLocaleString("fr-FR")} sur ${state.total.toLocaleString("fr-FR")}`;
+  if ($("detail").open) drawNav();
 }
 
 let typing;

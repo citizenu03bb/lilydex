@@ -94,7 +94,18 @@
       <p class="seller"><a href="/a-propos">À propos et contact</a> · <a href="/gestion">Espace vendeur</a></p>
     </footer>
     <dialog id="detail" aria-labelledby="detail-title">
-      <form method="dialog"><button class="close" aria-label="Fermer">×</button></form>
+      <div class="viewer-bar">
+        <button id="detail-previous" type="button" aria-label="Carte précédente">‹</button>
+        <span id="detail-position" class="help"></span>
+        <button id="detail-next" type="button" aria-label="Carte suivante">›</button>
+        <button id="detail-full" type="button" aria-pressed="false">Plein écran</button>
+        <form method="dialog"><button class="close" aria-label="Fermer">×</button></form>
+      </div>
+      <figure class="viewer-photo">
+        <div id="detail-stage" class="stage"></div>
+        <button id="detail-flip" type="button" hidden>Verso</button>
+        <figcaption id="detail-caption"></figcaption>
+      </figure>
       <div id="detail-body"></div>
     </dialog>
     <dialog id="login" aria-labelledby="login-title">

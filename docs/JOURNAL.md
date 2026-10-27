@@ -9,6 +9,10 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-10-27
 
+- Vitrine : la fiche d'une carte devient une visionneuse, en plein écran sur
+  téléphone : carte voisine d'un glissement ou d'une flèche, recto et verso,
+  adresse `/carte/<id>` tenue à jour.
+
 - À propos : la mascotte, la même danseuse en pied, illustre « Qui vend ? ».
   Dans la gestion, le logo n'ouvre plus la visionneuse des photos.
 
