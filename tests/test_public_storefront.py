@@ -81,6 +81,68 @@ def test_the_language_filter_lists_languages_on_sale(shop):
     assert "ja" in result["languages"] and "de" not in result["languages"]
 
 
+def test_card_filters_match_the_same_member_and_keep_the_whole_lot(shop):
+    _, visitor, store, _, single, lot = shop
+    with store.connect() as db:
+        for item, language, extension, finish in [
+            (single["items"][0], "fr", "Autre extension", ""),
+            (lot["items"][0], "fr", "Rivaux Émergeants", "reverse"),
+            (lot["items"][1], "en", "Duels au Sommets", "holo"),
+        ]:
+            db.execute(
+                "UPDATE copies SET language=?,set_name=?,finish=? WHERE id=?",
+                (language, extension, finish, item["id"]),
+            )
+    search = lambda **params: visitor.get("/api/public/listings", params=params).json()
+    result = search(extension="Rivaux Émergeants", finish="reverse", language="fr")
+    assert result["total"] == 1
+    assert result["items"][0]["id"] == lot["id"]
+    assert len(result["items"][0]["items"]) == 2
+    assert result["items"][0]["price_cents"] == 200  # price of the entire lot
+    assert search(extension="Rivaux Émergeants", finish="holo")["total"] == 0
+    assert search(extension="Rivaux Émergeants", language="en")["total"] == 0
+    assert search(finish="reverse", max_eur="1.99")["total"] == 0
+    assert search(extension="Absente")["total"] == 0
+    assert visitor.get("/api/public/listings", params={"finish": "invented"}).status_code == 422
+    # Facets remain available even with no results, and omit unknown finishes.
+    result = search(q="introuvable", offset=50)
+    assert result["extensions"] == ["Autre extension", "Duels au Sommets", "Rivaux Émergeants"]
+    assert result["finishes"] == ["holo", "reverse"]
+    with store.connect() as db:
+        db.execute("UPDATE copies SET stock_state='reserved' WHERE id=?", (lot["items"][0]["id"],))
+    result = search()
+    assert result["extensions"] == ["Autre extension"] and result["finishes"] == []
+
+
+def test_extension_and_finish_filter_the_catalogue_before_pagination(shop):
+    _, visitor, store, _, single, _ = shop
+    # Seven matches beyond the first 48 publications must still be found.
+    with store.connect() as db:
+        original = dict(db.execute("SELECT * FROM copies WHERE id=?", (single["items"][0]["id"],)).fetchone())
+        publication = dict(db.execute("SELECT * FROM listings WHERE id=?", (single["id"],)).fetchone())
+        for i in range(55):
+            card = {**original, "id": f"copy-page-{i}", "source_key": f"page-{i}",
+                    "name": f"Carte {i:03}", "language": "fr",
+                    "set_name": "Rare" if i >= 48 else "Commune",
+                    "finish": "reverse" if i >= 48 else "non_holo"}
+            listing = {**publication, "id": f"listing-page-{i}"}
+            for table, values in [("copies", card), ("listings", listing)]:
+                db.execute(
+                    f"INSERT INTO {table} ({','.join(values)}) VALUES ({','.join('?' for _ in values)})",
+                    tuple(values.values()),
+                )
+            db.execute("INSERT INTO listing_items VALUES(?,?,1)", (listing["id"], card["id"]))
+    first = visitor.get("/api/public/listings", params={"sort": "name"}).json()
+    assert not any(l["items"][0]["set_name"] == "Rare" for l in first["items"])
+    pages = [visitor.get("/api/public/listings", params={
+        "q": "Carte", "extension": "Rare", "finish": "reverse", "language": "fr",
+        "sort": "name", "limit": 3, "offset": offset,
+    }).json() for offset in (0, 3, 6)]
+    assert [p["total"] for p in pages] == [7, 7, 7]
+    assert [l["id"] for p in pages for l in p["items"]] == [f"listing-page-{i}" for i in range(48, 55)]
+    assert "Commune" in pages[-1]["extensions"] and "non_holo" in pages[-1]["finishes"]
+
+
 def test_a_bulk_publication_reads_in_name_order(shop):
     admin, visitor, store, cards, single, lot = shop
     names = {single["id"]: single["items"][0]["name"], lot["id"]: "Deux cartes"}
@@ -128,7 +190,9 @@ def test_withdrawn_or_reserved_publications_leave_the_storefront(shop):
     sale = admin.post("/api/sales", json={"title": "Réservé", "copy_ids": [lot["items"][0]["id"]], "amount_eur": "1"}).json()
     sale = next(s for s in admin.get("/api/sales").json() if s["id"] == sale["id"])
     assert admin.patch(f"/api/sales/{sale['id']}", json={"status": "reserved", "expected_version": sale["version"], "reason": "Test"}).status_code == 200
-    assert visitor.get("/api/public/listings").json() == {"items": [], "total": 0, "languages": []}
+    assert visitor.get("/api/public/listings").json() == {
+        "items": [], "total": 0, "languages": [], "extensions": [], "finishes": [],
+    }
     assert visitor.get(f"/api/public/listings/{lot['id']}").status_code == 404
 
 

@@ -56,6 +56,19 @@ def test_storefront_viewer_walks_the_list_and_a_lot_photos():
     assert result.returncode == 0, result.stderr
 
 
+def test_storefront_filters_survive_urls_pages_races_and_mobile_editing():
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("Node.js is required to exercise the storefront filters")
+    root = Path(__file__).resolve().parents[1]
+    result = subprocess.run(
+        [node, str(root / "tests/storefront_filters_runtime.cjs"),
+         str(root / "src/pokeprice/web/storefront.js")],
+        capture_output=True, text=True,
+    )
+    assert result.returncode == 0, result.stderr
+
+
 def test_filter_urls_survive_reload_and_reject_invalid_values():
     node = shutil.which("node")
     if not node:
