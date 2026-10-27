@@ -91,6 +91,26 @@ def test_a_bulk_publication_reads_in_name_order(shop):
     assert pages == expected
 
 
+def test_search_knows_other_languages_and_forgives_one_slip(shop):
+    admin, visitor, store, cards, single, lot = shop
+    with store.connect() as db:
+        db.execute("UPDATE copies SET name='Évoli', catalog_id='base2-51' WHERE id=?", (cards[0]["id"],))
+        db.execute(
+            "INSERT INTO catalog_names VALUES('base2-51','en','Eevee','test','2026-10-27')"
+        )
+    search = lambda q: visitor.get("/api/public/listings", params={"q": q}).json()
+    found = search("eevee")
+    assert [l["id"] for l in found["items"]] == [single["id"]] and "approximate" not in found
+    assert search("evoli")["total"] == 1
+    slipped = search("eeveee")
+    assert [l["id"] for l in slipped["items"]] == [single["id"]] and slipped["approximate"]
+    assert search("evloi")["approximate"]  # two letters swapped
+    assert search("eevxx")["total"] == 0
+    assert search("evol")["total"] == 1 and "approximate" not in search("evol")
+    # Short words need an exact match: one slip in three letters is another word.
+    assert search("evx")["total"] == 0
+
+
 def test_withdrawn_or_reserved_publications_leave_the_storefront(shop):
     admin, visitor, store, cards, single, lot = shop
     admin.delete(f"/api/copies/{single['items'][0]['id']}/listing")

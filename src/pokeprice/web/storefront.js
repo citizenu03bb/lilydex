@@ -290,6 +290,7 @@ async function load(reset = true) {
     if (request !== state.request) return; // A newer search already answered.
     state.items = reset ? result.items : state.items.concat(result.items);
     state.total = result.total;
+    state.approximate = Boolean(result.approximate);
   } catch (error) {
     $("error").textContent =
       typeof error.message === "string" ? error.message : "La vitrine ne répond pas.";
@@ -298,7 +299,7 @@ async function load(reset = true) {
   }
   $("grid").replaceChildren(...state.items.map(tile));
   $("count").textContent = state.total
-    ? `${state.total} annonce${state.total > 1 ? "s" : ""}`
+    ? `${state.total} annonce${state.total > 1 ? "s" : ""}${state.approximate ? ` · résultats approchés pour « ${$("q").value.trim()} »` : ""}`
     : "Aucune carte ne correspond pour l’instant.";
   $("more").hidden = state.items.length >= state.total;
 }
