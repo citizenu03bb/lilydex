@@ -33,15 +33,10 @@ main,
   font-size: 0.85rem;
 }
 .brand-mark {
-  width: 26px;
-  height: 26px;
-  display: inline-grid;
-  place-items: center;
-  background: var(--accent-soft);
-  color: var(--green);
-  border-radius: 50%;
-  font-size: 14px;
-  font-weight: 800;
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  flex: none;
 }
 h1 {
   font-family: var(--font-display, inherit);

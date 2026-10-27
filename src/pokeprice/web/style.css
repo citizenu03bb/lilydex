@@ -241,12 +241,8 @@ a {
 .brand-mark {
   width: 32px;
   height: 32px;
-  display: grid;
-  place-items: center;
-  background: var(--accent-soft);
-  color: var(--green);
-  border-radius: 50%;
-  font-size: 19px;
+  object-fit: contain;
+  flex: none;
 }
 .topbar nav {
   display: flex;
