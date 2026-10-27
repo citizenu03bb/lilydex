@@ -33,7 +33,7 @@ from pydantic import BaseModel, ConfigDict, Field, StrictBool
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from .audience import Audience, counted
-from .brand import SITE_NAME, site_slug
+from .brand import SITE_NAME, site_slug, site_wordmark
 from .condition_assessment import ConditionService, assessment_rows, read_condition
 from .intake import IntakeService, catalogue_candidates, normalize_photo, read_photo
 from .inventory import Conflict, Store, cents, now
@@ -560,9 +560,16 @@ def create_app(
     )
     static = Path(__file__).with_name("web")
 
+    small, large = site_wordmark()
+    wordmark = (f"<span>{html.escape(small)}</span>" if small else "") + f"<em>{html.escape(large)}</em>"
+
     def page(name: str) -> str:
         """A page as served: the site's name comes from `brand`, not from the file."""
-        return static.joinpath(name).read_text().replace("{{site_name}}", html.escape(SITE_NAME))
+        return (
+            static.joinpath(name).read_text()
+            .replace("{{site_name}}", html.escape(SITE_NAME))
+            .replace("{{site_wordmark}}", wordmark)
+        )
 
     failures = {}
     login_lock = threading.Lock()

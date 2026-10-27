@@ -9,6 +9,16 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-10-27
 
+- Vitrine : le logotype « Les cartes / de Lily » dérive lui aussi de `SITE_NAME`,
+  coupé avant le dernier « de ».
+
+- Mise en ligne de la visionneuse plein écran corrigée, des vignettes de
+  **Ma sélection** et du nom Les cartes de Lily (#27, #28, `decf086`) à la place
+  de `422d1c2`, sans migration ; base conservée. En ligne : titres des trois
+  pages au nouveau nom, sans « Lilydex » ; photo réelle entière en plein écran à
+  1280 × 800 ; vignette affichée dans la sélection ; 1 415 annonces ; gestion à
+  `401` sans session.
+
 - Le produit s'appelle Les cartes de Lily ([fiche 0019](decisions/0019-les-cartes-de-lily.md)).
   Vitrine, À propos, gestion et export des données prennent le nom d'une seule
   constante ; la documentation vivante suit. Dépôt, adresse et identifiants

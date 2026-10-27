@@ -4,7 +4,8 @@ import pytest
 from fastapi.testclient import TestClient
 from test_library import inputs
 
-from pokeprice.brand import SITE_NAME, site_slug
+from pokeprice import brand
+from pokeprice.brand import SITE_NAME, site_slug, site_wordmark
 from pokeprice.inventory import Store
 from pokeprice.inventory_import import import_collection
 from pokeprice.webapp import create_app
@@ -286,3 +287,12 @@ def test_every_page_takes_the_site_name_from_one_place(shop):
         assert f"<title>{SITE_NAME} · " in text, path
         assert "{{" not in text and "Lilydex" not in text, path
     assert site_slug() == "les-cartes-de-lily"
+    assert '<span class="wordmark"><span>Les cartes</span><em>de Lily</em></span>' in visitor.get("/").text
+
+
+def test_the_logotype_follows_the_site_name(monkeypatch):
+    assert site_wordmark() == ("Les cartes", "de Lily")
+    monkeypatch.setattr(brand, "SITE_NAME", "La boutique de la tour de Lily")
+    assert site_wordmark() == ("La boutique de la tour", "de Lily")
+    monkeypatch.setattr(brand, "SITE_NAME", "Lilydex")
+    assert site_wordmark() == ("", "Lilydex")
