@@ -405,6 +405,40 @@
               <div id="clients-list"></div>
             </section>
             <section class="panel">
+              <h2>Paiement des réservations</h2>
+              <p>
+                Un client voit ces coordonnées, avec le montant et la référence
+                du lot, seulement tant que son lot est réservé et non payé. La
+                page « À propos » nomme les moyens proposés, sans les
+                coordonnées. Laissez vide un moyen que vous ne proposez pas.
+              </p>
+              <form id="payment-form">
+                <label
+                  >Wero : téléphone ou e-mail<input
+                    name="wero"
+                    maxlength="254"
+                    autocomplete="off" /></label
+                ><label
+                  >IBAN<input
+                    name="iban"
+                    maxlength="64"
+                    autocomplete="off"
+                    spellcheck="false" /></label
+                ><label
+                  >Titulaire du compte<input
+                    name="holder"
+                    maxlength="70"
+                    autocomplete="off" /></label
+                ><label
+                  >PayPal : e-mail ou lien paypal.me<input
+                    name="paypal"
+                    maxlength="254"
+                    autocomplete="off" /></label
+                ><button class="primary">Enregistrer</button>
+                <p id="payment-message" role="status"></p>
+              </form>
+            </section>
+            <section class="panel">
               <h2>Nouvel album</h2>
               <form id="album-form">
                 <label

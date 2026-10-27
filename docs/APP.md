@@ -868,6 +868,19 @@ le paiement et l'envoi : le lot suit le circuit habituel et le client voit son
 statut (réservée, vendue, expédiée…). Chaque décision est inscrite à
 l'historique des exemplaires.
 
+**Le paiement.** Dans **Réglages → Paiement des réservations**,
+l'administrateur indique les moyens proposés : Wero (téléphone ou e-mail
+enregistré dans Wero), IBAN et titulaire, PayPal (e-mail ou lien paypal.me).
+Un moyen laissé vide n'est pas proposé ; `/a-propos` nomme les moyens, jamais
+les coordonnées. Après l'acceptation, saisissez le port facturé dans le lot :
+tant que le lot est réservé et non payé, le client voit dans **Mes demandes**
+le total (cartes et port), la référence du lot (`LILY-…`) à recopier dans le
+libellé, et les coordonnées. Un client sans mot de passe ne voit pas cette
+page : **Copier les instructions de paiement**, sur la demande, met le même
+texte dans le presse-papiers pour votre e-mail. Retrouvez le paiement reçu par
+sa référence, puis cochez « payé » dans le lot : les coordonnées
+disparaissent de la vue du client.
+
 Le site n'envoie pas d'e-mails : pour qu'un client choisisse un mot de passe,
 ou en change après un oubli, **Lien de mot de passe** (Comptes clients de la
 vitrine, administrateur) copie un lien à usage unique, valable 7 jours, à

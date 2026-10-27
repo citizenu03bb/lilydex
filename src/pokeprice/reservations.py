@@ -28,6 +28,15 @@ CREATE TABLE IF NOT EXISTS password_links(token_hash TEXT PRIMARY KEY,
 PRAGMA user_version=20;
 COMMIT;
 """
+# Schema 21: the seller's settings, such as how a reserved lot is paid.
+SETTINGS_SCHEMA = """
+BEGIN IMMEDIATE;
+CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value_json TEXT NOT NULL,
+ updated_by TEXT NOT NULL, updated_at TEXT NOT NULL);
+PRAGMA user_version=21;
+COMMIT;
+"""
+PAYMENT_FIELDS = ("wero", "iban", "holder", "paypal")
 EMAIL = re.compile(r"^[^@\s]{1,64}@[^@\s]{1,189}\.[^@\s.]{2,}$")
 SALE_STATUS = {
     "draft": "Acceptée",
@@ -53,6 +62,50 @@ def valid_email(value):
     if len(value) > 254 or not EMAIL.match(value):
         raise ValueError("Adresse e-mail invalide.")
     return value
+
+
+def valid_iban(value):
+    """An IBAN without spaces, checked by its two control digits (ISO 13616)."""
+    iban = re.sub(r"\s", "", value).upper()
+    if not re.fullmatch(r"[A-Z]{2}\d{2}[A-Z0-9]{11,30}", iban):
+        raise ValueError("IBAN invalide.")
+    digits = "".join(str(int(c, 36)) for c in iban[4:] + iban[:4])
+    if int(digits) % 97 != 1:
+        raise ValueError("IBAN invalide : sa clé de contrôle ne correspond pas.")
+    return iban
+
+
+def payment_values(values):
+    """Check the payment settings: each method is optional, none is guessed."""
+    clean = {key: (values.get(key) or "").strip() for key in PAYMENT_FIELDS}
+    wero = clean["wero"]
+    if wero and "@" in wero:
+        clean["wero"] = valid_email(wero)
+    elif wero:
+        phone = re.sub(r"[\s.\-]", "", wero)
+        if not re.fullmatch(r"(\+\d{9,15}|0\d{9})", phone):
+            raise ValueError("Wero : indiquez le numéro de téléphone ou l’e-mail enregistré dans Wero.")
+        clean["wero"] = phone
+    if clean["iban"]:
+        clean["iban"] = valid_iban(clean["iban"])
+        if not clean["holder"]:
+            raise ValueError("Indiquez le titulaire du compte : le client en a besoin pour le virement.")
+    elif clean["holder"]:
+        raise ValueError("Le titulaire accompagne un IBAN.")
+    paypal = clean["paypal"]
+    if paypal and "@" in paypal:
+        clean["paypal"] = valid_email(paypal)
+    elif paypal:
+        name = re.fullmatch(r"(?:https?://)?(?:www\.)?paypal\.me/([A-Za-z0-9]{1,20})/?", paypal)
+        if not name:
+            raise ValueError("PayPal : indiquez une adresse e-mail ou un lien paypal.me.")
+        clean["paypal"] = "https://paypal.me/" + name[1]
+    return clean
+
+
+def sale_reference(sale_id):
+    """The short reference a client copies into the payment's wording."""
+    return "LILY-" + sale_id.replace("-", "")[:8].upper()
 
 
 class Reservations:
@@ -166,7 +219,10 @@ class Reservations:
     def describe(self, db, row, *, staff=False):
         request = dict(row)
         sale = (
-            db.execute("SELECT status FROM sales WHERE id=?", (request["sale_id"],)).fetchone()
+            db.execute(
+                "SELECT status,paid,amount_cents,shipping_charged_cents FROM sales WHERE id=?",
+                (request["sale_id"],),
+            ).fetchone()
             if request["sale_id"]
             else None
         )
@@ -203,9 +259,46 @@ class Reservations:
             items.append(entry)
         request["items"] = items
         request["total_cents"] = sum(i["price_cents"] for i in items)
+        if sale:
+            request["reference"] = sale_reference(request["sale_id"])
         if not staff:
             request.pop("client_id")
+        # The seller's payment details reach a client only while their lot awaits
+        # payment; the team copies the same text into its e-mail.
+        if sale and sale["status"] == "reserved" and not sale["paid"]:
+            request["payment"] = {
+                "total_cents": sale["amount_cents"] + sale["shipping_charged_cents"],
+                "shipping_cents": sale["shipping_charged_cents"],
+                "reference": request["reference"],
+                **self.payment(db),
+            }
         return request
+
+    def payment(self, db=None):
+        """The seller's payment methods; an empty value means the method is not offered."""
+        if db is None:
+            with self.store.connect() as db:
+                return self.payment(db)
+        row = db.execute("SELECT value_json FROM settings WHERE key='payment'").fetchone()
+        stored = json.loads(row[0]) if row else {}
+        return {key: stored.get(key, "") for key in PAYMENT_FIELDS}
+
+    def set_payment(self, values, actor):
+        clean = payment_values(values)
+        with self.store.connect(write=True) as db:
+            db.execute(
+                "INSERT INTO settings(key,value_json,updated_by,updated_at) VALUES('payment',?,?,?) "
+                "ON CONFLICT(key) DO UPDATE SET value_json=excluded.value_json,"
+                "updated_by=excluded.updated_by,updated_at=excluded.updated_at",
+                (json.dumps(clean), actor, now()),
+            )
+        return clean
+
+    def payment_methods(self):
+        """The methods offered, named without any identifier, for the public pages."""
+        payment = self.payment()
+        names = {"wero": "Wero", "iban": "virement bancaire", "paypal": "PayPal (biens et services)"}
+        return [label for key, label in names.items() if payment[key]]
 
     def mine(self, client_id):
         with self.store.connect(write=True) as db:
