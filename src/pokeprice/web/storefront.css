@@ -234,6 +234,9 @@ dialog::backdrop {
 }
 .faces img {
   width: 100%;
+  /* The whole card stays in view, and the reserve button close to it. */
+  max-height: 62vh;
+  object-fit: contain;
   border-radius: var(--radius-md, 10px);
   background: var(--photo-well, var(--line));
 }
@@ -356,4 +359,54 @@ button:disabled {
 .about h2 {
   font-size: 1.2rem;
   margin-top: 26px;
+}
+.detail-action {
+  position: sticky;
+  bottom: -20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 12px -20px -20px;
+  padding: 12px 20px;
+  background: var(--card);
+  border-top: 1px solid var(--line);
+}
+.detail-action .notice:empty {
+  display: none;
+}
+/* On a phone the first cards show without scrolling past the whole header. */
+@media (max-width: 600px) {
+  .top {
+    padding-top: 12px;
+  }
+  .account {
+    justify-content: flex-start;
+  }
+  .intro,
+  .unofficial {
+    font-size: 0.82rem;
+    margin: 6px 0;
+  }
+  .storefront-pillars {
+    gap: 4px;
+    margin: 8px 0;
+  }
+  .storefront-pillars li {
+    padding: 3px 8px;
+    font-size: 0.72rem;
+  }
+  .filters {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 12px;
+    padding: 10px;
+  }
+  .filters label:last-child {
+    grid-column: 1 / -1;
+  }
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
 }

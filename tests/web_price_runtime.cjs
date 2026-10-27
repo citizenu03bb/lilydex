@@ -105,7 +105,8 @@ const cards = [
     reference_cents: 5210, price_source: "Cardmarket · tendance", price_date: "2026-10-07",
     valuation: { trend_cents: null, prudent_cents: null },
   });
-  assert(descendants(manual).some((n) => n.text?.includes("Référence enregistrée : 5210 · Cardmarket · tendance · 2026-10-07")));
+  // The fiche shows the reference with its source and date beside the price field.
+  assert(!descendants(manual).some((n) => n.text?.includes("Référence enregistrée")));
   const nodes = descendants(parent);
   assert(!nodes.some((n) => n.text?.startsWith("TCGdex ne connaît pas de version Foil")));
   assert(nodes.some((n) => n.text?.includes("autre catégorie écartée après vérification physique")));

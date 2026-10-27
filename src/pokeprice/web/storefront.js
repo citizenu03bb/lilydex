@@ -72,7 +72,8 @@ function facts(item) {
   return [
     [item.set_name, item.number].filter(Boolean).join(" · "),
     LANGUAGES[item.language] || item.language,
-    item.condition && `État ${item.condition}`,
+    // An unconfirmed condition is hidden by the server: say so instead.
+    item.condition ? `État ${item.condition}` : "État non confirmé : voir la photo",
     item.finish,
     item.stamp && `Tampon : ${item.stamp}`,
     item.distribution,
@@ -85,11 +86,17 @@ function title(listing) {
     : listing.items[0].name;
 }
 
+// The edition tells apart the many copies that share a name.
+function label(listing) {
+  if (listing.items.length > 1) return title(listing);
+  const item = listing.items[0];
+  return [item.name, item.set_name, item.number].filter(Boolean).join(" · ");
+}
+
 function tile(listing) {
   const li = el("li", undefined, "tile");
   const open = el("button", undefined, "tile-open");
   open.type = "button";
-  open.setAttribute("aria-label", `${title(listing)}, ${euros(listing.price_cents)}`);
   const first = listing.items[0];
   const figure = el("div", undefined, "tile-photo");
   if (first.photos.includes("front")) {
@@ -133,7 +140,8 @@ function show(listing) {
     }
     const list = el("ul", undefined, "facts");
     for (const fact of facts(item)) list.append(el("li", fact));
-    if (!item.condition) list.append(el("li", "État visible sur les photos"));
+    if (!item.photos.includes("back"))
+      list.append(el("li", "Verso non photographié : demandez-le dans votre message"));
     block.append(faces, list);
     body.append(block);
   }
@@ -143,13 +151,25 @@ function show(listing) {
     const add = el("button", inBasket ? "Déjà dans ma demande" : "Ajouter à ma demande", "primary");
     add.type = "button";
     add.disabled = inBasket;
+    const view = el("button", "Voir ma demande");
+    view.type = "button";
+    view.hidden = !inBasket;
+    view.addEventListener("click", () => {
+      $("detail").close();
+      $("basket-open").click();
+    });
+    const added = el("span", "", "notice");
+    added.setAttribute("role", "status");
     add.addEventListener("click", () => {
-      state.basket.push({ id: listing.id, label: title(listing), price_cents: listing.price_cents });
+      state.basket.push({ id: listing.id, label: label(listing), price_cents: listing.price_cents });
       saveBasket();
       add.textContent = "Ajoutée à ma demande";
       add.disabled = true;
+      view.hidden = false;
+      const count = state.basket.length;
+      added.textContent = `${count} carte${count > 1 ? "s" : ""} dans votre demande.`;
     });
-    action.append(add);
+    action.append(add, view, added);
   } else {
     const join = el("button", "Se connecter pour réserver");
     join.type = "button";

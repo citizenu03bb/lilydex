@@ -72,6 +72,25 @@ def test_search_filters_and_photos(shop):
     assert visitor.get(f"/api/public/listings/{single['id']}/photo", params={"side": "back"}).status_code == 404
 
 
+def test_a_bulk_publication_reads_in_name_order(shop):
+    admin, visitor, store, cards, single, lot = shop
+    names = {single["id"]: single["items"][0]["name"], lot["id"]: "Deux cartes"}
+    expected = sorted(names, key=lambda i: names[i].lower())
+    with store.connect() as db:
+        db.execute("UPDATE listings SET price_cents=50")
+        # Published in name order, seconds apart: newest first would reverse it.
+        for second, listing_id in enumerate(expected):
+            db.execute(
+                "UPDATE listings SET published_at=? WHERE id=?",
+                (f"2026-10-16T21:10:0{second}+00:00", listing_id),
+            )
+    for sort in ("recent", "price", "price_desc", "name"):
+        items = visitor.get("/api/public/listings", params={"sort": sort}).json()["items"]
+        assert [l["id"] for l in items] == expected, sort
+    pages = [visitor.get("/api/public/listings", params={"limit": 1, "offset": o}).json()["items"][0]["id"] for o in (0, 1)]
+    assert pages == expected
+
+
 def test_withdrawn_or_reserved_publications_leave_the_storefront(shop):
     admin, visitor, store, cards, single, lot = shop
     admin.delete(f"/api/copies/{single['items'][0]['id']}/listing")

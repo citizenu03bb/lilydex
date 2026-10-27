@@ -26,9 +26,14 @@ messagerie.
 ## Ce qui est public, et ce qui ne l'est jamais
 
 **Public**, pour une carte publiée dont tous les exemplaires sont disponibles :
-photos recto et verso, nom, extension, numéro, langue, variante, état **s'il
-est confirmé** (sinon « état visible sur les photos »), tampon et distribution,
-prix affiché et sa date, identifiant de la publication.
+photo du recto (et du verso s'il est photographié, sinon la fiche le dit), nom,
+extension, numéro, langue, variante, état **s'il est confirmé** (sinon « état
+non confirmé : voir la photo »), tampon et distribution, prix affiché et sa
+date, identifiant de la publication.
+
+Le tri « Les plus récentes » range les publications par jour, puis par nom : une
+publication en masse se lit dans l'ordre alphabétique. Les tris par prix
+départagent les égalités de la même façon.
 
 **Jamais exposé hors de la gestion** : notes, provenance, événements, relevés
 et historique de prix, prix de référence brut, alertes, état estimé non
