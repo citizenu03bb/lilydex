@@ -392,6 +392,15 @@ fieldset.stack legend {
   font-size: 1.2rem;
   margin-top: 26px;
 }
+.about .mascot {
+  float: right;
+  width: 160px;
+  height: auto;
+  margin: 0 0 12px 20px;
+}
+.about section {
+  display: flow-root;
+}
 .detail-action {
   position: sticky;
   bottom: -20px;
@@ -409,6 +418,10 @@ fieldset.stack legend {
 }
 /* On a phone the first cards show without scrolling past the whole header. */
 @media (max-width: 600px) {
+  .about .mascot {
+    width: 104px;
+    margin-left: 12px;
+  }
   .top {
     padding-top: 12px;
   }
