@@ -2,12 +2,14 @@
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const vm = require("node:vm");
+const { t } = require("./i18n_runtime.cjs");
 const source = fs.readFileSync(process.argv[2], "utf8");
 const slice = (from, to) => source.slice(source.indexOf(from), source.indexOf(to));
 const listener = slice('$("logout").addEventListener(', '$("login-form").addEventListener(');
 const elements = {};
 let handler, respond;
 const context = vm.createContext({
+  t,
   fetch: async () => respond(),
   Response,
   state: { me: { role: "client" } },

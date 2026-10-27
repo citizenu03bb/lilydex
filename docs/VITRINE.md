@@ -90,6 +90,14 @@ vers cette adresse : un clic ouvre la fiche sur place, un clic milieu ou
 Ctrl+clic l'ouvre dans un nouvel onglet. Le filtre de langue ne propose que les langues
 d'au moins une carte en vente (`languages` dans la réponse de recherche).
 
+La vitrine existe en français, à `/`, et en anglais, à `/en/` : mêmes cartes,
+mêmes adresses sous le préfixe (`/en/carte/<identifiant>`, `/en/a-propos`). Un
+lien en pied de page mène à l'autre langue sur la même carte, avec les mêmes
+filtres. La langue suit l'adresse, sans cookie ni redirection. Les textes sont
+dans `web/messages/` ([fiche 0020](decisions/0020-textes-dans-des-dictionnaires.md)) ;
+l'API publique envoie des codes (finition, statut), que la page nomme. Les
+messages d'erreur du serveur restent en français.
+
 La fiche est une visionneuse : une photo à la fois, en grand, et les
 informations dessous. **Verso** (ou **R**) retourne la carte ; pour un lot, le
 même bouton passe d'une photo à la suivante. ‹ et › (ou ← et →, ou un
@@ -170,8 +178,11 @@ minute et par adresse :
 
 - `GET /` : la vitrine (`web/storefront.html`, `.js`, `.css`), séparée de la
   gestion : elle ne charge aucun code de gestion. `/vitrine` y redirige.
+- `GET /en/` et `GET /en/carte/{id}` : la même vitrine en anglais ; `/en` y
+  redirige.
 - `GET /a-propos` : qui vend, comment se passe un achat, données conservées,
-  contact, code source.
+  contact, code source. `GET /en/a-propos` en est la traduction anglaise
+  (`web/about.en.html`) ; elle annonce que la version française fait foi.
 - `GET /api/public/listings` : recherche `q` (nom, extension, numéro), `language`,
   `extension` (nom exact), `finish` (`non_holo`, `holo`, `holo_border`, `reverse`
   ou `special`), `max_eur`, `sort`, `limit`, `offset` ; seulement les publications
@@ -249,8 +260,8 @@ minute et par adresse :
 
 ## Les prochaines étapes
 
-- L'interface multilingue de la vitrine, d'abord en anglais : elle rejoint
-  l'internationalisation de toute l'interface ([feuille de route](ROADMAP.md#prévu)).
+- Les messages d'erreur du serveur par un code stable, traduit par la page ;
+  puis d'autres langues que l'anglais ([feuille de route](ROADMAP.md#prévu)).
 - Un essai de bout en bout automatisé sur une copie de la base (jalon M5).
 - La décision sur l'indexation par les moteurs de recherche.
 - Un service d'envoi d'e-mails, puis des intégrations autorisées aux

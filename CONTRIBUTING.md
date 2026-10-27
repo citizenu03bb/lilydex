@@ -26,6 +26,11 @@ qui touche une vraie collection : utilisez un dossier temporaire (`tmp_path`).
 Le code est dans `src/pokeprice/`, l'interface web dans `src/pokeprice/web/`,
 les tests dans `tests/`.
 
+Les textes de la vitrine sont dans `src/pokeprice/web/messages/fr.json`, pas
+dans le HTML ni le JavaScript : `{{t:clé}}` dans une page, `t("clé")` dans un
+script. Une clé qui finit par `_html` peut contenir du HTML ; les autres sont
+du texte ([fiche 0020](docs/decisions/0020-textes-dans-des-dictionnaires.md)).
+
 ## Proposer un changement
 
 1. Une branche par sujet, des commits courts au format

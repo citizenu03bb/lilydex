@@ -294,10 +294,10 @@ class Reservations:
             )
         return clean
 
-    def payment_methods(self):
+    def payment_methods(self, names=None):
         """The methods offered, named without any identifier, for the public pages."""
         payment = self.payment()
-        names = {"wero": "Wero", "iban": "virement bancaire", "paypal": "PayPal (biens et services)"}
+        names = names or {"wero": "Wero", "iban": "virement bancaire", "paypal": "PayPal (biens et services)"}
         return [label for key, label in names.items() if payment[key]]
 
     def mine(self, client_id):

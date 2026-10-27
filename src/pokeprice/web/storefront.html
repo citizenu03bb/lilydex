@@ -1,44 +1,45 @@
 <!doctype html>
-<html lang="fr">
+<html lang="{{lang}}" data-home="{{home}}">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="light" />
     <!-- Not indexed until the owner decides otherwise (docs/VITRINE.md). -->
     <meta name="robots" content="noindex" />
-    <title>{{site_name}} · Cartes Pokémon à vendre</title>
+    <title>{{site_name}} · {{t:meta.title}}</title>
     <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
     <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
     <link rel="stylesheet" href="/assets/themes.css" />
     <link rel="stylesheet" href="/assets/storefront.css" />
+    {{messages}}
     <script src="/assets/components.js"></script>
   </head>
   <body class="storefront">
-    <a class="skip-link" href="#q">Aller à la recherche</a>
+    <a class="skip-link" href="#q">{{t:nav.skip}}</a>
     <header class="top">
-      <a class="brand" href="/" aria-label="{{site_name}}, accueil">
+      <a class="brand" href="{{home}}" aria-label="{{site_name}}, {{t:nav.home}}">
         <img class="brand-mark" src="/assets/logo.png" alt="" width="40" height="40" />
         <span class="wordmark">{{site_wordmark}}</span>
       </a>
-      <nav class="header-actions" aria-label="Réservation et compte">
-        <button id="how-open" class="text-button" type="button" aria-label="Comment réserver">
-          <span class="long-label">Comment réserver</span><span class="short-label">Réserver ?</span>
+      <nav class="header-actions" aria-label="{{t:nav.label}}">
+        <button id="how-open" class="text-button" type="button" aria-label="{{t:how.title}}">
+          <span class="long-label">{{t:how.title}}</span><span class="short-label">{{t:how.short}}</span>
         </button>
-        <button id="basket-open" class="basket-button" type="button" aria-label="Ma sélection, 0 annonce">
+        <button id="basket-open" class="basket-button" type="button" aria-label="{{t:basket.title}}">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m5 9 4-6m10 6-4-6M3 9h18l-2 12H5L3 9Z"/><path d="M9 13v4m6-4v4"/></svg>
-          <span class="basket-label">Ma sélection</span><span id="basket-count" aria-hidden="true">0</span>
+          <span class="basket-label">{{t:basket.title}}</span><span id="basket-count" aria-hidden="true">0</span>
         </button>
         <details class="account-menu" id="account-menu">
-          <summary aria-label="Compte et apparence">
+          <summary aria-label="{{t:account.menu}}">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/></svg>
-            <span class="account-label">Compte</span>
+            <span class="account-label">{{t:account.label}}</span>
           </summary>
           <div class="account">
-            <button id="requests-open" type="button" hidden>Mes demandes</button>
-            <button id="account-open" type="button" hidden>Mon compte</button>
-            <button id="logout" type="button" hidden>Déconnexion</button>
-            <button id="login-open" type="button">Se connecter</button>
-            <button id="signup-open" type="button">Créer un compte</button>
+            <button id="requests-open" type="button" hidden>{{t:account.requests}}</button>
+            <button id="account-open" type="button" hidden>{{t:account.title}}</button>
+            <button id="logout" type="button" hidden>{{t:account.logout}}</button>
+            <button id="login-open" type="button">{{t:login.title}}</button>
+            <button id="signup-open" type="button">{{t:signup.title}}</button>
             <lilydex-theme-picker></lilydex-theme-picker>
           </div>
         </details>
@@ -46,238 +47,199 @@
     </header>
     <section class="hero" aria-labelledby="welcome-title">
       <div>
-        <p class="eyebrow">Des cartes Pokémon à vendre</p>
-        <h1 id="welcome-title">On ouvre <em>le classeur ?</em></h1>
-        <p class="intro">Des cartes Pokémon de ma collection, proposées à la vente.</p>
-        <p class="reassurance">Réservation sans compte. Paiement et envoi convenus ensuite.</p>
+        <p class="eyebrow">{{t:hero.eyebrow}}</p>
+        <h1 id="welcome-title">{{t:hero.title_html}}</h1>
+        <p class="intro">{{t:hero.intro}}</p>
+        <p class="reassurance">{{t:hero.reassurance}}</p>
       </div>
       <div id="hero-art" class="hero-art" aria-hidden="true" hidden></div>
     </section>
     <main>
-      <h2 class="catalogue-title">Les cartes du moment</h2>
+      <h2 class="catalogue-title">{{t:catalogue.title}}</h2>
       <lilydex-filter-bar id="storefront-filters">
         <form id="filters" class="filters" role="search">
           <div class="filter-heading">
-            <h2 id="filter-title">Affiner la recherche</h2>
-            <button id="filter-close" type="button" class="round-button" aria-label="Fermer les filtres">×</button>
+            <h2 id="filter-title">{{t:filters.title}}</h2>
+            <button id="filter-close" type="button" class="round-button" aria-label="{{t:filters.close}}">×</button>
           </div>
           <div class="search-row">
           <label class="search"
-            >Rechercher<input
+            >{{t:filters.search}}<input
               id="q"
               type="search"
               maxlength="200"
-              placeholder="Nom, extension, numéro…"
+              placeholder="{{t:filters.search.placeholder}}"
               autocomplete="off"
           /></label>
-          <button id="filter-open" type="button" class="filter-toggle" aria-expanded="false" aria-controls="filter-fields">Filtres <span id="filter-count"></span></button>
+          <button id="filter-open" type="button" class="filter-toggle" aria-expanded="false" aria-controls="filter-fields">{{t:filters.open}} <span id="filter-count"></span></button>
           </div>
           <div id="filter-fields" class="filter-fields">
-          <label class="extension-field">Extension<select id="extension"><option value="">Toutes</option></select></label>
+          <label class="extension-field">{{t:filters.extension}}<select id="extension"><option value="">{{t:filters.all}}</option></select></label>
           <label
-            >Langue<select id="language">
-              <option value="">Toutes</option>
-              <option value="fr">Français</option>
-              <option value="en">Anglais</option>
-              <option value="es">Espagnol</option>
-              <option value="it">Italien</option>
-              <option value="de">Allemand</option>
-              <option value="ja">Japonais</option>
-              <option value="pt">Portugais</option>
-              <option value="ko">Coréen</option>
-              <option value="zh">Chinois</option>
+            >{{t:filters.language}}<select id="language">
+              <option value="">{{t:filters.all}}</option>
+              <option value="fr">{{t:language.fr}}</option>
+              <option value="en">{{t:language.en}}</option>
+              <option value="es">{{t:language.es}}</option>
+              <option value="it">{{t:language.it}}</option>
+              <option value="de">{{t:language.de}}</option>
+              <option value="ja">{{t:language.ja}}</option>
+              <option value="pt">{{t:language.pt}}</option>
+              <option value="ko">{{t:language.ko}}</option>
+              <option value="zh">{{t:language.zh}}</option>
             </select></label
           >
           <label
-            >Budget max (€)<input id="max" type="number" min="0" max="10000000" step="0.01" placeholder="Sans limite"
+            >{{t:filters.max}}<input id="max" type="number" min="0" max="10000000" step="0.01" placeholder="{{t:filters.max.placeholder}}"
           /></label>
-          <label>Finition<select id="finish">
-            <option value="">Toutes</option>
-            <option value="non_holo">Normale</option>
-            <option value="holo">Holo</option>
-            <option value="holo_border">Holo, cadre brillant</option>
-            <option value="reverse">Reverse</option>
-            <option value="special">Spéciale</option>
+          <label>{{t:filters.finish}}<select id="finish">
+            <option value="">{{t:filters.all}}</option>
+            <option value="non_holo">{{t:finish.non_holo}}</option>
+            <option value="holo">{{t:finish.holo}}</option>
+            <option value="holo_border">{{t:finish.holo_border}}</option>
+            <option value="reverse">{{t:finish.reverse}}</option>
+            <option value="special">{{t:finish.special}}</option>
           </select></label>
           </div>
           <label class="sort-field"
-            >Trier<select id="sort">
-              <option value="recent">Les plus récentes</option>
-              <option value="price">Prix croissant</option>
-              <option value="price_desc">Prix décroissant</option>
-              <option value="name">Par nom</option>
+            >{{t:filters.sort}}<select id="sort">
+              <option value="recent">{{t:sort.recent}}</option>
+              <option value="price">{{t:sort.price}}</option>
+              <option value="price_desc">{{t:sort.price_desc}}</option>
+              <option value="name">{{t:sort.name}}</option>
             </select></label
           >
           <p id="count" class="count" aria-live="polite"></p>
-          <button id="filters-clear" class="text-button filters-clear" type="button" hidden>Tout effacer</button>
+          <button id="filters-clear" class="text-button filters-clear" type="button" hidden>{{t:filters.clear}}</button>
           <p id="filter-error" class="error filter-error" role="alert" hidden></p>
           <div class="filter-actions">
-            <button id="filter-reset" type="button" class="text-button">Tout effacer</button>
-            <button id="filter-apply" type="button" class="primary">Voir les annonces</button>
+            <button id="filter-reset" type="button" class="text-button">{{t:filters.clear}}</button>
+            <button id="filter-apply" type="button" class="primary">{{t:filters.apply}}</button>
           </div>
         </form>
-        <div class="active-filter-chips" aria-label="Filtres actifs" hidden></div>
+        <div class="active-filter-chips" aria-label="{{t:filters.active}}" hidden></div>
       </lilydex-filter-bar>
-      <section id="results" aria-label="Annonces">
-      <p class="photo-note">Les photos montrent les cartes proposées.</p>
+      <section id="results" aria-label="{{t:results.label}}">
+      <p class="photo-note">{{t:results.photo_note}}</p>
       <p id="error" class="error" role="alert" hidden></p>
       <p id="notice" class="notice" role="status" hidden></p>
       <ul id="grid" class="grid"></ul>
-      <p class="more"><button id="more" type="button" hidden>Afficher plus</button></p>
+      <p class="more"><button id="more" type="button" hidden>{{t:results.more}}</button></p>
       </section>
     </main>
     <footer class="foot">
-      <p>
-        Pour réserver, ajoutez des cartes à votre sélection et envoyez la
-        demande avec votre e-mail, sans créer de compte. Rien n’est bloqué
-        avant que le vendeur l’accepte ; il vous écrit ensuite pour le paiement
-        et l’envoi.
-      </p>
-      <p>Site personnel et non officiel, sans lien avec The Pokémon Company ni Nintendo. Aucun paiement en ligne, aucun logiciel à télécharger.</p>
-      <p class="seller"><a href="/a-propos">À propos et contact</a> · <a href="/gestion">Espace vendeur</a></p>
+      <p>{{t:footer.reserve}}</p>
+      <p>{{t:footer.unofficial}}</p>
+      <p class="seller"><a href="{{home}}a-propos">{{t:footer.about}}</a> · <a href="/gestion">{{t:footer.seller}}</a></p>
+      <p class="languages"><a id="language-switch" href="{{other_page}}" data-home="{{other_home}}" hreflang="{{t:footer.language.code}}" lang="{{t:footer.language.code}}">{{t:footer.language}}</a></p>
     </footer>
     <dialog id="how" aria-labelledby="how-title">
-      <form method="dialog"><button class="close" aria-label="Fermer">×</button></form>
-      <h2 id="how-title">Comment réserver</h2>
+      <form method="dialog"><button class="close" aria-label="{{t:common.close}}">×</button></form>
+      <h2 id="how-title">{{t:how.title}}</h2>
       <ol class="reservation-steps">
-        <li>Ouvrez une carte ou un lot et ajoutez-le à votre sélection.</li>
-        <li>Envoyez votre demande avec votre nom et votre e-mail, sans créer de compte.</li>
-        <li>Le vendeur confirme les disponibilités puis convient avec vous du paiement et de l’envoi.</li>
+        <li>{{t:how.step1}}</li>
+        <li>{{t:how.step2}}</li>
+        <li>{{t:how.step3}}</li>
       </ol>
-      <p class="help">La demande ne bloque pas les cartes : elles sont réservées quand le vendeur l’accepte. <a href="/a-propos">À propos et contact</a></p>
+      <p class="help">{{t:how.help}} <a href="{{home}}a-propos">{{t:footer.about}}</a></p>
     </dialog>
     <dialog id="detail" aria-labelledby="detail-title">
       <div class="viewer-bar">
-        <button id="detail-previous" type="button" aria-label="Carte précédente">‹</button>
+        <button id="detail-previous" type="button" aria-label="{{t:viewer.previous}}">‹</button>
         <span id="detail-position" class="help"></span>
-        <button id="detail-next" type="button" aria-label="Carte suivante">›</button>
-        <button id="detail-full" type="button" aria-pressed="false">Plein écran</button>
-        <form method="dialog"><button class="close" aria-label="Fermer">×</button></form>
+        <button id="detail-next" type="button" aria-label="{{t:viewer.next}}">›</button>
+        <button id="detail-full" type="button" aria-pressed="false">{{t:viewer.full}}</button>
+        <form method="dialog"><button class="close" aria-label="{{t:common.close}}">×</button></form>
       </div>
       <figure class="viewer-photo">
         <div id="detail-stage" class="stage"></div>
-        <button id="detail-flip" type="button" hidden>Verso</button>
+        <button id="detail-flip" type="button" hidden>{{t:viewer.back}}</button>
         <figcaption id="detail-caption"></figcaption>
       </figure>
       <div id="detail-body"></div>
     </dialog>
     <dialog id="login" aria-labelledby="login-title">
-      <form method="dialog"><button class="close" aria-label="Fermer">×</button></form>
-      <h2 id="login-title">Se connecter</h2>
+      <form method="dialog"><button class="close" aria-label="{{t:common.close}}">×</button></form>
+      <h2 id="login-title">{{t:login.title}}</h2>
       <form id="login-form" class="stack">
-        <label>E-mail<input name="email" type="email" autocomplete="username" required maxlength="254" /></label>
-        <label>Mot de passe<input name="password" type="password" autocomplete="current-password" required minlength="10" /></label>
+        <label>{{t:form.email}}<input name="email" type="email" autocomplete="username" required maxlength="254" /></label>
+        <label>{{t:form.password}}<input name="password" type="password" autocomplete="current-password" required minlength="10" /></label>
         <p class="error" role="alert" hidden></p>
-        <button class="primary">Se connecter</button>
-        <p class="help">
-          Mot de passe oublié, ou jamais choisi ? Écrivez au vendeur
-          (<a href="/a-propos">contact</a>) : il vous envoie un lien pour en
-          choisir un.
-        </p>
+        <button class="primary">{{t:login.title}}</button>
+        <p class="help">{{t:login.forgot_html}}</p>
       </form>
     </dialog>
     <dialog id="signup" aria-labelledby="signup-title">
-      <form method="dialog"><button class="close" aria-label="Fermer">×</button></form>
-      <h2 id="signup-title">Créer un compte</h2>
-      <p class="help">
-        Un compte n’est pas nécessaire pour réserver : il sert à suivre vos
-        demandes en ligne, une fois validé par le vendeur.
-      </p>
+      <form method="dialog"><button class="close" aria-label="{{t:common.close}}">×</button></form>
+      <h2 id="signup-title">{{t:signup.title}}</h2>
+      <p class="help">{{t:signup.help}}</p>
       <form id="signup-form" class="stack">
-        <label>Nom affiché<input name="display_name" autocomplete="name" required maxlength="80" /></label>
-        <label>E-mail<input name="email" type="email" autocomplete="email" required maxlength="254" /></label>
-        <label>Mot de passe (10 caractères au moins)<input name="password" type="password" autocomplete="new-password" required minlength="10" /></label>
-        <p class="help">
-          Choisissez un mot de passe propre à ce site : n’utilisez jamais celui
-          d’un autre site (compte Pokémon, Google…).
-        </p>
-        <p class="help">
-          Votre nom, votre e-mail et vos demandes servent uniquement à traiter
-          vos réservations. Ce qui est conservé, combien de temps, et comment
-          demander l’effacement : <a href="/a-propos#donnees">vos données</a>.
-        </p>
-        <label class="check"><input name="consent" type="checkbox" required /> J’ai lu l’information sur mes données.</label>
+        <label>{{t:form.display_name}}<input name="display_name" autocomplete="name" required maxlength="80" /></label>
+        <label>{{t:form.email}}<input name="email" type="email" autocomplete="email" required maxlength="254" /></label>
+        <label>{{t:form.new_password}}<input name="password" type="password" autocomplete="new-password" required minlength="10" /></label>
+        <p class="help">{{t:signup.unique_password}}</p>
+        <p class="help">{{t:signup.data_html}}</p>
+        <label class="check"><input name="consent" type="checkbox" required /> {{t:form.consent}}</label>
         <p class="error" role="alert" hidden></p>
         <p class="notice" role="status" hidden></p>
-        <button class="primary">Créer mon compte</button>
+        <button class="primary">{{t:signup.submit}}</button>
       </form>
     </dialog>
     <dialog id="basket" aria-labelledby="basket-title">
-      <form method="dialog"><button class="close" aria-label="Fermer">×</button></form>
-      <h2 id="basket-title">Ma sélection</h2>
+      <form method="dialog"><button class="close" aria-label="{{t:common.close}}">×</button></form>
+      <h2 id="basket-title">{{t:basket.title}}</h2>
       <ul id="basket-items" class="lines"></ul>
       <p id="basket-total" class="price"></p>
       <form id="basket-form" class="stack">
         <fieldset id="basket-guest" class="stack">
-          <legend>Pour vous répondre, sans créer de compte</legend>
-          <label>Votre nom<input name="display_name" autocomplete="name" required maxlength="80" /></label>
-          <label>E-mail<input name="email" type="email" autocomplete="email" required maxlength="254" /></label>
-          <p class="help">
-            Le vendeur vous répond à cette adresse. Votre nom, votre e-mail et
-            votre demande servent uniquement à traiter la réservation :
-            <a href="/a-propos#donnees">vos données</a>.
-          </p>
-          <label class="check"><input name="consent" type="checkbox" required /> J’ai lu l’information sur mes données.</label>
+          <legend>{{t:basket.guest}}</legend>
+          <label>{{t:basket.your_name}}<input name="display_name" autocomplete="name" required maxlength="80" /></label>
+          <label>{{t:form.email}}<input name="email" type="email" autocomplete="email" required maxlength="254" /></label>
+          <p class="help">{{t:basket.data_html}}</p>
+          <label class="check"><input name="consent" type="checkbox" required /> {{t:form.consent}}</label>
         </fieldset>
-        <label>Message au vendeur (facultatif)<textarea name="message" rows="3" maxlength="1000" placeholder="Envoi postal, remise en main propre…"></textarea></label>
+        <label>{{t:basket.message}}<textarea name="message" rows="3" maxlength="1000" placeholder="{{t:basket.message.placeholder}}"></textarea></label>
         <p class="error" role="alert" hidden></p>
-        <button class="primary">Envoyer la demande</button>
+        <button class="primary">{{t:basket.send}}</button>
       </form>
     </dialog>
     <dialog id="password" aria-labelledby="password-title">
-      <form method="dialog"><button class="close" aria-label="Fermer">×</button></form>
-      <h2 id="password-title">Choisir votre mot de passe</h2>
+      <form method="dialog"><button class="close" aria-label="{{t:common.close}}">×</button></form>
+      <h2 id="password-title">{{t:password.title}}</h2>
       <form id="password-form" class="stack">
-        <p class="help">
-          Le vendeur vous a envoyé ce lien : il ne sert qu’une fois. Avec ce
-          mot de passe et votre e-mail, vous suivez vos demandes.
-        </p>
-        <label>Mot de passe (10 caractères au moins)<input name="password" type="password" autocomplete="new-password" required minlength="10" /></label>
-        <p class="help">
-          Choisissez un mot de passe propre à ce site : n’utilisez jamais celui
-          d’un autre site.
-        </p>
+        <p class="help">{{t:password.help}}</p>
+        <label>{{t:form.new_password}}<input name="password" type="password" autocomplete="new-password" required minlength="10" /></label>
+        <p class="help">{{t:password.unique}}</p>
         <p class="error" role="alert" hidden></p>
-        <button class="primary">Enregistrer et me connecter</button>
+        <button class="primary">{{t:password.submit}}</button>
       </form>
     </dialog>
     <dialog id="requests" aria-labelledby="requests-title">
-      <form method="dialog"><button class="close" aria-label="Fermer">×</button></form>
-      <h2 id="requests-title">Mes demandes</h2>
-      <p class="help">
-        Le vendeur accepte ou refuse chaque carte. Une réservation acceptée
-        affiche ici le montant et les moyens de paiement.
-      </p>
+      <form method="dialog"><button class="close" aria-label="{{t:common.close}}">×</button></form>
+      <h2 id="requests-title">{{t:account.requests}}</h2>
+      <p class="help">{{t:requests.help}}</p>
       <div id="requests-body"></div>
     </dialog>
     <dialog id="account" aria-labelledby="account-title">
-      <form method="dialog"><button class="close" aria-label="Fermer">×</button></form>
-      <h2 id="account-title">Mon compte</h2>
+      <form method="dialog"><button class="close" aria-label="{{t:common.close}}">×</button></form>
+      <h2 id="account-title">{{t:account.title}}</h2>
       <form id="profile-form" class="stack">
-        <label>Nom affiché<input name="display_name" autocomplete="name" required maxlength="80" /></label>
-        <label>E-mail (aussi pour vous connecter)<input name="email" type="email" autocomplete="email" required maxlength="254" /></label>
-        <label>Mot de passe actuel<input name="password" type="password" autocomplete="current-password" required /></label>
+        <label>{{t:form.display_name}}<input name="display_name" autocomplete="name" required maxlength="80" /></label>
+        <label>{{t:profile.email}}<input name="email" type="email" autocomplete="email" required maxlength="254" /></label>
+        <label>{{t:profile.current_password}}<input name="password" type="password" autocomplete="current-password" required /></label>
         <p class="error" role="alert" hidden></p>
         <p class="notice" role="status" hidden></p>
-        <button class="primary">Enregistrer</button>
+        <button class="primary">{{t:profile.save}}</button>
       </form>
-      <h3>Mes données</h3>
-      <p class="help">
-        Tout ce que ce site conserve sur vous (compte et demandes), dans un
-        fichier JSON : <a href="/api/me/export" download>télécharger mes données</a>.
-        <a href="/a-propos#donnees">Ce qui est conservé, et combien de temps</a>.
-      </p>
-      <h3>Supprimer mon compte</h3>
+      <h3>{{t:profile.data}}</h3>
+      <p class="help">{{t:profile.data_html}}</p>
+      <h3>{{t:profile.delete}}</h3>
       <form id="delete-form" class="stack">
-        <p class="help">
-          Votre compte, vos demandes et leurs messages sont effacés
-          définitivement. Une vente déjà conclue reste dans les comptes du
-          vendeur, sans votre nom, votre e-mail ni votre message.
-        </p>
-        <label>Mot de passe<input name="password" type="password" autocomplete="current-password" required /></label>
-        <label class="check"><input name="confirm" type="checkbox" required /> Je comprends que c’est définitif.</label>
+        <p class="help">{{t:profile.delete.help}}</p>
+        <label>{{t:form.password}}<input name="password" type="password" autocomplete="current-password" required /></label>
+        <label class="check"><input name="confirm" type="checkbox" required /> {{t:profile.delete.confirm}}</label>
         <p class="error" role="alert" hidden></p>
-        <button class="danger">Supprimer mon compte</button>
+        <button class="danger">{{t:profile.delete}}</button>
       </form>
     </dialog>
     <script src="/assets/storefront.js"></script>

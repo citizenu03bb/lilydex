@@ -2,6 +2,7 @@
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const vm = require("node:vm");
+const { t } = require("./i18n_runtime.cjs");
 const source = fs.readFileSync(process.argv[2], "utf8");
 const slice = (from, to) => source.slice(source.indexOf(from), source.indexOf(to));
 const card = (id, photos = ["front", "back"]) => ({
@@ -12,6 +13,7 @@ const elements = {};
 const shown = [];
 let loads = 0;
 const context = vm.createContext({
+  t,
   el: (tag, text) => ({ tag, textContent: text }),
   photo: (listing, item, side) => `${listing.id}/${item.index}/${side}`,
   Image: class {},

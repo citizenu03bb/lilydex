@@ -16,7 +16,7 @@ import warnings
 from decimal import Decimal
 from pathlib import Path
 from typing import Literal
-from urllib.parse import urlsplit
+from urllib.parse import quote, urlsplit
 
 from fastapi import (
     BackgroundTasks,
@@ -64,6 +64,12 @@ from .verification import (
     check_rows,
     propose_variant,
 )
+
+# A page's text, as written in the HTML: {{t:filters.title}}.
+TEXT_KEY = re.compile(r"\{\{t:([\w.]+)\}\}")
+# The storefront's languages: dictionary, <html lang> and home address. French is the
+# reference; another language lives under its prefix (docs/decisions/0020).
+LANGUAGES = {"fr": ("fr", "/"), "en": ("en-GB", "/en/")}
 
 
 class Model(BaseModel):
@@ -563,10 +569,40 @@ def create_app(
     small, large = site_wordmark()
     wordmark = (f"<span>{html.escape(small)}</span>" if small else "") + f"<em>{html.escape(large)}</em>"
 
-    def page(name: str) -> str:
-        """A page as served: the site's name comes from `brand`, not from the file."""
+    # The interface texts, one dictionary per language (docs/decisions/0020).
+    dictionaries = {
+        code: json.loads(static.joinpath("messages", f"{code}.json").read_text())
+        for code in LANGUAGES
+    }
+
+    def page(name: str, language: str = "fr", rest: str = "") -> str:
+        """A page as served: its texts come from the dictionary, the site's name from `brand`.
+
+        `rest` is the address after the language's home, so the link to the other
+        language leads to the same card.
+        """
+        words = dictionaries[language]
+        lang, home = LANGUAGES[language]
+        other = words["footer.language.code"]
+
+        def word(match: re.Match) -> str:
+            # A key ending in _html is trusted markup from the dictionary; the rest is text.
+            key = match.group(1)
+            return words[key] if key.endswith("_html") else html.escape(words[key])
+
+        # A data block, not a script: the CSP lets it through, and "<" cannot close it.
+        block = (
+            '<script id="messages" type="application/json">'
+            + json.dumps(words, ensure_ascii=False).replace("<", "\\u003c")
+            + "</script>"
+        )
         return (
-            static.joinpath(name).read_text()
+            TEXT_KEY.sub(word, static.joinpath(name).read_text())
+            .replace("{{lang}}", lang)
+            .replace("{{home}}", home)
+            .replace("{{other_home}}", LANGUAGES[other][1])
+            .replace("{{other_page}}", html.escape(LANGUAGES[other][1] + rest))
+            .replace("{{messages}}", block)
             .replace("{{site_name}}", html.escape(SITE_NAME))
             .replace("{{site_wordmark}}", wordmark)
         )
@@ -717,6 +753,16 @@ def create_app(
         count_visit(request, "page", "accueil")
         return page("storefront.html")
 
+    @app.get("/en", include_in_schema=False)
+    def home_en_slash():
+        return RedirectResponse("/en/", status_code=301)
+
+    # The same storefront in English; the visit counts with the French one.
+    @app.get("/en/", response_class=HTMLResponse)
+    def home_en(request: Request):
+        count_visit(request, "page", "accueil")
+        return page("storefront.html", "en")
+
     # The seller's contact comes from the server's environment, never from the
     # public repository.
     contact_email = os.environ.get("POKEPRICE_CONTACT_EMAIL", "").strip()
@@ -728,29 +774,57 @@ def create_app(
     @app.get("/a-propos", response_class=HTMLResponse)
     def about(request: Request):
         count_visit(request, "page", "a-propos")
+        return about_page("fr")
+
+    # The English page translates the French one, which prevails.
+    @app.get("/en/a-propos", response_class=HTMLResponse)
+    def about_en(request: Request):
+        count_visit(request, "page", "a-propos")
+        return about_page("en")
+
+    def about_page(language):
+        en = language == "en"
         contact = (
             f'<a href="mailto:{html.escape(contact_email)}">{html.escape(contact_email)}</a>'
             if contact_email
+            else "The contact address will be given here soon." if en
             else "L’adresse de contact sera bientôt indiquée ici."
         )
-        controller = (
-            f"Responsable du traitement : {html.escape(controller_name)}, à titre "
-            "personnel, joignable à l’adresse de contact ci-dessous."
-            if controller_name
-            else "Responsable du traitement : le vendeur, à titre personnel, "
-            "joignable à l’adresse de contact ci-dessous."
-        )
-        methods = reservations.payment_methods()
-        payment = (
-            "Paiement par " + ", ".join(methods[:-1]) + (" ou " if len(methods) > 1 else "")
-            + methods[-1] + " : le vendeur vous envoie le montant, la référence du lot "
-            "et ses coordonnées par e-mail ; avec un compte, vous les retrouvez aussi "
-            "dans « Mes demandes » tant que le lot attend son paiement."
-            if methods
-            else "Le vendeur vous indique dans sa réponse comment payer."
-        )
+        who = html.escape(controller_name) if controller_name else ""
+        if en:
+            controller = (
+                f"Data controller: {who or 'the seller'}, as a private individual, "
+                "reachable at the contact address below."
+            )
+        else:
+            controller = (
+                f"Responsable du traitement : {who or 'le vendeur'}, à titre "
+                "personnel, joignable à l’adresse de contact ci-dessous."
+            )
+        if en:
+            methods = reservations.payment_methods(
+                {"wero": "Wero", "iban": "bank transfer", "paypal": "PayPal (goods and services)"}
+            )
+            payment = (
+                "Payment by " + ", ".join(methods[:-1]) + (" or " if len(methods) > 1 else "")
+                + methods[-1] + ": the seller sends you the amount, the lot’s reference "
+                "and their payment details by email; with an account, you also find "
+                "them in “My requests” while the lot awaits payment."
+                if methods
+                else "The seller tells you in their reply how to pay."
+            )
+        else:
+            methods = reservations.payment_methods()
+            payment = (
+                "Paiement par " + ", ".join(methods[:-1]) + (" ou " if len(methods) > 1 else "")
+                + methods[-1] + " : le vendeur vous envoie le montant, la référence du lot "
+                "et ses coordonnées par e-mail ; avec un compte, vous les retrouvez aussi "
+                "dans « Mes demandes » tant que le lot attend son paiement."
+                if methods
+                else "Le vendeur vous indique dans sa réponse comment payer."
+            )
         return (
-            page("about.html")
+            page("about.en.html" if en else "about.html", language)
             .replace("{{contact}}", contact)
             .replace("{{controller}}", controller)
             .replace("{{payment}}", html.escape(payment))
@@ -799,7 +873,14 @@ def create_app(
     # A card's own address, to share it: the storefront opens on its fiche.
     @app.get("/carte/{listing_id}", response_class=HTMLResponse)
     def card_page(listing_id: str, request: Request, _=Depends(public_rate)):
-        body = page("storefront.html")
+        return card(listing_id, request, "fr")
+
+    @app.get("/en/carte/{listing_id}", response_class=HTMLResponse)
+    def card_page_en(listing_id: str, request: Request, _=Depends(public_rate)):
+        return card(listing_id, request, "en")
+
+    def card(listing_id, request, language):
+        body = page("storefront.html", language, "carte/" + quote(listing_id, safe=""))
         try:
             storefront.get(listing_id)
         except KeyError:
