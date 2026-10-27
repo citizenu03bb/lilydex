@@ -9,6 +9,10 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-10-27
 
+- Dépendances : Pillow 13, filelock 4.2, setuptools 84.2, opentelemetry-api
+  1.45.1 et certifi à jour, qui ferment les 49 alertes Dependabot ouvertes.
+  Python 3.11 devient le minimum ([fiche 0017](decisions/0017-python-3-11-minimum.md)).
+
 - Vitrine : la recherche trouve les noms anglais et des autres langues du
   catalogue (« eevee » → Évoli) et pardonne une faute de frappe. Chaque carte a
   une adresse partageable (`/carte/…`), les filtres restent dans l'adresse et

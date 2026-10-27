@@ -44,7 +44,7 @@ Les mots propres à Lilydex sont définis dans le [glossaire](GLOSSAIRE.md).
 
 ### Installer et lancer l'application
 
-Il vous faut Python 3.10 ou plus récent et [uv](https://docs.astral.sh/uv/).
+Il vous faut Python 3.11 ou plus récent et [uv](https://docs.astral.sh/uv/).
 Lancez les commandes à la racine du dépôt.
 
 ```bash

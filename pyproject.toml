@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Digitise, identify, price and sell a multilingual Pokemon card collection: album scanner (local Ollama or Gemini) and FastAPI management app"
 readme = "README.md"
 license = "MIT"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
     "pillow>=10.0.0",
     "pandas>=2.0.0",
