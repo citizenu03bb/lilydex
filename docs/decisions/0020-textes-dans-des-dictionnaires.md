@@ -48,8 +48,13 @@ laisse passer puisqu'il ne s'exécute pas. `components.js` en tire `t()`.
   nomme, et la page écrit ses propres confirmations d'envoi.
 - La gestion reste en français : elle sert le vendeur et les agents. Seuls
   les composants qu'elle partage avec la vitrine passent par le dictionnaire.
-- Restent en français côté serveur : les messages d'erreur. Ils passeront
-  par un code stable que la page traduit.
+- Les messages d'erreur du serveur gardent leur `detail` en français, pour
+  la gestion et les clients existants. Ceux qu'un visiteur peut rencontrer
+  portent en plus un `code` stable (`card_unavailable`, `wrong_credentials`…),
+  tiré de la table `ERROR_CODES` de `webapp.py` ; la vitrine affiche
+  `error.<code>` dans sa langue, et le `detail` quand elle ne connaît pas le
+  code. Un test vérifie que chaque code a sa clé dans chaque dictionnaire, et
+  que le texte français est le `detail` lui-même.
 - La page À propos porte des engagements sur les données : sa version
   anglaise est une page entière, `about.en.html`, traduite du français et
   relue par le vendeur, plutôt qu'une suite de clés. Elle annonce que le texte

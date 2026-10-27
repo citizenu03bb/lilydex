@@ -35,12 +35,16 @@ async function call(path, options = {}) {
     body = text ? JSON.parse(text) : null;
   } catch {}
   if (!response.ok) {
-    let detail = body?.detail || t("error.http", { status: response.status });
+    let detail = failure(body, t("error.http", { status: response.status }));
     if (Array.isArray(detail)) detail = t("error.fields");
     throw Object.assign(new Error(detail), { status: response.status });
   }
   return body;
 }
+
+// The server's French detail, in the page's language when its code is known.
+const failure = (body, fallback) =>
+  body?.code ? t(`error.${body.code}`, {}, body.detail || fallback) : body?.detail || fallback;
 
 const euros = (cents) =>
   (cents / 100).toLocaleString(t.locale, { style: "currency", currency: "EUR" });
@@ -603,7 +607,7 @@ async function load(reset = true) {
   try {
     const response = await fetch("/api/public/listings?" + query);
     const result = await response.json();
-    if (!response.ok) throw new Error(result.detail || t("error.storefront"));
+    if (!response.ok) throw new Error(failure(result, t("error.storefront")));
     if (request !== state.request) return; // A newer search already answered.
     state.items = reset ? result.items : state.items.concat(result.items);
     state.total = result.total;

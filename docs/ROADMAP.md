@@ -208,8 +208,8 @@ façon stable.
 - **Internationalisation de l'interface**, au moins en anglais : la collection
   est multilingue et le site vise un public international. Les textes de la
   vitrine sont dans des dictionnaires ([fiche 0020](decisions/0020-textes-dans-des-dictionnaires.md))
-  et la vitrine existe en anglais sous `/en/`. Restent les messages d'erreur du
-  serveur, à passer par un code stable, puis d'autres langues.
+  et la vitrine existe en anglais sous `/en/`, messages d'erreur du serveur
+  compris. Restent d'autres langues.
 - **Application installable (PWA)** : manifeste, installation sur le téléphone,
   fonctionnement hors connexion pour la consultation.
 - **Refonte de l'interface de gestion**, formulaires en priorité.

@@ -95,8 +95,10 @@ mêmes adresses sous le préfixe (`/en/carte/<identifiant>`, `/en/a-propos`). Un
 lien en pied de page mène à l'autre langue sur la même carte, avec les mêmes
 filtres. La langue suit l'adresse, sans cookie ni redirection. Les textes sont
 dans `web/messages/` ([fiche 0020](decisions/0020-textes-dans-des-dictionnaires.md)) ;
-l'API publique envoie des codes (finition, statut), que la page nomme. Les
-messages d'erreur du serveur restent en français.
+l'API publique envoie des codes (finition, statut), que la page nomme. Une
+erreur que le visiteur peut rencontrer (carte retirée, mot de passe erroné,
+trop de requêtes…) arrive avec son `detail` en français et un `code`, que la
+page affiche dans sa langue ; un `detail` sans code connu s'affiche tel quel.
 
 La fiche est une visionneuse : une photo à la fois, en grand, et les
 informations dessous. **Verso** (ou **R**) retourne la carte ; pour un lot, le
@@ -260,8 +262,7 @@ minute et par adresse :
 
 ## Les prochaines étapes
 
-- Les messages d'erreur du serveur par un code stable, traduit par la page ;
-  puis d'autres langues que l'anglais ([feuille de route](ROADMAP.md#prévu)).
+- D'autres langues que l'anglais ([feuille de route](ROADMAP.md#prévu)).
 - Un essai de bout en bout automatisé sur une copie de la base (jalon M5).
 - La décision sur l'indexation par les moteurs de recherche.
 - Un service d'envoi d'e-mails, puis des intégrations autorisées aux
