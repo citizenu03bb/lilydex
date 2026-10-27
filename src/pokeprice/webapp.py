@@ -33,6 +33,7 @@ from pydantic import BaseModel, ConfigDict, Field, StrictBool
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from .audience import Audience, counted
+from .brand import SITE_NAME, site_slug
 from .condition_assessment import ConditionService, assessment_rows, read_condition
 from .intake import IntakeService, catalogue_candidates, normalize_photo, read_photo
 from .inventory import Conflict, Store, cents, now
@@ -558,6 +559,11 @@ def create_app(
         allowed_hosts=list(dict.fromkeys([*allowed_hosts, "127.0.0.1", "localhost"])),
     )
     static = Path(__file__).with_name("web")
+
+    def page(name: str) -> str:
+        """A page as served: the site's name comes from `brand`, not from the file."""
+        return static.joinpath(name).read_text().replace("{{site_name}}", html.escape(SITE_NAME))
+
     failures = {}
     login_lock = threading.Lock()
     dummy_hash = password_hash("not-a-valid-user-password")
@@ -702,7 +708,7 @@ def create_app(
             # Former management links (/?view=sales, filters) keep working.
             return RedirectResponse("/gestion?" + request.url.query, status_code=301)
         count_visit(request, "page", "accueil")
-        return static.joinpath("storefront.html").read_text()
+        return page("storefront.html")
 
     # The seller's contact comes from the server's environment, never from the
     # public repository.
@@ -737,7 +743,7 @@ def create_app(
             else "Le vendeur vous indique dans sa réponse comment payer."
         )
         return (
-            static.joinpath("about.html").read_text()
+            page("about.html")
             .replace("{{contact}}", contact)
             .replace("{{controller}}", controller)
             .replace("{{payment}}", html.escape(payment))
@@ -745,7 +751,7 @@ def create_app(
 
     @app.get("/gestion", response_class=HTMLResponse)
     def index():
-        return static.joinpath("index.html").read_text()
+        return page("index.html")
 
     @app.get("/assets/{name}")
     def assets(
@@ -786,14 +792,14 @@ def create_app(
     # A card's own address, to share it: the storefront opens on its fiche.
     @app.get("/carte/{listing_id}", response_class=HTMLResponse)
     def card_page(listing_id: str, request: Request, _=Depends(public_rate)):
-        page = static.joinpath("storefront.html").read_text()
+        body = page("storefront.html")
         try:
             storefront.get(listing_id)
         except KeyError:
             # The page still loads and says the card is no longer for sale.
-            return HTMLResponse(page, status_code=404)
+            return HTMLResponse(body, status_code=404)
         count_visit(request, "page", "carte")
-        return page
+        return body
 
     @app.get("/api/public/listings")
     def public_listings(
@@ -909,7 +915,7 @@ def create_app(
         return Response(
             json.dumps(body, ensure_ascii=False, indent=2),
             media_type="application/json",
-            headers={"Content-Disposition": 'attachment; filename="lilydex-mes-donnees.json"'},
+            headers={"Content-Disposition": f'attachment; filename="{site_slug()}-mes-donnees.json"'},
         )
 
     @app.post("/api/me/delete")

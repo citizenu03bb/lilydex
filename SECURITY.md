@@ -3,7 +3,7 @@
 Merci de signaler toute faille **en privé**, jamais dans une issue publique :
 utilisez l'onglet **Security → Report a vulnerability** de ce dépôt (avis de
 sécurité privés de GitHub). Décrivez la faille, comment la reproduire et son
-impact. Lilydex est tenu par une seule personne : comptez une première réponse
+impact. Le projet est tenu par une seule personne : comptez une première réponse
 sous sept jours en général, sans garantie.
 
 Ne testez pas sur le site en ligne au-delà de ce qui est nécessaire pour

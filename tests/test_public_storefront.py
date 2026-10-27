@@ -4,6 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 from test_library import inputs
 
+from pokeprice.brand import SITE_NAME, site_slug
 from pokeprice.inventory import Store
 from pokeprice.inventory_import import import_collection
 from pokeprice.webapp import create_app
@@ -275,4 +276,13 @@ def test_only_the_storefront_may_be_indexed(shop):
     assert visitor.get("/gestion").headers["x-robots-tag"] == "noindex, nofollow"
     assert visitor.get("/api/public/listings").headers["x-robots-tag"] == "noindex, nofollow"
     assert "Site personnel et non officiel" in visitor.get("/").text
-    assert "Lilydex" in visitor.get("/gestion").text and "Poképrice" not in visitor.get("/gestion").text
+    assert "Poképrice" not in visitor.get("/gestion").text
+
+
+def test_every_page_takes_the_site_name_from_one_place(shop):
+    _, visitor, *_ = shop
+    for path in ("/", "/a-propos", "/gestion", "/carte/inconnue"):
+        text = visitor.get(path).text
+        assert f"<title>{SITE_NAME} · " in text, path
+        assert "{{" not in text and "Lilydex" not in text, path
+    assert site_slug() == "les-cartes-de-lily"

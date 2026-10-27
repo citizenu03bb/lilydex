@@ -1,13 +1,14 @@
 # Glossaire
 
-> **Pour qui :** toute personne qui découvre Lilydex.
+> **Pour qui :** toute personne qui découvre Les cartes de Lily.
 > **Vous y trouverez :** les mots du projet, leur sens précis, leur équivalent anglais et, entre guillemets, le libellé de l'interface quand il diffère.
 
 ## Le produit
 
 | Terme | Anglais | Définition |
 |---|---|---|
-| **Lilydex** | Lilydex | Le produit et le site : une vitrine publique et une gestion privée (`/gestion`). |
+| **Les cartes de Lily** | Lily's cards | Le produit et le site : une vitrine publique et une gestion privée (`/gestion`). Les pages prennent ce nom à un seul endroit, `SITE_NAME` dans `src/pokeprice/brand.py`. |
+| **lilydex** | lilydex | L'ancien nom du produit, que gardent le dépôt GitHub, l'adresse actuelle du site et les identifiants techniques (`lilydex-…`). |
 | **pokeprice** | pokeprice | Le nom technique du paquet Python et de ses commandes : `pokeprice` (pipeline d'albums), `pokeprice-manage` (application et exploitation), `pokeprice-agent` (pilote agent). |
 | **Gestion** | management app | La partie privée, réservée à l'équipe : collection, photos, prix, lots, ventes, sauvegardes. |
 | **Vitrine** | storefront | La partie publique, à la racine du site : les cartes publiées se consultent sans compte ; un client inscrit et validé peut demander une réservation. |

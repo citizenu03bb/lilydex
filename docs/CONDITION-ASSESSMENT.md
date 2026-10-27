@@ -5,7 +5,7 @@
 > **Statut :** en vigueur. Le mode d'emploi pas à pas est dans le [guide de l'application](APP.md#le-verso-et-létat).
 
 L'état d'une carte (de MT à PO, sur l'échelle de Cardmarket) se décide carte en
-main. Lilydex aide en deux temps : il garde une photo du verso avec celle du
+main. L'application aide en deux temps : elle garde une photo du verso avec celle du
 recto, puis, si vous le demandez, propose un état à partir de ces photos. La
 proposition reste une aide : c'est une personne qui retient l'état.
 

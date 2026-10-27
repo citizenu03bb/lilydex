@@ -1,6 +1,6 @@
 # Feuille de route
 
-> **Pour qui :** toute personne qui veut savoir où va Lilydex.
+> **Pour qui :** toute personne qui veut savoir où va le projet.
 > **Vous y trouverez :** l'objectif de la première version utilisable (MVP), ses critères de sortie, l'état de chaque jalon, ce qui est prévu ensuite, ce qui est à l'étude et ce qui a été écarté.
 > **Statut :** en vigueur. Ce qui a été fait, et quand, est dans le [journal](JOURNAL.md) ; les raisons des choix sont dans les [fiches de décision](decisions/README.md).
 
@@ -183,7 +183,7 @@ premières ventes.
 
 - **Fait :** hébergement permanent sur Oracle Cloud, offre gratuite, avec
   Caddy et HTTPS ([fiche 0002](decisions/0002-oracle-cloud-serveur-fait-foi.md),
-  [Héberger Lilydex](DEPLOYMENT.md)) ; la base du serveur fait foi ; sauvegarde
+  [Héberger le site](DEPLOYMENT.md)) ; la base du serveur fait foi ; sauvegarde
   nocturne vérifiée et copie chiffrée sur Drive ([Sauvegardes](DAILY-BACKUPS.md)).
 - **Reste :** une procédure documentée pour importer sur le serveur un classeur
   numérisé sur le portable (rapport, photos, entrée de manifeste), sans
@@ -206,7 +206,7 @@ façon stable.
 ### Prévu
 
 - **Internationalisation de l'interface**, au moins en anglais : la collection
-  est multilingue et Lilydex vise un public international. Prérequis : extraire
+  est multilingue et le site vise un public international. Prérequis : extraire
   les textes de l'interface.
 - **Application installable (PWA)** : manifeste, installation sur le téléphone,
   fonctionnement hors connexion pour la consultation.
@@ -225,7 +225,7 @@ façon stable.
 
 ### À l'étude
 
-- **Plusieurs collections sur un même hébergement.** Lilydex gère aujourd'hui
+- **Plusieurs collections sur un même hébergement.** L'application gère aujourd'hui
   une collection, avec plusieurs utilisateurs. Deux voies :
   1. une instance par collection (une base, un dossier de données, un service) :
      presque rien à changer dans le code, il suffit d'outiller le déploiement ;

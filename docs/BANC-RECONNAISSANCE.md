@@ -1,6 +1,6 @@
 # Banc d'essai de reconnaissance
 
-> **Pour qui :** toute personne qui veut savoir ce que valent les lecteurs de Lilydex, chiffres à l'appui.
+> **Pour qui :** toute personne qui veut savoir ce que valent les lecteurs de l'application, chiffres à l'appui.
 > **Vous y trouverez :** la méthode, les résultats par question, les décisions qu'ils ont motivées et leurs limites.
 > **Statut :** rapport de mesure. Chaque tableau porte ses conditions de mesure ; la présentation d'ensemble est dans [IA et vision](IA-VISION.md).
 

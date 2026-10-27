@@ -1,6 +1,6 @@
 # Audit de sécurité avant la publication du code
 
-> **Pour qui :** toute personne qui évalue la sécurité de Lilydex.
+> **Pour qui :** toute personne qui évalue la sécurité du site.
 > **Vous y trouverez :** ce qui a été vérifié avant de rendre le dépôt public, les défauts corrigés, et ce qui a changé depuis.
 > **Statut :** rapport daté du 16 octobre 2026, fait alors que l'application tournait déjà sur Internet (vitrine publique, inscription des clients ouverte). Il n'est pas tenu à jour ; la politique en vigueur est dans [SECURITY.md](../SECURITY.md).
 

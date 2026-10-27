@@ -1,4 +1,4 @@
-# Documentation de Lilydex
+# Documentation des Cartes de Lily
 
 > **Pour qui :** toute personne qui cherche une page de la documentation.
 > **Vous y trouverez :** chaque page, rangée selon ce que vous venez faire.
@@ -12,7 +12,7 @@ quand, est dans le [journal](JOURNAL.md).
 |---|---|
 | [IA et vision](IA-VISION.md) | Ce que font les modèles, leurs mesures, leurs limites et leurs garde-fous |
 | [Banc d'essai](BANC-RECONNAISSANCE.md) | La méthode et les résultats des mesures de reconnaissance |
-| [Fiches de décision](decisions/README.md) | Pourquoi Lilydex est construit ainsi |
+| [Fiches de décision](decisions/README.md) | Pourquoi le projet est construit ainsi |
 | [Feuille de route](ROADMAP.md) | Le MVP, ses jalons et ce qui est prévu ensuite |
 
 ## Utiliser l'application
@@ -21,10 +21,10 @@ quand, est dans le [journal](JOURNAL.md).
 |---|---|
 | [Guide de l'application](APP.md) | Démarrer, saisir des cartes, photos, variantes, prix, lots, imports et exports |
 | [Référence des commandes](COMMANDES.md) | Chaque commande et ses options, générées depuis le code |
-| [Valeur en jeu et file d'examen](VALUATION.md) | Comment Lilydex repère les cartes qui méritent une décision humaine |
+| [Valeur en jeu et file d'examen](VALUATION.md) | Comment l'application repère les cartes qui méritent une décision humaine |
 | [Aide à l'état](CONDITION-ASSESSMENT.md) | Le verso et la proposition d'état |
 | [Vitrine](VITRINE.md) | La partie publique : publication, prix affiché, clients et réservations |
-| [Guide du référentiel](PRINT_REFERENCE_GUIDE.md) | Comment Lilydex décide quelle version d'une carte vous avez, preuves à l'appui, et ce qui est mis en œuvre |
+| [Guide du référentiel](PRINT_REFERENCE_GUIDE.md) | Comment l'application décide quelle version d'une carte vous avez, preuves à l'appui, et ce qui est mis en œuvre |
 | [Contrat du référentiel](PRINT_REFERENCE_CONTRACT.md) | Les règles exactes du référentiel et ses scénarios de réception |
 | [Pilote agent](AGENT_CONTROL.md) | Déléguer un album, préparer des contrôles ou brouillons et appliquer des corrections préautorisées |
 | [Parcours des prix manquants](AGENT_PRICE_EVALUATION.md) | Guide agent dédié, cas rejouables et mesure de l’utilité |
@@ -35,7 +35,7 @@ quand, est dans le [journal](JOURNAL.md).
 
 | Page | Ce que vous y trouvez |
 |---|---|
-| [Héberger Lilydex](DEPLOYMENT.md) | Installer le serveur, HTTPS, l'option vision, vérifier une mise en ligne |
+| [Héberger le site](DEPLOYMENT.md) | Installer le serveur, HTTPS, l'option vision, vérifier une mise en ligne |
 | [Sauvegardes](DAILY-BACKUPS.md) | La sauvegarde quotidienne, la copie chiffrée sur Drive et la restauration |
 | [Données personnelles](RGPD.md) | Registre des traitements, demandes des personnes, violation de données |
 | [Sécurité](../SECURITY.md) | Signaler une faille et ce que fait l'application |

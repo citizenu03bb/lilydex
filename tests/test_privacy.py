@@ -133,7 +133,7 @@ def test_a_client_corrects_exports_and_deletes_their_account(shop):
     me = client_of(store, "s@example.org")  # the new address is the login
 
     exported = me.get("/api/me/export")
-    assert "attachment" in exported.headers["content-disposition"]
+    assert 'attachment; filename="les-cartes-de-lily-mes-donnees.json"' == exported.headers["content-disposition"]
     data = exported.json()
     assert data["account"]["email"] == "S@example.org" and "password_hash" not in json.dumps(data)
     assert [r["id"] for r in data["requests"]] == [request["id"]]

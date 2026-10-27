@@ -1,6 +1,6 @@
 # Fiches de décision
 
-> **Pour qui :** toute personne qui veut comprendre pourquoi Lilydex est construit ainsi.
+> **Pour qui :** toute personne qui veut comprendre pourquoi le projet est construit ainsi.
 > **Vous y trouverez :** une fiche par choix important : contexte, options, mesure, décision, conséquences.
 
 Une décision remplacée n'est pas réécrite : la fiche suivante la cite et
@@ -26,6 +26,7 @@ l'ancienne passe au statut « remplacée ».
 | [0016](0016-guide-des-prix-cardmarket.md) | Le guide des prix officiel de Cardmarket complète TCGdex | 2026-10-23 |
 | [0017](0017-python-3-11-minimum.md) | Python 3.11 au minimum | 2026-10-27 |
 | [0018](0018-reservation-sans-compte.md) | Une réservation se demande sans compte | 2026-10-27 |
+| [0019](0019-les-cartes-de-lily.md) | Le produit s'appelle Les cartes de Lily | 2026-10-27 |
 
 ## Écrire une fiche
 

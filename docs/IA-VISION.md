@@ -1,10 +1,10 @@
 # IA et vision : la machine propose, l'humain décide
 
-> **Pour qui :** toute personne qui veut comprendre ce que font les modèles dans Lilydex, et ce qu'ils ne font pas.
+> **Pour qui :** toute personne qui veut comprendre ce que font les modèles dans Les cartes de Lily, et ce qu'ils ne font pas.
 > **Vous y trouverez :** les principes, chaque brique avec ses mesures et ses limites, les garde-fous, le coût, et la place de l'IA dans le développement du projet.
 > **Statut :** en vigueur. Le détail des mesures est dans le [banc d'essai](BANC-RECONNAISSANCE.md).
 
-> **In short.** Lilydex uses applied, measured and supervised AI. A vision-language
+> **In short.** The project uses applied, measured and supervised AI. A vision-language
 > model (Gemini) reads each card photo; a pre-trained image model (DINOv2, CPU only)
 > checks the edition from the image alone; a nearest-neighbour gate with rejection
 > skips cloud calls for basic Energy cards. Every model output is a *proposal* with its
@@ -180,7 +180,7 @@ l'original, pas la photo retouchée.
   ([hébergement](DEPLOYMENT.md)).
 - La porte énergie évite un appel Gemini par énergie de base reconnue.
 
-## Ce que l'IA ne fait pas dans Lilydex
+## Ce que l'IA ne fait pas dans le projet
 
 - Elle ne confirme rien : identité, variante et état restent des décisions
   humaines.
@@ -201,7 +201,7 @@ personne publie, réserve et vend. Voir le [pilote agent](AGENT_CONTROL.md).
 
 ## L'IA dans le développement du projet
 
-Lilydex est développé avec des agents de code, surtout Claude Code. La
+Le projet est développé avec des agents de code, surtout Claude Code. La
 majorité des commits portent la mention `Co-Authored-By`
 (`git log --grep Co-Authored-By --oneline`). Le mainteneur fixe les jalons et
 leurs critères de sortie, établit la vérité terrain sur les cartes physiques,
