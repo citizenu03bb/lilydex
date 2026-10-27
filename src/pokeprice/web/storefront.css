@@ -338,6 +338,31 @@ fieldset.stack legend {
   align-items: center;
   justify-content: space-between;
 }
+.payment {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 10px 0;
+}
+.payment h4 {
+  margin: 0 0 6px;
+}
+.payment dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  margin: 8px 0;
+}
+.payment dt {
+  font-weight: 600;
+}
+.payment dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.payment-value {
+  user-select: all;
+}
 .request + .request {
   border-top: 1px solid var(--line);
   margin-top: 12px;

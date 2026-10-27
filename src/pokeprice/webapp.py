@@ -330,6 +330,14 @@ class PasswordCheck(Model):
     password: str = Field(min_length=1, max_length=256)
 
 
+class PaymentSettings(Model):
+    # Each method is optional; an empty value means it is not offered.
+    wero: str = Field("", max_length=254)
+    iban: str = Field("", max_length=64)
+    holder: str = Field("", max_length=70)
+    paypal: str = Field("", max_length=254)
+
+
 class ClientPatch(Model):
     status: Literal["active", "refused"]
     disabled: bool = False
@@ -719,10 +727,20 @@ def create_app(
             else "Responsable du traitement : le vendeur, à titre personnel, "
             "joignable à l’adresse de contact ci-dessous."
         )
+        methods = reservations.payment_methods()
+        payment = (
+            "Paiement par " + ", ".join(methods[:-1]) + (" ou " if len(methods) > 1 else "")
+            + methods[-1] + " : le vendeur vous envoie le montant, la référence du lot "
+            "et ses coordonnées par e-mail ; avec un compte, vous les retrouvez aussi "
+            "dans « Mes demandes » tant que le lot attend son paiement."
+            if methods
+            else "Le vendeur vous indique dans sa réponse comment payer."
+        )
         return (
             static.joinpath("about.html").read_text()
             .replace("{{contact}}", contact)
             .replace("{{controller}}", controller)
+            .replace("{{payment}}", html.escape(payment))
         )
 
     @app.get("/gestion", response_class=HTMLResponse)
@@ -914,6 +932,14 @@ def create_app(
     @app.post("/api/clients/{client_id}/password-link", status_code=201)
     def client_password_link(client_id: str, user=Depends(admin)):
         return reservations.password_link(client_id, user["username"])
+
+    @app.get("/api/settings/payment")
+    def payment_settings(user=Depends(admin)):
+        return reservations.payment()
+
+    @app.put("/api/settings/payment")
+    def payment_update(values: PaymentSettings, user=Depends(admin)):
+        return reservations.set_payment(values.model_dump(), user["username"])
 
     @app.get("/api/requests")
     def request_index(user=Depends(staff)):
