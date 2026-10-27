@@ -8,7 +8,7 @@ bienvenues ; la réponse peut prendre quelques jours.
 
 ## Installer et lancer les tests
 
-Il vous faut Python 3.10 ou plus récent, [uv](https://docs.astral.sh/uv/) et
+Il vous faut Python 3.11 ou plus récent, [uv](https://docs.astral.sh/uv/) et
 Node.js (pour les tests des scripts de l'interface).
 
 ```bash

@@ -102,7 +102,7 @@ conséquences.
 
 ## Essayer
 
-Il vous faut Python 3.10 ou plus récent et [uv](https://docs.astral.sh/uv/) ; Node.js sert aux
+Il vous faut Python 3.11 ou plus récent et [uv](https://docs.astral.sh/uv/) ; Node.js sert aux
 tests, [Ollama](https://ollama.com) à la lecture locale des classeurs.
 
 ```bash

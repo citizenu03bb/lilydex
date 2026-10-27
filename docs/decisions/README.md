@@ -24,6 +24,7 @@ l'ancienne passe au statut « remplacée ».
 | [0014](0014-corrections-agent-autorisees.md) | L’agent applique seulement les corrections déjà autorisées | 2026-10-20 |
 | [0015](0015-energies-de-base-en-vrac.md) | Les énergies de base confirmées partent en vrac | 2026-10-23 |
 | [0016](0016-guide-des-prix-cardmarket.md) | Le guide des prix officiel de Cardmarket complète TCGdex | 2026-10-23 |
+| [0017](0017-python-3-11-minimum.md) | Python 3.11 au minimum | 2026-10-27 |
 
 ## Écrire une fiche
 
