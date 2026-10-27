@@ -24,7 +24,8 @@ sécurité des contenus reste inchangée.
 Les vignettes montrent toute la photo, sans en recadrer les bords. Une seule
 phrase explique leur provenance. L'état estimé ne devient pas une affirmation :
 une vignette sans état confirmé indique « État à confirmer ». Un lot porte son
-nombre de cartes et précise que son prix concerne l'ensemble.
+nombre de cartes et précise que son prix concerne l'ensemble. Dans **Ma
+sélection**, chaque ligne montre aussi le recto de la première carte.
 
 ## Les règles
 

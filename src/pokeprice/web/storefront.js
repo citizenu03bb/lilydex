@@ -435,7 +435,12 @@ function renderBasket() {
   list.replaceChildren();
   for (const entry of state.basket) {
     const line = el("li");
-    line.append(el("span", entry.label), el("span", euros(entry.price_cents), "price"));
+    // Derived from the id, so baskets saved before the photo was shown get one too.
+    const image = el("img", undefined, "basket-thumb");
+    image.src = photo(entry, { index: 0 }, "front", "thumb");
+    image.alt = "";
+    image.addEventListener("error", () => image.remove());
+    line.append(image, el("span", entry.label, "basket-name"), el("span", euros(entry.price_cents), "price"));
     const remove = el("button", "Retirer");
     remove.type = "button";
     remove.addEventListener("click", () => {
