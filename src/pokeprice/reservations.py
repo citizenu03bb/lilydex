@@ -133,8 +133,13 @@ class Reservations:
                 "listing_id": item["listing_id"],
                 "price_cents": item["price_cents"],
                 "outcome": item["outcome"],
+                # Several copies share a name: the edition tells them apart.
                 "label": item["title"]
-                or (cards[0]["name"] if len(cards) == 1 else f"Lot de {len(cards)} cartes"),
+                or (
+                    " · ".join(filter(None, [cards[0]["name"], cards[0]["set_name"], cards[0]["number"]]))
+                    if len(cards) == 1
+                    else f"Lot de {len(cards)} cartes"
+                ),
                 "available": bool(self.storefront.rows(db, item["listing_id"])),
             }
             if staff:

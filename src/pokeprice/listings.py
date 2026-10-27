@@ -249,13 +249,6 @@ FINISHES = {
     "reverse": "Reverse",
     "special": "Spéciale",
 }
-PUBLIC_SORTS = {
-    "recent": "l.published_at DESC",
-    "price": "l.price_cents, l.published_at DESC",
-    "price_desc": "l.price_cents DESC, l.published_at DESC",
-}
-
-
 def public_item(index, card):
     return {
         "index": index,
@@ -317,7 +310,6 @@ class Storefront:
         from .inventory import normalized
 
         terms = normalized(query).split()
-        order = PUBLIC_SORTS.get(sort, PUBLIC_SORTS["recent"])
         with self.store.connect() as db:
             rows = [
                 dict(r)
@@ -327,7 +319,6 @@ class Storefront:
                     " SELECT 1 FROM listing_items i JOIN copies c ON c.id=i.copy_id"
                     " WHERE i.listing_id=l.id AND i.active=1"
                     " AND (c.stock_state!='available' OR c.deleted_at!=''))"
-                    " ORDER BY " + order
                 )
             ]
             cards = {}
@@ -353,9 +344,15 @@ class Storefront:
                 and (not language or any(c["language"] == language for c in items))
                 and (max_cents is None or row["price_cents"] <= max_cents)
             ):
-                found.append(self.public(row, items))
-        if sort == "name":
-            found.sort(key=lambda l: normalized(l["title"] or l["items"][0]["name"]))
+                found.append((row["published_at"][:10], self.public(row, items)))
+        # A bulk publication takes minutes: within one day the name, then the id,
+        # set the order, so it reads naturally and pages never overlap.
+        found.sort(key=lambda p: (normalized(p[1]["title"] or p[1]["items"][0]["name"]), p[1]["id"]))
+        if sort != "name":
+            found.sort(key=lambda p: p[0], reverse=True)
+        if sort in ("price", "price_desc"):
+            found.sort(key=lambda p: p[1]["price_cents"], reverse=sort == "price_desc")
+        found = [listing for _, listing in found]
         return {"items": found[offset : offset + limit], "total": len(found)}
 
     def get(self, listing_id):
