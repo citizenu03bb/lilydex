@@ -102,4 +102,13 @@ for (const lotMode of [false, true]) {
   assert.equal(controls["selection-bar"].hidden, !lotMode);
   assert.equal(controls["lot-builder"].hidden, !lotMode);
   assert.equal(requests, 0, "Clearing selection must work without a request");
+
+  // A mixed selection (1 available, 1 reserved) allows publishing the available card
+  // individually, but blocks creating lots that require all copies to be available.
+  state.selected.set("avail", { id: "avail", stock_state: "available" });
+  state.selected.set("res", { id: "res", stock_state: "reserved" });
+  context.selectionBar();
+  assert.equal(controls["publish-selection"].disabled, false, "publish-selection enabled when at least one available copy is selected");
+  assert.equal(controls["prepare-sale"].disabled, true, "prepare-sale blocked when any copy is not available");
+  assert.equal(controls["publish-lot"].disabled, true, "publish-lot blocked when any copy is not available");
 }

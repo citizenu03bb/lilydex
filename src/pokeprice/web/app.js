@@ -448,10 +448,14 @@ function selectionBar() {
     [...state.selected.values()].every(
       (c) => c.stock_state === "available" && !c.deleted_at,
     );
+  const publishableCopies = [...state.selected.values()].filter(
+    (c) => c.stock_state === "available" && !c.deleted_at,
+  );
   $("prepare-sale").disabled = !saleReady;
-  $("publish-selection").disabled = !saleReady;
+  $("publish-selection").disabled = !publishableCopies.length;
   $("publish-lot").disabled = !saleReady || state.selected.size < 2;
   $("finish-lot").disabled = !saleReady;
+
   $("change-variant").disabled = !state.selected.size || state.priceRun;
   if (!state.priceRun) {
     const priceable = [...state.selected.values()].filter(canRefreshPrice);
@@ -2945,11 +2949,15 @@ $("cancel-lot").addEventListener("click", () => {
 $("prepare-sale").addEventListener("click", prepareLot);
 $("publish-selection").addEventListener("click", async () => {
   const button = $("publish-selection");
+  const availableIds = [...state.selected.values()]
+    .filter((c) => c.stock_state === "available" && !c.deleted_at)
+    .map((c) => c.id);
+  if (!availableIds.length) return;
   button.disabled = true;
   try {
     const result = await api("/listings", {
       method: "POST",
-      body: JSON.stringify({ copy_ids: [...state.selected.keys()] }),
+      body: JSON.stringify({ copy_ids: availableIds }),
     });
     const parts = [`${result.published.length} publiée(s) en vitrine`];
     if (result.refused.length)
@@ -2962,6 +2970,7 @@ $("publish-selection").addEventListener("click", async () => {
     selectionBar();
   }
 });
+
 $("publish-lot").addEventListener("click", async () => {
   const price = prompt(
     `Prix du lot de ${state.selected.size} cartes, en euros (au moins 0,50 €) :`,
