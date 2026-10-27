@@ -623,16 +623,17 @@ function standardVariantHint(snapshot) {
 function renderPriceSnapshot(parent, card) {
   const section = el("section", undefined, "price-panel");
   section.setAttribute("aria-label", "Relevé de prix");
-  if (card.reference_cents != null && card.price_source && card.price_date && !card.valuation?.price_variant_issue)
-    section.append(el("p", `Référence enregistrée : ${money(card.reference_cents)} · ${card.price_source} · ${card.price_date.slice(0, 10)}`));
   if (card.valuation) {
     const value = card.valuation;
     section.append(el("p", `Tendance : ${money(value.trend_cents)} · Prudente : ${money(value.prudent_cents)} · Estimation de vente : ${money(value.sale_estimate_cents)}`));
-    section.append(el("p", `Valeur en jeu : ${money(value.risk_cents)}${value.risk_incomplete ? " · prix incomplets" : ""} · seuil ${money(value.threshold_cents)}. Maximum prudent des variantes et éditions plausibles, sans décote d’état.`, "help"));
+    const detail = el("details");
+    detail.append(el("summary", "Détail du calcul"));
+    detail.append(el("p", `Valeur en jeu : ${money(value.risk_cents)}${value.risk_incomplete ? " · prix incomplets" : ""} · seuil ${money(value.threshold_cents)}. Maximum prudent des variantes et éditions plausibles, sans décote d’état.`, "help"));
+    if (value.manual_price)
+      detail.append(el("p", `Valeur manuelle : TCGdex ne fournit pas de prix prudent, la référence saisie (${money(value.manual_price.amount_cents)}, ${value.manual_price.source}) en tient lieu. Sans moyenne à 30 jours, elle reste marquée incomplète.`, "help"));
+    section.append(detail);
     if (value.bulk)
       section.append(el("p", "Énergie de base : vendue en vrac, en lot, sans cote à chercher. Elle est comptée à part dans les totaux.", "help"));
-    if (value.manual_price)
-      section.append(el("p", `Valeur manuelle : TCGdex ne fournit pas de prix prudent, la référence saisie (${money(value.manual_price.amount_cents)}, ${value.manual_price.source}) en tient lieu. Sans moyenne à 30 jours, elle reste marquée incomplète.`, "help"));
     if (card.variant_confirmed && value.variant_catalog_warning)
       section.append(el("p", "Variante confirmée physiquement ; TCGdex ne répertorie pas cette variante. La confirmation humaine est conservée.", "help"));
     if (value.market_unstable)
@@ -1311,7 +1312,7 @@ function renderConditionAssessment(parent, card, previous = null) {
         );
       panel.append(history);
     }
-  } else panel.append(el("p", "Aucune proposition IA enregistrée.", "help"));
+  }
   panel.append(status, error);
   if (previous) previous.replaceWith(panel);
   else parent.append(panel);
@@ -1460,8 +1461,7 @@ function renderEditionCheck(parent, card, previous = null) {
       });
       panel.append(keep);
     }
-  } else if (card.edition_check_available)
-    panel.append(el("p", "Aucun contrôle d’édition enregistré.", "help"));
+  }
   panel.append(status, error);
   if (previous) previous.replaceWith(panel);
   else parent.append(panel);
@@ -1737,7 +1737,7 @@ function renderVariantCheck(parent, card, previous = null) {
         );
       panel.append(history);
     }
-  } else panel.append(el("p", "Aucune lecture de finition enregistrée.", "help"));
+  }
   panel.append(status, error);
   if (previous) previous.replaceWith(panel);
   else parent.append(panel);
@@ -1768,11 +1768,9 @@ async function renderCatalogueFigure(faces, c) {
     ),
   );
   const links = el("div", undefined, "intake-actions");
+  // The Cardmarket link lives in the price section, once.
   for (const [label, href] of [
     [`Données TCGdex (${info.served_language})`, info.tcgdex_url],
-    c.cardmarket_url
-      ? ["Produit Cardmarket", c.cardmarket_url]
-      : ["Chercher sur Cardmarket", c.cardmarket_search_url],
   ]) {
     if (!href) continue;
     const link = el("a", label);
@@ -1840,7 +1838,6 @@ async function openDetail(id) {
   photo.append(faces);
   if (c.catalog_id) renderCatalogueFigure(faces, c);
   photo.append(
-    el("p", `${c.album} · page ${c.page}, pochette ${c.position}`),
     el(
       "span",
       c.deleted_at ? "Corbeille" : stockLabels[c.stock_state],
@@ -1857,11 +1854,18 @@ async function openDetail(id) {
     photo.append(identify);
   }
   if (!c.deleted_at) {
-    renderVariantCheck(photo, c);
-    renderEditionCheck(photo, c);
-    renderConditionAssessment(photo, c);
+    // Folded until a result exists: three long panels otherwise bury the fiche.
+    const tools = el("details", undefined, "detail-tools");
+    tools.open = Boolean(c.variant_checks?.length || c.edition_checks?.length || c.condition_assessments?.length);
+    tools.append(el("summary", "Contrôles assistés : finition, édition, état"));
+    renderVariantCheck(tools, c);
+    renderEditionCheck(tools, c);
+    renderConditionAssessment(tools, c);
+    photo.append(tools);
   }
-  renderCopyRemoval(photo, c);
+  // Away from the everyday actions; its own form cannot sit inside the fiche's.
+  const danger = el("div", undefined, "detail-danger");
+  renderCopyRemoval(danger, c);
   form.append(
     el("h2", c.name),
     el(
@@ -1898,7 +1902,9 @@ async function openDetail(id) {
     ["zh", "Chinois"],
     ["unknown", "Inconnue"],
   ]);
-  row = pair(identitySection);
+  const technical = el("details");
+  technical.append(el("summary", "Identifiant catalogue et PV"));
+  row = pair(technical);
   field(row, "catalog_id", "Identifiant catalogue (facultatif)", c.catalog_id);
   const hp = field(row, "hp", "PV", c.hp, "number");
   hp.min = "0";
@@ -1916,6 +1922,7 @@ async function openDetail(id) {
       ["failed", "Lecture échouée"],
     ],
   );
+  identitySection.append(technical);
   form.append(identitySection);
 
   const physicalSection = makeSection(
@@ -1933,11 +1940,26 @@ async function openDetail(id) {
     ["PO", "PO"],
     ["NM/EX", "NM/EX"],
   ]);
+  const checkLabel = el("label", undefined, "check-label");
+  const check = el("input");
+  check.type = "checkbox";
+  check.name = "condition_confirmed";
+  check.checked = Boolean(c.condition_confirmed);
+  check.disabled = !editAllowed() || Boolean(c.deleted_at);
+  checkLabel.append(
+    check,
+    document.createTextNode("État vérifié sur la carte"),
+  );
+  row.append(checkLabel);
   const markStates = [["unobserved", "Non examiné"], ["absent", "Absence constatée"], ["present", "Présent sur la carte"]];
-  field(physicalSection, "stamp_state", "Observation du tampon", c.stamp_state || "unobserved", "text", markStates);
+  const stampState = field(physicalSection, "stamp_state", "Observation du tampon", c.stamp_state || "unobserved", "text", markStates);
   const stampText = field(physicalSection, "stamp", "Texte du tampon (conservé tel que lu)", c.stamp);
   stampText.maxLength = 120;
-  physicalSection.append(el("p", "Un ancien texte ou un champ vide ne prouve pas la présence ou l’absence d’un tampon. Choisissez l’état après examen de la carte.", "help"));
+  const showStamp = () => {
+    stampText.parentElement.hidden = stampState.value !== "present" && !stampText.value;
+  };
+  stampState.addEventListener("change", showStamp);
+  showStamp();
   const marks = el("details");
   marks.append(el("summary", "Autre marque de distribution (facultatif)"));
   field(marks, "distribution_state", "Observation d’une marque de produit", c.distribution_state || "unobserved", "text", markStates);
@@ -1958,25 +1980,26 @@ async function openDetail(id) {
   const categoryHint = el("p", undefined, "help");
   physicalSection.append(categoryHint);
   const displayCategory = (decision) => {
-    priceVariant.parentElement.firstChild.textContent = decision?.mode === "automatic" ? "Catégorie de prix calculée" : "Catégorie enregistrée · à vérifier";
+    priceVariant.parentElement.hidden = decision?.mode === "automatic";
+    priceVariant.parentElement.firstChild.textContent = "Catégorie enregistrée · à vérifier";
     priceVariant.disabled = decision?.mode === "automatic" || !editAllowed() || Boolean(c.deleted_at);
     if (decision?.mode === "automatic") priceVariant.value = String(decision.foil);
     categoryHint.textContent = decision?.mode === "automatic"
-      ? `Automatique · ${decision.reason}`
+      ? `Catégorie de prix calculée : ${decision.foil ? "Foil" : "Standard"} · ${decision.reason}`
       : `${decision?.reason || "Renseignez la finition observée."} La sélection manuelle est réservée aux cas particuliers.`;
   };
   displayCategory(c.price_category);
   const referenceHint = el("p", undefined, "help");
   const displayReference = (resolution) => {
-    if (!resolution) { referenceHint.textContent = ""; return; }
-    const states = { verified: "correspondance marchande prouvée", uncovered: "périmètre à documenter", unmapped: "correspondance marchande à documenter", unobserved: "observation manquante", ambiguous: "plusieurs correspondances possibles", conflict: "correspondance contestée", provisional: "correspondance provisoire" };
-    referenceHint.textContent = `Audit du référentiel · ${states[resolution.market_status] || "à compléter"}. Les références héritées gardent leur source et leur date ; elles ne sont pas encore certifiées par cet audit.`;
-    if (resolution.diagnostic) referenceHint.textContent += ` ${resolution.diagnostic}`;
+    const states = { ambiguous: "plusieurs correspondances possibles", conflict: "correspondance contestée", provisional: "correspondance provisoire" };
+    const status = states[resolution?.market_status];
+    referenceHint.textContent = status ? `Produit Cardmarket : ${status}.${resolution.diagnostic ? ` ${resolution.diagnostic}` : ""}` : "";
   };
   displayReference(c.reference_resolution);
   physicalSection.append(referenceHint);
-  physicalSection.append(el("p", "Décrivez ce qui brille sur la carte. L’édition et le tampon permettent de calculer Standard ou Foil / reverse. Si plusieurs impressions restent possibles, précisez le produit dans les observations avant de confirmer.", "help"));
-  field(physicalSection, "variant_observation", "Observations de vérification (facultatif)", c.variant_observation || "", "textarea").maxLength = 1000;
+  // Never used in practice: kept only where an old observation exists.
+  if (c.variant_observation)
+    field(physicalSection, "variant_observation", "Observations de vérification", c.variant_observation, "textarea").maxLength = 1000;
   const variantLabel = el("label", undefined, "check-label");
   const variantCheck = el("input");
   variantCheck.type = "checkbox";
@@ -1987,17 +2010,6 @@ async function openDetail(id) {
   physicalSection.append(variantLabel);
   if (c.variant_confirmed)
     physicalSection.append(el("p", `Vérifiée par ${c.variant_verified_by} le ${new Date(c.variant_verified_at).toLocaleString("fr-FR")}.`, "help"));
-  const checkLabel = el("label", undefined, "check-label");
-  const check = el("input");
-  check.type = "checkbox";
-  check.name = "condition_confirmed";
-  check.checked = Boolean(c.condition_confirmed);
-  check.disabled = !editAllowed() || Boolean(c.deleted_at);
-  checkLabel.append(
-    check,
-    document.createTextNode("État vérifié sur la carte"),
-  );
-  physicalSection.append(checkLabel);
   form.append(physicalSection);
 
   for (const key of ["name", "set_name", "number", "language", "catalog_id", "identification_status", "foil", "stamp", "stamp_state", "distribution", "distribution_state", "finish"])
@@ -2031,12 +2043,11 @@ async function openDetail(id) {
   );
   price.step = ".01";
   price.min = "0";
-  field(row, "price_source", "Source / métrique du prix", c.price_source);
   priceSection.append(
     el(
       "p",
       c.price_date
-        ? `Prix relevé le ${new Date(c.price_date).toLocaleDateString("fr-FR")}. Une correction d’identité ou de variante retire le prix à revérifier.`
+        ? `${c.price_source || "Source non renseignée"} · ${new Date(c.price_date).toLocaleDateString("fr-FR")}. Une correction d’identité ou de variante retire le prix à revérifier.`
         : "Un prix vide reste indisponible. Le prix de vente se définit dans un lot.",
       "subtitle",
     ),
@@ -2068,8 +2079,8 @@ async function openDetail(id) {
 
   const saveBar = el("div", undefined, "detail-save-bar");
   if (editAllowed() && !c.deleted_at) {
-    const reason = field(saveBar, "reason", "Motif de la modification", "");
-    reason.required = true;
+    const reason = field(saveBar, "reason", "Motif (facultatif)", "");
+    reason.placeholder = "Correction manuelle";
     reason.maxLength = 1000;
     const save = el("button", "Enregistrer la correction", "primary");
     save.type = "submit";
@@ -2177,7 +2188,7 @@ async function openDetail(id) {
     e.preventDefault();
     error.textContent = "";
     const data = new FormData(form),
-      changes = { expected_version: c.version, reason: data.get("reason") };
+      changes = { expected_version: c.version, reason: data.get("reason").trim() || "Correction manuelle" };
     for (const key of [
       "name",
       "set_name",
@@ -2195,6 +2206,7 @@ async function openDetail(id) {
       "finish",
       "variant_observation",
     ]) {
+      if (!form.elements[key]) continue; // A field the fiche no longer shows.
       let value = data.get(key);
       if (key === "catalog_id" && !value) value = null;
       if (value !== (c[key] ?? (key === "catalog_id" ? null : "")))
@@ -2219,9 +2231,8 @@ async function openDetail(id) {
       amount !== (c.reference_cents === null ? null : c.reference_cents / 100)
     ) {
       changes.reference_price_eur = amount;
-      changes.price_source = data.get("price_source");
-    } else if (data.get("price_source") !== c.price_source)
-      changes.price_source = data.get("price_source");
+      changes.price_source = amount === null ? "" : "Saisie manuelle";
+    }
     try {
       await api("/copies/" + id, {
         method: "PATCH",
@@ -2236,7 +2247,7 @@ async function openDetail(id) {
     }
   });
   layout.append(photo, form);
-  $("detail-body").append(layout);
+  $("detail-body").append(layout, danger);
   if (!$("detail-dialog").open) $("detail-dialog").showModal();
 }
 // Storefront requests: nothing is reserved until a person accepts some cards.
