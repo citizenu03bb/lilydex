@@ -45,7 +45,9 @@ Chaque carte a son adresse, `/carte/<identifiant de la publication>`, que la
 fiche permet de copier. Une carte retirée renvoie 404 avec la vitrine et un
 message. Les filtres s'écrivent après le `#` (`/#q=eevee&langue=en&tri=price`) :
 le serveur ne les voit pas, et `/` garde sa redirection des anciens liens de
-gestion. Le bouton Retour ferme la fiche ouverte.
+gestion. Le bouton Retour ferme la fiche ouverte. Les vignettes sont des liens
+vers cette adresse : un clic ouvre la fiche sur place, un clic milieu ou
+Ctrl+clic l'ouvre dans un nouvel onglet.
 
 **Jamais exposé hors de la gestion** : notes, provenance, événements, relevés
 et historique de prix, prix de référence brut, alertes, état estimé non
