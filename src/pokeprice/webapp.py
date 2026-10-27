@@ -752,9 +752,15 @@ def create_app(
         name: Literal[
             "app.js", "media.js", "workflows.js", "gallery.js", "style.css",
             "storefront.js", "storefront.css", "themes.css", "components.js",
+            "logo.png", "apple-touch-icon.png",
         ],
     ):
         return FileResponse(static / name)
+
+    # Browsers ask for /favicon.ico on their own, before reading any page.
+    @app.get("/favicon.ico", include_in_schema=False)
+    def favicon():
+        return FileResponse(static / "favicon.ico", media_type="image/x-icon")
 
     storefront = Storefront(store)
     public_hits = {}

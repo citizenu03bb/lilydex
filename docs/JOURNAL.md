@@ -9,6 +9,12 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-10-27
 
+- Identité : un logo (une danseuse de flamenco en chibi, un lys dans le
+  chignon, un éventail de cartes) remplace le « L » des en-têtes, et l'onglet
+  a son icône : `/favicon.ico` ne répond plus 404. Les images sont générées en
+  local avec Z-Image Turbo, sans aucun personnage ni dessin Pokémon, puis
+  détourées.
+
 - Vitrine : les moyens de paiement (Wero, virement, PayPal) se règlent dans
   la gestion. Un client voit le total, la référence du lot et les coordonnées
   tant que son lot est réservé et non payé ; la gestion copie le même texte

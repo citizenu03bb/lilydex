@@ -144,6 +144,19 @@ def test_the_storefront_page_is_separate_and_not_indexed(shop):
     assert visitor.get("/assets/components.js").status_code == 200
 
 
+def test_every_page_shows_the_logo_and_its_tab_icon(shop):
+    _, visitor, *_ = shop
+    for path in ("/", "/a-propos", "/gestion"):
+        page = visitor.get(path).text
+        assert 'rel="icon" href="/favicon.ico"' in page and 'src="/assets/logo.png"' in page
+    icon = visitor.get("/favicon.ico")
+    assert icon.status_code == 200 and icon.headers["content-type"] == "image/x-icon"
+    assert icon.content[:4] == b"\x00\x00\x01\x00"  # ICO header
+    for name in ("logo.png", "apple-touch-icon.png"):
+        image = visitor.get(f"/assets/{name}")
+        assert image.status_code == 200 and image.content[:8] == b"\x89PNG\r\n\x1a\n"
+
+
 def test_anonymous_reads_are_rate_limited(shop):
     _, visitor, *_ = shop
     statuses = [visitor.get("/api/public/listings/absent").status_code for _ in range(301)]
