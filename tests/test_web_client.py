@@ -39,6 +39,23 @@ def test_storefront_logout_failure_keeps_the_visitor_signed_in():
     assert result.returncode == 0, result.stderr
 
 
+def test_storefront_viewer_walks_the_list_and_a_lot_photos():
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("Node.js is required to exercise the storefront viewer")
+    root = Path(__file__).resolve().parents[1]
+    result = subprocess.run(
+        [
+            node,
+            str(root / "tests/storefront_viewer_runtime.cjs"),
+            str(root / "src/pokeprice/web/storefront.js"),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+
+
 def test_filter_urls_survive_reload_and_reject_invalid_values():
     node = shutil.which("node")
     if not node:

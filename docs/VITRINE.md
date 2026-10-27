@@ -53,6 +53,17 @@ vers cette adresse : un clic ouvre la fiche sur place, un clic milieu ou
 Ctrl+clic l'ouvre dans un nouvel onglet. Le filtre de langue ne propose que les langues
 d'au moins une carte en vente (`languages` dans la réponse de recherche).
 
+La fiche est une visionneuse : une photo à la fois, en grand, et les
+informations dessous. **Verso** (ou **R**) retourne la carte ; pour un lot, le
+même bouton passe d'une photo à la suivante. ‹ et › (ou ← et →, ou un
+glissement horizontal sur la photo au téléphone) passent à la carte voisine
+dans l'ordre de la liste filtrée, en chargeant la suite au besoin ; l'adresse
+suit la carte affichée sans ajouter d'étape à l'historique, si bien que Retour
+ramène toujours à la liste. Sur téléphone la fiche occupe tout l'écran ; sur
+ordinateur, **Plein écran** (ou **F**) met la photo à gauche et les
+informations à droite, un choix mémorisé sur l'appareil. Seule la photo des
+deux cartes voisines est chargée d'avance.
+
 **Jamais exposé hors de la gestion** : notes, provenance, événements, relevés
 et historique de prix, prix de référence brut, alertes, état estimé non
 confirmé, album, page et pochette, autres exemplaires, lots, ventes, acheteurs,
