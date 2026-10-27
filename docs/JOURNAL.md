@@ -9,6 +9,15 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-10-27
 
+- Vitrine : en plein écran sur ordinateur, la photo d'une fiche tient dans
+  sa zone ; elle la dépassait sans qu'on puisse la faire défiler.
+
+- Mise en ligne de la vitrine « Les cartes de Lily » (#26, `422d1c2`) à la
+  place de `9d50f93`, sans migration ; base conservée, sauvegarde de la nuit
+  présente. En ligne : 1 415 annonces avec leurs photos, filtres Extension et
+  Finition, critères relus depuis l'adresse, fiche ouverte depuis un résultat
+  filtré, gestion à `401` sans session.
+
 - Vitrine : intégration du catalogue « Les cartes de Lily », palette crème,
   sauge et terracotta, photos entières et réservation accessible dans l'en-tête.
   Les filtres Extension et Finition précèdent la pagination côté serveur ; sur

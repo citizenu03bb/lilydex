@@ -135,6 +135,8 @@ dialog::backdrop {
   #detail.full .stage {
     flex: 1;
     min-height: 0;
+    /* A sized track, so the photo's 100% is the stage and not the photo itself. */
+    grid-template: minmax(0, 1fr) / minmax(0, 1fr);
   }
   #detail.full .stage img {
     width: 100%;
