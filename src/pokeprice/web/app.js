@@ -2280,7 +2280,12 @@ async function loadRequests() {
     const card = el("article", undefined, "sale-card");
     card.append(
       el("h3", `${request.display_name || request.email} · ${money(request.total_cents)} · ${request.status_label}`),
-      el("p", `${request.email} · le ${new Date(request.created_at).toLocaleDateString("fr-FR")}`, "sale-meta"),
+      el(
+        "p",
+        `${request.email} · le ${new Date(request.created_at).toLocaleDateString("fr-FR")}` +
+          (request.reference ? ` · référence de paiement ${request.reference}` : ""),
+        "sale-meta",
+      ),
     );
     // Sent without an account: your first e-mail is what checks the address.
     if (request.client_status === "pending")
@@ -2324,7 +2329,7 @@ async function loadRequests() {
             method: "POST",
             body: JSON.stringify({ expected_version: request.version, listing_ids: chosen }),
           });
-          toast(`Demande acceptée : lot réservé. Contactez ${request.email} pour le paiement et l’envoi.`);
+          toast(`Demande acceptée : lot réservé. Indiquez le port dans le lot, puis copiez les instructions de paiement pour ${request.email}.`);
           await loadSales();
         } catch (e) {
           toast(e.message);
@@ -2346,8 +2351,36 @@ async function loadRequests() {
       });
       card.append(accept, refuse);
     }
+    if (request.payment) {
+      // A client without a password cannot open « Mes demandes »: the e-mail carries it.
+      const copy = el("button", "Copier les instructions de paiement");
+      copy.type = "button";
+      copy.addEventListener("click", async () => {
+        const text = paymentText(request.payment);
+        try {
+          await navigator.clipboard.writeText(text);
+          toast(`Instructions copiées : collez-les dans votre e-mail à ${request.email}.`);
+        } catch {
+          prompt(`Instructions à envoyer à ${request.email} :`, text);
+        }
+      });
+      card.append(copy);
+    }
     box.append(card);
   }
+}
+function paymentText(payment) {
+  const lines = [
+    `Montant à régler : ${money(payment.total_cents)}` +
+      (payment.shipping_cents ? `, dont ${money(payment.shipping_cents)} de port.` : "."),
+    `Référence à indiquer dans le libellé : ${payment.reference}.`,
+  ];
+  if (payment.wero) lines.push(`Wero : ${payment.wero}`);
+  if (payment.iban)
+    lines.push(`Virement : IBAN ${payment.iban.replace(/(.{4})/g, "$1 ").trim()}, titulaire ${payment.holder}`);
+  if (payment.paypal) lines.push(`PayPal (biens et services) : ${payment.paypal}`);
+  if (lines.length === 2) lines.push("Moyen de paiement : à convenir ensemble.");
+  return lines.join("\n");
 }
 async function loadClients() {
   const box = $("clients-list");
@@ -2729,10 +2762,16 @@ async function loadSales() {
     $("sales-list").append(box);
   }
 }
+async function loadPayment() {
+  const payment = await api("/settings/payment");
+  const form = $("payment-form");
+  for (const [name, value] of Object.entries(payment)) form.elements[name].value = value;
+}
 async function loadUsers() {
   if (typeof Workflows !== "undefined") await Workflows.backupStatus();
   const users = await api("/users");
   await loadClients();
+  await loadPayment();
   $("users-list").replaceChildren();
   for (const u of users) {
     const row = el("form", undefined, "user-access");
@@ -3706,6 +3745,19 @@ $("user-form").addEventListener("submit", async (e) => {
     await loadUsers();
   } catch (err) {
     $("user-message").textContent = err.message;
+  }
+});
+$("payment-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  try {
+    await api("/settings/payment", {
+      method: "PUT",
+      body: JSON.stringify(Object.fromEntries(new FormData(e.target))),
+    });
+    await loadPayment();
+    $("payment-message").textContent = "Moyens de paiement enregistrés.";
+  } catch (err) {
+    $("payment-message").textContent = err.message;
   }
 });
 $("album-form").addEventListener("submit", async (e) => {

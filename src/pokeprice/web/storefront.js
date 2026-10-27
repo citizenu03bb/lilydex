@@ -324,6 +324,35 @@ function renderBasket() {
   guest.hidden = guest.disabled = Boolean(state.me);
 }
 
+// Shown only while the lot is reserved and unpaid: the server sends nothing otherwise.
+function paymentBox(payment) {
+  const box = el("div", undefined, "payment");
+  const total = payment.shipping_cents
+    ? `${euros(payment.total_cents)}, dont ${euros(payment.shipping_cents)} de port`
+    : euros(payment.total_cents);
+  box.append(
+    el("h4", "Payer ce lot"),
+    el("p", `Montant : ${total}. Référence à indiquer dans le libellé : ${payment.reference}.`),
+  );
+  const methods = [
+    ["Wero", payment.wero, "depuis l’application de votre banque"],
+    ["Virement", payment.iban && `${payment.iban.replace(/(.{4})/g, "$1 ").trim()} · ${payment.holder}`, "IBAN et titulaire"],
+    ["PayPal", payment.paypal, "choisissez « biens et services »"],
+  ].filter(([, value]) => value);
+  if (!methods.length) {
+    box.append(el("p", "Le vendeur vous indique par e-mail comment payer.", "help"));
+    return box;
+  }
+  const list = el("dl");
+  for (const [name, value, hint] of methods) {
+    const detail = el("dd");
+    detail.append(el("span", value, "payment-value"), el("span", ` (${hint})`, "help"));
+    list.append(el("dt", name), detail);
+  }
+  box.append(list, el("p", "Le vendeur prépare l’envoi dès qu’il a reçu le paiement.", "help"));
+  return box;
+}
+
 async function renderRequests() {
   const box = $("requests-body");
   box.replaceChildren(el("p", "Chargement…", "help"));
@@ -344,6 +373,7 @@ async function renderRequests() {
       }
       section.append(lines);
       if (request.decision) section.append(el("p", `Réponse du vendeur : ${request.decision}`));
+      if (request.payment) section.append(paymentBox(request.payment));
       if (request.status === "sent") {
         const cancel = el("button", "Annuler la demande");
         cancel.type = "button";

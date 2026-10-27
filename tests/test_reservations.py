@@ -386,3 +386,87 @@ def test_a_pending_client_is_kept_90_days_after_their_last_request(shop):
         db.execute("UPDATE users SET created_at=? WHERE role='client'", ((at - timedelta(days=120)).isoformat(),))
     assert Privacy(store).purge(at)["clients"] == {"Compte jamais validé": 1}
     assert [c["email"] for c in admin.get("/api/clients").json()] == ["ondine@example.org"]
+
+
+IBAN = "FR7630006000011234567890189"  # The published example, valid by its key.
+
+
+def test_payment_details_reach_a_client_only_while_their_lot_awaits_payment(shop):
+    admin, store, listings = shop
+    saved = admin.put(
+        "/api/settings/payment",
+        json={"wero": "06 12 34 56 78", "iban": IBAN.lower(), "holder": "Vendeur Test", "paypal": "paypal.me/vendeurtest"},
+    )
+    assert saved.status_code == 200, saved.text
+    assert saved.json() == {"wero": "0612345678", "iban": IBAN, "holder": "Vendeur Test", "paypal": "https://paypal.me/vendeurtest"}
+    signup(store, "sacha@example.org")
+    activate(admin, "sacha@example.org")
+    me = client_of(store, "sacha@example.org")
+    me.post("/api/me/requests", json={"listing_ids": [listings[0]["id"]], "message": ""}).raise_for_status()
+    assert "payment" not in me.get("/api/me/requests").json()[0]
+
+    request = admin.get("/api/requests").json()[0]
+    sale_id = admin.post(
+        f"/api/requests/{request['id']}/accept",
+        json={"expected_version": request["version"], "listing_ids": [listings[0]["id"]]},
+    ).json()["sale_id"]
+    sale = next(s for s in admin.get("/api/sales").json() if s["id"] == sale_id)
+    admin.patch(
+        f"/api/sales/{sale_id}",
+        json={"expected_version": sale["version"], "shipping_charged_eur": "2.60", "reason": "Lettre suivie"},
+    ).raise_for_status()
+    mine = me.get("/api/me/requests").json()[0]
+    reference = admin.get("/api/requests").json()[0]["reference"]
+    assert reference.startswith("LILY-") and mine["reference"] == reference
+    assert mine["payment"] == {
+        "total_cents": 380, "shipping_cents": 260, "reference": reference,
+        "wero": "0612345678", "iban": IBAN, "holder": "Vendeur Test", "paypal": "https://paypal.me/vendeurtest",
+    }
+    assert admin.get("/api/requests").json()[0]["payment"] == mine["payment"]
+
+    sale = next(s for s in admin.get("/api/sales").json() if s["id"] == sale_id)
+    admin.patch(
+        f"/api/sales/{sale_id}",
+        json={"expected_version": sale["version"], "paid": True, "reason": "Wero reçu"},
+    ).raise_for_status()
+    assert "payment" not in me.get("/api/me/requests").json()[0]
+
+
+def test_the_about_page_names_the_methods_without_any_identifier(shop):
+    admin, store, _ = shop
+    with TestClient(create_app(store.root)) as visitor:
+        assert "comment payer" in visitor.get("/a-propos").text
+    admin.put("/api/settings/payment", json={"wero": "sacha@example.org", "iban": IBAN, "holder": "Vendeur Test"}).raise_for_status()
+    with TestClient(create_app(store.root)) as visitor:
+        page = visitor.get("/a-propos").text
+    assert "Paiement par Wero ou virement bancaire" in page
+    assert "sacha@example.org" not in page and IBAN not in page and "Vendeur Test" not in page
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"iban": "FR7630006000011234567890188"},  # wrong key
+        {"iban": IBAN},  # no holder
+        {"holder": "Vendeur Test"},  # holder without IBAN
+        {"wero": "12 34"},
+        {"paypal": "https://example.org/pay"},
+        {"wero": "06", "extra": "x"},
+    ],
+)
+def test_invalid_payment_settings_are_refused(shop, body):
+    admin, _, _ = shop
+    assert admin.put("/api/settings/payment", json=body).status_code == 422
+    assert admin.get("/api/settings/payment").json() == {"wero": "", "iban": "", "holder": "", "paypal": ""}
+
+
+def test_only_an_administrator_sees_or_changes_payment_settings(shop):
+    admin, store, _ = shop
+    assert admin.post("/api/users", json={"username": "lily", "password": "Collection-lily-2026!", "role": "editor"}).status_code == 201
+    with TestClient(create_app(store.root)) as editor:
+        assert editor.post("/api/login", json={"username": "lily", "password": "Collection-lily-2026!"}).status_code == 200
+        assert editor.get("/api/settings/payment").status_code == 403
+        assert editor.put("/api/settings/payment", json={"wero": "0612345678"}).status_code == 403
+    signup(store, "sacha@example.org")
+    activate(admin, "sacha@example.org")
+    assert client_of(store, "sacha@example.org").get("/api/settings/payment").status_code == 403

@@ -22,6 +22,7 @@ vérifie l'adresse.
 | Comptes clients | Créés par une première demande (sans mot de passe) ou par l'inscription ; **en attente** jusqu'à l'acceptation d'une demande ou la validation par un administrateur |
 | Mot de passe | Choisi par un lien à usage unique que le vendeur colle dans son e-mail ; le même lien sert en cas d'oubli |
 | Réservation | Une demande ne bloque rien ; les cartes sont réservées à l'**acceptation** |
+| Paiement | Wero, virement ou PayPal, réglés par l'administrateur ; le client voit les coordonnées, le montant et la référence du lot seulement tant que le lot est réservé et non payé ; `/a-propos` nomme les moyens, sans coordonnées |
 | E-mail | Aucun service d'envoi ; Brevo ou Mailjet, avec un domaine deSEC pour SPF et DKIM, quand le volume ou les mots de passe oubliés le justifieront |
 | Indexation | La vitrine porte `noindex` tant que l'indexation n'est pas décidée |
 
@@ -103,9 +104,16 @@ migration, transaction, `PRAGMA user_version` incrémenté.
   `version`.
 - `request_items` : `request_id`, `listing_id`, `price_cents` figé à la
   demande, `outcome` (`pending`, `accepted`, `unavailable`, `refused`).
+- `settings` : `key`, `value_json`, `updated_by`, `updated_at`. La clé
+  `payment` garde l'identifiant Wero (téléphone ou e-mail), l'IBAN, vérifié par
+  sa clé, son titulaire et le PayPal (e-mail ou lien paypal.me) ; une valeur
+  vide signifie que le moyen n'est pas proposé.
 
 Après l'acceptation, le client voit le statut du lot : `reserved`, `sold`,
-`shipped`, `completed`, `cancelled` ou `returned`.
+`shipped`, `completed`, `cancelled` ou `returned`, et la référence de paiement
+du lot (`LILY-` suivi de huit caractères de son identifiant). Tant que le lot
+est réservé et non payé, la demande porte aussi `payment` : total (prix du lot
+et port facturé), port, référence et moyens de paiement.
 
 ## Les routes
 
@@ -160,6 +168,8 @@ minute et par adresse :
 - `GET`, `PUT`, `DELETE /api/copies/{id}/listing`, `GET`, `POST /api/listings`,
   `POST /api/listings/{id}/unpublish` : publier, changer le prix, retirer. Le
   rôle gestion publie ; la consultation voit seulement.
+- `GET`, `PUT /api/settings/payment` (administrateur) : les moyens de
+  paiement ; un IBAN sans titulaire ou à la clé fausse est refusé.
 - `GET /api/requests`, `POST /api/requests/{id}/accept` (les cartes retenues),
   `POST /api/requests/{id}/refuse` (avec un motif). L'acceptation est une
   transaction unique : elle crée le lot, le réserve, valide un client en

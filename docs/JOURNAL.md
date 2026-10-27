@@ -15,6 +15,11 @@ daté la quitte, il est versé ici dans le même commit.
   local avec Z-Image Turbo, sans aucun personnage ni dessin Pokémon, puis
   détourées.
 
+- Vitrine : les moyens de paiement (Wero, virement, PayPal) se règlent dans
+  la gestion. Un client voit le total, la référence du lot et les coordonnées
+  tant que son lot est réservé et non payé ; la gestion copie le même texte
+  pour l'e-mail, et `/a-propos` nomme les moyens sans coordonnées (schéma 21).
+
 - Vitrine : une réservation se demande sans compte, avec un nom et un e-mail ;
   accepter la demande valide le client. Le vendeur envoie depuis sa
   messagerie un lien à usage unique pour choisir ou changer un mot de passe
