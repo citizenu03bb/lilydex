@@ -119,7 +119,16 @@ function tile(listing) {
   return li;
 }
 
+// A card's address: /carte/<publication id>, filters kept after the #.
+const CARD = /^\/carte\/([^/]+)$/;
+function cardPath(listing) {
+  return `/carte/${encodeURIComponent(listing.id)}`;
+}
+
 function show(listing) {
+  if (location.pathname !== cardPath(listing)) {
+    history.pushState({ card: listing.id }, "", cardPath(listing) + location.hash);
+  }
   const body = $("detail-body");
   body.replaceChildren();
   body.append(el("h2", title(listing), undefined));
@@ -179,9 +188,84 @@ function show(listing) {
     });
     action.append(join);
   }
+  const share = el("button", "Copier le lien");
+  share.type = "button";
+  const shared = el("span", "", "help");
+  shared.setAttribute("role", "status");
+  share.addEventListener("click", async () => {
+    const url = location.origin + cardPath(listing);
+    try {
+      await navigator.clipboard.writeText(url);
+      shared.textContent = "Lien copié.";
+    } catch {
+      // Without clipboard access the link is still there to copy by hand.
+      shared.textContent = url;
+    }
+  });
+  action.append(share, shared);
   body.append(action);
-  $("detail").showModal();
+  if (!$("detail").open) $("detail").showModal();
 }
+
+// Closing the fiche goes back to the list, as the browser's Back button does.
+// The open attribute is watched: some browsers skip the dialog's close event.
+// Chrome ignores history.back() without a user gesture (Escape is not one):
+// the address is then rewritten in place.
+const leaveCard = () => {
+  if (!$("detail").open && CARD.test(location.pathname))
+    history.replaceState(null, "", "/" + location.hash);
+};
+new MutationObserver(() => {
+  if ($("detail").open || !CARD.test(location.pathname)) return;
+  if (history.state?.card) {
+    history.back();
+    setTimeout(leaveCard, 300);
+  } else leaveCard();
+}).observe($("detail"), { attributes: true, attributeFilter: ["open"] });
+
+async function openFromAddress() {
+  const match = CARD.exec(location.pathname);
+  if (!match) {
+    if ($("detail").open) $("detail").close();
+    return;
+  }
+  try {
+    show(await call(`/api/public/listings/${match[1]}`));
+  } catch {
+    history.replaceState(null, "", "/" + location.hash);
+    $("notice").textContent = "Cette carte n’est plus en vente : voici les autres.";
+    $("notice").hidden = false;
+  }
+}
+window.addEventListener("popstate", openFromAddress);
+
+// Filters live after the #: the server never sees them, and old management
+// links on / keep their redirect.
+const FILTERS = [["q", "q"], ["language", "langue"], ["max", "max"], ["sort", "tri"]];
+function writeFilters() {
+  const query = new URLSearchParams();
+  for (const [id, key] of FILTERS) {
+    const value = $(id).value.trim();
+    if (value && !(id === "sort" && value === "recent")) query.set(key, value);
+  }
+  const hash = query.size ? "#" + query.toString() : "";
+  if (location.hash !== hash)
+    history.replaceState(history.state, "", location.pathname + location.search + hash);
+}
+function readFilters() {
+  const query = new URLSearchParams(location.hash.slice(1));
+  for (const [id, key] of FILTERS) {
+    const value = query.get(key) || "";
+    const field = $(id);
+    if (field.tagName === "SELECT")
+      field.value = Array.from(field.options).some((o) => o.value === value) ? value : field.options[0].value;
+    else field.value = value.slice(0, 200);
+  }
+}
+window.addEventListener("hashchange", () => {
+  readFilters();
+  load();
+});
 
 function renderAccount() {
   const signedIn = Boolean(state.me);
@@ -273,6 +357,7 @@ async function renderRequests() {
 
 async function load(reset = true) {
   if (reset) state.offset = 0;
+  writeFilters();
   const request = ++state.request;
   const query = new URLSearchParams({
     sort: $("sort").value,
@@ -465,4 +550,6 @@ $("basket-form").addEventListener("submit", async (event) => {
 state.basket = readBasket();
 renderAccount();
 whoAmI();
+readFilters();
 load();
+openFromAddress();

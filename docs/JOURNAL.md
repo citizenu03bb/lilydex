@@ -9,6 +9,11 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-10-27
 
+- Vitrine : la recherche trouve les noms anglais et des autres langues du
+  catalogue (« eevee » → Évoli) et pardonne une faute de frappe. Chaque carte a
+  une adresse partageable (`/carte/…`), les filtres restent dans l'adresse et
+  Retour ferme la fiche.
+
 - Audit d'ergonomie de la vitrine et de la gestion. Vitrine : le badge ne
   promet plus de verso (aucune annonce n'en a), l'état non confirmé est dit,
   une publication en masse se lit de A à Z, les cartes apparaissent dès le

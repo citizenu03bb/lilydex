@@ -151,6 +151,17 @@ def test_the_storefront_is_home_and_management_has_its_own_address(shop):
     assert former.status_code == 301 and former.headers["location"] == "/"
 
 
+def test_a_card_has_its_own_address(shop):
+    admin, visitor, store, cards, single, lot = shop
+    page = visitor.get(f"/carte/{single['id']}")
+    assert page.status_code == 200 and "/assets/storefront.js" in page.text
+    gone = visitor.get("/carte/absente")
+    # Still the storefront, which says the card is no longer for sale.
+    assert gone.status_code == 404 and "/assets/storefront.js" in gone.text
+    assert admin.delete(f"/api/copies/{single['items'][0]['id']}/listing").status_code == 200
+    assert visitor.get(f"/carte/{single['id']}").status_code == 404
+
+
 def test_https_deployments_ask_browsers_to_stay_on_https(shop):
     admin, visitor, store, *_ = shop
     assert "strict-transport-security" not in visitor.get("/health").headers
