@@ -19,8 +19,8 @@ run and secured: [case study](CASE-STUDY.md).
   one record per physical copy with its own photos, a full history of corrections, variants,
   dated price snapshots, lots and sales.
 - **Sell** (public storefront at the site root): published cards are browsable without an
-  account; a registered customer, approved by an administrator, requests a reservation, which
-  becomes a lot.
+  account, and a reservation request only needs an e-mail address. The seller replies from
+  their own mailbox; an accepted request becomes a lot and validates the customer.
 - **Delegate to an agent**: an AI agent can work on one album with its own revocable key; it
   only prepares draft lots, and a person publishes, reserves and sells.
 

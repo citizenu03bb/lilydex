@@ -288,6 +288,16 @@ button:disabled {
   display: grid;
   gap: 12px;
 }
+fieldset.stack {
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm, 8px);
+}
+fieldset.stack legend {
+  padding: 0 4px;
+  font-weight: 600;
+}
 .stack textarea {
   width: 100%;
   font: inherit;

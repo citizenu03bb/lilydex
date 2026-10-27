@@ -300,6 +300,18 @@ class RequestCreate(Model):
     message: str = Field(default="", max_length=1000)
 
 
+class GuestRequest(RequestCreate):
+    email: str = Field(min_length=3, max_length=254)
+    display_name: str = Field(min_length=1, max_length=80)
+    # The same notice as at signup: the reservation itself is the legal basis.
+    consent: Literal[True]
+
+
+class PasswordSet(Model):
+    token: str = Field(min_length=20, max_length=100)
+    password: str = Field(min_length=10, max_length=256)
+
+
 class RequestVersion(Model):
     expected_version: int = Field(ge=1)
 
@@ -790,6 +802,35 @@ def create_app(
             "vous pourrez vous connecter une fois le vôtre activé."
         }
 
+    guests = {}
+
+    @app.post("/api/public/requests", status_code=202)
+    def guest_request(values: GuestRequest, request: Request, _=Depends(public_rate)):
+        key = request.client.host if request.client else "local"
+        timestamp = time.monotonic()
+        with public_lock:
+            recent = [t for t in guests.get(key, []) if timestamp - t < 3600]
+            if len(recent) >= 5:
+                raise HTTPException(429, "Trop de demandes depuis cette adresse. Réessayez plus tard.")
+            guests[key] = recent + [timestamp]
+        # Hashed whether or not the address is known: the delay tells nothing either.
+        unusable = password_hash(secrets.token_urlsafe(32))
+        reservations.guest(
+            values.email, values.display_name, values.listing_ids, values.message, unusable
+        )
+        return {
+            "detail": "Demande envoyée. Rien n’est bloqué tant que le vendeur ne l’a pas "
+            f"acceptée : il vous répond à {values.email.strip()} pour le paiement et l’envoi."
+        }
+
+    @app.post("/api/public/password")
+    def password_set(values: PasswordSet, response: Response, _=Depends(public_rate)):
+        hashed = password_hash(values.password)
+        with store.connect(write=True) as db:
+            user = reservations.use_link(db, values.token, hashed)
+            issue_session(db, user, response)
+        return {"ok": True}
+
     @app.get("/api/me")
     def me(user=Depends(client)):
         with store.connect() as db:
@@ -869,6 +910,10 @@ def create_app(
     @app.patch("/api/clients/{client_id}")
     def client_patch(client_id: str, values: ClientPatch, user=Depends(admin)):
         return reservations.set_client(client_id, values.status, values.disabled)
+
+    @app.post("/api/clients/{client_id}/password-link", status_code=201)
+    def client_password_link(client_id: str, user=Depends(admin)):
+        return reservations.password_link(client_id, user["username"])
 
     @app.get("/api/requests")
     def request_index(user=Depends(staff)):

@@ -160,39 +160,30 @@ function show(listing) {
     body.append(block);
   }
   const action = el("p", undefined, "detail-action");
-  if (state.me) {
-    const inBasket = state.basket.some((x) => x.id === listing.id);
-    const add = el("button", inBasket ? "Déjà dans ma sélection" : "Ajouter à ma sélection", "primary");
-    add.type = "button";
-    add.disabled = inBasket;
-    const view = el("button", "Voir ma sélection");
-    view.type = "button";
-    view.hidden = !inBasket;
-    view.addEventListener("click", () => {
-      $("detail").close();
-      $("basket-open").click();
-    });
-    const added = el("span", "", "notice");
-    added.setAttribute("role", "status");
-    add.addEventListener("click", () => {
-      state.basket.push({ id: listing.id, label: label(listing), price_cents: listing.price_cents });
-      saveBasket();
-      add.textContent = "Ajoutée à ma sélection";
-      add.disabled = true;
-      view.hidden = false;
-      const count = state.basket.length;
-      added.textContent = `${count} carte${count > 1 ? "s" : ""} dans votre sélection.`;
-    });
-    action.append(add, view, added);
-  } else {
-    const join = el("button", "Se connecter pour réserver");
-    join.type = "button";
-    join.addEventListener("click", () => {
-      $("detail").close();
-      $("login").showModal();
-    });
-    action.append(join);
-  }
+  // No account needed: the request itself carries the address.
+  const inBasket = state.basket.some((x) => x.id === listing.id);
+  const add = el("button", inBasket ? "Déjà dans ma sélection" : "Ajouter à ma sélection", "primary");
+  add.type = "button";
+  add.disabled = inBasket;
+  const view = el("button", "Voir ma sélection");
+  view.type = "button";
+  view.hidden = !inBasket;
+  view.addEventListener("click", () => {
+    $("detail").close();
+    $("basket-open").click();
+  });
+  const added = el("span", "", "notice");
+  added.setAttribute("role", "status");
+  add.addEventListener("click", () => {
+    state.basket.push({ id: listing.id, label: label(listing), price_cents: listing.price_cents });
+    saveBasket();
+    add.textContent = "Ajoutée à ma sélection";
+    add.disabled = true;
+    view.hidden = false;
+    const count = state.basket.length;
+    added.textContent = `${count} carte${count > 1 ? "s" : ""} dans votre sélection.`;
+  });
+  action.append(add, view, added);
   const share = el("button", "Copier le lien");
   share.type = "button";
   const shared = el("span", "", "help");
@@ -268,14 +259,27 @@ function readFilters() {
   }
 }
 window.addEventListener("hashchange", () => {
+  if (openLink()) return;
   readFilters();
   load();
 });
 
+// A link sent by the seller: the token leaves the address bar and the history at once.
+const LINK = /^#mot-de-passe=([\w-]{20,100})$/;
+function openLink() {
+  const link = LINK.exec(location.hash);
+  if (!link) return false;
+  state.link = link[1];
+  history.replaceState(null, "", location.pathname + location.search);
+  for (const dialog of document.querySelectorAll("dialog[open]")) dialog.close();
+  $("password").showModal();
+  return true;
+}
+
 function renderAccount() {
   const signedIn = Boolean(state.me);
   for (const id of ["login-open", "signup-open"]) $(id).hidden = signedIn;
-  for (const id of ["basket-open", "requests-open", "account-open", "logout"]) $(id).hidden = !signedIn;
+  for (const id of ["requests-open", "account-open", "logout"]) $(id).hidden = !signedIn;
   $("basket-open").textContent = `Ma sélection (${state.basket.length})`;
 }
 
@@ -315,6 +319,9 @@ function renderBasket() {
     ? `Total indicatif : ${euros(total)} (hors frais d’envoi)`
     : "Votre sélection est vide : ouvrez une carte pour l’ajouter.";
   $("basket-form").hidden = !state.basket.length;
+  // A disabled fieldset is left out of the form's checks.
+  const guest = $("basket-guest");
+  guest.hidden = guest.disabled = Boolean(state.me);
 }
 
 async function renderRequests() {
@@ -539,25 +546,62 @@ $("basket-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const form = event.target;
   formError(form, "");
+  const body = {
+    listing_ids: state.basket.map((x) => x.id),
+    message: form.message.value,
+  };
   try {
-    await call("/api/me/requests", {
-      method: "POST",
-      body: JSON.stringify({
-        listing_ids: state.basket.map((x) => x.id),
-        message: form.message.value,
-      }),
-    });
+    let sent;
+    if (state.me) {
+      await call("/api/me/requests", { method: "POST", body: JSON.stringify(body) });
+    } else {
+      sent = await call("/api/public/requests", {
+        method: "POST",
+        body: JSON.stringify({
+          ...body,
+          display_name: form.display_name.value.trim(),
+          email: form.email.value.trim(),
+          consent: form.consent.checked,
+        }),
+      });
+    }
     state.basket = [];
     saveBasket();
     form.reset();
+    load();
+    if (sent) {
+      renderBasket();
+      $("basket-total").textContent = sent.detail;
+      return;
+    }
     $("basket").close();
     renderRequests();
     $("requests").showModal();
-    load();
   } catch (error) {
     formError(form, error.message);
   }
 });
+$("password-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.target;
+  formError(form, "");
+  try {
+    await call("/api/public/password", {
+      method: "POST",
+      body: JSON.stringify({ token: state.link, password: form.password.value }),
+    });
+  } catch (error) {
+    formError(form, error.message);
+    return;
+  }
+  state.link = "";
+  form.reset();
+  $("password").close();
+  await whoAmI();
+  $("notice").textContent = "Mot de passe enregistré : vous êtes connecté.";
+  $("notice").hidden = false;
+});
+openLink();
 state.basket = readBasket();
 renderAccount();
 whoAmI();

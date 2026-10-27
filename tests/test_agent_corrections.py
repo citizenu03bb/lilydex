@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 
 from pokeprice.agent import AgentService
 from pokeprice.agent_corrections import CorrectionService
-from pokeprice.inventory import Conflict, Store
+from pokeprice.inventory import SCHEMA_VERSION, Conflict, Store
 from pokeprice.webapp import UserCreate, add_user, create_app
 
 PREFIX = "/api/agent/v1"
@@ -345,12 +345,12 @@ def test_schema18_migration_preserves_cards_and_keeps_old_database(shop):
         db.execute("PRAGMA user_version=18")
     reopened = Store(agents.store.root)
     with reopened.connect() as db:
-        assert db.execute("PRAGMA user_version").fetchone()[0] == 19
+        assert db.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
         assert reopened.get(db, cards[0]["id"]) == cards[0]
         assert db.execute("SELECT count(*) FROM agent_corrections").fetchone()[0] == 0
         assert not db.execute("PRAGMA foreign_key_check").fetchall()
     assert list(
-        (reopened.root.parent / "backups").glob("before-schema19-from18-*.sqlite3")
+        (reopened.root.parent / "backups").glob(f"before-schema{SCHEMA_VERSION}-from18-*.sqlite3")
     )
 
 

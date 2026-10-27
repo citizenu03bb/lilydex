@@ -267,3 +267,122 @@ def test_clients_stay_out_of_the_staff_accounts_screen(shop):
     assert promoted.status_code == 404
     with store.connect() as db:
         assert db.execute("SELECT role FROM users WHERE id=?", (client["id"],)).fetchone()[0] == "client"
+
+
+def guest(store, email, listing_ids, name="Ondine", message=""):
+    with TestClient(create_app(store.root)) as visitor:
+        return visitor.post(
+            "/api/public/requests",
+            json={"email": email, "display_name": name, "listing_ids": listing_ids,
+                  "message": message, "consent": True},
+        )
+
+
+def test_a_visitor_reserves_without_an_account_and_acceptance_validates_it(shop):
+    admin, store, listings = shop
+    sent = guest(store, "ondine@example.org", [listings[0]["id"]], message="Envoi suivi")
+    assert sent.status_code == 202 and "ondine@example.org" in sent.json()["detail"]
+    client = next(c for c in admin.get("/api/clients").json() if c["email"] == "ondine@example.org")
+    assert client["status"] == "pending" and client["consent_at"]
+    request = admin.get("/api/requests").json()[0]
+    assert request["client_status"] == "pending" and request["message"] == "Envoi suivi"
+    # No password was chosen: nothing opens the account, whatever is tried.
+    with TestClient(create_app(store.root)) as visitor:
+        assert visitor.post("/api/login", json={"username": "ondine@example.org", "password": ""}).status_code == 422
+        assert visitor.post("/api/login", json={"username": "ondine@example.org", "password": PASSWORD}).status_code == 401
+    admin.post(
+        f"/api/requests/{request['id']}/accept",
+        json={"expected_version": request["version"], "listing_ids": [listings[0]["id"]]},
+    ).raise_for_status()
+    assert next(c for c in admin.get("/api/clients").json() if c["email"] == "ondine@example.org")["status"] == "active"
+
+
+def test_a_guest_request_never_reveals_known_addresses(shop):
+    admin, store, listings = shop
+    signup(store, "sacha@example.org")
+    refused = signup(store, "refuse@example.org")
+    assert refused.status_code == 202
+    clients = {c["email"]: c["id"] for c in admin.get("/api/clients").json()}
+    admin.patch(f"/api/clients/{clients['refuse@example.org']}", json={"status": "refused"})
+    admin.post("/api/users", json={"username": "equipe@example.org", "password": PASSWORD, "role": "editor"}).raise_for_status()
+    answers = [
+        guest(store, email, [listings[1]["id"]])
+        for email in ("Sacha@example.org", "refuse@example.org", "equipe@example.org", "nouveau@example.org")
+    ]
+    assert len({(a.status_code, a.json()["detail"].split(" à ")[0]) for a in answers}) == 1
+    owners = {r["email"] for r in admin.get("/api/requests").json()}
+    # The known client gets the request; a refused account and a staff name get nothing.
+    assert owners == {"sacha@example.org", "nouveau@example.org"}
+    assert [c["display_name"] for c in admin.get("/api/clients").json() if c["email"] == "sacha@example.org"] == ["Sacha"]
+
+
+def test_guest_requests_are_limited(shop):
+    _, store, listings = shop
+    ids = [l["id"] for l in listings]
+    statuses = [guest(store, "ondine@example.org", [i]).status_code for i in ids]
+    assert statuses == [202, 202, 202]
+    assert guest(store, "ondine@example.org", [ids[0]]).status_code == 409
+    with TestClient(create_app(store.root)) as visitor:
+        statuses = [
+            visitor.post(
+                "/api/public/requests",
+                json={"email": f"x{i}@example.org", "display_name": "X", "listing_ids": [ids[0]], "consent": True},
+            ).status_code
+            for i in range(6)
+        ]
+    assert statuses == [202] * 5 + [429]
+    assert guest(store, "autre@example.org", ["inconnue"]).status_code == 409
+    assert guest(store, "pas-une-adresse", [ids[0]]).status_code == 422
+
+
+def test_a_password_link_opens_the_account_once(shop):
+    admin, store, listings = shop
+    guest(store, "ondine@example.org", [listings[0]["id"]])
+    client = next(c for c in admin.get("/api/clients").json() if c["email"] == "ondine@example.org")
+    first = admin.post(f"/api/clients/{client['id']}/password-link")
+    assert first.status_code == 201
+    link = admin.post(f"/api/clients/{client['id']}/password-link").json()
+    with TestClient(create_app(store.root)) as visitor:
+        # A newer link replaces the older one.
+        stale = visitor.post("/api/public/password", json={"token": first.json()["token"], "password": PASSWORD})
+        assert stale.status_code == 422
+        assert visitor.post("/api/public/password", json={"token": link["token"], "password": PASSWORD}).status_code == 200
+        assert visitor.get("/api/me").json()["email"] == "ondine@example.org"
+        assert len(visitor.get("/api/me/requests").json()) == 1
+        again = visitor.post("/api/public/password", json={"token": link["token"], "password": "Autre-mot-2026!"})
+        assert again.status_code == 422
+    assert next(c for c in admin.get("/api/clients").json() if c["id"] == client["id"])["status"] == "active"
+    client_of(store, "ondine@example.org")
+
+
+def test_password_links_are_for_open_client_accounts_only(shop):
+    admin, store, _ = shop
+    signup(store, "refuse@example.org")
+    refused = admin.get("/api/clients").json()[0]
+    admin.patch(f"/api/clients/{refused['id']}", json={"status": "refused"})
+    assert admin.post(f"/api/clients/{refused['id']}/password-link").status_code == 409
+    staff = admin.get("/api/users").json()[0]
+    assert admin.post(f"/api/clients/{staff['id']}/password-link").status_code == 404
+    # Expired: the link is refused.
+    signup(store, "sacha@example.org")
+    sacha = next(c for c in admin.get("/api/clients").json() if c["email"] == "sacha@example.org")
+    link = admin.post(f"/api/clients/{sacha['id']}/password-link").json()
+    with store.connect(write=True) as db:
+        db.execute("UPDATE password_links SET expires_at='2000-01-01T00:00:00+00:00'")
+    with TestClient(create_app(store.root)) as visitor:
+        assert visitor.post("/api/public/password", json={"token": link["token"], "password": PASSWORD}).status_code == 422
+
+
+def test_a_pending_client_is_kept_90_days_after_their_last_request(shop):
+    from datetime import datetime, timedelta, timezone
+
+    from pokeprice.privacy import Privacy
+
+    admin, store, listings = shop
+    guest(store, "ondine@example.org", [listings[0]["id"]])
+    signup(store, "oublie@example.org")
+    at = datetime.now(timezone.utc)
+    with store.connect(write=True) as db:
+        db.execute("UPDATE users SET created_at=? WHERE role='client'", ((at - timedelta(days=120)).isoformat(),))
+    assert Privacy(store).purge(at)["clients"] == {"Compte jamais validé": 1}
+    assert [c["email"] for c in admin.get("/api/clients").json()] == ["ondine@example.org"]

@@ -832,7 +832,14 @@ L'inscription rappelle de choisir un mot de passe propre à Lilydex.
 
 ### Les clients et leurs demandes
 
-Sur la vitrine, **Créer un compte** demande un nom, un e-mail, un mot de passe
+Sur la vitrine, un visiteur ajoute des cartes à **Ma sélection** (gardée dans
+son navigateur) et envoie la demande avec son nom et son e-mail, **sans créer
+de compte**. Une adresse inconnue devient un client **en attente**, sans mot de
+passe ; la réponse est la même que l'adresse soit connue ou non. Trois
+demandes en attente au plus par e-mail, cinq envois par heure et par adresse
+IP.
+
+**Créer un compte** reste possible pour suivre ses demandes en ligne : demande un nom, un e-mail, un mot de passe
 de 10 caractères au moins et la lecture de l'information sur les données (la
 base légale est la demande de réservation, pas un consentement). Le compte
 reste **en attente** : l'administrateur le valide, le refuse ou le désactive
@@ -842,9 +849,8 @@ inscriptions par heure et par adresse au plus. Un client se connecte avec son
 e-mail ; il n'apparaît jamais parmi les comptes de l'équipe, ne peut pas
 recevoir de rôle de gestion et n'accède à aucune action de gestion.
 
-Un client connecté ajoute des cartes à **Ma sélection** (gardée dans son
-navigateur), écrit un message (envoi, remise en main propre) et l'envoie : la
-sélection devient une demande.
+Un client connecté envoie sa sélection de la même façon, sans redonner son
+e-mail : la sélection devient une demande.
 **Une demande ne bloque rien.** Il suit ses demandes dans **Mes demandes** et
 peut annuler une demande en attente ; dix demandes en attente au plus par
 client ; une demande sans réponse expire au bout de 7 jours.
@@ -853,18 +859,28 @@ Dans **Ventes**, le panneau **Demandes de la vitrine** liste les demandes, en
 attente d'abord, avec l'e-mail, le message et les exemplaires. **Accepter les
 cartes cochées** crée un lot « Vitrine · nom du client », canal Vitrine, au prix
 figé lors de la demande, et le réserve aussitôt ; les cartes non cochées sont
-« non retenues ». Si un exemplaire vient d'être réservé ailleurs, l'acceptation
-échoue sans laisser de brouillon. **Refuser la demande** demande un motif,
+« non retenues ». Accepter valide aussi un client en attente : la demande
+porte la mention « E-mail non vérifié » tant que ce n'est pas fait, et c'est
+votre réponse qui vérifie l'adresse. Si un exemplaire vient d'être réservé
+ailleurs, l'acceptation échoue sans laisser de brouillon. **Refuser la demande** demande un motif,
 visible par le client. Contactez ensuite le client depuis votre messagerie pour
 le paiement et l'envoi : le lot suit le circuit habituel et le client voit son
 statut (réservée, vendue, expédiée…). Chaque décision est inscrite à
 l'historique des exemplaires.
 
+Le site n'envoie pas d'e-mails : pour qu'un client choisisse un mot de passe,
+ou en change après un oubli, **Lien de mot de passe** (Comptes clients de la
+vitrine, administrateur) copie un lien à usage unique, valable 7 jours, à
+coller dans votre réponse. Un nouveau lien remplace le précédent. En l'ouvrant,
+le client choisit son mot de passe, son compte devient actif et il est
+connecté ; ses anciennes sessions sont fermées.
+
 ### Les données des clients
 
 Les durées annoncées sur `/a-propos` sont appliquées chaque nuit, avant la
 sauvegarde, par `pokeprice-manage purge` : compte refusé effacé 30 jours après
-l'inscription ; compte jamais validé, 90 jours après ; demande sans suite
+l'inscription ; compte jamais validé, 90 jours après l'inscription ou la
+dernière demande ; demande sans suite
 (refusée, expirée, annulée), 6 mois après ; client sans demande depuis 3 ans,
 effacé avec ses demandes. Les durées sont dans `privacy.py` : en changer une,
 c'est changer la notice aussi.
