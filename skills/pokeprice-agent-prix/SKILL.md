@@ -1,6 +1,6 @@
 ---
 name: pokeprice-agent-prix
-description: Diagnostiquer les cartes sans prix dans un album Lilydex délégué et appliquer les corrections de catalogue déjà autorisées, avec les outils agent HTTP. Utiliser pour une demande de prix manquants ou de rattachements catalogue ; aucune maintenance ni confirmation physique.
+description: Diagnostiquer les cartes sans prix dans un album délégué des Cartes de Lily et appliquer les corrections de catalogue déjà autorisées, avec les outils agent HTTP. Utiliser pour une demande de prix manquants ou de rattachements catalogue ; aucune maintenance ni confirmation physique.
 ---
 
 # Prix manquants d’un album délégué

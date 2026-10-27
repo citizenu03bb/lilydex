@@ -1,12 +1,12 @@
-# Lilydex
+# Les cartes de Lily
 
 [![Tests](https://github.com/citizenu03bb/lilydex/actions/workflows/tests.yml/badge.svg)](https://github.com/citizenu03bb/lilydex/actions/workflows/tests.yml)
 
-Lilydex numérise, identifie, estime et met en vente une collection de cartes Pokémon multilingue.
+Les cartes de Lily numérise, identifie, estime et met en vente une collection de cartes Pokémon multilingue.
 La boutique est en service : [lilydex.duckdns.org](https://lilydex.duckdns.org).
-Le paquet Python et ses commandes s'appellent `pokeprice`, `pokeprice-manage` et `pokeprice-agent`.
+Le paquet Python et ses commandes s'appellent `pokeprice`, `pokeprice-manage` et `pokeprice-agent` ; le dépôt garde l'ancien nom du produit, `lilydex`.
 
-> **In short.** Lilydex takes a multilingual Pokémon card collection from binder photos to a
+> **In short.** Les cartes de Lily (Lily's cards) takes a multilingual Pokémon card collection from binder photos to a
 > priced, sellable inventory: a FastAPI + SQLite web app used from an Android phone, a
 > command-line album scanner, a public storefront, and an ARM Oracle Cloud server behind Caddy
 > with hardened systemd units, nightly backups verified by a test restore, and off-site copies
@@ -18,11 +18,11 @@ Le paquet Python et ses commandes s'appellent `pokeprice`, `pokeprice-manage` et
 > [English overview](README.en.md) · [case study](CASE-STUDY.md) (design, operations, security).
 
 <p align="center">
-  <img src="docs/images/vitrine.png" alt="La vitrine publique de Lilydex sur ordinateur : recherche, filtres et grille de cartes photographiées, avec leur prix" width="70%">
+  <img src="docs/images/vitrine.png" alt="La vitrine publique sur ordinateur : recherche, filtres et grille de cartes photographiées, avec leur prix" width="70%">
   <img src="docs/images/vitrine-telephone.png" alt="La même vitrine sur un téléphone" width="21%">
 </p>
 
-## Ce que fait Lilydex
+## Ce que fait le projet
 
 **Numériser vos classeurs** (ligne de commande `pokeprice`). Vous photographiez chaque page ;
 la commande découpe les pochettes, lit chaque carte et la rapproche du catalogue
@@ -75,7 +75,7 @@ classeur, les échantillons sont petits, aucun modèle n'est entraîné. Détail
 | Ligne de commande | Numérisation d'albums qui reprend après une interruption ; rapports CSV, Excel et HTML | [Commandes](docs/COMMANDES.md) |
 | Vision | DINOv2 sur un serveur ARM sans carte graphique, avec torch pour processeur seul ; chaque image n'est analysée qu'une fois, son résultat étant gardé sous l'empreinte SHA-256 de la photo | [IA et vision](docs/IA-VISION.md) |
 | Référentiel des impressions | Règles appuyées sur des preuves archivées sous leur empreinte ; un contrat et vingt scénarios de réception | [Guide](docs/PRINT_REFERENCE_GUIDE.md), [contrat](docs/PRINT_REFERENCE_CONTRACT.md) |
-| Exploitation | Oracle Cloud, offre gratuite ; Caddy et HTTPS par Let's Encrypt ; service systemd durci : utilisateur dédié, système en lecture seule et dossiers personnels masqués pour le service, aucune élévation de privilèges | [Héberger Lilydex](docs/DEPLOYMENT.md) |
+| Exploitation | Oracle Cloud, offre gratuite ; Caddy et HTTPS par Let's Encrypt ; service systemd durci : utilisateur dédié, système en lecture seule et dossiers personnels masqués pour le service, aucune élévation de privilèges | [Héberger le site](docs/DEPLOYMENT.md) |
 | Sauvegardes | Archive nocturne vérifiée par une restauration ; copie chiffrée avec age, puis envoyée sur Google Drive | [Sauvegardes](docs/DAILY-BACKUPS.md) |
 | Sécurité et vie privée | Audit avant la publication du code ; registre RGPD ; clés d'API sur le serveur seulement ; mots de passe hachés avec scrypt | [Sécurité](SECURITY.md), [audit](docs/AUDIT-SECURITE.md), [RGPD](docs/RGPD.md) |
 | Qualité | Tests Python et JavaScript (Node.js) où des imitations remplacent les modèles et les services ; banc de non-régression ; contrôle automatique de la documentation | [Contribuer](CONTRIBUTING.md), [banc](docs/BANC-RECONNAISSANCE.md) |
@@ -134,7 +134,7 @@ d'édition par l'image, ajoutez `--extra vision`.
   à l'étude.
 - Une seule personne maintient le projet, sans délai de réponse garanti.
 
-**Ce que Lilydex ne fait pas** : pas encore d'application installable (prévue ; c'est un site
+**Ce que le projet ne fait pas** : pas encore d'application installable (prévue ; c'est un site
 web), pas de modèle entraîné ni affiné, pas d'alerte de contrefaçon, pas de note PSA ou BGS,
 pas de paiement en ligne.
 
@@ -150,7 +150,7 @@ Le [sommaire](docs/README.md) range chaque page selon ce que vous venez faire ; 
 
 ## Développement
 
-Lilydex est développé avec des agents de code, surtout Claude Code. La majorité des commits
+Le projet est développé avec des agents de code, surtout Claude Code. La majorité des commits
 portent la mention `Co-Authored-By` (`git log --grep Co-Authored-By --oneline`). Le mainteneur
 fixe les jalons et leurs critères de sortie, établit la vérité terrain sur les cartes
 physiques, tranche par écrit et relit ; le banc d'essai et les tests servent de garde-fous.

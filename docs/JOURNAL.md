@@ -9,6 +9,11 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-10-27
 
+- Le produit s'appelle Les cartes de Lily ([fiche 0019](decisions/0019-les-cartes-de-lily.md)).
+  Vitrine, À propos, gestion et export des données prennent le nom d'une seule
+  constante ; la documentation vivante suit. Dépôt, adresse et identifiants
+  techniques gardent `lilydex`.
+
 - Vitrine : **Ma sélection** montre le recto de chaque carte choisie, y compris
   dans une sélection enregistrée avant ce changement.
 

@@ -4,7 +4,7 @@
 > **Vous y trouverez :** comment installer et ouvrir l'application, créer les comptes, l'utiliser depuis un téléphone, puis chaque tâche dans l'ordre où vous la rencontrez.
 > **Statut :** en vigueur. Les options de chaque commande sont dans la [référence des commandes](COMMANDES.md).
 
-La gestion est la partie privée de Lilydex. Vous y tenez l'inventaire de votre
+La gestion est la partie privée du site. Vous y tenez l'inventaire de votre
 collection, [exemplaire](GLOSSAIRE.md#les-cartes) par exemplaire : photos,
 identité, variante, état, prix et ventes. La partie publique du site, la
 vitrine, est décrite plus bas ([Publier en vitrine](#publier-en-vitrine)) et
@@ -17,7 +17,7 @@ machine qui l'héberge. Consulter, corriger et suivre les ventes ne demande
 aucun service extérieur. Les actions qui en appellent un, comme la lecture
 d'une photo par Gemini ou le relevé d'un prix sur TCGdex, le signalent.
 
-Les mots propres à Lilydex sont définis dans le [glossaire](GLOSSAIRE.md).
+Les mots propres au projet sont définis dans le [glossaire](GLOSSAIRE.md).
 
 ## Ce que vous pouvez faire
 
@@ -71,7 +71,7 @@ autre appareil ne peut l'ouvrir. Le port 3820 se change avec `--port`.
 > - **Collection hébergée sur un serveur :** la base du serveur fait foi.
 >   Lancez sur le serveur toute commande qui lit ou modifie la collection, sous
 >   la forme décrite dans
->   [Héberger Lilydex](DEPLOYMENT.md#lancer-une-commande-sur-le-serveur), avec
+>   [Héberger le site](DEPLOYMENT.md#lancer-une-commande-sur-le-serveur), avec
 >   `--data /srv/pokeprice/inventory`. Une base restée sur votre ordinateur est
 >   une ancienne copie : n'y écrivez rien.
 > - **Sans `--data`,** une commande vise `data/inventory/` dans le dossier
@@ -80,7 +80,7 @@ autre appareil ne peut l'ouvrir. Le port 3820 se change avec `--port`.
 ### Créer le compte administrateur
 
 Au premier accès, la page vous demande de créer le compte administrateur :
-un nom et un mot de passe d'au moins 10 caractères. Lilydex ne livre aucun
+un nom et un mot de passe d'au moins 10 caractères. L'application ne livre aucun
 compte ni mot de passe par défaut. Vous pouvez aussi créer ce compte dans un
 terminal ; la commande demande le mot de passe sans l'afficher :
 
@@ -126,8 +126,8 @@ Deux limites : l'adresse de l'ordinateur peut changer quand le routeur en
 attribue une nouvelle (DHCP) ; la connexion passe en HTTP, sans chiffrement,
 et le navigateur refuse alors l'aperçu de la caméra (voir
 [Saisir des cartes](#prendre-ou-téléverser-une-photo)). Pour un accès chiffré
-depuis n'importe où, hébergez Lilydex sur un serveur : voir
-[Héberger Lilydex](DEPLOYMENT.md).
+depuis n'importe où, hébergez l'application sur un serveur : voir
+[Héberger le site](DEPLOYMENT.md).
 
 ### Clé Gemini (facultative)
 
@@ -163,7 +163,7 @@ sauvegardes et les copies faites avant une migration.
 Une nouvelle version du code peut faire évoluer la structure de la base. Quand
 le serveur ou une commande ouvre une base plus ancienne que le code :
 
-1. Lilydex copie d'abord la base telle quelle dans
+1. L'application copie d'abord la base telle quelle dans
    `backups/before-schemaN-fromM-<date>.sqlite3` (un fichier SQLite privé, dont
    l'intégrité est vérifiée) ;
 2. puis migre la base vers la version attendue.
@@ -693,7 +693,7 @@ serveur consécutifs.
 
 ### Estimer le prix de vente depuis Cardmarket
 
-L'API Cardmarket n'accepte plus de nouvelles inscriptions, et Lilydex ne
+L'API Cardmarket n'accepte plus de nouvelles inscriptions, et l'application ne
 collecte pas ses pages automatiquement. Dans la fiche, ouvrez **Voir les offres
 Cardmarket**, sélectionnez toute la page (Ctrl+A), copiez, puis collez dans
 **Estimer le prix de vente depuis Cardmarket**. Le serveur repère chaque offre
@@ -828,7 +828,7 @@ qui vend, comment se passe un achat, données conservées, contact, code source.
 L'adresse de contact vient de `POKEPRICE_CONTACT_EMAIL`, le nom du responsable
 du traitement de `POKEPRICE_CONTROLLER_NAME`, dans l'environnement du serveur ;
 sans eux, la page annonce le contact « bientôt » et parle « du vendeur ».
-L'inscription rappelle de choisir un mot de passe propre à Lilydex.
+L'inscription rappelle de choisir un mot de passe propre au site.
 
 ### Les clients et leurs demandes
 
@@ -903,7 +903,7 @@ son e-mail (qui sert aussi à se connecter), télécharger toutes ses données e
 JSON (`/api/me/export`), supprimer son compte. Modifier ou supprimer demande le
 mot de passe actuel. Une demande d'effacement reçue par e-mail se traite sur le
 serveur, avec `--data` (forme complète dans
-[Héberger Lilydex](DEPLOYMENT.md#lancer-une-commande-sur-le-serveur)) :
+[Héberger le site](DEPLOYMENT.md#lancer-une-commande-sur-le-serveur)) :
 
 ```bash
 sudo -u pokeprice env HOME=/srv/pokeprice /opt/pokeprice/.venv/bin/python -m pokeprice.manage --data /srv/pokeprice/inventory forget <e-mail>

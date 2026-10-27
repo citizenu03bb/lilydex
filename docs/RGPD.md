@@ -1,11 +1,11 @@
 # Données personnelles : registre et procédures
 
-> **Pour qui :** la personne responsable du site, et toute personne qui veut savoir ce que Lilydex fait des données personnelles.
+> **Pour qui :** la personne responsable du site, et toute personne qui veut savoir ce que le site fait des données personnelles.
 > **Vous y trouverez :** le registre des traitements, les durées de conservation, la procédure pour répondre à une demande et celle à suivre en cas de violation de données.
 > **Statut :** en vigueur. L'information des personnes est publiée sur la page `/a-propos#donnees` du site.
 
-La vitrine publique fait de Lilydex un traitement de données personnelles au
-sens du RGPD. L'exemption « usage domestique » ne vaut pas pour un site ouvert
+Avec sa vitrine publique, le site est un traitement de données personnelles
+au sens du RGPD. L'exemption « usage domestique » ne vaut pas pour un site ouvert
 au public. Ce document tient lieu de **registre des traitements** (article 30)
 et décrit les **procédures** : demandes des personnes, violation de données.
 L'information des personnes est la page `/a-propos#donnees`. Ses durées et

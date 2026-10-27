@@ -1,4 +1,4 @@
-/* Shared W3C Custom Elements (Light DOM) and theme/filter helpers for Lilydex. */
+/* Shared W3C Custom Elements (Light DOM) and theme/filter helpers for the site. */
 "use strict";
 
 function resolveLilydexTheme(stored, prefersDark) {

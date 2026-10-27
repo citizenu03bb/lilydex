@@ -7,7 +7,7 @@
 ## Le constat
 
 Sur 1 737 exemplaires, 276 n'ont pas de prix de référence. La moitié sont des
-énergies de base (137), que Lilydex ne cote jamais par choix
+énergies de base (137), que l'application ne cote jamais par choix
 ([fiche 0010](decisions/0010-porte-energie.md)). Le reste relève de quatre
 causes, chacune avec son propre remède.
 

@@ -5,7 +5,7 @@
 > **Statut :** en vigueur. Ces règles forment le jalon M1 de la [feuille de route](ROADMAP.md).
 
 Le temps humain doit aller aux cartes où une erreur coûterait de l'argent.
-Lilydex calcule donc, pour chaque exemplaire, ce qu'il pourrait valoir au plus
+L'application calcule donc, pour chaque exemplaire, ce qu'il pourrait valoir au plus
 compte tenu de ce qui reste incertain, et envoie en examen les cartes dont
 l'enjeu dépasse un seuil.
 

@@ -1,9 +1,9 @@
-# Contribuer à Lilydex
+# Contribuer au projet
 
-> **Pour qui :** toute personne qui veut corriger, améliorer ou documenter Lilydex.
+> **Pour qui :** toute personne qui veut corriger, améliorer ou documenter Les cartes de Lily.
 > **Vous y trouverez :** installer le projet, lancer les tests, écrire la documentation, proposer un changement.
 
-Lilydex est tenu par une seule personne. Les issues et les pull requests sont
+Le projet est tenu par une seule personne. Les issues et les pull requests sont
 bienvenues ; la réponse peut prendre quelques jours.
 
 ## Installer et lancer les tests

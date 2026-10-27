@@ -1,10 +1,10 @@
-# Lilydex — case study
+# Les cartes de Lily — case study
 
-> **For:** engineers and hiring managers who want to see how Lilydex was designed, run and secured, in five minutes.
+> **For:** engineers and hiring managers who want to see how Les cartes de Lily was designed, run and secured, in five minutes.
 > **You will find:** the problem, the domain rules that had to be discovered, the architecture, operations, security, testing, the agent API and the known limits.
 > **Status:** snapshot written in October 2026 and not kept up to date. The [English overview](README.en.md) describes the product; the French [documentation](docs/README.md) is the reference.
 
-Lilydex is a small production backend: it digitises, identifies, prices and
+Les cartes de Lily is a small production backend: it digitises, identifies, prices and
 sells one multilingual Pokémon card collection. It runs on a single server,
 has real customers on a public storefront, and is maintained by one person
 working with AI coding agents.
@@ -204,7 +204,7 @@ figures and their limits (21 to 31 cards, no Japanese card) are in the
 
 ## How it was built
 
-Lilydex was written with AI coding agents, mostly Claude Code. The maintainer
+The project was written with AI coding agents, mostly Claude Code. The maintainer
 set the architecture and the milestones, established ground truth on the
 physical cards, wrote each decision down, reviewed the changes, measured, and
 runs the service. The bench, the tests and the documentation check act as

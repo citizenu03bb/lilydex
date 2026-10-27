@@ -1,6 +1,6 @@
 # Sauvegardes
 
-> **Pour qui :** toute personne qui exploite une instance de Lilydex.
+> **Pour qui :** toute personne qui exploite une instance de l'application.
 >
 > **Vous y trouverez :** ce qui se passe chaque nuit, comment vérifier que
 > tout va bien, comment restaurer une archive et protéger la clé de
@@ -24,7 +24,7 @@ Les mots [serveur, portable et gestion](GLOSSAIRE.md#le-produit) et
 | Portable, `data/oci-backups` | La même archive, rapatriée et contrôlée de nouveau | Les 3 dernières |
 | Google Drive, dossier privé | La même archive, chiffrée, puis retéléchargée et restaurée | 7 jours, puis 1 par semaine sur 8 semaines, puis 1 par mois sur 12 mois ; 30 jours de corbeille |
 
-La collection de référence est sur le serveur ([Héberger Lilydex](DEPLOYMENT.md)).
+La collection de référence est sur le serveur ([Héberger le site](DEPLOYMENT.md)).
 La base du portable (`data/inventory`) est une copie périmée : n'y écrivez
 rien. Aucune tâche planifiée ne la lit ni n'y écrit.
 
@@ -200,7 +200,7 @@ uv run --extra web pokeprice-manage --data /tmp/collection-restauree restore dat
 
 1. Télécharger depuis le dossier Drive le fichier
    `oci-daily-<date>-<sha256>.zip.age` voulu.
-2. Le déchiffrer avec l'outil `age`, sans avoir besoin de Lilydex :
+2. Le déchiffrer avec l'outil `age`, sans avoir besoin de l'application :
 
    ```bash
    # Déchiffrer la copie avec la clé de sauvegarde
@@ -225,7 +225,7 @@ restaurée dans un dossier de `/srv/pokeprice/` en profite. Voir
 [Données personnelles](RGPD.md).
 
 Pour remettre une collection restaurée en service sur le serveur, suivez
-[Héberger Lilydex](DEPLOYMENT.md).
+[Héberger le site](DEPLOYMENT.md).
 
 ## Protéger la clé de chiffrement
 
@@ -268,7 +268,7 @@ Clé exposée ou portable perdu : suivez la procédure de
 Les commandes appartiennent à `pokeprice-manage`. Sur le portable, lancez-les à
 la racine du dépôt avec `uv run --extra web pokeprice-manage`. Sur le serveur,
 utilisez la forme décrite dans
-[Héberger Lilydex](DEPLOYMENT.md#lancer-une-commande-sur-le-serveur),
+[Héberger le site](DEPLOYMENT.md#lancer-une-commande-sur-le-serveur),
 avec `--data /srv/pokeprice/inventory`. Sans `--data`, une commande vise
 `data/inventory` dans le dossier courant.
 
@@ -333,7 +333,7 @@ Une archive ne contient pas :
 
 - de session ouverte ni de jeton d'agent utilisable ;
 - les caches de vision (images de référence et vecteurs), qui se recalculent
-  seuls ([Héberger Lilydex](DEPLOYMENT.md)) ;
+  seuls ([Héberger le site](DEPLOYMENT.md)) ;
 - les photos originales des pages de classeurs : elles sont dans
   l'[instantané initial](RECOVERY.md) ;
 - le code : pour reconstruire l'application, partez du dépôt Git, pas du code
@@ -446,4 +446,4 @@ systemctl --user enable --now pokeprice-drive-backup.timer
 ```
 
 Les unités du serveur s'installent avec le déploiement
-([Héberger Lilydex](DEPLOYMENT.md)).
+([Héberger le site](DEPLOYMENT.md)).

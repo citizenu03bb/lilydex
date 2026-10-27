@@ -1,6 +1,6 @@
 # La vitrine publique
 
-> **Pour qui :** toute personne qui veut comprendre ou faire évoluer la partie publique de Lilydex.
+> **Pour qui :** toute personne qui veut comprendre ou faire évoluer la partie publique du site.
 > **Vous y trouverez :** ce que fait la vitrine, ce qui est public et ce qui ne l'est jamais, le prix affiché, le modèle de données, les routes, les garde-fous et les prochaines étapes.
 > **Statut :** en vigueur. Le mode d'emploi pour l'équipe est dans le [guide de l'application](APP.md#publier-en-vitrine).
 
@@ -13,9 +13,10 @@ client. Il n'y a ni paiement en ligne, ni service d'e-mail : le vendeur
 contacte le client depuis sa propre messagerie, et c'est sa réponse qui
 vérifie l'adresse.
 
-La vitrine s'affiche sous le nom **Les cartes de Lily**. Son en-tête compact
-présente la collection, sans bouton d'exploration : la recherche est directement
-visible. **Comment réserver** reste accessible, y compris sur téléphone, à côté
+La vitrine s'affiche sous le nom **Les cartes de Lily**. Ce nom vient de
+`SITE_NAME` (`src/pokeprice/brand.py`), que le serveur insère dans chaque page à
+la place de `{{site_name}}`. Son en-tête compact présente la collection, sans
+bouton d'exploration : la recherche est directement visible. **Comment réserver** reste accessible, y compris sur téléphone, à côté
 de **Ma sélection**. Le menu **Compte** réunit connexion, inscription, suivi
 des demandes et choix du thème. La palette crème, sauge et terracotta suit les
 thèmes Clair, Sombre et Dense ; les polices restent locales et la politique de

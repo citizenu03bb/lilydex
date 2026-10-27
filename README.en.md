@@ -1,9 +1,10 @@
-# Lilydex — English overview
+# Les cartes de Lily — English overview
 
-Lilydex digitises, identifies, prices and sells a multilingual Pokémon card collection
+Les cartes de Lily (Lily's cards) digitises, identifies, prices and sells a multilingual Pokémon card collection
 (French, English, Japanese and Italian cards). The shop is live:
 [lilydex.duckdns.org](https://lilydex.duckdns.org). The Python package and its commands are
-called `pokeprice`, `pokeprice-manage` and `pokeprice-agent`.
+called `pokeprice`, `pokeprice-manage` and `pokeprice-agent`; the repository keeps the
+product's former name, `lilydex`.
 
 The interface and the detailed documentation are in French; this page summarises the project
 for non-French readers. The [French README](README.md) is the reference. How it was designed,
@@ -87,7 +88,7 @@ image edition check.
 
 ## How it is built
 
-Lilydex is developed with coding agents, mostly Claude Code; most commits carry a
+The project is developed with coding agents, mostly Claude Code; most commits carry a
 `Co-Authored-By` trailer. The maintainer sets milestones and exit criteria, establishes ground
 truth on the physical cards, decides in writing and reviews; the bench and the tests act as
 guardrails. Coding agents were themselves measured on the bench as card readers and were not

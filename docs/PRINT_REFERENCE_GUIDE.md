@@ -1,6 +1,6 @@
 # Le référentiel des impressions
 
-> **Pour qui :** toute personne qui veut savoir comment Lilydex décide quelle version d'une carte vous avez et quel prix lui appliquer, preuves à l'appui.
+> **Pour qui :** toute personne qui veut savoir comment l'application décide quelle version d'une carte vous avez et quel prix lui appliquer, preuves à l'appui.
 > **Vous y trouverez :** pourquoi ce référentiel existe, ses quatre étages, ce qu'est une preuve, ce que l'application peut répondre, comment ajouter une preuve, et ce qui est mis en œuvre aujourd'hui.
 > **Statut :** en vigueur, en mode audit. Les règles exactes sont dans le [contrat](PRINT_REFERENCE_CONTRACT.md) ; le choix du mode audit dans la [fiche 0011](decisions/0011-referentiel-mode-audit.md).
 
@@ -79,7 +79,7 @@ Les documents sont rangés une seule fois par empreinte dans
 `reference_documents/` et voyagent avec les sauvegardes.
 
 **Chaque langue a ses preuves.** La collection est multilingue (français,
-anglais, japonais, italien) et Lilydex vise un public international. Une liste
+anglais, japonais, italien) et le site vise un public international. Une liste
 anglaise ne couvre jamais le français ; une règle française exige une preuve
 française. Sources officielles connues :
 
@@ -184,7 +184,7 @@ pièces, de la collection. Une preuve s'ajoute donc en deux endroits :
    exact (édition, numéros, langue) ; augmentez la version de contenu.
    L'application refuse une règle dont les preuves ne couvrent pas tout son
    périmètre. Lancez les tests, commitez, puis déployez le code
-   ([Héberger Lilydex](DEPLOYMENT.md#mettre-à-jour-le-code)).
+   ([Héberger le site](DEPLOYMENT.md#mettre-à-jour-le-code)).
 3. **Après le déploiement, sur le serveur**, listez puis appliquez les
    suspensions des cotations devenues incompatibles :
 

@@ -1,13 +1,13 @@
 # Référence des commandes
 
-> **Pour qui :** toute personne qui lance Lilydex en ligne de commande.
+> **Pour qui :** toute personne qui lance l'application en ligne de commande.
 > **Vous y trouverez :** chaque commande, ses sous-commandes et leurs options, telles que le code les définit.
 > **Statut :** généré par `scripts/gen_commandes.py` depuis le code ; ne pas modifier à la main.
 
 Depuis un clone du dépôt, préfixez chaque commande par `uv run --extra web`
 (par exemple `uv run --extra web pokeprice-manage serve`). Sur le serveur de
 production, lancez-les sous l'utilisateur `pokeprice` avec `--data` explicite :
-la forme complète est dans [Héberger Lilydex](DEPLOYMENT.md). Sans `--data`,
+la forme complète est dans [Héberger le site](DEPLOYMENT.md). Sans `--data`,
 `pokeprice-manage` vise `data/inventory` dans le dossier courant.
 
 Pour l'usage pas à pas, voyez le [guide de l'application](APP.md).

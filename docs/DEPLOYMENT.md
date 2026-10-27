@@ -1,10 +1,10 @@
-# Héberger Lilydex
+# Héberger le site
 
-> **Pour qui :** toute personne qui installe ou exploite Lilydex sur un serveur.
+> **Pour qui :** toute personne qui installe ou exploite Les cartes de Lily sur un serveur.
 > **Vous y trouverez :** l'architecture, l'installation pas à pas, la mise à jour, la façon de lancer une commande sur le serveur, l'option vision et les vérifications après une mise en ligne.
 > **Statut :** en vigueur. Les choix sont expliqués dans les fiches [0002](decisions/0002-oracle-cloud-serveur-fait-foi.md), [0003](decisions/0003-drive-depuis-le-portable-chiffre.md) et [0009](decisions/0009-torch-cpu-arm.md).
 
-Lilydex tourne sur un serveur Linux derrière Caddy, qui fournit HTTPS. La base
+Le site tourne sur un serveur Linux derrière Caddy, qui fournit HTTPS. La base
 du serveur fait foi ; le portable du mainteneur rapatrie les sauvegardes et
 garde seul l'accès à Google Drive.
 

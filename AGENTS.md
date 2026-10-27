@@ -1,6 +1,6 @@
 # Consignes pour les agents de code
 
-Lilydex est développé en grande partie avec des agents de code. Ces règles
+Les cartes de Lily est développé en grande partie avec des agents de code. Ces règles
 s'ajoutent à [CONTRIBUTING.md](CONTRIBUTING.md), qui fait foi.
 
 ## Données
@@ -47,7 +47,7 @@ Pour accélérer le traitement des cartes « À identifier », « À vérifier �
 - Au présent, sans date dans les pages qui décrivent le fonctionnement ;
   l'événement va dans `docs/JOURNAL.md`, la décision dans `docs/decisions/`.
 - Une page réécrite rejoint `PAGES_VIVANTES` dans `scripts/check_docs.py`.
-- Vocabulaire : [docs/GLOSSAIRE.md](docs/GLOSSAIRE.md). Lilydex désigne le
-  produit, `pokeprice` le paquet Python.
+- Vocabulaire : [docs/GLOSSAIRE.md](docs/GLOSSAIRE.md). Les cartes de Lily désigne
+  le produit, `lilydex` le dépôt, `pokeprice` le paquet Python.
 - Rien de personnel dans le dépôt : ni nom, ni e-mail, ni adresse IP, ni
   identifiant de dossier Drive.
