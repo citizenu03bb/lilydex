@@ -74,7 +74,7 @@
             id="settings-nav"
             hidden
           >
-            Gestion
+            Réglages
           </button>
         </nav>
         <div class="account">
@@ -257,10 +257,17 @@
           <button id="select-page" type="button" hidden>
             Sélectionner les cartes affichées
           </button>
-          <div id="cards" class="card-grid"></div>
-          <div class="pagination">
-            <button id="previous">← Précédent</button
-            ><span id="page-label"></span><button id="next">Suivant →</button>
+          <div id="cards" class="card-grid" aria-busy="true">
+            <p class="empty loading" role="status">Chargement de la collection…</p>
+          </div>
+          <div class="pagination" hidden>
+            <button id="previous">← Précédent</button>
+            <label class="page-jump"
+              >Page <input id="page-number" type="number" min="1" inputmode="numeric" />
+              <span id="page-count"></span></label
+            >
+            <button id="next">Suivant →</button>
+            <span id="page-label"></span>
           </div>
         </section>
         <section id="sales-view" hidden>
@@ -324,6 +331,7 @@
             <h2 id="audience-chart-title">Visiteurs par jour</h2>
             <div id="audience-bars" class="audience-bars"></div>
             <p id="audience-range" class="help"></p>
+            <p id="audience-detail" class="audience-detail" role="status"></p>
           </section>
           <div class="settings-grid audience-grid">
             <section class="panel">
@@ -342,7 +350,7 @@
         <section id="settings-view" hidden>
           <div class="heading">
             <div>
-              <p class="eyebrow">GESTION PRIVÉE</p>
+              <p class="eyebrow">RÉGLAGES</p>
               <h1>Comptes et albums</h1>
             </div>
           </div>

@@ -513,7 +513,19 @@ main {
   padding: 3px 6px;
   font-weight: 700;
 }
+.page-jump {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+}
+.page-jump input {
+  width: 4.5em;
+  min-height: 36px;
+  text-align: center;
+}
 .pagination {
+  flex-wrap: wrap;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1841,8 +1853,19 @@ dialog.card-viewer::backdrop {
   background: var(--green);
   border-radius: 4px 4px 0 0;
 }
-.audience-bar:hover span {
+.audience-bar:hover span,
+.audience-bar:focus-visible span {
   background: var(--ink);
+}
+button.audience-bar {
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+.audience-detail {
+  min-height: 1.4em;
+  font-weight: 600;
 }
 .audience-list {
   margin: 0 0 8px;
@@ -2032,4 +2055,47 @@ lilydex-filter-bar {
 .detail-danger:not(:empty) {
   border-top: 1px solid var(--line);
   margin-top: 24px;
+}
+
+/* The collection can take a few seconds: say so, and dim a list being replaced. */
+#cards[aria-busy="true"] > .card,
+#cards[aria-busy="true"] > .edition-group {
+  opacity: 0.55;
+  transition: opacity 0.2s;
+}
+.empty.loading {
+  grid-column: 1 / -1;
+  color: var(--muted);
+}
+/* On a phone the first cards come sooner: compact figures. */
+@media (max-width: 600px) {
+  .stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .stat {
+    padding: 8px 10px;
+  }
+  .stat strong {
+    font-size: 1.15rem;
+  }
+  .stat span {
+    font-size: 0.72rem;
+  }
+  .pagination {
+    gap: 12px;
+  }
+  /* Two selection buttons share a line instead of one each. */
+  #collection-view > #batch-photos:not([hidden]),
+  #collection-view > #select-page:not([hidden]) {
+    display: inline-flex;
+    width: auto;
+    margin-right: 6px;
+  }
+}
+/* Keyboard shortcuts mean nothing on a touch screen. */
+@media (pointer: coarse) {
+  .keyboard-drawer {
+    display: none;
+  }
 }
