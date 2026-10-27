@@ -191,3 +191,21 @@ def test_intake_reading_keeps_entry_preselects_exact_edition_and_proposes_notes(
         capture_output=True,
         text=True,
     )
+
+
+def test_theme_picker_and_viewer_quick_exam_preserve_drafts_and_csp():
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("Node.js is required")
+    root = Path(__file__).resolve().parents[1]
+    subprocess.run(
+        [
+            node,
+            str(root / "tests/web_components_runtime.cjs"),
+            str(root / "src/pokeprice/web/components.js"),
+            str(root / "src/pokeprice/web/gallery.js"),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )

@@ -89,8 +89,11 @@ def test_the_storefront_page_is_separate_and_not_indexed(shop):
     page = visitor.get("/")
     assert page.status_code == 200 and 'name="robots" content="noindex"' in page.text
     assert "/assets/storefront.js" in page.text and "/assets/app.js" not in page.text
+    assert "/assets/themes.css" in page.text and "/assets/components.js" in page.text
     assert visitor.get("/assets/storefront.js").status_code == 200
     assert visitor.get("/assets/storefront.css").status_code == 200
+    assert visitor.get("/assets/themes.css").status_code == 200
+    assert visitor.get("/assets/components.js").status_code == 200
 
 
 def test_anonymous_reads_are_rate_limited(shop):

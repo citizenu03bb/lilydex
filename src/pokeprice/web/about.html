@@ -6,11 +6,16 @@
     <meta name="color-scheme" content="light" />
     <meta name="robots" content="noindex" />
     <title>Lilydex · À propos et contact</title>
+    <link rel="stylesheet" href="/assets/themes.css" />
     <link rel="stylesheet" href="/assets/storefront.css" />
+    <script src="/assets/components.js"></script>
   </head>
   <body>
     <header class="top">
-      <p class="brand"><a href="/">Lilydex</a></p>
+      <nav class="account" aria-label="Thème">
+        <lilydex-theme-picker></lilydex-theme-picker>
+      </nav>
+      <p class="brand"><a href="/"><span class="brand-mark">L</span> Lilydex</a></p>
       <h1>À propos et contact</h1>
     </header>
     <main class="about">

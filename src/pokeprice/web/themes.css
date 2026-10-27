@@ -1,0 +1,235 @@
+/* Shared semantic design tokens and multi-theme system (Herbier, Holo Vault, Atelier). */
+
+:root,
+:root[data-theme="herbier"] {
+  color-scheme: light;
+  --surface-0: #f6f5f0;
+  --surface-1: #ffffff;
+  --surface-2: #eef1ea;
+  --surface-3: #e3e8de;
+  --surface-glass: rgba(246, 245, 240, 0.9);
+  --ink-primary: #182e28;
+  --ink-secondary: #344e46;
+  --ink-muted: #5c7068;
+  --accent: #1d634b;
+  --accent-hover: #154d3a;
+  --accent-soft: #e3f0ea;
+  --accent-contrast: #ffffff;
+  --gold: #8c5e14;
+  --gold-soft: #fdf5e6;
+  --danger: #9b2c2c;
+  --danger-soft: #fdf2f2;
+  --border: #d8dfd5;
+  --border-strong: #94a89b;
+  --focus-ring: #1d634b;
+  --shadow-sm: 0 2px 8px rgba(24, 46, 40, 0.05);
+  --shadow-md: 0 8px 28px rgba(24, 46, 40, 0.08);
+  --shadow-lg: 0 18px 44px rgba(24, 46, 40, 0.14);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --border-width: 1px;
+  --font-sans:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, sans-serif;
+  --font-display:
+    "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, ui-serif, serif;
+  --font-mono:
+    ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono",
+    monospace;
+
+  /* Legacy variable aliases used across style.css and storefront.css */
+  --paper: var(--surface-0);
+  --card: var(--surface-1);
+  --ink: var(--ink-primary);
+  --muted: var(--ink-muted);
+  --green: var(--accent);
+  --line: var(--border);
+  --amber: var(--gold);
+  --shadow: var(--shadow-md);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]),
+  :root[data-theme="auto"] {
+    color-scheme: dark;
+    --surface-0: #0d1317;
+    --surface-1: #151e24;
+    --surface-2: #1c2830;
+    --surface-3: #25343f;
+    --surface-glass: rgba(13, 19, 23, 0.9);
+    --ink-primary: #ecf3f0;
+    --ink-secondary: #c2d4cd;
+    --ink-muted: #8ca39b;
+    --accent: #34d399;
+    --accent-hover: #10b981;
+    --accent-soft: rgba(52, 211, 153, 0.14);
+    --accent-contrast: #062117;
+    --gold: #fbbf24;
+    --gold-soft: rgba(251, 191, 36, 0.14);
+    --danger: #f87171;
+    --danger-soft: rgba(248, 113, 113, 0.14);
+    --border: #263540;
+    --border-strong: #435b6b;
+    --focus-ring: #34d399;
+    --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.35);
+    --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.45);
+    --shadow-lg: 0 20px 50px rgba(0, 0, 0, 0.65);
+  }
+}
+
+:root[data-theme="vault"] {
+  color-scheme: dark;
+  --surface-0: #0d1317;
+  --surface-1: #151e24;
+  --surface-2: #1c2830;
+  --surface-3: #25343f;
+  --surface-glass: rgba(13, 19, 23, 0.9);
+  --ink-primary: #ecf3f0;
+  --ink-secondary: #c2d4cd;
+  --ink-muted: #8ca39b;
+  --accent: #34d399;
+  --accent-hover: #10b981;
+  --accent-soft: rgba(52, 211, 153, 0.14);
+  --accent-contrast: #062117;
+  --gold: #fbbf24;
+  --gold-soft: rgba(251, 191, 36, 0.14);
+  --danger: #f87171;
+  --danger-soft: rgba(248, 113, 113, 0.14);
+  --border: #263540;
+  --border-strong: #435b6b;
+  --focus-ring: #34d399;
+  --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 20px 50px rgba(0, 0, 0, 0.65);
+}
+
+:root[data-theme="atelier"] {
+  color-scheme: light;
+  --surface-0: #f4f4f6;
+  --surface-1: #ffffff;
+  --surface-2: #e9e9ee;
+  --surface-3: #dcdce4;
+  --surface-glass: rgba(244, 244, 246, 0.94);
+  --ink-primary: #111318;
+  --ink-secondary: #272a34;
+  --ink-muted: #525866;
+  --accent: #0f52ba;
+  --accent-hover: #0a3d8f;
+  --accent-soft: #e6effd;
+  --accent-contrast: #ffffff;
+  --gold: #b45309;
+  --gold-soft: #fef3c7;
+  --danger: #b91c1c;
+  --danger-soft: #fee2e2;
+  --border: #18181b;
+  --border-strong: #18181b;
+  --focus-ring: #0f52ba;
+  --shadow-sm: 2px 2px 0 #18181b;
+  --shadow-md: 3px 3px 0 #18181b;
+  --shadow-lg: 5px 5px 0 #18181b;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --border-width: 1.5px;
+  --font-display:
+    ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+/* Theme Picker W3C Custom Element */
+lilydex-theme-picker {
+  display: inline-flex;
+  align-items: center;
+}
+
+.theme-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  background: var(--surface-2);
+  border: var(--border-width) solid var(--border);
+  border-radius: 999px;
+  font-size: 0.76rem;
+}
+
+.theme-picker button {
+  border: 0;
+  background: transparent;
+  color: var(--ink-muted);
+  padding: 4px 9px;
+  min-height: 26px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.75rem;
+  line-height: 1.1;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.theme-picker button:hover {
+  color: var(--ink-primary);
+  background: var(--surface-3);
+}
+
+.theme-picker button[aria-checked="true"],
+.theme-picker button[aria-pressed="true"] {
+  background: var(--surface-1);
+  color: var(--accent);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Tabular numbers everywhere prices, counts, or references appear */
+.price,
+.card-price,
+.viewer-caption-price,
+.viewer-price,
+.valuation-card strong,
+.stat strong,
+#result-count,
+#page-label,
+input[type="number"] {
+  font-variant-numeric: tabular-nums;
+}
+
+lilydex-filter-bar {
+  display: block;
+}
+
+.active-filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.active-filter-chips[hidden] {
+  display: none !important;
+}
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 11px;
+  min-height: 28px;
+  border-radius: 999px;
+  border: var(--border-width) solid var(--border-strong);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.filter-chip:hover {
+  background: var(--surface-3);
+  color: var(--ink-primary);
+}

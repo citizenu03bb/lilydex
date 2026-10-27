@@ -282,6 +282,7 @@ const Gallery = (() => {
     const card = current();
     if (!card) return;
     const index = localIndex();
+    viewer.lastIndex = index;
     $("viewer-position").textContent = grouped()
       ? `${index + 1} / ${state.visibleCards.length} sur cette page · éditions ${state.offset + 1}–${Math.min(state.offset + state.limit, state.total)} sur ${state.total}`
       : `${state.offset + index + 1} / ${state.total}`;
@@ -379,8 +380,11 @@ const Gallery = (() => {
       select.addEventListener("click", toggleSelection);
       actions.append(select);
     }
+    info.append(actions);
+    if (typeof editAllowed === "function" && editAllowed() && !card.deleted_at) {
+      info.append(renderExamForm(card));
+    }
     info.append(
-      actions,
       el(
         "p",
         "←/→ carte · Pg↑/Pg↓ saut de 10, ou page de classeur en tri Classeur · Début/Fin · R recto/verso · I informations · T bande · Entrée fiche · Espace sélection · Échap ou V fermer",
@@ -388,6 +392,186 @@ const Gallery = (() => {
       ),
     );
     renderStrip(index);
+  }
+  const drafts = new Map();
+  function draftFor(card) {
+    const key = `${card.id}:${card.version}`;
+    if (!drafts.has(key)) {
+      drafts.set(key, {
+        finish: card.finish || "",
+        stamp_state: card.stamp_state || "unobserved",
+        stamp: card.stamp || "",
+        condition: card.condition || "",
+        variant_confirmed: Boolean(card.variant_confirmed),
+        condition_confirmed: Boolean(card.condition_confirmed),
+        reason: "Examen rapide en visionneuse",
+      });
+      if (drafts.size > 60) drafts.delete(drafts.keys().next().value);
+    }
+    return drafts.get(key);
+  }
+  function renderExamForm(card) {
+    const draft = draftFor(card);
+    const form = el("form", undefined, "viewer-exam-form");
+    const title = el("h4", "Examen rapide en classeur", "viewer-exam-title");
+    form.append(title);
+
+    const makeSelect = (label, name, choices) => {
+      const wrap = el("label", label);
+      const select = el("select");
+      select.name = name;
+      for (const [val, text] of choices) select.append(new Option(text, val));
+      select.value = draft[name] ?? "";
+      select.addEventListener("change", () => {
+        draft[name] = select.value;
+        if (["finish", "stamp_state"].includes(name)) {
+          draft.variant_confirmed = false;
+          variantCheck.checked = false;
+        }
+      });
+      wrap.append(select);
+      return wrap;
+    };
+
+    const finishSelect = makeSelect("Finition observée", "finish", [
+      ["", "À déterminer"],
+      ["non_holo", "Non holo (mate)"],
+      ["holo", "Holo dans l’illustration"],
+      ["holo_border", "Holo avec cadre brillant"],
+      ["reverse", "Reverse (fond brillant)"],
+      ["special", "Autre finition / spéciale"],
+    ]);
+    const stampStateSelect = makeSelect("Tampon", "stamp_state", [
+      ["unobserved", "Non examiné"],
+      ["absent", "Absence constatée"],
+      ["present", "Présent sur la carte"],
+    ]);
+    const stampWrap = el("label", "Texte du tampon");
+    const stampInput = el("input");
+    stampInput.type = "text";
+    stampInput.name = "stamp";
+    stampInput.maxLength = 120;
+    stampInput.value = draft.stamp || "";
+    stampInput.placeholder = "Ex. Prerelease, logo extension…";
+    stampInput.addEventListener("input", () => {
+      draft.stamp = stampInput.value;
+      draft.variant_confirmed = false;
+      variantCheck.checked = false;
+    });
+    stampWrap.append(stampInput);
+
+    const conditionSelect = makeSelect("État physique", "condition", [
+      ["", "Inconnu"],
+      ["NM", "NM"],
+      ["EX", "EX"],
+      ["GD", "GD"],
+      ["LP", "LP"],
+      ["PL", "PL"],
+      ["PO", "PO"],
+      ["NM/EX", "NM/EX"],
+    ]);
+
+    const variantLabel = el("label", undefined, "check-label");
+    const variantCheck = el("input");
+    variantCheck.type = "checkbox";
+    variantCheck.name = "variant_confirmed";
+    variantCheck.checked = Boolean(draft.variant_confirmed);
+    variantCheck.addEventListener("change", () => {
+      draft.variant_confirmed = variantCheck.checked;
+    });
+    variantLabel.append(
+      variantCheck,
+      document.createTextNode("Variante et tampon vérifiés"),
+    );
+
+    const condLabel = el("label", undefined, "check-label");
+    const condCheck = el("input");
+    condCheck.type = "checkbox";
+    condCheck.name = "condition_confirmed";
+    condCheck.checked = Boolean(draft.condition_confirmed);
+    condCheck.addEventListener("change", () => {
+      draft.condition_confirmed = condCheck.checked;
+    });
+    condLabel.append(
+      condCheck,
+      document.createTextNode("État vérifié sur la carte"),
+    );
+
+    const reasonWrap = el("label", "Motif (journal)");
+    const reasonInput = el("input");
+    reasonInput.type = "text";
+    reasonInput.name = "reason";
+    reasonInput.maxLength = 200;
+    reasonInput.required = true;
+    reasonInput.value = draft.reason || "Examen rapide en visionneuse";
+    reasonInput.addEventListener("input", () => {
+      draft.reason = reasonInput.value;
+    });
+    reasonWrap.append(reasonInput);
+
+    const saveBtn = el("button", "Enregistrer & suivante →", "primary viewer-exam-submit");
+    saveBtn.type = "submit";
+
+    form.append(
+      finishSelect,
+      stampStateSelect,
+      stampWrap,
+      conditionSelect,
+      variantLabel,
+      condLabel,
+      reasonWrap,
+      saveBtn,
+    );
+
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const payload = viewerExamPayload(card, draft);
+      if (!payload) {
+        toast("Aucune modification : passage à la carte suivante.");
+        step(1);
+        return;
+      }
+      const prevIndex = localIndex();
+      const savedId = card.id;
+      saveBtn.disabled = true;
+      exclusive(async () => {
+        try {
+          const updated = await api(`/copies/${card.id}`, {
+            method: "PATCH",
+            body: JSON.stringify(payload),
+          });
+          drafts.delete(`${card.id}:${card.version}`);
+          Object.assign(card, updated);
+          toast("Examen enregistré.");
+          await refreshSummary();
+          await loadCards();
+          if (!dialog()?.open || !state.visibleCards.length) return;
+          const nextIds = state.visibleCards.map((c) => c.id);
+          const stillPresent = nextIds.indexOf(savedId);
+          if (stillPresent !== -1) {
+            const target = grouped()
+              ? stillPresent + 1
+              : state.offset + stillPresent + 1;
+            if (!grouped()) {
+              const clamped = Math.max(0, Math.min(target, state.total - 1));
+              await cardAt(clamped);
+              show(clamped - state.offset);
+            } else {
+              show(Math.min(stillPresent + 1, state.visibleCards.length - 1));
+            }
+          } else {
+            const nextIdx = nextViewerIndexAfterSave(nextIds, savedId, prevIndex);
+            if (nextIdx >= 0) show(nextIdx);
+          }
+          $("viewer-photo")?.focus();
+        } catch (err) {
+          toast(err.message);
+        } finally {
+          saveBtn.disabled = false;
+        }
+      });
+    });
+    return form;
   }
   function renderStrip(index) {
     const strip = $("viewer-strip");
@@ -426,6 +610,50 @@ const Gallery = (() => {
     viewer.side = viewer.side === "front" ? "back" : "front";
     render();
   }
+  function viewerExamPayload(card, draft) {
+    const changes = {
+      expected_version: card.version,
+      reason:
+        (draft.reason || "Examen rapide en visionneuse").trim() ||
+        "Examen rapide en visionneuse",
+    };
+    let modified = false;
+    for (const key of ["finish", "stamp_state", "stamp", "condition"]) {
+      const currentVal = card[key] ?? (key === "stamp_state" ? "unobserved" : "");
+      const nextVal = draft[key] ?? (key === "stamp_state" ? "unobserved" : "");
+      if (nextVal !== currentVal) {
+        changes[key] = nextVal;
+        modified = true;
+      }
+    }
+    for (const key of ["variant_confirmed", "condition_confirmed"]) {
+      const nextBool = Boolean(draft[key]);
+      if (nextBool !== Boolean(card[key])) {
+        changes[key] = nextBool;
+        modified = true;
+      }
+    }
+    // Store.update_copy resets variant_confirmed to False whenever finish or
+    // stamp changes unless variant_confirmed=True is explicitly sent in the PATCH.
+    if (
+      draft.variant_confirmed &&
+      ["finish", "stamp_state", "stamp"].some((k) => k in changes)
+    ) {
+      changes.variant_confirmed = true;
+      modified = true;
+    }
+    return modified ? changes : null;
+  }
+  function nextViewerIndexAfterSave(nextIds, savedId, previousIndex) {
+    if (!Array.isArray(nextIds) || !nextIds.length) return -1;
+    const pos = nextIds.indexOf(savedId);
+    if (pos !== -1) {
+      return Math.min(pos + 1, nextIds.length - 1);
+    }
+    const fallback =
+      typeof previousIndex === "number" && previousIndex >= 0 ? previousIndex : 0;
+    return Math.min(fallback, nextIds.length - 1);
+  }
   // The photo fills the screen; the details and the strip are shown on
   // demand, and the choice is remembered on this device.
   const panels = { info: "viewer-info-toggle", strip: "viewer-strip-toggle" };
@@ -447,7 +675,9 @@ const Gallery = (() => {
   function viewerKey(event) {
     if (event.altKey || event.metaKey || event.ctrlKey || typing(event.target)) return;
     if (waiting(event, viewerKey)) return;
-    const onControl = event.target.closest("button, a");
+    const onControl = event.target.closest(
+      "button, a, input, select, textarea, label, summary, .viewer-exam-form",
+    );
     const key = event.key;
     if (key === "ArrowRight") step(1);
     else if (key === "ArrowLeft") step(-1);
@@ -468,7 +698,13 @@ const Gallery = (() => {
 
   function rendered(focusedId) {
     if (dialog()?.open) {
-      if (!current()) show(Math.min(Math.max(0, localIndex()), state.visibleCards.length - 1));
+      if (!current())
+        show(
+          Math.min(
+            Math.max(0, viewer.lastIndex ?? 0),
+            state.visibleCards.length - 1,
+          ),
+        );
       else render();
       if (!state.visibleCards.length) dialog().close();
     } else if (focusedId && !busy && !document.querySelector("dialog[open]"))

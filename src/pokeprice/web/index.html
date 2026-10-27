@@ -6,7 +6,9 @@
     <meta name="color-scheme" content="light" />
     <meta name="robots" content="noindex, nofollow" />
     <title>Lilydex · Gestion</title>
+    <link rel="stylesheet" href="/assets/themes.css" />
     <link rel="stylesheet" href="/assets/style.css" />
+    <script src="/assets/components.js"></script>
     <script src="/assets/media.js" defer></script>
     <script src="/assets/app.js" defer></script>
     <script src="/assets/workflows.js" defer></script>
@@ -15,7 +17,10 @@
   <body>
     <section id="access" class="access" hidden>
       <div class="access-card">
-        <span class="brand"><span class="brand-mark">L</span> Lilydex</span>
+        <div class="access-top">
+          <span class="brand"><span class="brand-mark">L</span> Lilydex</span>
+          <lilydex-theme-picker></lilydex-theme-picker>
+        </div>
         <h1 id="access-title">Votre collection privée</h1>
         <p id="access-help">Connectez-vous pour retrouver vos cartes.</p>
         <form id="login-form">
@@ -73,6 +78,7 @@
           </button>
         </nav>
         <div class="account">
+          <lilydex-theme-picker></lilydex-theme-picker>
           <span id="account-label"></span
           ><button id="logout" class="quiet">Déconnexion</button>
         </div>
@@ -109,8 +115,18 @@
             </div>
           </div>
           <div class="stats" id="stats"></div>
-          <p class="help">Valeurs de la collection complète · montants connus, sans décote d’état</p>
-          <section id="collection-values" class="valuation-grid" aria-label="Valeurs de la collection complète"></section>
+          <details class="valuation-drawer">
+            <summary class="valuation-summary">
+              <span>Valeurs détaillées de la collection et des résultats filtrés</span>
+              <span class="help">Montants connus, sans décote d’état · cliquer pour afficher ou masquer</span>
+            </summary>
+            <div class="valuation-drawer-body">
+              <p class="help">Valeurs de la collection complète · montants connus, sans décote d’état</p>
+              <section id="collection-values" class="valuation-grid" aria-label="Valeurs de la collection complète"></section>
+              <p class="help">Valeurs des résultats filtrés</p>
+              <section id="result-values" class="valuation-grid" aria-label="Valeurs des résultats filtrés"></section>
+            </div>
+          </details>
           <div id="capture-resume" class="workflow-panel" hidden></div>
           <section
             id="lot-builder"
@@ -137,70 +153,83 @@
             <p id="lot-summary" aria-live="polite"></p>
             <div id="lot-selected" class="lot-selected"></div>
           </section>
-          <section class="search-bar" aria-label="Recherche et filtres">
-            <label class="search-label"
-              ><span>Rechercher</span
-              ><input
-                id="search"
-                type="search"
-                placeholder="Nom, extension, référence…"
-                autocomplete="off"
-            /></label>
-            <label
-              >Album<select id="album-filter">
-                <option value="">Tous les albums</option>
-              </select></label
-            >
-            <label
-              >Stock<select id="stock-filter">
-                <option value="">Tous les exemplaires</option>
-                <option value="available">Disponibles</option>
-                <option value="reserved">Réservés</option>
-                <option value="sold">Vendus</option>
-                <option value="published">Publiés en vitrine</option>
-                <option id="trash-filter" value="deleted" hidden>
-                  Corbeille
-                </option>
-              </select></label
-            >
-            <label
-              >Identification<select id="status-filter">
-                <option value="">Toutes les identités</option>
-                <option value="confirmed">Confirmées</option>
-                <option value="review">À vérifier</option>
-                <option value="unresolved">À identifier</option>
-              </select></label
-            >
-            <label
-              >Variante<select id="variant-filter">
-                <option value="">Toutes les variantes</option>
-                <option value="standard">Standard</option>
-                <option value="foil">Foil</option>
-                <option value="check">Foil à vérifier (alerte du relevé)</option>
-                <option value="unverified">Foil non vérifiées à l’œil</option>
-                <option value="stamped">Tamponnées</option>
-              </select></label
-            >
-            <label
-              >Trier<select id="sort-order">
-                <option value="name">Par nom</option>
-                <option value="binder">Classeur (album, page, pochette)</option>
-                <option value="price">Prix prudent, du plus cher</option>
-                <option value="price_asc">Prix prudent, du moins cher</option>
-              </select></label
-            >
-            <label
-              >Examen<select id="review-filter">
-                <option value="">Toutes les cartes</option>
-                <option value="needed">À examiner</option>
-                <option value="coverage">Référentiel à compléter</option>
-              </select></label
-            >
-            <label
-              >Seuil de valeur (€)<input id="review-threshold" type="number"
-                min="0.01" max="10000" step="0.01" value="10"
-            /></label>
-          </section>
+          <lilydex-filter-bar>
+            <section class="search-bar" aria-label="Recherche et filtres">
+              <div class="search-primary">
+                <label class="search-label"
+                  ><span>Rechercher</span
+                  ><input
+                    id="search"
+                    type="search"
+                    placeholder="Nom, extension, référence…"
+                    autocomplete="off"
+                /></label>
+                <label
+                  >Album<select id="album-filter">
+                    <option value="">Tous les albums</option>
+                  </select></label
+                >
+                <label
+                  >Examen<select id="review-filter">
+                    <option value="">Toutes les cartes</option>
+                    <option value="needed">À examiner</option>
+                    <option value="coverage">Référentiel à compléter</option>
+                  </select></label
+                >
+                <label
+                  >Trier<select id="sort-order">
+                    <option value="name">Par nom</option>
+                    <option value="binder">Classeur (album, page, pochette)</option>
+                    <option value="price">Prix prudent, du plus cher</option>
+                    <option value="price_asc">Prix prudent, du moins cher</option>
+                  </select></label
+                >
+              </div>
+              <details class="search-secondary">
+                <summary class="search-secondary-summary">
+                  Plus de filtres (stock, identité, variante, seuil)
+                  <span class="secondary-filter-count" hidden></span>
+                </summary>
+                <div class="search-secondary-grid">
+                  <label
+                    >Stock<select id="stock-filter">
+                      <option value="">Tous les exemplaires</option>
+                      <option value="available">Disponibles</option>
+                      <option value="reserved">Réservés</option>
+                      <option value="sold">Vendus</option>
+                      <option value="published">Publiés en vitrine</option>
+                      <option id="trash-filter" value="deleted" hidden>
+                        Corbeille
+                      </option>
+                    </select></label
+                  >
+                  <label
+                    >Identification<select id="status-filter">
+                      <option value="">Toutes les identités</option>
+                      <option value="confirmed">Confirmées</option>
+                      <option value="review">À vérifier</option>
+                      <option value="unresolved">À identifier</option>
+                    </select></label
+                  >
+                  <label
+                    >Variante<select id="variant-filter">
+                      <option value="">Toutes les variantes</option>
+                      <option value="standard">Standard</option>
+                      <option value="foil">Foil</option>
+                      <option value="check">Foil à vérifier (alerte du relevé)</option>
+                      <option value="unverified">Foil non vérifiées à l’œil</option>
+                      <option value="stamped">Tamponnées</option>
+                    </select></label
+                  >
+                  <label
+                    >Seuil de valeur (€)<input id="review-threshold" type="number"
+                      min="0.01" max="10000" step="0.01" value="10"
+                  /></label>
+                </div>
+              </details>
+              <div class="active-filter-chips" aria-label="Filtres actifs" hidden></div>
+            </section>
+          </lilydex-filter-bar>
           <div class="result-line">
             <label
               >Afficher<select id="display-mode">
@@ -210,16 +239,18 @@
             >
             <p id="result-count" aria-live="polite"></p>
             <span id="result-value"></span>
+            <details class="keyboard-drawer">
+              <summary class="button quiet">⌨ Clavier</summary>
+              <p class="help keyboard-help" id="keyboard-help">
+                Clavier dans la grille : flèches, Début/Fin, Pg↑/Pg↓ (page),
+                Ctrl+Début/Fin (tout), Entrée (fiche), Espace (sélection),
+                V (visionneuse).
+              </p>
+            </details>
             <button id="open-viewer" type="button" aria-keyshortcuts="V">
               Visionneuse
             </button>
           </div>
-          <p class="help keyboard-help" id="keyboard-help">
-            Clavier dans la grille : flèches, Début/Fin, Pg↑/Pg↓ (page),
-            Ctrl+Début/Fin (tout), Entrée (fiche), Espace (sélection),
-            V (visionneuse).
-          </p>
-          <section id="result-values" class="valuation-grid" aria-label="Valeurs des résultats filtrés"></section>
           <button id="batch-photos" hidden>
             Préparer les photos sélectionnées
           </button>

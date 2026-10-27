@@ -912,11 +912,28 @@ côté de la base ; ils ne font pas partie des sauvegardes.
 
 ## Consulter la collection
 
+### Choisir le thème d'affichage
+
+Un sélecteur **Thème** en haut de la gestion, de la vitrine et de la page À
+propos propose quatre modes, mémorisés dans le navigateur :
+
+- **Auto** (par défaut) : suit le réglage clair ou sombre de l'appareil
+  (`prefers-color-scheme`) ;
+- **Herbier** : thème clair éditorial sur papier ivoire ;
+- **Vault** : thème sombre à contraste élevé pour l'examen des cartes brillantes
+  et des bords ;
+- **Atelier** : thème clair technique à densité accrue pour les sessions de
+  vérification.
+
 ### Rechercher et filtrer
 
-La recherche porte sur le nom, l'extension, la référence et l'album ; les
-filtres, sur le stock, l'identification, la variante et l'examen. La
-collection affiche le nombre d'exemplaires et d'éditions, avec une pagination.
+La barre principale regroupe la recherche (nom, extension, référence, album),
+l'album, l'examen et le tri ; le volet **Plus de filtres** déplie le stock,
+l'identification, la variante et le seuil de valeur, et signale le nombre de
+filtres secondaires actifs. Chaque filtre actif apparaît sous forme de pastille
+cliquable pour être retiré d'un clic. La collection affiche le nombre
+d'exemplaires et d'éditions, avec une pagination, et regroupe les tableaux de
+valeurs détaillées dans un tiroir repliable.
 **Afficher → Éditions et quantités** regroupe les exemplaires sans les
 fusionner : les compteurs de stock portent sur l'édition entière, les
 exemplaires affichés respectent les filtres.
@@ -968,6 +985,12 @@ l'extension, le prix prudent et l'emplacement :
   téléphone ; **T** épingle la bande des cartes de la page, qui apparaît aussi
   quand la souris approche du bas de l'écran. Ces deux choix sont mémorisés sur
   l'appareil.
+- Dans le panneau **I**, le bloc **Examen rapide en classeur** permet aux
+  comptes de gestion de renseigner la finition observée, l'état du tampon, son
+  texte, l'état physique et les confirmations physiques sans quitter la
+  visionneuse ; retourner la carte (**R**) conserve la saisie en cours, et
+  **Enregistrer & suivante →** enregistre uniquement les champs modifiés puis
+  passe à la carte suivante.
 - ← et → enchaînent les cartes sur tous les résultats ; Pg↑ et Pg↓ sautent de
   10 cartes, ou d'une page de classeur avec **Trier → Classeur** ; Début et Fin
   vont aux extrémités.

@@ -721,7 +721,7 @@ def create_app(
     def assets(
         name: Literal[
             "app.js", "media.js", "workflows.js", "gallery.js", "style.css",
-            "storefront.js", "storefront.css",
+            "storefront.js", "storefront.css", "themes.css", "components.js",
         ],
     ):
         return FileResponse(static / name)

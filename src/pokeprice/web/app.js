@@ -433,6 +433,8 @@ async function loadCards() {
     ? `${state.offset + 1}–${Math.min(state.offset + state.limit, data.total)} sur ${data.total}`
     : "0 résultat";
   selectionBar();
+  for (const bar of document.querySelectorAll("lilydex-filter-bar"))
+    bar.refreshChips?.();
   if (typeof Workflows !== "undefined") Workflows.selection();
   if (typeof Gallery !== "undefined") Gallery.rendered(focused);
 }
@@ -1864,9 +1866,21 @@ async function openDetail(id) {
       "subtitle",
     ),
   );
-  field(form, "name", "Nom", c.name).required = true;
-  field(form, "set_name", "Extension", c.set_name);
-  let row = pair(form);
+  form.addEventListener(
+    "invalid",
+    (e) => e.target.closest?.("details")?.setAttribute("open", ""),
+    true,
+  );
+  const makeSection = (titleText, isOpen = true) => {
+    const sec = el("details", undefined, "detail-section");
+    sec.open = Boolean(isOpen);
+    sec.append(el("summary", titleText, "detail-section-summary"));
+    return sec;
+  };
+  const identitySection = makeSection("1. Identité & édition", true);
+  field(identitySection, "name", "Nom", c.name).required = true;
+  field(identitySection, "set_name", "Extension", c.set_name);
+  let row = pair(identitySection);
   field(row, "number", "Référence", c.number);
   field(row, "language", "Langue", c.language, "text", [
     ["fr", "Français"],
@@ -1880,13 +1894,13 @@ async function openDetail(id) {
     ["zh", "Chinois"],
     ["unknown", "Inconnue"],
   ]);
-  row = pair(form);
+  row = pair(identitySection);
   field(row, "catalog_id", "Identifiant catalogue (facultatif)", c.catalog_id);
   const hp = field(row, "hp", "PV", c.hp, "number");
   hp.min = "0";
   hp.max = "5000";
   field(
-    form,
+    identitySection,
     "identification_status",
     "Identification",
     c.identification_status,
@@ -1898,7 +1912,13 @@ async function openDetail(id) {
       ["failed", "Lecture échouée"],
     ],
   );
-  row = pair(form);
+  form.append(identitySection);
+
+  const physicalSection = makeSection(
+    "2. Examen physique : état, finition & tampon",
+    true,
+  );
+  row = pair(physicalSection);
   field(row, "condition", "État", c.condition, "text", [
     ["", "Inconnu"],
     ["NM", "NM"],
@@ -1910,16 +1930,16 @@ async function openDetail(id) {
     ["NM/EX", "NM/EX"],
   ]);
   const markStates = [["unobserved", "Non examiné"], ["absent", "Absence constatée"], ["present", "Présent sur la carte"]];
-  field(form, "stamp_state", "Observation du tampon", c.stamp_state || "unobserved", "text", markStates);
-  const stampText = field(form, "stamp", "Texte du tampon (conservé tel que lu)", c.stamp);
+  field(physicalSection, "stamp_state", "Observation du tampon", c.stamp_state || "unobserved", "text", markStates);
+  const stampText = field(physicalSection, "stamp", "Texte du tampon (conservé tel que lu)", c.stamp);
   stampText.maxLength = 120;
-  form.append(el("p", "Un ancien texte ou un champ vide ne prouve pas la présence ou l’absence d’un tampon. Choisissez l’état après examen de la carte.", "help"));
+  physicalSection.append(el("p", "Un ancien texte ou un champ vide ne prouve pas la présence ou l’absence d’un tampon. Choisissez l’état après examen de la carte.", "help"));
   const marks = el("details");
   marks.append(el("summary", "Autre marque de distribution (facultatif)"));
   field(marks, "distribution_state", "Observation d’une marque de produit", c.distribution_state || "unobserved", "text", markStates);
   field(marks, "distribution", "Texte ou marque du produit", c.distribution || "").maxLength = 120;
-  form.append(marks);
-  const finish = field(form, "finish", "Finition observée sur la carte", c.finish || "", "text", [
+  physicalSection.append(marks);
+  const finish = field(physicalSection, "finish", "Finition observée sur la carte", c.finish || "", "text", [
     ["", "À déterminer"],
     ["non_holo", "Non holo (mate)"],
     ["holo", "Holo dans l’illustration"],
@@ -1927,12 +1947,12 @@ async function openDetail(id) {
     ["reverse", "Reverse (fond brillant)"],
     ["special", "Autre finition / variante spéciale"],
   ]);
-  const priceVariant = field(form, "foil", "Catégorie de prix", String(Boolean(c.foil)), "text", [
+  const priceVariant = field(physicalSection, "foil", "Catégorie de prix", String(Boolean(c.foil)), "text", [
     ["false", "Standard (version normale de l’édition, mate ou holo d’origine)"],
     ["true", "Foil (reverse ou holo parallèle)"],
   ]);
   const categoryHint = el("p", undefined, "help");
-  form.append(categoryHint);
+  physicalSection.append(categoryHint);
   const displayCategory = (decision) => {
     priceVariant.parentElement.firstChild.textContent = decision?.mode === "automatic" ? "Catégorie de prix calculée" : "Catégorie enregistrée · à vérifier";
     priceVariant.disabled = decision?.mode === "automatic" || !editAllowed() || Boolean(c.deleted_at);
@@ -1950,9 +1970,9 @@ async function openDetail(id) {
     if (resolution.diagnostic) referenceHint.textContent += ` ${resolution.diagnostic}`;
   };
   displayReference(c.reference_resolution);
-  form.append(referenceHint);
-  form.append(el("p", "Décrivez ce qui brille sur la carte. L’édition et le tampon permettent de calculer Standard ou Foil / reverse. Si plusieurs impressions restent possibles, précisez le produit dans les observations avant de confirmer.", "help"));
-  field(form, "variant_observation", "Observations de vérification (facultatif)", c.variant_observation || "", "textarea").maxLength = 1000;
+  physicalSection.append(referenceHint);
+  physicalSection.append(el("p", "Décrivez ce qui brille sur la carte. L’édition et le tampon permettent de calculer Standard ou Foil / reverse. Si plusieurs impressions restent possibles, précisez le produit dans les observations avant de confirmer.", "help"));
+  field(physicalSection, "variant_observation", "Observations de vérification (facultatif)", c.variant_observation || "", "textarea").maxLength = 1000;
   const variantLabel = el("label", undefined, "check-label");
   const variantCheck = el("input");
   variantCheck.type = "checkbox";
@@ -1960,9 +1980,22 @@ async function openDetail(id) {
   variantCheck.checked = Boolean(c.variant_confirmed);
   variantCheck.disabled = !editAllowed() || Boolean(c.deleted_at);
   variantLabel.append(variantCheck, document.createTextNode("Variante et tampon vérifiés sur la carte physique"));
-  form.append(variantLabel);
+  physicalSection.append(variantLabel);
   if (c.variant_confirmed)
-    form.append(el("p", `Vérifiée par ${c.variant_verified_by} le ${new Date(c.variant_verified_at).toLocaleString("fr-FR")}.`, "help"));
+    physicalSection.append(el("p", `Vérifiée par ${c.variant_verified_by} le ${new Date(c.variant_verified_at).toLocaleString("fr-FR")}.`, "help"));
+  const checkLabel = el("label", undefined, "check-label");
+  const check = el("input");
+  check.type = "checkbox";
+  check.name = "condition_confirmed";
+  check.checked = Boolean(c.condition_confirmed);
+  check.disabled = !editAllowed() || Boolean(c.deleted_at);
+  checkLabel.append(
+    check,
+    document.createTextNode("État vérifié sur la carte"),
+  );
+  physicalSection.append(checkLabel);
+  form.append(physicalSection);
+
   for (const key of ["name", "set_name", "number", "language", "catalog_id", "identification_status", "foil", "stamp", "stamp_state", "distribution", "distribution_state", "finish"])
     form.elements[key].addEventListener("change", () => { variantCheck.checked = false; });
   let categoryRequest = 0;
@@ -1977,36 +2010,14 @@ async function openDetail(id) {
         if (request === categoryRequest) { priceVariant.disabled = true; categoryHint.textContent = err.message; }
       }
     });
-  const checkLabel = el("label", undefined, "check-label");
-  const check = el("input");
-  check.type = "checkbox";
-  check.name = "condition_confirmed";
-  check.checked = Boolean(c.condition_confirmed);
-  check.disabled = !editAllowed() || Boolean(c.deleted_at);
-  checkLabel.append(
-    check,
-    document.createTextNode("État vérifié sur la carte"),
+
+  const priceSection = makeSection(
+    "3. Prix de référence, cotations & vitrine",
+    true,
   );
-  form.append(checkLabel);
-  field(
-    form,
-    "album_id",
-    "Album",
-    c.album_id,
-    "text",
-    state.summary.albums.map((a) => [a.id, a.name]),
-  );
-  row = pair(form);
-  for (const [name, label, max] of [
-    ["page", "Page", 1000],
-    ["position", "Pochette", 100],
-  ]) {
-    const input = field(row, name, label, c[name], "number");
-    input.min = "1";
-    input.max = String(max);
-    input.required = true;
-  }
-  row = pair(form);
+  // renderPriceSnapshot(parent, card) reads parent.elements to preserve unsaved price inputs.
+  priceSection.elements = form.elements;
+  row = pair(priceSection);
   const price = field(
     row,
     "reference_price_eur",
@@ -2017,7 +2028,7 @@ async function openDetail(id) {
   price.step = ".01";
   price.min = "0";
   field(row, "price_source", "Source / métrique du prix", c.price_source);
-  form.append(
+  priceSection.append(
     el(
       "p",
       c.price_date
@@ -2026,21 +2037,47 @@ async function openDetail(id) {
       "subtitle",
     ),
   );
-  renderPriceSnapshot(form, c);
-  field(form, "notes", "Notes", c.notes, "textarea");
+  renderPriceSnapshot(priceSection, c);
+  form.append(priceSection);
+
+  const binderSection = makeSection("4. Classeur & notes", Boolean(c.notes));
+  field(
+    binderSection,
+    "album_id",
+    "Album",
+    c.album_id,
+    "text",
+    state.summary.albums.map((a) => [a.id, a.name]),
+  );
+  row = pair(binderSection);
+  for (const [name, label, max] of [
+    ["page", "Page", 1000],
+    ["position", "Pochette", 100],
+  ]) {
+    const input = field(row, name, label, c[name], "number");
+    input.min = "1";
+    input.max = String(max);
+    input.required = true;
+  }
+  field(binderSection, "notes", "Notes", c.notes, "textarea");
+  form.append(binderSection);
+
+  const saveBar = el("div", undefined, "detail-save-bar");
   if (editAllowed() && !c.deleted_at) {
-    const reason = field(form, "reason", "Motif de la modification", "");
+    const reason = field(saveBar, "reason", "Motif de la modification", "");
     reason.required = true;
     reason.maxLength = 1000;
     const save = el("button", "Enregistrer la correction", "primary");
     save.type = "submit";
-    form.append(save);
+    saveBar.append(save);
   }
   const error = el("p", "", "error");
   error.setAttribute("role", "alert");
-  form.append(error);
-  const source = el("details");
-  source.append(el("summary", "Lecture et référence d’origine"));
+  saveBar.append(error);
+  form.append(saveBar);
+
+  const source = el("details", undefined, "detail-section detail-archive");
+  source.append(el("summary", "Lecture et référence d’origine", "detail-section-summary"));
   const raw = el(
     "pre",
     c.source
@@ -2050,7 +2087,7 @@ async function openDetail(id) {
   );
   source.append(raw);
   form.append(source);
-  const history = el("details");
+  const history = el("details", undefined, "detail-section detail-archive");
   history.append(
     el(
       "summary",
