@@ -110,10 +110,17 @@ function tile(listing) {
   if (listing.items.length > 1)
     figure.append(el("span", `${listing.items.length} cartes`, "badge"));
   const text = el("div", undefined, "tile-text");
-  text.append(el("p", title(listing), "tile-name"));
-  if (listing.items.length === 1)
-    text.append(el("p", facts(first).slice(0, 3).join(" · "), "tile-facts"));
-  text.append(el("p", euros(listing.price_cents), "price"));
+  const head = el("div", undefined, "tile-head");
+  head.append(el("p", title(listing), "tile-name"), el("p", euros(listing.price_cents), "price"));
+  text.append(head);
+  if (listing.items.length === 1) {
+    text.append(el("p", [first.set_name, first.number].filter(Boolean).join(" · "), "tile-facts"));
+    text.append(el("p", [LANGUAGES[first.language] || first.language, first.finish].filter(Boolean).join(" · "), "tile-spec"));
+    text.append(el("p", first.condition ? `État ${first.condition}` : "État à confirmer", "tile-state"));
+  } else {
+    text.append(el("p", "Lot complet · prix pour l’ensemble", "tile-facts"));
+    text.append(el("p", "Voir les cartes du lot", "tile-spec"));
+  }
   open.append(figure, text);
   open.addEventListener("click", (event) => {
     if (event.button || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
@@ -351,7 +358,10 @@ window.addEventListener("popstate", openFromAddress);
 
 // Filters live after the #: the server never sees them, and old management
 // links on / keep their redirect.
-const FILTERS = [["q", "q"], ["language", "langue"], ["max", "max"], ["sort", "tri"]];
+const FILTERS = [
+  ["q", "q"], ["extension", "extension"], ["language", "langue"],
+  ["max", "max"], ["finish", "finition"], ["sort", "tri"],
+];
 function writeFilters() {
   const query = new URLSearchParams();
   for (const [id, key] of FILTERS) {
@@ -365,8 +375,15 @@ function writeFilters() {
 function readFilters() {
   const query = new URLSearchParams(location.hash.slice(1));
   for (const [id, key] of FILTERS) {
-    const value = query.get(key) || "";
+    const value = (query.get(key) || "").slice(0, 200);
     const field = $(id);
+    // Extension choices arrive with the first response. Keep a shared URL's
+    // selection until then, even if the last matching publication was withdrawn.
+    if (id === "extension" && value && !Array.from(field.options).some((o) => o.value === value)) {
+      const option = el("option", value);
+      option.value = value;
+      field.append(option);
+    }
     if (field.tagName === "SELECT")
       field.value = Array.from(field.options).some((o) => o.value === value) ? value : field.options[0].value;
     else field.value = value.slice(0, 200);
@@ -394,7 +411,8 @@ function renderAccount() {
   const signedIn = Boolean(state.me);
   for (const id of ["login-open", "signup-open"]) $(id).hidden = signedIn;
   for (const id of ["requests-open", "account-open", "logout"]) $(id).hidden = !signedIn;
-  $("basket-open").textContent = `Ma sélection (${state.basket.length})`;
+  $("basket-count").textContent = state.basket.length;
+  $("basket-open").setAttribute("aria-label", `Ma sélection, ${state.basket.length} annonce${state.basket.length > 1 ? "s" : ""}`);
 }
 
 async function whoAmI() {
@@ -511,10 +529,55 @@ async function renderRequests() {
   }
 }
 
+function updateFilterUI() {
+  const active = FILTERS.filter(([id]) => id !== "sort" && $(id).value.trim()).length;
+  $("filter-count").textContent = active ? `(${active})` : "";
+  $("filters-clear").hidden = !active && $("sort").value === "recent";
+  document.querySelector("lilydex-filter-bar").refreshChips();
+}
+
+function updateFacets(result) {
+  const extension = $("extension");
+  const selected = extension.value;
+  const values = new Set(result.extensions || []);
+  if (selected) values.add(selected);
+  extension.replaceChildren(...["", ...values].map((value) => {
+    const option = el("option", value || "Toutes");
+    option.value = value;
+    return option;
+  }));
+  extension.value = selected;
+  for (const [id, values] of [["language", result.languages], ["finish", result.finishes]]) {
+    // Safari ignores hidden options in a select: disable them as well.
+    for (const option of $(id).options)
+      option.hidden = option.disabled = Boolean(option.value) &&
+        option.value !== $(id).value && !values?.includes(option.value);
+  }
+}
+
+function drawHero() {
+  const photos = state.items.filter((listing) => listing.items[0].photos.includes("front")).slice(0, 2);
+  $("hero-art").hidden = photos.length < 2;
+  $("hero-art").replaceChildren(...photos.map((listing) => {
+    const image = el("img");
+    image.src = photo(listing, listing.items[0], "front", "thumb");
+    image.alt = "";
+    return image;
+  }));
+}
+
+function filterLoading() {
+  $("filter-apply").disabled = true;
+  $("filter-apply").textContent = "Recherche…";
+}
+
 async function load(reset = true) {
   if (reset) state.offset = 0;
   writeFilters();
   const request = ++state.request;
+  updateFilterUI();
+  filterLoading();
+  $("grid").setAttribute("aria-busy", "true");
   const query = new URLSearchParams({
     sort: $("sort").value,
     limit: PAGE,
@@ -522,8 +585,11 @@ async function load(reset = true) {
   });
   if ($("q").value.trim()) query.set("q", $("q").value.trim());
   if ($("language").value) query.set("language", $("language").value);
+  if ($("extension").value) query.set("extension", $("extension").value);
+  if ($("finish").value) query.set("finish", $("finish").value);
   if ($("max").value) query.set("max_eur", $("max").value);
   $("error").hidden = true;
+  $("filter-error").hidden = true;
   try {
     const response = await fetch("/api/public/listings?" + query);
     const result = await response.json();
@@ -532,16 +598,19 @@ async function load(reset = true) {
     state.items = reset ? result.items : state.items.concat(result.items);
     state.total = result.total;
     state.approximate = Boolean(result.approximate);
-    // Languages without a single card on sale would only lead to an empty page.
-    // Safari ignores hidden options in a select: they are disabled as well.
-    for (const option of $("language").options)
-      option.hidden = option.disabled = Boolean(option.value) &&
-        option.value !== $("language").value && !result.languages?.includes(option.value);
+    updateFacets(result);
   } catch (error) {
+    if (request !== state.request) return;
     $("error").textContent =
       typeof error.message === "string" ? error.message : "La vitrine ne répond pas.";
     $("error").hidden = false;
+    $("filter-error").textContent = $("error").textContent;
+    $("filter-error").hidden = false;
+    $("filter-apply").textContent = "Réessayer";
+    $("filter-apply").disabled = false;
     return;
+  } finally {
+    if (request === state.request) $("grid").setAttribute("aria-busy", "false");
   }
   $("grid").replaceChildren(...state.items.map(tile));
   $("count").textContent = state.total
@@ -549,16 +618,62 @@ async function load(reset = true) {
     : "Aucune carte ne correspond pour l’instant.";
   $("more").hidden = state.items.length >= state.total;
   $("more").textContent = `Afficher plus · ${state.items.length.toLocaleString("fr-FR")} sur ${state.total.toLocaleString("fr-FR")}`;
+  $("filter-apply").disabled = false;
+  $("filter-apply").textContent = `Voir les ${state.total} annonce${state.total !== 1 ? "s" : ""}`;
+  updateFilterUI();
+  if (reset) drawHero();
   if ($("detail").open) drawNav();
 }
+
+function closeFilters() {
+  document.body.classList.remove("filters-open");
+  $("filter-open").setAttribute("aria-expanded", "false");
+}
+$("filter-open").addEventListener("click", () => {
+  document.body.classList.add("filters-open");
+  $("filter-open").setAttribute("aria-expanded", "true");
+  $("extension").focus();
+});
+$("filter-close").addEventListener("click", () => {
+  closeFilters();
+  $("filter-open").focus();
+});
+$("filter-apply").addEventListener("click", () => {
+  if (!$("filter-error").hidden) return load();
+  closeFilters();
+  $("filter-open").focus();
+});
+window.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && document.body.classList.contains("filters-open")) {
+    closeFilters();
+    $("filter-open").focus();
+  }
+});
+window.matchMedia("(max-width: 700px)").addEventListener("change", (event) => {
+  if (!event.matches) closeFilters();
+});
+function clearFilters() {
+  clearTimeout(typing);
+  $("filters").reset();
+  load();
+}
+$("filters-clear").addEventListener("click", clearFilters);
+$("filter-reset").addEventListener("click", clearFilters);
+$("how-open").addEventListener("click", () => $("how").showModal());
+$("account-menu").addEventListener("click", (event) => {
+  if (event.target.closest("button[id]")) $("account-menu").open = false;
+});
 
 let typing;
 $("filters").addEventListener("input", () => {
   clearTimeout(typing);
+  updateFilterUI();
+  filterLoading();
   typing = setTimeout(() => load(), 250);
 });
 $("filters").addEventListener("submit", (event) => {
   event.preventDefault();
+  clearTimeout(typing);
   load();
 });
 $("more").addEventListener("click", () => {

@@ -193,6 +193,28 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
                 }
               },
             },
+            extension: {
+              value: find("extension")?.value || "",
+              label: `Extension : ${selectText("extension")}`,
+              reset: () => {
+                const el = find("extension");
+                if (el) {
+                  el.value = "";
+                  el.dispatchEvent(new Event("input", { bubbles: true }));
+                }
+              },
+            },
+            finish: {
+              value: find("finish")?.value || "",
+              label: `Finition : ${selectText("finish")}`,
+              reset: () => {
+                const el = find("finish");
+                if (el) {
+                  el.value = "";
+                  el.dispatchEvent(new Event("input", { bubbles: true }));
+                }
+              },
+            },
             max: {
               value: find("max")?.value || "",
               label: `Max : ${find("max")?.value || ""} €`,

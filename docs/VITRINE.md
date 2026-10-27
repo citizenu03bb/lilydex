@@ -13,6 +13,19 @@ client. Il n'y a ni paiement en ligne, ni service d'e-mail : le vendeur
 contacte le client depuis sa propre messagerie, et c'est sa réponse qui
 vérifie l'adresse.
 
+La vitrine s'affiche sous le nom **Les cartes de Lily**. Son en-tête compact
+présente la collection, sans bouton d'exploration : la recherche est directement
+visible. **Comment réserver** reste accessible, y compris sur téléphone, à côté
+de **Ma sélection**. Le menu **Compte** réunit connexion, inscription, suivi
+des demandes et choix du thème. La palette crème, sauge et terracotta suit les
+thèmes Clair, Sombre et Dense ; les polices restent locales et la politique de
+sécurité des contenus reste inchangée.
+
+Les vignettes montrent toute la photo, sans en recadrer les bords. Une seule
+phrase explique leur provenance. L'état estimé ne devient pas une affirmation :
+une vignette sans état confirmé indique « État à confirmer ». Un lot porte son
+nombre de cartes et précise que son prix concerne l'ensemble.
+
 ## Les règles
 
 | Sujet | Règle |
@@ -44,9 +57,30 @@ catalogue TCGdex dans les autres langues (`catalog_names`) : « eevee » trouve
 en moins, changée ou inversée) dans les mots de cinq lettres ou plus, et la
 page annonce des résultats approchés.
 
+Les filtres **Extension**, **Langue**, **Budget max**, **Finition** et le tri
+sont visibles sur ordinateur. Sur téléphone, la recherche et le tri restent
+accessibles ; **Filtres** ouvre une vue dédiée avec les mêmes champs, le nombre
+de critères actifs, la remise à zéro et **Voir les N annonces**. Fermer cette
+vue ou appuyer sur Échap conserve les critères et ramène le focus au bouton.
+Les critères actifs s'affichent aussi sous forme de boutons à retirer.
+
+Le serveur applique tous les critères avant la pagination de 48 publications.
+Le compteur indique le total des annonces correspondantes, cartes seules et
+lots compris. Pour un lot, Langue, Extension et Finition doivent correspondre
+à un **même exemplaire** ; la recherche textuelle examine l'ensemble du lot.
+Le budget porte sur le prix du lot entier, dont la fiche conserve toutes les
+cartes. Une carte réservée ou retirée fait disparaître toute sa publication.
+
+Les choix de langue, extension et finition viennent de toutes les publications
+disponibles, indépendamment du filtre et de la page courants (`languages`,
+`extensions`, `finishes` dans la réponse). Une finition non renseignée n'est
+pas assimilée à « Normale ». La finition affichée et filtrée reste celle de
+l'exemplaire, selon la même liste de libellés publics que la fiche.
+
 Chaque carte a son adresse, `/carte/<identifiant de la publication>`, que la
 fiche permet de copier. Une carte retirée renvoie 404 avec la vitrine et un
-message. Les filtres s'écrivent après le `#` (`/#q=eevee&langue=en&tri=price`) :
+message. Les filtres s'écrivent après le `#`
+(`/#q=eevee&langue=en&extension=Jungle&finition=reverse&tri=price`) :
 le serveur ne les voit pas, et `/` garde sa redirection des anciens liens de
 gestion. Le bouton Retour ferme la fiche ouverte. Les vignettes sont des liens
 vers cette adresse : un clic ouvre la fiche sur place, un clic milieu ou
@@ -135,9 +169,11 @@ minute et par adresse :
   gestion : elle ne charge aucun code de gestion. `/vitrine` y redirige.
 - `GET /a-propos` : qui vend, comment se passe un achat, données conservées,
   contact, code source.
-- `GET /api/public/listings` : recherche (nom, extension, numéro), langue, prix
-  maximum, tri, pagination ; seulement les publications en ligne dont tous les
-  exemplaires sont disponibles.
+- `GET /api/public/listings` : recherche `q` (nom, extension, numéro), `language`,
+  `extension` (nom exact), `finish` (`non_holo`, `holo`, `holo_border`, `reverse`
+  ou `special`), `max_eur`, `sort`, `limit`, `offset` ; seulement les publications
+  en ligne dont tous les exemplaires sont disponibles. Un critère vide ne filtre
+  pas ; les finitions inconnues sont refusées.
 - `GET /api/public/listings/{id}` et `GET /api/public/listings/{id}/photo` :
   détail et photo par identifiant de publication, 404 si la carte n'est plus
   publiée.

@@ -799,13 +799,18 @@ def create_app(
     def public_listings(
         q: str = Query(default="", max_length=200),
         language: str = Query(default="", pattern=r"^(?:[a-z]{2,3})?$"),
+        extension: str = Query(default="", max_length=200),
+        finish: Literal["", "non_holo", "holo", "holo_border", "reverse", "special"] = "",
         max_eur: Decimal | None = Query(default=None, ge=0, le=10000000),
         sort: Literal["recent", "price", "price_desc", "name"] = "recent",
         limit: int = Query(default=48, ge=1, le=96),
         offset: int = Query(default=0, ge=0, le=100000),
         _=Depends(public_rate),
     ):
-        return storefront.search(q, language, cents(max_eur), sort, limit, offset)
+        return storefront.search(
+            q, language, cents(max_eur), sort, limit, offset,
+            extension=extension, finish=finish,
+        )
 
     reservations = Reservations(store, storefront)
     signups = {}

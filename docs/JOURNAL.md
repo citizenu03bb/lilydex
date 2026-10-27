@@ -9,6 +9,12 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-10-27
 
+- Vitrine : intégration du catalogue « Les cartes de Lily », palette crème,
+  sauge et terracotta, photos entières et réservation accessible dans l'en-tête.
+  Les filtres Extension et Finition précèdent la pagination côté serveur ; sur
+  téléphone, une vue dédiée conserve les critères et annonce le total global.
+  Vérification sur données temporaires, sans migration ni déploiement.
+
 - Vitrine : la fiche d'une carte devient une visionneuse, en plein écran sur
   téléphone : carte voisine d'un glissement ou d'une flèche, recto et verso,
   adresse `/carte/<id>` tenue à jour.

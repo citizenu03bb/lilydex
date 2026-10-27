@@ -326,8 +326,11 @@ class Storefront:
             "items": [public_item(i, c) for i, c in enumerate(cards)],
         }
 
-    def search(self, query="", language="", max_cents=None, sort="recent", limit=48, offset=0):
-        """Two queries for the whole storefront, whatever its size (anonymous traffic)."""
+    def search(
+        self, query="", language="", max_cents=None, sort="recent", limit=48, offset=0,
+        *, extension="", finish="",
+    ):
+        """Filter all available publications before sorting and pagination."""
         from .inventory import normalized
 
         terms = normalized(query).split()
@@ -356,14 +359,24 @@ class Storefront:
                     "SELECT catalog_id, group_concat(name, ' ') FROM catalog_names GROUP BY catalog_id"
                 ).fetchall()
             )
-        # The language filter offers only languages actually on sale.
-        on_sale = sorted({c["language"] for row in rows for c in cards.get(row["id"], [])} - {""})
+        # Facets describe all available publications, not just the current page.
+        on_sale = [c for row in rows for c in cards.get(row["id"], [])]
+        languages = sorted({c["language"] for c in on_sale} - {""})
+        extensions = sorted({c["set_name"] for c in on_sale} - {""}, key=normalized)
+        finishes = [key for key in FINISHES if any(c["finish"] == key for c in on_sale)]
         candidates = []
         for row in rows:
             items = cards.get(row["id"], [])
             if not items:
                 continue
-            if language and not any(c["language"] == language for c in items):
+            # A lot must contain a card satisfying all card-level criteria.
+            # Its price and contents remain those of the whole publication.
+            if not any(
+                (not language or c["language"] == language)
+                and (not extension or c["set_name"] == extension)
+                and (not finish or c["finish"] == finish)
+                for c in items
+            ):
                 continue
             if max_cents is not None and row["price_cents"] > max_cents:
                 continue
@@ -391,7 +404,10 @@ class Storefront:
         if sort in ("price", "price_desc"):
             found.sort(key=lambda p: p[1]["price_cents"], reverse=sort == "price_desc")
         found = [listing for _, listing in found]
-        result = {"items": found[offset : offset + limit], "total": len(found), "languages": on_sale}
+        result = {
+            "items": found[offset : offset + limit], "total": len(found),
+            "languages": languages, "extensions": extensions, "finishes": finishes,
+        }
         if approximate:
             result["approximate"] = True
         return result
