@@ -251,6 +251,34 @@ fieldset.stack legend {
   align-items: center;
   justify-content: space-between;
 }
+/* Photo, then name over price, then the button: the same columns on every line. */
+#basket-items li {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  gap: 2px 12px;
+}
+.basket-thumb {
+  grid-area: 1 / 1 / 3;
+  width: 44px;
+  height: 60px;
+  padding: 3px;
+  object-fit: contain;
+  border-radius: 6px;
+  background: var(--photo-well, var(--line));
+}
+#basket-items .basket-name,
+#basket-items .price {
+  grid-column: 2;
+}
+#basket-items .basket-name {
+  align-self: end;
+}
+#basket-items .price {
+  align-self: start;
+}
+#basket-items button {
+  grid-area: 1 / 3 / 3;
+}
 .payment {
   border: 1px solid var(--line);
   border-radius: 8px;

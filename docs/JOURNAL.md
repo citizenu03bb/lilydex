@@ -9,6 +9,9 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-10-27
 
+- Vitrine : **Ma sélection** montre le recto de chaque carte choisie, y compris
+  dans une sélection enregistrée avant ce changement.
+
 - Vitrine : en plein écran sur ordinateur, la photo d'une fiche tient dans
   sa zone ; elle la dépassait sans qu'on puisse la faire défiler.
 
