@@ -173,6 +173,15 @@ lilydex-theme-picker {
     color 120ms ease;
 }
 
+/* A finger needs a bigger target than a mouse pointer. */
+@media (pointer: coarse), (max-width: 600px) {
+  .theme-picker button {
+    min-height: 40px;
+    padding: 8px 12px;
+    font-size: 0.85rem;
+  }
+}
+
 .theme-picker button:hover {
   color: var(--ink-primary);
   background: var(--surface-3);

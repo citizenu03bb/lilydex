@@ -356,6 +356,8 @@ class Storefront:
                     "SELECT catalog_id, group_concat(name, ' ') FROM catalog_names GROUP BY catalog_id"
                 ).fetchall()
             )
+        # The language filter offers only languages actually on sale.
+        on_sale = sorted({c["language"] for row in rows for c in cards.get(row["id"], [])} - {""})
         candidates = []
         for row in rows:
             items = cards.get(row["id"], [])
@@ -389,7 +391,7 @@ class Storefront:
         if sort in ("price", "price_desc"):
             found.sort(key=lambda p: p[1]["price_cents"], reverse=sort == "price_desc")
         found = [listing for _, listing in found]
-        result = {"items": found[offset : offset + limit], "total": len(found)}
+        result = {"items": found[offset : offset + limit], "total": len(found), "languages": on_sale}
         if approximate:
             result["approximate"] = True
         return result

@@ -72,6 +72,15 @@ def test_search_filters_and_photos(shop):
     assert visitor.get(f"/api/public/listings/{single['id']}/photo", params={"side": "back"}).status_code == 404
 
 
+def test_the_language_filter_lists_languages_on_sale(shop):
+    admin, visitor, store, cards, single, lot = shop
+    with store.connect() as db:
+        db.execute("UPDATE copies SET language='ja' WHERE id=?", (cards[0]["id"],))
+    result = visitor.get("/api/public/listings", params={"language": "fr"}).json()
+    # Whatever the current filter, every language on sale stays offered.
+    assert "ja" in result["languages"] and "de" not in result["languages"]
+
+
 def test_a_bulk_publication_reads_in_name_order(shop):
     admin, visitor, store, cards, single, lot = shop
     names = {single["id"]: single["items"][0]["name"], lot["id"]: "Deux cartes"}
@@ -119,7 +128,7 @@ def test_withdrawn_or_reserved_publications_leave_the_storefront(shop):
     sale = admin.post("/api/sales", json={"title": "Réservé", "copy_ids": [lot["items"][0]["id"]], "amount_eur": "1"}).json()
     sale = next(s for s in admin.get("/api/sales").json() if s["id"] == sale["id"])
     assert admin.patch(f"/api/sales/{sale['id']}", json={"status": "reserved", "expected_version": sale["version"], "reason": "Test"}).status_code == 200
-    assert visitor.get("/api/public/listings").json() == {"items": [], "total": 0}
+    assert visitor.get("/api/public/listings").json() == {"items": [], "total": 0, "languages": []}
     assert visitor.get(f"/api/public/listings/{lot['id']}").status_code == 404
 
 

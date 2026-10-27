@@ -100,11 +100,12 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
           group.className = "theme-picker";
           group.setAttribute("role", "radiogroup");
           group.setAttribute("aria-label", "Thème d’affichage");
+          // Plain words on the buttons: the design names mean nothing to a visitor.
           const options = [
             ["auto", "Auto", "Suivre le thème clair ou sombre de votre appareil"],
-            ["herbier", "Herbier", "Thème éditorial clair"],
-            ["vault", "Vault", "Thème studio sombre"],
-            ["atelier", "Atelier", "Thème technique à fort contraste"],
+            ["herbier", "Clair", "Thème clair éditorial (Herbier)"],
+            ["vault", "Sombre", "Thème sombre à contraste élevé (Vault)"],
+            ["atelier", "Dense", "Thème clair technique, plus dense (Atelier)"],
           ];
           for (const [mode, label, title] of options) {
             const btn = document.createElement("button");
