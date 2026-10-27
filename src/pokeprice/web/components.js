@@ -1,6 +1,30 @@
 /* Shared W3C Custom Elements (Light DOM) and theme/filter helpers for the site. */
 "use strict";
 
+// The page's texts: the server puts its dictionary in #messages (docs/decisions/0020).
+// A plural is an object keyed by Intl plural category, with an optional "zero".
+function translator(messages, locale) {
+  const rules = new Intl.PluralRules(locale);
+  const t = (key, vars = {}, fallback = key) => {
+    let text = messages[key];
+    if (text && typeof text === "object")
+      text = (vars.count === 0 && text.zero) || text[rules.select(vars.count)] || text.other;
+    if (typeof text !== "string") return fallback;
+    return text.replace(/\{(\w+)\}/g, (match, name) => (name in vars ? String(vars[name]) : match));
+  };
+  t.locale = locale;
+  return t;
+}
+
+const t = (() => {
+  if (typeof document === "undefined") return translator({}, "fr");
+  let messages = {};
+  try {
+    messages = JSON.parse(document.getElementById("messages")?.textContent || "{}");
+  } catch {}
+  return translator(messages, document.documentElement.lang || "fr");
+})();
+
 function resolveLilydexTheme(stored, prefersDark) {
   if (stored === "herbier" || stored === "vault" || stored === "atelier") {
     return stored;
@@ -99,15 +123,11 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
           const group = document.createElement("div");
           group.className = "theme-picker";
           group.setAttribute("role", "radiogroup");
-          group.setAttribute("aria-label", "Thème d’affichage");
+          group.setAttribute("aria-label", t("theme.label"));
           // Plain words on the buttons: the design names mean nothing to a visitor.
-          const options = [
-            ["auto", "Auto", "Suivre le thème clair ou sombre de votre appareil"],
-            ["herbier", "Clair", "Thème clair éditorial (Herbier)"],
-            ["vault", "Sombre", "Thème sombre à contraste élevé (Vault)"],
-            ["atelier", "Dense", "Thème clair technique, plus dense (Atelier)"],
-          ];
-          for (const [mode, label, title] of options) {
+          for (const mode of LILYDEX_THEMES) {
+            const label = t(`theme.${mode}`);
+            const title = t(`theme.${mode}.hint`);
             const btn = document.createElement("button");
             btn.type = "button";
             btn.setAttribute("role", "radio");
@@ -173,7 +193,7 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
           const entries = {
             q: {
               value: find("q")?.value || "",
-              label: `Recherche : ${find("q")?.value || ""}`,
+              label: t("filters.chip.search", { value: find("q")?.value || "" }),
               reset: () => {
                 const el = find("q");
                 if (el) {
@@ -184,7 +204,7 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
             },
             language: {
               value: find("language")?.value || "",
-              label: `Langue : ${selectText("language")}`,
+              label: t("filters.chip.language", { value: selectText("language") }),
               reset: () => {
                 const el = find("language");
                 if (el) {
@@ -195,7 +215,7 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
             },
             extension: {
               value: find("extension")?.value || "",
-              label: `Extension : ${selectText("extension")}`,
+              label: t("filters.chip.extension", { value: selectText("extension") }),
               reset: () => {
                 const el = find("extension");
                 if (el) {
@@ -206,7 +226,7 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
             },
             finish: {
               value: find("finish")?.value || "",
-              label: `Finition : ${selectText("finish")}`,
+              label: t("filters.chip.finish", { value: selectText("finish") }),
               reset: () => {
                 const el = find("finish");
                 if (el) {
@@ -217,7 +237,7 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
             },
             max: {
               value: find("max")?.value || "",
-              label: `Max : ${find("max")?.value || ""} €`,
+              label: t("filters.chip.max", { value: find("max")?.value || "" }),
               reset: () => {
                 const el = find("max");
                 if (el) {
@@ -228,7 +248,7 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
             },
             search: {
               value: find("search")?.value || "",
-              label: `Recherche : ${find("search")?.value || ""}`,
+              label: t("filters.chip.search", { value: find("search")?.value || "" }),
               reset: () => {
                 const el = find("search");
                 if (el) {
@@ -239,7 +259,7 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
             },
             album: {
               value: find("album-filter")?.value || "",
-              label: `Album : ${selectText("album-filter")}`,
+              label: t("filters.chip.album", { value: selectText("album-filter") }),
               reset: () => {
                 const el = find("album-filter");
                 if (el) {
@@ -250,7 +270,7 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
             },
             review: {
               value: find("review-filter")?.value || "",
-              label: `Examen : ${selectText("review-filter")}`,
+              label: t("filters.chip.review", { value: selectText("review-filter") }),
               reset: () => {
                 const el = find("review-filter");
                 if (el) {
@@ -261,7 +281,7 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
             },
             stock: {
               value: find("stock-filter")?.value || "",
-              label: `Stock : ${selectText("stock-filter")}`,
+              label: t("filters.chip.stock", { value: selectText("stock-filter") }),
               secondary: true,
               reset: () => {
                 const el = find("stock-filter");
@@ -273,7 +293,7 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
             },
             status: {
               value: find("status-filter")?.value || "",
-              label: `Identité : ${selectText("status-filter")}`,
+              label: t("filters.chip.status", { value: selectText("status-filter") }),
               secondary: true,
               reset: () => {
                 const el = find("status-filter");
@@ -285,7 +305,7 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
             },
             variant: {
               value: find("variant-filter")?.value || "",
-              label: `Variante : ${selectText("variant-filter")}`,
+              label: t("filters.chip.variant", { value: selectText("variant-filter") }),
               secondary: true,
               reset: () => {
                 const el = find("variant-filter");
@@ -298,7 +318,7 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
             threshold: {
               value: thresholdEl?.value || "10",
               defaultValue: "10",
-              label: `Seuil : ${thresholdEl?.value || "10"} €`,
+              label: t("filters.chip.threshold", { value: thresholdEl?.value || "10" }),
               secondary: true,
               reset: () => {
                 if (thresholdEl) {
@@ -325,7 +345,7 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
             btn.type = "button";
             btn.className = "filter-chip";
             btn.textContent = `${item.label} ×`;
-            btn.setAttribute("aria-label", `Retirer le filtre ${item.label}`);
+            btn.setAttribute("aria-label", t("filters.chip.remove", { label: item.label }));
             btn.addEventListener("click", () => entries[item.key]?.reset?.());
             chipsBox.append(btn);
           }

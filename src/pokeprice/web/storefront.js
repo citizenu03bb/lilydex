@@ -2,17 +2,7 @@
 "use strict";
 
 const $ = (id) => document.getElementById(id);
-const LANGUAGES = {
-  fr: "Français",
-  en: "Anglais",
-  es: "Espagnol",
-  it: "Italien",
-  de: "Allemand",
-  ja: "Japonais",
-  pt: "Portugais",
-  ko: "Coréen",
-  zh: "Chinois",
-};
+const language = (code) => t(`language.${code}`, {}, code);
 const PAGE = 48;
 const state = { offset: 0, items: [], total: 0, request: 0, me: null, basket: [] };
 const BASKET = "lilydex-basket";
@@ -45,17 +35,17 @@ async function call(path, options = {}) {
     body = text ? JSON.parse(text) : null;
   } catch {}
   if (!response.ok) {
-    let detail = body?.detail || `La demande n’a pas abouti (HTTP ${response.status}).`;
-    if (Array.isArray(detail)) detail = "Vérifiez les champs du formulaire.";
+    let detail = body?.detail || t("error.http", { status: response.status });
+    if (Array.isArray(detail)) detail = t("error.fields");
     throw Object.assign(new Error(detail), { status: response.status });
   }
   return body;
 }
 
 const euros = (cents) =>
-  (cents / 100).toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
+  (cents / 100).toLocaleString(t.locale, { style: "currency", currency: "EUR" });
 const day = (iso) =>
-  iso ? new Date(iso + "T12:00:00").toLocaleDateString("fr-FR") : "";
+  iso ? new Date(iso + "T12:00:00").toLocaleDateString(t.locale) : "";
 
 function el(tag, text, className) {
   const node = document.createElement(tag);
@@ -71,18 +61,18 @@ function photo(listing, item, side, size) {
 function facts(item) {
   return [
     [item.set_name, item.number].filter(Boolean).join(" · "),
-    LANGUAGES[item.language] || item.language,
+    language(item.language),
     // An unconfirmed condition is hidden by the server: say so instead.
-    item.condition ? `État ${item.condition}` : "État non confirmé : voir la photo",
-    item.finish,
-    item.stamp && `Tampon : ${item.stamp}`,
+    item.condition ? t("item.condition", { condition: item.condition }) : t("item.condition_unconfirmed"),
+    item.finish && t(`finish.${item.finish}`, {}, item.finish),
+    item.stamp && t("item.stamp", { stamp: item.stamp }),
     item.distribution,
   ].filter(Boolean);
 }
 
 function title(listing) {
   return listing.items.length > 1
-    ? listing.title || `Lot de ${listing.items.length} cartes`
+    ? listing.title || t("listing.lot", { count: listing.items.length })
     : listing.items[0].name;
 }
 
@@ -108,18 +98,18 @@ function tile(listing) {
     figure.append(image);
   }
   if (listing.items.length > 1)
-    figure.append(el("span", `${listing.items.length} cartes`, "badge"));
+    figure.append(el("span", t("tile.cards", { count: listing.items.length }), "badge"));
   const text = el("div", undefined, "tile-text");
   const head = el("div", undefined, "tile-head");
   head.append(el("p", title(listing), "tile-name"), el("p", euros(listing.price_cents), "price"));
   text.append(head);
   if (listing.items.length === 1) {
     text.append(el("p", [first.set_name, first.number].filter(Boolean).join(" · "), "tile-facts"));
-    text.append(el("p", [LANGUAGES[first.language] || first.language, first.finish].filter(Boolean).join(" · "), "tile-spec"));
-    text.append(el("p", first.condition ? `État ${first.condition}` : "État à confirmer", "tile-state"));
+    text.append(el("p", [language(first.language), first.finish && t(`finish.${first.finish}`, {}, first.finish)].filter(Boolean).join(" · "), "tile-spec"));
+    text.append(el("p", first.condition ? t("item.condition", { condition: first.condition }) : t("tile.condition_pending"), "tile-state"));
   } else {
-    text.append(el("p", "Lot complet · prix pour l’ensemble", "tile-facts"));
-    text.append(el("p", "Voir les cartes du lot", "tile-spec"));
+    text.append(el("p", t("tile.lot_facts"), "tile-facts"));
+    text.append(el("p", t("tile.lot_spec"), "tile-spec"));
   }
   open.append(figure, text);
   open.addEventListener("click", (event) => {
@@ -131,10 +121,12 @@ function tile(listing) {
   return li;
 }
 
-// A card's address: /carte/<publication id>, filters kept after the #.
-const CARD = /^\/carte\/([^/]+)$/;
+// A card's address: /carte/<publication id> under the language's home (/ or /en/),
+// filters kept after the #. The server writes the home on <html>.
+const HOME = document.documentElement.dataset.home || "/";
+const CARD = /^(?:\/[a-z]{2})?\/carte\/([^/]+)$/;
 function cardPath(listing) {
-  return `/carte/${encodeURIComponent(listing.id)}`;
+  return `${HOME}carte/${encodeURIComponent(listing.id)}`;
 }
 
 // The fiche is also a viewer: one photo at a time, the neighbouring cards of
@@ -142,6 +134,8 @@ function cardPath(listing) {
 function faces(listing) {
   return listing.items.flatMap((item) => item.photos.map((side) => ({ item, side })));
 }
+
+const side = (name) => (name === "front" ? t("viewer.front") : t("viewer.back"));
 
 function drawFace() {
   const listing = state.current;
@@ -151,18 +145,18 @@ function drawFace() {
   if (face) {
     const image = el("img");
     image.src = photo(listing, face.item, face.side, "full");
-    image.alt = `${face.side === "front" ? "Recto" : "Verso"} de ${face.item.name}`;
+    image.alt = t("viewer.alt", { side: side(face.side), name: face.item.name });
     stage.replaceChildren(image);
-  } else stage.replaceChildren(el("p", "Photo indisponible", "help"));
+  } else stage.replaceChildren(el("p", t("viewer.no_photo"), "help"));
   const flip = $("detail-flip");
   flip.hidden = all.length < 2;
   // One card: recto and verso. A lot: every photo in turn.
   flip.textContent =
     listing.items.length > 1
-      ? `Photo ${state.face + 1}/${all.length} ›`
-      : face?.side === "front" ? "Verso" : "Recto";
+      ? t("viewer.photo_count", { index: state.face + 1, total: all.length })
+      : side(face?.side === "front" ? "back" : "front");
   $("detail-caption").textContent = face
-    ? [face.side === "front" ? "Recto" : "Verso", listing.items.length > 1 && face.item.name]
+    ? [side(face.side), listing.items.length > 1 && face.item.name]
         .filter(Boolean)
         .join(" · ")
     : "";
@@ -223,7 +217,7 @@ function show(listing, replace = false) {
   body.append(el("h2", title(listing), undefined));
   body.lastChild.id = "detail-title";
   body.append(
-    el("p", `${euros(listing.price_cents)} · prix du ${day(listing.price_date)}`, "price"),
+    el("p", t("detail.price", { price: euros(listing.price_cents), date: day(listing.price_date) }), "price"),
   );
   for (const item of listing.items) {
     const block = el("section", undefined, "detail-item");
@@ -231,17 +225,17 @@ function show(listing, replace = false) {
     const list = el("ul", undefined, "facts");
     for (const fact of facts(item)) list.append(el("li", fact));
     if (!item.photos.includes("back"))
-      list.append(el("li", "Verso non photographié : demandez-le dans votre message"));
+      list.append(el("li", t("detail.no_back")));
     block.append(list);
     body.append(block);
   }
   const action = el("p", undefined, "detail-action");
   // No account needed: the request itself carries the address.
   const inBasket = state.basket.some((x) => x.id === listing.id);
-  const add = el("button", inBasket ? "Déjà dans ma sélection" : "Ajouter à ma sélection", "primary");
+  const add = el("button", inBasket ? t("detail.in_basket") : t("detail.add"), "primary");
   add.type = "button";
   add.disabled = inBasket;
-  const view = el("button", "Voir ma sélection");
+  const view = el("button", t("detail.view_basket"));
   view.type = "button";
   view.hidden = !inBasket;
   view.addEventListener("click", () => {
@@ -253,14 +247,13 @@ function show(listing, replace = false) {
   add.addEventListener("click", () => {
     state.basket.push({ id: listing.id, label: label(listing), price_cents: listing.price_cents });
     saveBasket();
-    add.textContent = "Ajoutée à ma sélection";
+    add.textContent = t("detail.added");
     add.disabled = true;
     view.hidden = false;
-    const count = state.basket.length;
-    added.textContent = `${count} carte${count > 1 ? "s" : ""} dans votre sélection.`;
+    added.textContent = t("detail.basket_count", { count: state.basket.length });
   });
   action.append(add, view, added);
-  const share = el("button", "Copier le lien");
+  const share = el("button", t("detail.share"));
   share.type = "button";
   const shared = el("span", "", "help");
   shared.setAttribute("role", "status");
@@ -268,7 +261,7 @@ function show(listing, replace = false) {
     const url = location.origin + cardPath(listing);
     try {
       await navigator.clipboard.writeText(url);
-      shared.textContent = "Lien copié.";
+      shared.textContent = t("detail.shared");
     } catch {
       // Without clipboard access the link is still there to copy by hand.
       shared.textContent = url;
@@ -313,7 +306,7 @@ const FULL = "lilydex-viewer-full";
 function fullView(on) {
   $("detail").classList.toggle("full", on);
   $("detail-full").setAttribute("aria-pressed", String(on));
-  $("detail-full").textContent = on ? "Réduire" : "Plein écran";
+  $("detail-full").textContent = on ? t("viewer.reduce") : t("viewer.full");
   try {
     if (on) localStorage.setItem(FULL, "1");
     else localStorage.removeItem(FULL);
@@ -330,7 +323,7 @@ try {
 // the address is then rewritten in place.
 const leaveCard = () => {
   if (!$("detail").open && CARD.test(location.pathname))
-    history.replaceState(null, "", "/" + location.hash);
+    history.replaceState(null, "", HOME + location.hash);
 };
 new MutationObserver(() => {
   if ($("detail").open || !CARD.test(location.pathname)) return;
@@ -349,12 +342,18 @@ async function openFromAddress() {
   try {
     show(await call(`/api/public/listings/${match[1]}`));
   } catch {
-    history.replaceState(null, "", "/" + location.hash);
-    $("notice").textContent = "Cette carte n’est plus en vente : voici les autres.";
+    history.replaceState(null, "", HOME + location.hash);
+    $("notice").textContent = t("results.card_gone");
     $("notice").hidden = false;
   }
 }
 window.addEventListener("popstate", openFromAddress);
+
+// The other language opens on the same card, with the same filters.
+$("language-switch").addEventListener("click", (event) => {
+  const link = event.currentTarget;
+  link.href = link.dataset.home + location.pathname.replace(/^(?:\/[a-z]{2})?\//, "") + location.hash;
+});
 
 // Filters live after the #: the server never sees them, and old management
 // links on / keep their redirect.
@@ -412,7 +411,7 @@ function renderAccount() {
   for (const id of ["login-open", "signup-open"]) $(id).hidden = signedIn;
   for (const id of ["requests-open", "account-open", "logout"]) $(id).hidden = !signedIn;
   $("basket-count").textContent = state.basket.length;
-  $("basket-open").setAttribute("aria-label", `Ma sélection, ${state.basket.length} annonce${state.basket.length > 1 ? "s" : ""}`);
+  $("basket-open").setAttribute("aria-label", t("basket.label", { count: state.basket.length }));
 }
 
 async function whoAmI() {
@@ -441,7 +440,7 @@ function renderBasket() {
     image.alt = "";
     image.addEventListener("error", () => image.remove());
     line.append(image, el("span", entry.label, "basket-name"), el("span", euros(entry.price_cents), "price"));
-    const remove = el("button", "Retirer");
+    const remove = el("button", t("basket.remove"));
     remove.type = "button";
     remove.addEventListener("click", () => {
       state.basket = state.basket.filter((x) => x.id !== entry.id);
@@ -453,8 +452,8 @@ function renderBasket() {
   }
   const total = state.basket.reduce((sum, x) => sum + x.price_cents, 0);
   $("basket-total").textContent = state.basket.length
-    ? `Total indicatif : ${euros(total)} (hors frais d’envoi)`
-    : "Votre sélection est vide : ouvrez une carte pour l’ajouter.";
+    ? t("basket.total", { total: euros(total) })
+    : t("basket.empty");
   $("basket-form").hidden = !state.basket.length;
   // A disabled fieldset is left out of the form's checks.
   const guest = $("basket-guest");
@@ -465,19 +464,19 @@ function renderBasket() {
 function paymentBox(payment) {
   const box = el("div", undefined, "payment");
   const total = payment.shipping_cents
-    ? `${euros(payment.total_cents)}, dont ${euros(payment.shipping_cents)} de port`
+    ? t("payment.total_shipping", { total: euros(payment.total_cents), shipping: euros(payment.shipping_cents) })
     : euros(payment.total_cents);
   box.append(
-    el("h4", "Payer ce lot"),
-    el("p", `Montant : ${total}. Référence à indiquer dans le libellé : ${payment.reference}.`),
+    el("h4", t("payment.title")),
+    el("p", t("payment.amount", { total, reference: payment.reference })),
   );
   const methods = [
-    ["Wero", payment.wero, "depuis l’application de votre banque"],
-    ["Virement", payment.iban && `${payment.iban.replace(/(.{4})/g, "$1 ").trim()} · ${payment.holder}`, "IBAN et titulaire"],
-    ["PayPal", payment.paypal, "choisissez « biens et services »"],
+    ["Wero", payment.wero, t("payment.wero.hint")],
+    [t("payment.transfer"), payment.iban && `${payment.iban.replace(/(.{4})/g, "$1 ").trim()} · ${payment.holder}`, t("payment.transfer.hint")],
+    ["PayPal", payment.paypal, t("payment.paypal.hint")],
   ].filter(([, value]) => value);
   if (!methods.length) {
-    box.append(el("p", "Le vendeur vous indique par e-mail comment payer.", "help"));
+    box.append(el("p", t("payment.by_email"), "help"));
     return box;
   }
   const list = el("dl");
@@ -486,33 +485,39 @@ function paymentBox(payment) {
     detail.append(el("span", value, "payment-value"), el("span", ` (${hint})`, "help"));
     list.append(el("dt", name), detail);
   }
-  box.append(list, el("p", "Le vendeur prépare l’envoi dès qu’il a reçu le paiement.", "help"));
+  box.append(list, el("p", t("payment.after"), "help"));
   return box;
 }
 
+// A sale's status, once there is one, says more than the request's.
+const status = (request) =>
+  request.sale_status
+    ? t(`requests.sale.${request.sale_status}`, {}, request.status_label)
+    : t(`requests.status.${request.status}`, {}, request.status_label);
+
 async function renderRequests() {
   const box = $("requests-body");
-  box.replaceChildren(el("p", "Chargement…", "help"));
+  box.replaceChildren(el("p", t("common.loading"), "help"));
   try {
     const requests = await call("/api/me/requests");
     box.replaceChildren();
-    if (!requests.length) box.append(el("p", "Aucune demande pour l’instant.", "help"));
+    if (!requests.length) box.append(el("p", t("requests.none"), "help"));
     for (const request of requests) {
       const section = el("section", undefined, "request");
       section.append(
-        el("h3", `${request.status_label} · ${euros(request.total_cents)}`),
-        el("p", `Envoyée le ${new Date(request.created_at).toLocaleDateString("fr-FR")}`, "help"),
+        el("h3", `${status(request)} · ${euros(request.total_cents)}`),
+        el("p", t("requests.sent_on", { date: new Date(request.created_at).toLocaleDateString(t.locale) }), "help"),
       );
       const lines = el("ul", undefined, "lines");
       for (const item of request.items) {
-        const outcome = { accepted: "acceptée", refused: "non retenue", unavailable: "plus disponible" }[item.outcome];
+        const outcome = item.outcome && t(`requests.outcome.${item.outcome}`, {}, "");
         lines.append(el("li", `${item.label} · ${euros(item.price_cents)}${outcome ? " · " + outcome : ""}`));
       }
       section.append(lines);
-      if (request.decision) section.append(el("p", `Réponse du vendeur : ${request.decision}`));
+      if (request.decision) section.append(el("p", t("requests.decision", { decision: request.decision })));
       if (request.payment) section.append(paymentBox(request.payment));
       if (request.status === "sent") {
-        const cancel = el("button", "Annuler la demande");
+        const cancel = el("button", t("requests.cancel"));
         cancel.type = "button";
         cancel.addEventListener("click", async () => {
           try {
@@ -547,7 +552,7 @@ function updateFacets(result) {
   const values = new Set(result.extensions || []);
   if (selected) values.add(selected);
   extension.replaceChildren(...["", ...values].map((value) => {
-    const option = el("option", value || "Toutes");
+    const option = el("option", value || t("filters.all"));
     option.value = value;
     return option;
   }));
@@ -573,7 +578,7 @@ function drawHero() {
 
 function filterLoading() {
   $("filter-apply").disabled = true;
-  $("filter-apply").textContent = "Recherche…";
+  $("filter-apply").textContent = t("filters.searching");
 }
 
 async function load(reset = true) {
@@ -598,7 +603,7 @@ async function load(reset = true) {
   try {
     const response = await fetch("/api/public/listings?" + query);
     const result = await response.json();
-    if (!response.ok) throw new Error(result.detail || "La vitrine ne répond pas.");
+    if (!response.ok) throw new Error(result.detail || t("error.storefront"));
     if (request !== state.request) return; // A newer search already answered.
     state.items = reset ? result.items : state.items.concat(result.items);
     state.total = result.total;
@@ -607,11 +612,11 @@ async function load(reset = true) {
   } catch (error) {
     if (request !== state.request) return;
     $("error").textContent =
-      typeof error.message === "string" ? error.message : "La vitrine ne répond pas.";
+      typeof error.message === "string" ? error.message : t("error.storefront");
     $("error").hidden = false;
     $("filter-error").textContent = $("error").textContent;
     $("filter-error").hidden = false;
-    $("filter-apply").textContent = "Réessayer";
+    $("filter-apply").textContent = t("filters.retry");
     $("filter-apply").disabled = false;
     return;
   } finally {
@@ -619,12 +624,16 @@ async function load(reset = true) {
   }
   $("grid").replaceChildren(...state.items.map(tile));
   $("count").textContent = state.total
-    ? `${state.total} annonce${state.total > 1 ? "s" : ""}${state.approximate ? ` · résultats approchés pour « ${$("q").value.trim()} »` : ""}`
-    : "Aucune carte ne correspond pour l’instant.";
+    ? t("results.count", { count: state.total }) +
+      (state.approximate ? t("results.approximate", { q: $("q").value.trim() }) : "")
+    : t("results.none");
   $("more").hidden = state.items.length >= state.total;
-  $("more").textContent = `Afficher plus · ${state.items.length.toLocaleString("fr-FR")} sur ${state.total.toLocaleString("fr-FR")}`;
+  $("more").textContent = t("results.more.count", {
+    shown: state.items.length.toLocaleString(t.locale),
+    total: state.total.toLocaleString(t.locale),
+  });
   $("filter-apply").disabled = false;
-  $("filter-apply").textContent = `Voir les ${state.total} annonce${state.total !== 1 ? "s" : ""}`;
+  $("filter-apply").textContent = t("filters.apply.count", { count: state.total });
   updateFilterUI();
   if (reset) drawHero();
   if ($("detail").open) drawNav();
@@ -721,7 +730,7 @@ $("profile-form").addEventListener("submit", async (event) => {
     });
     form.password.value = "";
     const notice = form.querySelector(".notice");
-    notice.textContent = "Modifications enregistrées.";
+    notice.textContent = t("profile.saved");
     notice.hidden = false;
   } catch (error) {
     formError(form, error.message);
@@ -744,7 +753,7 @@ $("delete-form").addEventListener("submit", async (event) => {
   state.basket = [];
   saveBasket();
   $("account").close();
-  $("notice").textContent = "Votre compte et vos données ont été supprimés.";
+  $("notice").textContent = t("profile.deleted");
   $("notice").hidden = false;
 });
 $("logout").addEventListener("click", async () => {
@@ -753,8 +762,8 @@ $("logout").addEventListener("click", async () => {
   } catch (error) {
     // Without the server's answer the session may still be valid: say so, keep it.
     if (error.status !== 401) {
-      const reason = error.status ? error.message : "le serveur ne répond pas.";
-      $("error").textContent = `Déconnexion impossible : ${reason} Réessayez.`;
+      const reason = error.status ? error.message : t("logout.no_answer");
+      $("error").textContent = t("logout.failed", { reason });
       $("error").hidden = false;
       return;
     }
@@ -801,7 +810,7 @@ $("signup-form").addEventListener("submit", async (event) => {
     });
     form.reset();
     const notice = form.querySelector(".notice");
-    notice.textContent = result.detail;
+    notice.textContent = t("signup.sent");
     notice.hidden = false;
   } catch (error) {
     formError(form, error.message);
@@ -815,17 +824,18 @@ $("basket-form").addEventListener("submit", async (event) => {
     listing_ids: state.basket.map((x) => x.id),
     message: form.message.value,
   };
+  // A guest's address is read before the form is reset: the answer names it.
+  const guest = state.me ? "" : form.email.value.trim();
   try {
-    let sent;
     if (state.me) {
       await call("/api/me/requests", { method: "POST", body: JSON.stringify(body) });
     } else {
-      sent = await call("/api/public/requests", {
+      await call("/api/public/requests", {
         method: "POST",
         body: JSON.stringify({
           ...body,
           display_name: form.display_name.value.trim(),
-          email: form.email.value.trim(),
+          email: guest,
           consent: form.consent.checked,
         }),
       });
@@ -834,9 +844,9 @@ $("basket-form").addEventListener("submit", async (event) => {
     saveBasket();
     form.reset();
     load();
-    if (sent) {
+    if (guest) {
       renderBasket();
-      $("basket-total").textContent = sent.detail;
+      $("basket-total").textContent = t("basket.sent", { email: guest });
       return;
     }
     $("basket").close();
@@ -863,7 +873,7 @@ $("password-form").addEventListener("submit", async (event) => {
   form.reset();
   $("password").close();
   await whoAmI();
-  $("notice").textContent = "Mot de passe enregistré : vous êtes connecté.";
+  $("notice").textContent = t("password.saved");
   $("notice").hidden = false;
 });
 openLink();

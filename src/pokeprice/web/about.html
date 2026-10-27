@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="fr">
+<html lang="{{lang}}">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -10,6 +10,7 @@
     <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
     <link rel="stylesheet" href="/assets/themes.css" />
     <link rel="stylesheet" href="/assets/storefront.css" />
+    {{messages}}
     <script src="/assets/components.js"></script>
   </head>
   <body>
@@ -21,6 +22,7 @@
       <h1>À propos et contact</h1>
     </header>
     <main class="about">
+      <p class="languages"><a href="/en/a-propos" hreflang="en" lang="en">English version</a></p>
       <section>
         <h2>Qui vend ?</h2>
         <img

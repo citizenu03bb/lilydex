@@ -243,13 +243,8 @@ class Listings:
 
 # The storefront shows only these fields, built one by one: nothing private
 # (notes, provenance, history, album place, copy ids, raw prices) can leak.
-FINISHES = {
-    "non_holo": "Normale",
-    "holo": "Holo",
-    "holo_border": "Holo, cadre brillant",
-    "reverse": "Reverse",
-    "special": "Spéciale",
-}
+# Codes only: the storefront's dictionaries name them (docs/decisions/0020).
+FINISHES = ("non_holo", "holo", "holo_border", "reverse", "special")
 def public_item(index, card):
     return {
         "index": index,
@@ -259,7 +254,7 @@ def public_item(index, card):
         "language": card["language"],
         # An estimated condition is never shown as a fact.
         "condition": card["condition"] if card["condition_confirmed"] else None,
-        "finish": FINISHES.get(card["finish"] or ""),
+        "finish": card["finish"] if card["finish"] in FINISHES else None,
         "stamp": card["stamp"] if card["stamp_state"] == "present" else None,
         "distribution": (
             card["distribution"] if card["distribution_state"] == "present" else None

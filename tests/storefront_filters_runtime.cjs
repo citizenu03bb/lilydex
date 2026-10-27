@@ -2,6 +2,7 @@
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const vm = require("node:vm");
+const { t } = require("./i18n_runtime.cjs");
 const source = fs.readFileSync(process.argv[2], "utf8");
 const slice = (from, to) => source.slice(source.indexOf(from), source.indexOf(to));
 const elements = {};
@@ -37,6 +38,7 @@ const pending = [];
 const media = {};
 const location = { pathname: "/", search: "", hash: "#extension=Rare&finition=reverse&langue=fr&max=2.50&tri=price" };
 const context = vm.createContext({
+  t,
   URLSearchParams, setTimeout, clearTimeout,
   location, history: { replaceState(_, __, url) { location.hash = url.includes("#") ? url.slice(url.indexOf("#")) : ""; } },
   $: id => elements[id] || element(id),

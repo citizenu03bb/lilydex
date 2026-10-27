@@ -27,6 +27,7 @@ l'ancienne passe au statut « remplacée ».
 | [0017](0017-python-3-11-minimum.md) | Python 3.11 au minimum | 2026-10-27 |
 | [0018](0018-reservation-sans-compte.md) | Une réservation se demande sans compte | 2026-10-27 |
 | [0019](0019-les-cartes-de-lily.md) | Le produit s'appelle Les cartes de Lily | 2026-10-27 |
+| [0020](0020-textes-dans-des-dictionnaires.md) | Les textes de la vitrine vivent dans des dictionnaires JSON | 2026-10-27 |
 
 ## Écrire une fiche
 

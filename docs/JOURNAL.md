@@ -9,6 +9,20 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-10-27
 
+- Vitrine : ses textes passent dans un dictionnaire, `messages/fr.json`, que le
+  serveur et `t()` lisent ([fiche 0020](decisions/0020-textes-dans-des-dictionnaires.md)).
+  Rien ne change à l'écran ; c'est le prérequis de la version anglaise.
+
+- Vitrine en anglais sous `/en/`, avec `/en/carte/…` et la page À propos
+  traduite, `/en/a-propos`, où le texte français fait foi. Un lien en pied de
+  page change de langue sur la même carte. L'API publique envoie le code de la
+  finition au lieu de son libellé français.
+
+- Mise en ligne du logotype dérivé de `SITE_NAME` (#29, `f89a9d6`) à la place de
+  `decf086`, sans migration ; base conservée. En ligne : `/health`, `/`,
+  `/a-propos` et `/gestion` à 200, `/api/listings` à `401` ; logotype servi en
+  deux lignes ; ni marqueur `{{` ni « Lilydex » sur les trois pages ; 1 415 annonces.
+
 - Vitrine : le logotype « Les cartes / de Lily » dérive lui aussi de `SITE_NAME`,
   coupé avant le dernier « de ».
 

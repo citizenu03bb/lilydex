@@ -10,6 +10,8 @@ au public. Ce document tient lieu de **registre des traitements** (article 30)
 et décrit les **procédures** : demandes des personnes, violation de données.
 L'information des personnes est la page `/a-propos#donnees`. Ses durées et
 celles de [privacy.py](../src/pokeprice/privacy.py) doivent rester identiques.
+Sa traduction anglaise, `/en/a-propos#donnees` (`web/about.en.html`), suit
+chaque modification de la page française, qui fait foi.
 
 Le **responsable du traitement** est la personne qui tient la collection, un
 particulier. Son nom et son adresse de contact ne figurent pas dans ce dépôt
@@ -92,7 +94,7 @@ sans métadonnées EXIF ni GPS.
 
 Elles sont appliquées chaque nuit, avant la sauvegarde, par
 `pokeprice-manage purge`, et doivent rester identiques à celles de la page
-`/a-propos` et de `privacy.py`.
+`/a-propos`, de sa traduction `/en/a-propos` et de `privacy.py`.
 
 | Donnée | Durée |
 |---|---|
