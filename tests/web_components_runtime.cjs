@@ -58,6 +58,87 @@ assert.equal(fakeDoc.documentElement.dataset.theme, "atelier");
 assert.equal(fakeDoc.documentElement.dataset.themeMode, "atelier");
 assert.equal(fakeMeta.content, "light");
 
+// The shared picker exposes a radio group, one checked choice and one tab stop.
+// Exercise the actual element: a radio never receives the button-only pressed state.
+let focusedChoice;
+class PickerNode {
+  constructor(tag = "lilydex-theme-picker") {
+    this.tagName = tag;
+    this.children = [];
+    this.dataset = {};
+    this.attributes = {};
+    this.events = {};
+  }
+  setAttribute(name, value) { this.attributes[name] = value; }
+  getAttribute(name) { return this.attributes[name] ?? null; }
+  addEventListener(name, handler) { this.events[name] = handler; }
+  append(child) { this.children.push(child); }
+  replaceChildren(...children) { this.children = children; }
+  querySelector(selector) {
+    return selector === ".theme-picker"
+      ? this.children.find(child => child.className === "theme-picker") || null
+      : null;
+  }
+  querySelectorAll(selector) {
+    return this.children.flatMap(child => [
+      ...(selector === "button[data-theme-choice]" && child.dataset.themeChoice ? [child] : []),
+      ...child.querySelectorAll(selector),
+    ]);
+  }
+  focus() { focusedChoice = this.dataset.themeChoice; }
+}
+let picker;
+const pickerContext = vm.createContext({
+  HTMLElement: PickerNode,
+  document: { createElement: tag => new PickerNode(tag) },
+  LILYDEX_THEMES: ["auto", "herbier", "vault", "atelier"],
+  t: key => key,
+  readStoredTheme: () => "auto",
+  setLilydexTheme: mode => picker.sync(mode),
+});
+vm.runInContext(
+  componentsSource.slice(
+    componentsSource.indexOf("      class LilydexThemePicker"),
+    componentsSource.indexOf('      customElements.define("lilydex-theme-picker"'),
+  ) + "\nglobalThis.Picker = LilydexThemePicker;",
+  pickerContext,
+);
+picker = new pickerContext.Picker();
+picker.connectedCallback();
+const radioChoices = picker.querySelectorAll("button[data-theme-choice]");
+assert.equal(radioChoices.length, 4);
+function checkPickerState(expected) {
+  assert.equal(picker.children[0].getAttribute("role"), "radiogroup");
+  for (const button of radioChoices) {
+    const selected = button.dataset.themeChoice === expected;
+    assert.equal(button.getAttribute("role"), "radio");
+    assert.equal(button.getAttribute("aria-checked"), String(selected));
+    assert.equal(button.getAttribute("aria-pressed"), null);
+    assert.equal(button.tabIndex, selected ? 0 : -1);
+  }
+}
+checkPickerState("auto");
+for (const mode of ["herbier", "vault", "atelier", "auto"]) {
+  picker.sync(mode);
+  checkPickerState(mode);
+}
+radioChoices[2].events.click();
+checkPickerState("vault");
+let keyPrevented = false;
+picker.children[0].events.keydown({ key: "ArrowRight", preventDefault() { keyPrevented = true; } });
+assert.equal(keyPrevented, true);
+checkPickerState("atelier");
+assert.equal(focusedChoice, "atelier");
+picker.children[0].events.keydown({ key: "ArrowRight", preventDefault() {} });
+checkPickerState("auto");
+assert.equal(focusedChoice, "auto");
+picker.children[0].events.keydown({ key: "ArrowLeft", preventDefault() {} });
+checkPickerState("atelier");
+assert.equal(focusedChoice, "atelier");
+picker.connectedCallback();
+assert.equal(picker.children.length, 1, "reconnecting reuses the existing radio group");
+checkPickerState("auto");
+
 // 2. Active filter chips only list non-default filters.
 const chips = context.activeFilterChips({
   album: { value: "a1", label: "Classeur Pikachu" },

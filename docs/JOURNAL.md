@@ -9,6 +9,19 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-10-28
 
+- Lots thématiques : skill `pokeprice-lots` et script `scripts/pokeprice_lots.py`
+  pour l'analyse des doublons et la composition de lots par intention en langage
+  naturel (`compose` via Gemini Structured Outputs). Rotation glissante plafonnée
+  à 5 brouillons dans l'espace Ventes, diagnostic transparent de stock, périmètre
+  extensible à toute la collection (`--scope {duplicates, all}`) et publication
+  directe en vitrine (`publish-to-storefront`) avec dépublication unitaire
+  automatique des cartes composant le lot.
+
+- Vitrine : la fiche mobile garde prix et faits hors des actions ; la vue Filtres
+  conserve recherche, compteur et critères. Chargement annoncé, reprise visible
+  après panne et retour au catalogue depuis un résultat vide. Contraste des
+  contrôles et radios de thème corrigés ; recette sur données temporaires.
+
 - Mise en ligne de la vitrine anglaise et des erreurs traduites (#30, #31,
   `01c0376`) à la place de `f89a9d6`, sans migration ; base conservée. En ligne :
   `/health`, `/`, `/en/`, `/a-propos` et `/gestion` à 200, `/api/listings` à

@@ -135,7 +135,6 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
             btn.textContent = label;
             btn.title = title;
             btn.setAttribute("aria-checked", "false");
-            btn.setAttribute("aria-pressed", "false");
             btn.addEventListener("click", () => setLilydexTheme(mode));
             group.append(btn);
           }
@@ -161,7 +160,6 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
           for (const btn of this.querySelectorAll("button[data-theme-choice]")) {
             const active = btn.dataset.themeChoice === mode;
             btn.setAttribute("aria-checked", String(active));
-            btn.setAttribute("aria-pressed", String(active));
             btn.tabIndex = active ? 0 : -1;
           }
         }
