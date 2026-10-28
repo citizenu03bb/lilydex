@@ -8,9 +8,10 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from pokeprice.inventory import Store
-from pokeprice.webapp import TEXT_KEY, create_app
+from pokeprice.webapp import ERROR_CODES, TEXT_KEY, create_app
 
-WEB = Path(__file__).resolve().parents[1] / "src/pokeprice/web"
+SOURCE = Path(__file__).resolve().parents[1] / "src/pokeprice"
+WEB = SOURCE / "web"
 PAGES = ("storefront.html", "index.html", "about.html", "about.en.html")
 SCRIPTS = ("storefront.js", "components.js")
 LITERAL = re.compile(r"""\bt\(\s*["']([\w.]+)["']""")
@@ -125,3 +126,32 @@ def test_the_about_page_has_an_english_translation_and_the_french_prevails(tmp_p
         assert anchor in english and anchor in french
     sections = lambda text: len(re.findall(r"<h[23]>", text))
     assert sections(english) == sections(french)
+
+
+def test_every_error_code_has_its_text_and_the_french_is_the_detail():
+    found = dictionaries()
+    sources = "".join(
+        (SOURCE / name).read_text() for name in ("webapp.py", "reservations.py", "listings.py")
+    )
+    assert len(set(ERROR_CODES.values())) == len(ERROR_CODES)
+    for detail, code in ERROR_CODES.items():
+        # The table and the raise share the text: a reworded message keeps its code.
+        assert sources.count(detail) >= 2, detail
+        assert found["fr"][f"error.{code}"] == detail, code
+        assert found["en"][f"error.{code}"], code
+
+
+def test_errors_a_visitor_meets_carry_their_code(tmp_path):
+    store = Store(tmp_path / "inventory")
+    guest = {"email": "ondine@example.org", "display_name": "Ondine", "listing_ids": ["x"], "consent": True}
+    with TestClient(create_app(store.root)) as client:
+        login = client.post("/api/login", json={"username": "personne", "password": "faux-mot-de-passe"})
+        foreign = client.post("/api/logout", headers={"origin": "https://ailleurs.example"})
+        closed = client.post("/api/public/requests", json=guest)
+        me = client.get("/api/me")
+    assert login.status_code == 401 and login.json()["code"] == "wrong_credentials"
+    assert foreign.status_code == 403 and foreign.json()["code"] == "origin_forbidden"
+    assert closed.status_code == 409 and closed.json()["code"] == "requests_closed"
+    assert me.json() == {
+        "detail": "Connectez-vous pour consulter la collection.", "code": "login_required"
+    }

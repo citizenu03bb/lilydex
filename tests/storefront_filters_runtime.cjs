@@ -58,6 +58,7 @@ const context = vm.createContext({
   openLink: () => false,
 });
 vm.runInContext(slice("const FILTERS =", "// A link sent by the seller:"), context);
+vm.runInContext(slice("// The server's French detail", "\nconst euros"), context);
 vm.runInContext(slice("function updateFilterUI(", '$("login-open").addEventListener('), context);
 const result = (items, total = items.length) => ({ items, total, languages: ["fr"], extensions: ["Rare", "Commune"], finishes: ["holo", "reverse"] });
 const card = id => ({ id, items: [{ index: 0, photos: ["front"] }] });

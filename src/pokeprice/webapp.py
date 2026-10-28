@@ -27,6 +27,7 @@ from fastapi import (
     Request,
     Response,
 )
+from fastapi.exception_handlers import http_exception_handler
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from PIL import Image, ImageOps
 from pydantic import BaseModel, ConfigDict, Field, StrictBool
@@ -70,6 +71,41 @@ TEXT_KEY = re.compile(r"\{\{t:([\w.]+)\}\}")
 # The storefront's languages: dictionary, <html lang> and home address. French is the
 # reference; another language lives under its prefix (docs/decisions/0020).
 LANGUAGES = {"fr": ("fr", "/"), "en": ("en-GB", "/en/")}
+# The errors a storefront visitor can meet, by their French detail. The answer adds
+# the code; the storefront shows web/messages' "error.<code>" in its own language.
+ERROR_CODES = {
+    "Origine interdite.": "origin_forbidden",
+    "Trop de requêtes. Réessayez dans une minute.": "too_many_requests",
+    "Trop d’inscriptions depuis cette adresse. Réessayez plus tard.": "too_many_signups",
+    "Trop de demandes depuis cette adresse. Réessayez plus tard.": "too_many_guest_requests",
+    "Trop de tentatives. Réessayez dans cinq minutes.": "too_many_attempts",
+    "Connectez-vous pour consulter la collection.": "login_required",
+    "Espace réservé aux comptes clients.": "clients_only",
+    "Identifiants incorrects.": "wrong_credentials",
+    "Compte en attente de validation.": "account_pending",
+    "Mot de passe incorrect.": "wrong_password",
+    "Adresse e-mail invalide.": "invalid_email",
+    "Cette adresse est déjà utilisée par un autre compte.": "email_taken",
+    "Ce lien n’est plus valable : demandez-en un autre au vendeur.": "link_expired",
+    "La boutique n’est pas encore ouverte aux inscriptions.": "signup_closed",
+    "La boutique n’est pas encore ouverte aux réservations.": "requests_closed",
+    "Carte absente de la vitrine.": "card_not_found",
+    "Choisissez des cartes distinctes.": "duplicate_cards",
+    "Une carte n’est plus disponible : actualisez la vitrine.": "card_unavailable",
+    "Trop de demandes en attente : attendez une réponse du vendeur.": "too_many_pending",
+    "Demande introuvable.": "request_not_found",
+    "La demande a changé. Actualisez la page.": "request_changed",
+    "Seule une demande en attente peut être annulée.": "request_not_pending",
+}
+
+
+def error_response(detail, status_code, headers=None):
+    body = {"detail": detail}
+    if detail in ERROR_CODES:
+        body["code"] = ERROR_CODES[detail]
+    return Response(
+        json.dumps(body), status_code=status_code, headers=headers, media_type="application/json"
+    )
 
 
 class Model(BaseModel):
@@ -617,9 +653,9 @@ def create_app(
             origin = request.headers.get("origin")
             base = urlsplit(str(request.base_url))
             if origin and origin != f"{base.scheme}://{base.netloc}":
-                return Response("Origine interdite.", status_code=403)
+                return error_response("Origine interdite.", 403)
             if request.headers.get("sec-fetch-site") == "cross-site":
-                return Response("Origine interdite.", status_code=403)
+                return error_response("Origine interdite.", 403)
         if (
             request.method == "GET"
             and request.url.path == "/api/copies"
@@ -644,29 +680,23 @@ def create_app(
         )
         return response
 
+    @app.exception_handler(HTTPException)
+    async def refused(request, exc):
+        if isinstance(exc.detail, str):
+            return error_response(exc.detail, exc.status_code, exc.headers)
+        return await http_exception_handler(request, exc)
+
     @app.exception_handler(Conflict)
     async def conflict(request, exc):
-        return Response(
-            json.dumps({"detail": str(exc)}),
-            status_code=409,
-            media_type="application/json",
-        )
+        return error_response(str(exc), 409)
 
     @app.exception_handler(KeyError)
     async def missing(request, exc):
-        return Response(
-            json.dumps({"detail": str(exc.args[0])}),
-            status_code=404,
-            media_type="application/json",
-        )
+        return error_response(str(exc.args[0]), 404)
 
     @app.exception_handler(ValueError)
     async def invalid(request, exc):
-        return Response(
-            json.dumps({"detail": str(exc)}),
-            status_code=422,
-            media_type="application/json",
-        )
+        return error_response(str(exc), 422)
 
     def current_user(request: Request):
         token = request.cookies.get("pokeprice_session", "")

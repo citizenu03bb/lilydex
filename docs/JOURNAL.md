@@ -7,6 +7,13 @@
 Une page qui décrit le fonctionnement ne porte pas de date : quand un passage
 daté la quitte, il est versé ici dans le même commit.
 
+## 2026-10-28
+
+- Vitrine : les erreurs du serveur qu'un visiteur peut rencontrer portent un
+  `code` à côté du `detail` français ; la page les affiche dans sa langue, si
+  bien qu'une carte retirée ou un mot de passe erroné se lisent en anglais sous
+  `/en/` ([fiche 0020](decisions/0020-textes-dans-des-dictionnaires.md)).
+
 ## 2026-10-27
 
 - Vitrine : ses textes passent dans un dictionnaire, `messages/fr.json`, que le
