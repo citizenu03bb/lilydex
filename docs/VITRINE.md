@@ -67,6 +67,20 @@ de critères actifs, la remise à zéro et **Voir les N annonces**. Fermer cette
 vue ou appuyer sur Échap conserve les critères et ramène le focus au bouton.
 Les critères actifs s'affichent aussi sous forme de boutons à retirer.
 
+La vue Filtres conserve la recherche, le compteur et les critères actifs à
+l'écran. Les changements s'appliquent immédiatement ; la fermeture conserve les
+choix. Le titre principal reste accessible et le lien d'évitement mène toujours
+au champ de recherche. Les contrôles de saisie ont une bordure distincte des
+séparateurs pour rester repérables dans chaque thème.
+
+Pendant une recherche, un statut visible et annoncé accompagne le chargement.
+Si le réseau ou la réponse du serveur échoue, la vitrine affiche un message dans
+la langue de la page et **Réessayer**, aussi accessible hors de la vue Filtres.
+Les résultats précédents restent identifiés comme tels ; la recherche et les
+critères sont conservés. Après l'échec d'**Afficher plus**, la reprise recharge
+la page manquante sans retirer les cartes déjà affichées. Une recherche sans
+résultat propose **Voir toutes les annonces** pour remettre les critères à zéro.
+
 Le serveur applique tous les critères avant la pagination de 48 publications.
 Le compteur indique le total des annonces correspondantes, cartes seules et
 lots compris. Pour un lot, Langue, Extension et Finition doivent correspondre
@@ -110,6 +124,11 @@ ramène toujours à la liste. Sur téléphone la fiche occupe tout l'écran ; su
 ordinateur, **Plein écran** (ou **F**) met la photo à gauche et les
 informations à droite, un choix mémorisé sur l'appareil. Seule la photo des
 deux cartes voisines est chargée d'avance.
+
+Les actions de la fiche suivent les informations dans le défilement : elles ne
+recouvrent ni le prix ni l'état. Sur téléphone, la hauteur de la photo laisse
+de la place au nom et au prix, tandis que les faits et les actions restent
+accessibles en faisant défiler la fiche.
 
 **Jamais exposé hors de la gestion** : notes, provenance, événements, relevés
 et historique de prix, prix de référence brut, alertes, état estimé non

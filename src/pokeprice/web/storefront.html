@@ -62,6 +62,7 @@
             <h2 id="filter-title">{{t:filters.title}}</h2>
             <button id="filter-close" type="button" class="round-button" aria-label="{{t:filters.close}}">×</button>
           </div>
+          <p class="filter-help">{{t:filters.help}}</p>
           <div class="search-row">
           <label class="search"
             >{{t:filters.search}}<input
@@ -73,6 +74,7 @@
           /></label>
           <button id="filter-open" type="button" class="filter-toggle" aria-expanded="false" aria-controls="filter-fields">{{t:filters.open}} <span id="filter-count"></span></button>
           </div>
+          <div class="active-filter-chips" role="group" aria-label="{{t:filters.active}}" hidden></div>
           <div id="filter-fields" class="filter-fields">
           <label class="extension-field">{{t:filters.extension}}<select id="extension"><option value="">{{t:filters.all}}</option></select></label>
           <label
@@ -110,6 +112,7 @@
             </select></label
           >
           <p id="count" class="count" aria-live="polite"></p>
+          <p id="results-status" class="search-status" role="status" aria-live="polite"></p>
           <button id="filters-clear" class="text-button filters-clear" type="button" hidden>{{t:filters.clear}}</button>
           <p id="filter-error" class="error filter-error" role="alert" hidden></p>
           <div class="filter-actions">
@@ -117,11 +120,15 @@
             <button id="filter-apply" type="button" class="primary">{{t:filters.apply}}</button>
           </div>
         </form>
-        <div class="active-filter-chips" aria-label="{{t:filters.active}}" hidden></div>
       </lilydex-filter-bar>
-      <section id="results" aria-label="{{t:results.label}}">
+      <section id="results" aria-label="{{t:results.label}}" tabindex="-1">
       <p class="photo-note">{{t:results.photo_note}}</p>
       <p id="error" class="error" role="alert" hidden></p>
+      <button id="results-retry" type="button" class="primary" hidden>{{t:filters.retry}}</button>
+      <div id="results-empty" hidden>
+        <p class="help">{{t:results.empty.help}}</p>
+        <button id="results-reset" type="button" class="text-button">{{t:results.reset}}</button>
+      </div>
       <p id="notice" class="notice" role="status" hidden></p>
       <ul id="grid" class="grid"></ul>
       <p class="more"><button id="more" type="button" hidden>{{t:results.more}}</button></p>

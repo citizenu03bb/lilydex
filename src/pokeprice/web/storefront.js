@@ -581,12 +581,22 @@ function drawHero() {
 }
 
 function filterLoading() {
+  state.loading = true;
   $("filter-apply").disabled = true;
   $("filter-apply").textContent = t("filters.searching");
+  $("count").textContent = "";
+  $("results-status").textContent = t("results.loading");
+  $("results-empty").hidden = true;
+  $("results-retry").disabled = true;
+  $("more").disabled = true;
 }
 
 async function load(reset = true) {
-  if (reset) state.offset = 0;
+  // Repeated activations must not append the same page twice. A new search can
+  // still supersede an in-flight request, including one waiting for its debounce.
+  if (!reset && state.loading) return;
+  const retryInitiated = document.activeElement === $("results-retry");
+  state.offset = reset ? 0 : state.items.length;
   writeFilters();
   const request = ++state.request;
   updateFilterUI();
@@ -604,29 +614,66 @@ async function load(reset = true) {
   if ($("max").value) query.set("max_eur", $("max").value);
   $("error").hidden = true;
   $("filter-error").hidden = true;
+  let message = t("error.network");
+  let tiles;
   try {
     const response = await fetch("/api/public/listings?" + query);
+    message = response.ok ? t("error.response")
+      : response.status === 429 ? t("error.too_many_requests")
+      : response.status >= 500 ? t("error.server") : t("error.storefront");
     const result = await response.json();
-    if (!response.ok) throw new Error(failure(result, t("error.storefront")));
+    if (!response.ok) {
+      // Known codes are translated, while unknown French details and technical
+      // exceptions never become the visitor's error message.
+      if (typeof result?.code === "string") message = t(`error.${result.code}`, {}, message);
+      else if (Array.isArray(result?.detail)) message = t("error.fields");
+      throw new Error(message);
+    }
+    if (!Array.isArray(result?.items) || !Number.isFinite(result.total) || result.total < 0 ||
+        !result.items.every(listing => Array.isArray(listing?.items) && listing.items.length &&
+          listing.items.every(item => item && Array.isArray(item.photos))))
+      throw new Error(message);
     if (request !== state.request) return; // A newer search already answered.
-    state.items = reset ? result.items : state.items.concat(result.items);
+    const items = reset ? result.items : state.items.concat(result.items);
+    // Prepare the replacement before publishing any state. A malformed item or
+    // a rendering failure must leave the previous cards available for retry.
+    tiles = items.map(tile);
+    updateFacets(result);
+    state.items = items;
     state.total = result.total;
     state.approximate = Boolean(result.approximate);
-    updateFacets(result);
   } catch (error) {
     if (request !== state.request) return;
-    $("error").textContent =
-      typeof error.message === "string" ? error.message : t("error.storefront");
+    state.retryReset = reset;
+    $("error").textContent = message;
     $("error").hidden = false;
-    $("filter-error").textContent = $("error").textContent;
+    $("filter-error").textContent = message;
     $("filter-error").hidden = false;
+    $("results-retry").hidden = false;
+    $("results-status").textContent = state.items.length ? t("results.previous") : "";
+    // Previous cards remain useful, but their count and next page cannot be
+    // presented as results of the new criteria until the search succeeds.
+    $("count").textContent = "";
+    $("more").hidden = true;
     $("filter-apply").textContent = t("filters.retry");
     $("filter-apply").disabled = false;
     return;
   } finally {
-    if (request === state.request) $("grid").setAttribute("aria-busy", "false");
+    if (request === state.request) {
+      state.loading = false;
+      $("grid").setAttribute("aria-busy", "false");
+      $("more").disabled = false;
+      $("results-retry").disabled = false;
+    }
   }
-  $("grid").replaceChildren(...state.items.map(tile));
+  // Chrome may move focus to body when the retry button is disabled. Remember
+  // its initiating focus, but leave a field chosen during the request alone.
+  const retryFocused = retryInitiated &&
+    (document.activeElement === $("results-retry") || document.activeElement === document.body);
+  $("results-retry").hidden = true;
+  $("results-status").textContent = "";
+  $("results-empty").hidden = state.total !== 0;
+  $("grid").replaceChildren(...tiles);
   $("count").textContent = state.total
     ? t("results.count", { count: state.total }) +
       (state.approximate ? t("results.approximate", { q: $("q").value.trim() }) : "")
@@ -641,6 +688,7 @@ async function load(reset = true) {
   updateFilterUI();
   if (reset) drawHero();
   if ($("detail").open) drawNav();
+  if (retryFocused) $("results").focus();
 }
 
 function closeFilters() {
@@ -657,7 +705,7 @@ $("filter-close").addEventListener("click", () => {
   $("filter-open").focus();
 });
 $("filter-apply").addEventListener("click", () => {
-  if (!$("filter-error").hidden) return load();
+  if (!$("filter-error").hidden) return load(state.retryReset);
   closeFilters();
   $("filter-open").focus();
 });
@@ -673,10 +721,15 @@ window.matchMedia("(max-width: 700px)").addEventListener("change", (event) => {
 function clearFilters() {
   clearTimeout(typing);
   $("filters").reset();
-  load();
+  return load();
 }
 $("filters-clear").addEventListener("click", clearFilters);
 $("filter-reset").addEventListener("click", clearFilters);
+$("results-retry").addEventListener("click", () => load(state.retryReset));
+$("results-reset").addEventListener("click", () => {
+  $("q").focus();
+  return clearFilters();
+});
 $("how-open").addEventListener("click", () => $("how").showModal());
 $("account-menu").addEventListener("click", (event) => {
   if (event.target.closest("button[id]")) $("account-menu").open = false;
@@ -685,6 +738,8 @@ $("account-menu").addEventListener("click", (event) => {
 let typing;
 $("filters").addEventListener("input", () => {
   clearTimeout(typing);
+  // Invalidate the previous response immediately, not only 250 ms later.
+  state.request++;
   updateFilterUI();
   filterLoading();
   typing = setTimeout(() => load(), 250);

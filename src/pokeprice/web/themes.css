@@ -21,6 +21,7 @@
   --danger-soft: #fdf2f2;
   --border: #d8dfd5;
   --border-strong: #94a89b;
+  --control-border: #7d8574;
   --focus-ring: #1d634b;
   --shadow-sm: 0 2px 8px rgba(24, 46, 40, 0.05);
   --shadow-md: 0 8px 28px rgba(24, 46, 40, 0.08);
@@ -71,6 +72,7 @@
     --danger-soft: rgba(248, 113, 113, 0.14);
     --border: #263540;
     --border-strong: #435b6b;
+    --control-border: #8e8588;
     --focus-ring: #34d399;
     --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.35);
     --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.45);
@@ -98,6 +100,7 @@
   --danger-soft: rgba(248, 113, 113, 0.14);
   --border: #263540;
   --border-strong: #435b6b;
+  --control-border: #8e8588;
   --focus-ring: #34d399;
   --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.35);
   --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.45);
@@ -124,6 +127,7 @@
   --danger-soft: #fee2e2;
   --border: #18181b;
   --border-strong: #18181b;
+  --control-border: #18181b;
   --focus-ring: #0f52ba;
   --shadow-sm: 2px 2px 0 #18181b;
   --shadow-md: 3px 3px 0 #18181b;
@@ -187,8 +191,7 @@ lilydex-theme-picker {
   background: var(--surface-3);
 }
 
-.theme-picker button[aria-checked="true"],
-.theme-picker button[aria-pressed="true"] {
+.theme-picker button[aria-checked="true"] {
   background: var(--surface-1);
   color: var(--accent);
   box-shadow: var(--shadow-sm);
