@@ -9,6 +9,12 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-10-28
 
+- Mise en ligne de la vitrine anglaise et des erreurs traduites (#30, #31,
+  `01c0376`) à la place de `f89a9d6`, sans migration ; base conservée. En ligne :
+  `/health`, `/`, `/en/`, `/a-propos` et `/gestion` à 200, `/api/listings` à
+  `401` ; une connexion erronée répond `wrong_credentials` et `/en/` porte
+  « Incorrect email or password. » ; 1 415 annonces.
+
 - Vitrine : les erreurs du serveur qu'un visiteur peut rencontrer portent un
   `code` à côté du `detail` français ; la page les affiche dans sa langue, si
   bien qu'une carte retirée ou un mot de passe erroné se lisent en anglais sous
