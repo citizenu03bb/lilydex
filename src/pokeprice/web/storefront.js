@@ -6,6 +6,25 @@ const language = (code) => t(`language.${code}`, {}, code);
 const PAGE = 48;
 const state = { offset: 0, items: [], total: 0, request: 0, me: null, basket: [] };
 const BASKET = "lilydex-basket";
+const pageTitle = document.title;
+// Capture before submit handlers: a second click or Enter never starts another request.
+const pendingForms = new WeakSet();
+document.addEventListener("submit", (event) => {
+  const form = event.target;
+  if (!form.id?.endsWith("-form") || form.method === "dialog") return;
+  if (pendingForms.has(form)) { event.preventDefault(); event.stopImmediatePropagation(); return; }
+  pendingForms.add(form);
+  form.setAttribute("aria-busy", "true");
+  let status = form.querySelector(".submit-status");
+  if (!status) { status = el("p", "", "submit-status"); status.setAttribute("role", "status"); form.append(status); }
+  status.textContent = t("common.sending");
+}, true);
+function releaseForm(form) {
+  pendingForms.delete(form);
+  form.removeAttribute("aria-busy");
+  const status = form.querySelector(".submit-status");
+  if (status) status.textContent = "";
+}
 
 // The basket is a per-visitor convenience: it may vanish, the server decides.
 function saveBasket() {
@@ -28,12 +47,13 @@ async function call(path, options = {}) {
     credentials: "same-origin",
     ...options,
     headers: options.body ? { "Content-Type": "application/json" } : {},
-  });
+  }).catch(() => { throw new Error(t("error.network")); });
   const text = await response.text();
   let body = null;
   try {
     body = text ? JSON.parse(text) : null;
   } catch {}
+  if (text && body === null) throw new Error(t("error.response"));
   if (!response.ok) {
     let detail = failure(body, t("error.http", { status: response.status }));
     if (Array.isArray(detail)) detail = t("error.fields");
@@ -44,7 +64,7 @@ async function call(path, options = {}) {
 
 // The server's French detail, in the page's language when its code is known.
 const failure = (body, fallback) =>
-  body?.code ? t(`error.${body.code}`, {}, body.detail || fallback) : body?.detail || fallback;
+  body?.code ? t(`error.${body.code}`, {}, fallback) : fallback;
 
 const euros = (cents) =>
   (cents / 100).toLocaleString(t.locale, { style: "currency", currency: "EUR" });
@@ -58,6 +78,21 @@ function el(tag, text, className) {
   return node;
 }
 
+function watchPhoto(image, interactive = true) {
+  image.addEventListener("error", () => {
+    image.hidden = true;
+    if (!interactive) { image.parentNode?.append(el("span", t("photo.unavailable"), "photo-retry")); return; }
+    const retry = el(interactive ? "button" : "span", t("photo.retry"), "photo-retry");
+    retry.type = "button";
+    image.hidden = true;
+    retry.addEventListener("click", event => {
+      event.preventDefault(); event.stopPropagation();
+      retry.remove(); image.hidden = false;
+      image.src = image.src;
+    });
+    image.parentNode?.append(retry);
+  });
+}
 function photo(listing, item, side, size) {
   return `/api/public/listings/${encodeURIComponent(listing.id)}/photo?item=${item.index}&side=${side}&size=${size}`;
 }
@@ -99,6 +134,7 @@ function tile(listing) {
     image.src = photo(listing, first, "front", "thumb");
     image.alt = "";
     image.loading = "lazy";
+    watchPhoto(image, false);
     figure.append(image);
   }
   if (listing.items.length > 1)
@@ -150,6 +186,7 @@ function drawFace() {
     const image = el("img");
     image.src = photo(listing, face.item, face.side, "full");
     image.alt = t("viewer.alt", { side: side(face.side), name: face.item.name });
+    watchPhoto(image);
     stage.replaceChildren(image);
   } else stage.replaceChildren(el("p", t("viewer.no_photo"), "help"));
   const flip = $("detail-flip");
@@ -182,12 +219,8 @@ function drawNav() {
   if (index < 0) return;
   $("detail-previous").disabled = index === 0;
   $("detail-next").disabled = index === state.items.length - 1 && state.items.length >= state.total;
-  $("detail-position").textContent = `${index + 1} / ${state.total}`;
-  // Only the next photo to show is fetched ahead, to spare mobile data.
-  for (const neighbour of [state.items[index - 1], state.items[index + 1]]) {
-    const item = neighbour?.items[0];
-    if (item?.photos.includes("front")) new Image().src = photo(neighbour, item, "front", "full");
-  }
+  $("detail-position").textContent = `${(index + 1).toLocaleString(t.locale)} / ${state.total.toLocaleString(t.locale)}`;
+
 }
 
 async function step(delta) {
@@ -213,6 +246,8 @@ function show(listing, replace = false) {
     else history.pushState({ card: listing.id }, "", address);
   }
   state.current = listing;
+  document.title = `${title(listing)} · ${pageTitle}`;
+  refreshLanguageLink();
   state.face = 0;
   drawFace();
   drawNav();
@@ -326,6 +361,7 @@ try {
 // Chrome ignores history.back() without a user gesture (Escape is not one):
 // the address is then rewritten in place.
 const leaveCard = () => {
+  if (!$("detail").open) { document.title = pageTitle; refreshLanguageLink(); }
   if (!$("detail").open && CARD.test(location.pathname))
     history.replaceState(null, "", HOME + location.hash);
 };
@@ -354,10 +390,14 @@ async function openFromAddress() {
 window.addEventListener("popstate", openFromAddress);
 
 // The other language opens on the same card, with the same filters.
-$("language-switch").addEventListener("click", (event) => {
-  const link = event.currentTarget;
+function refreshLanguageLink() {
+  const link = $("language-switch");
   link.href = link.dataset.home + location.pathname.replace(/^(?:\/[a-z]{2})?\//, "") + location.hash;
-});
+}
+$("language-switch").addEventListener("click", refreshLanguageLink);
+window.addEventListener("popstate", refreshLanguageLink);
+window.addEventListener("hashchange", refreshLanguageLink);
+refreshLanguageLink();
 
 // Filters live after the #: the server never sees them, and old management
 // links on / keep their redirect.
@@ -374,6 +414,7 @@ function writeFilters() {
   const hash = query.size ? "#" + query.toString() : "";
   if (location.hash !== hash)
     history.replaceState(history.state, "", location.pathname + location.search + hash);
+  refreshLanguageLink();
 }
 function readFilters() {
   const query = new URLSearchParams(location.hash.slice(1));
@@ -434,6 +475,7 @@ function formError(form, message) {
 }
 
 function renderBasket() {
+  $("basket-title").textContent = t("basket.title");
   const list = $("basket-items");
   list.replaceChildren();
   for (const entry of state.basket) {
@@ -459,6 +501,7 @@ function renderBasket() {
     ? t("basket.total", { total: euros(total) })
     : t("basket.empty");
   $("basket-form").hidden = !state.basket.length;
+  $("basket-browse").hidden = Boolean(state.basket.length);
   // A disabled fieldset is left out of the form's checks.
   const guest = $("basket-guest");
   guest.hidden = guest.disabled = Boolean(state.me);
@@ -654,6 +697,7 @@ async function load(reset = true) {
     // Previous cards remain useful, but their count and next page cannot be
     // presented as results of the new criteria until the search succeeds.
     $("count").textContent = "";
+    document.body.classList.toggle("catalogue-empty", !state.items.length);
     $("more").hidden = true;
     $("filter-apply").textContent = t("filters.retry");
     $("filter-apply").disabled = false;
@@ -673,6 +717,7 @@ async function load(reset = true) {
   $("results-retry").hidden = true;
   $("results-status").textContent = "";
   $("results-empty").hidden = state.total !== 0;
+  document.body.classList.toggle("catalogue-empty", state.total === 0);
   $("grid").replaceChildren(...tiles);
   $("count").textContent = state.total
     ? t("results.count", { count: state.total }) +
@@ -688,6 +733,9 @@ async function load(reset = true) {
   updateFilterUI();
   if (reset) drawHero();
   if ($("detail").open) drawNav();
+  if (!reset) $("results-status").textContent = t("results.more.count", {
+    shown: state.items.length.toLocaleString(t.locale), total: state.total.toLocaleString(t.locale),
+  });
   if (retryFocused) $("results").focus();
 }
 
@@ -776,6 +824,7 @@ $("account-open").addEventListener("click", () => {
 $("profile-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const form = event.target;
+  try {
   formError(form, "");
   form.querySelector(".notice").hidden = true;
   try {
@@ -794,10 +843,12 @@ $("profile-form").addEventListener("submit", async (event) => {
   } catch (error) {
     formError(form, error.message);
   }
+  } finally { releaseForm(form); }
 });
 $("delete-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const form = event.target;
+  try {
   formError(form, "");
   try {
     await call("/api/me/delete", {
@@ -814,6 +865,7 @@ $("delete-form").addEventListener("submit", async (event) => {
   $("account").close();
   $("notice").textContent = t("profile.deleted");
   $("notice").hidden = false;
+  } finally { releaseForm(form); }
 });
 $("logout").addEventListener("click", async () => {
   try {
@@ -834,6 +886,7 @@ $("logout").addEventListener("click", async () => {
 $("login-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const form = event.target;
+  try {
   formError(form, "");
   try {
     await call("/api/login", {
@@ -852,10 +905,12 @@ $("login-form").addEventListener("submit", async (event) => {
   } catch (error) {
     formError(form, error.message);
   }
+  } finally { releaseForm(form); }
 });
 $("signup-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const form = event.target;
+  try {
   formError(form, "");
   try {
     const result = await call("/api/public/signup", {
@@ -874,10 +929,12 @@ $("signup-form").addEventListener("submit", async (event) => {
   } catch (error) {
     formError(form, error.message);
   }
+  } finally { releaseForm(form); }
 });
 $("basket-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const form = event.target;
+  try {
   formError(form, "");
   const body = {
     listing_ids: state.basket.map((x) => x.id),
@@ -906,6 +963,7 @@ $("basket-form").addEventListener("submit", async (event) => {
     if (guest) {
       renderBasket();
       $("basket-total").textContent = t("basket.sent", { email: guest });
+      $("basket-title").textContent = t("basket.success");
       return;
     }
     $("basket").close();
@@ -914,10 +972,12 @@ $("basket-form").addEventListener("submit", async (event) => {
   } catch (error) {
     formError(form, error.message);
   }
+  } finally { releaseForm(form); }
 });
 $("password-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const form = event.target;
+  try {
   formError(form, "");
   try {
     await call("/api/public/password", {
@@ -934,6 +994,7 @@ $("password-form").addEventListener("submit", async (event) => {
   await whoAmI();
   $("notice").textContent = t("password.saved");
   $("notice").hidden = false;
+  } finally { releaseForm(form); }
 });
 openLink();
 state.basket = readBasket();
@@ -942,3 +1003,26 @@ whoAmI();
 readFilters();
 load();
 openFromAddress();
+
+const accountMenu = $("account-menu");
+const accountTrigger = accountMenu.querySelector("summary");
+document.addEventListener("pointerdown", event => {
+  if (!accountMenu.contains(event.target)) accountMenu.open = false;
+});
+document.addEventListener("keydown", event => {
+  if (event.key === "Escape" && accountMenu.open) {
+    accountMenu.open = false; accountTrigger.focus();
+  }
+});
+for (const id of ["login", "signup", "account", "requests"]) {
+  const dialog = $(id);
+  dialog.addEventListener("close", () => accountTrigger.focus());
+}
+for (const id of ["login-open", "signup-open"]) {
+  $(id).addEventListener("click", () => {
+    const dialog = $(id.replace("-open", ""));
+    dialog.querySelector("input:not([type=hidden])")?.focus();
+  });
+}
+
+$("basket-browse").addEventListener("click", () => { $("basket").close(); $("q").focus(); });

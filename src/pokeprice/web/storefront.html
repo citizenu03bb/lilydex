@@ -22,6 +22,7 @@
         <span class="wordmark">{{site_wordmark}}</span>
       </a>
       <nav class="header-actions" aria-label="{{t:nav.label}}">
+        <a id="language-switch" href="{{other_page}}" data-home="{{other_home}}" hreflang="{{t:footer.language.code}}" lang="{{t:footer.language.code}}" aria-label="{{t:footer.language}}"><span class="long-label">{{t:footer.language}}</span><span class="short-label">{{t:footer.language.code}}</span></a>
         <button id="how-open" class="text-button" type="button" aria-label="{{t:how.title}}">
           <span class="long-label">{{t:how.title}}</span><span class="short-label">{{t:how.short}}</span>
         </button>
@@ -55,6 +56,7 @@
       <div id="hero-art" class="hero-art" aria-hidden="true" hidden></div>
     </section>
     <main>
+      <noscript><p>{{t:footer.javascript}} <a href="{{home}}a-propos">{{t:footer.about}}</a></p></noscript>
       <h2 class="catalogue-title">{{t:catalogue.title}}</h2>
       <lilydex-filter-bar id="storefront-filters">
         <form id="filters" class="filters" role="search">
@@ -138,7 +140,6 @@
       <p>{{t:footer.reserve}}</p>
       <p>{{t:footer.unofficial}}</p>
       <p class="seller"><a href="{{home}}a-propos">{{t:footer.about}}</a> · <a href="/gestion">{{t:footer.seller}}</a></p>
-      <p class="languages"><a id="language-switch" href="{{other_page}}" data-home="{{other_home}}" hreflang="{{t:footer.language.code}}" lang="{{t:footer.language.code}}">{{t:footer.language}}</a></p>
     </footer>
     <dialog id="how" aria-labelledby="how-title">
       <form method="dialog"><button class="close" aria-label="{{t:common.close}}">×</button></form>
@@ -153,7 +154,7 @@
     <dialog id="detail" aria-labelledby="detail-title">
       <div class="viewer-bar">
         <button id="detail-previous" type="button" aria-label="{{t:viewer.previous}}">‹</button>
-        <span id="detail-position" class="help"></span>
+        <span id="detail-position" class="help" role="status" aria-live="polite"></span>
         <button id="detail-next" type="button" aria-label="{{t:viewer.next}}">›</button>
         <button id="detail-full" type="button" aria-pressed="false">{{t:viewer.full}}</button>
         <form method="dialog"><button class="close" aria-label="{{t:common.close}}">×</button></form>
@@ -196,7 +197,9 @@
       <form method="dialog"><button class="close" aria-label="{{t:common.close}}">×</button></form>
       <h2 id="basket-title">{{t:basket.title}}</h2>
       <ul id="basket-items" class="lines"></ul>
-      <p id="basket-total" class="price"></p>
+      <p id="basket-total" class="basket-total" role="status"></p>
+      <button id="basket-browse" type="button" class="text-button" hidden>{{t:results.reset}}</button>
+      <p class="help">{{t:footer.shipping}}</p>
       <form id="basket-form" class="stack">
         <fieldset id="basket-guest" class="stack">
           <legend>{{t:basket.guest}}</legend>

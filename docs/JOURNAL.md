@@ -7,6 +7,13 @@
 Une page qui décrit le fonctionnement ne porte pas de date : quand un passage
 daté la quitte, il est versé ici dans le même commit.
 
+## 2026-10-29
+
+- Vitrine : grille progressive, fiche desktop en colonnes, identité publique et
+  navigation harmonisées ; menu, focus et soumissions répétés corrigés. Chargement
+  stabilisé, cache statique revalidé et budgets photos/API séparés. Recette locale
+  sur données synthétiques, sans modification de la collection.
+
 ## 2026-10-28
 
 - Lots thématiques : skill `pokeprice-lots` et script `scripts/pokeprice_lots.py`

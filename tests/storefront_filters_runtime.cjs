@@ -38,13 +38,14 @@ const pending = [];
 const media = {};
 const location = { pathname: "/", search: "", hash: "#extension=Rare&finition=reverse&langue=fr&max=2.50&tri=price" };
 const context = vm.createContext({
+  watchPhoto: () => {}, refreshLanguageLink: () => {}, pageTitle: "Shop",
   t,
   URLSearchParams, setTimeout, clearTimeout,
   location, history: { replaceState(_, __, url) { location.hash = url.includes("#") ? url.slice(url.indexOf("#")) : ""; } },
   $: id => elements[id] || element(id),
   el: (tag, text) => ({ tagName: tag.toUpperCase(), textContent: text }),
   document: {
-    body: { classList: { add: c => classes.add(c), remove: c => classes.delete(c), contains: c => classes.has(c) } },
+    body: { classList: { add: c => classes.add(c), remove: c => classes.delete(c), contains: c => classes.has(c), toggle: (c,on) => on ? classes.add(c) : classes.delete(c) } },
     querySelector: () => ({ refreshChips: () => refreshes++ }),
   },
   window: {

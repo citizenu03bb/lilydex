@@ -106,7 +106,7 @@ d'au moins une carte en vente (`languages` dans la réponse de recherche).
 
 La vitrine existe en français, à `/`, et en anglais, à `/en/` : mêmes cartes,
 mêmes adresses sous le préfixe (`/en/carte/<identifiant>`, `/en/a-propos`). Un
-lien en pied de page mène à l'autre langue sur la même carte, avec les mêmes
+lien dans l’en-tête mène à l'autre langue sur la même carte, avec les mêmes
 filtres. La langue suit l'adresse, sans cookie ni redirection. Les textes sont
 dans `web/messages/` ([fiche 0020](decisions/0020-textes-dans-des-dictionnaires.md)) ;
 l'API publique envoie des codes (finition, statut), que la page nomme. Une
@@ -122,8 +122,8 @@ dans l'ordre de la liste filtrée, en chargeant la suite au besoin ; l'adresse
 suit la carte affichée sans ajouter d'étape à l'historique, si bien que Retour
 ramène toujours à la liste. Sur téléphone la fiche occupe tout l'écran ; sur
 ordinateur, **Plein écran** (ou **F**) met la photo à gauche et les
-informations à droite, un choix mémorisé sur l'appareil. Seule la photo des
-deux cartes voisines est chargée d'avance.
+informations à droite, un choix mémorisé sur l'appareil. Les photos complètes se chargent à l'ouverture de la fiche, sans précharger les
+voisines.
 
 Les actions de la fiche suivent les informations dans le défilement : elles ne
 recouvrent ni le prix ni l'état. Sur téléphone, la hauteur de la photo laisse
@@ -291,3 +291,27 @@ minute et par adresse :
 compte et envoie une demande avec son seul e-mail ; son acceptation crée
 un lot réservé ; deux acceptations concurrentes ne réservent jamais deux fois le
 même exemplaire ; aucune réponse publique ou client ne contient de champ privé.
+
+## Confort, chargement et reprise
+
+La grille propose deux colonnes sur téléphone, trois sur tablette et quatre
+sur grand écran. Les noms longs gardent le prix dans sa propre zone. La fiche
+rapproche photo et informations sur grand écran ; le mode agrandi reste disponible.
+À propos reprend les couleurs et la marque de la vitrine, avec des liens directs
+vers le catalogue et le contact.
+
+Le menu Compte se ferme à Échap et au clic extérieur. Les formulaires se focalisent
+sur leur premier champ ; leur fermeture revient au bouton Compte. Une soumission
+en cours est annoncée et les activations répétées sont ignorées jusqu'à la réponse.
+La sélection vide et la demande envoyée proposent un retour aux cartes.
+
+La zone des résultats réserve de la place avant leur chargement et se réduit
+lorsqu'aucune carte ne correspond. Une photo en échec présente un repli explicite ;
+la fiche permet de réessayer. Sans JavaScript, un message mène au contact.
+
+Les fichiers statiques publics se conservent avec revalidation obligatoire : une
+empreinte ETag inchangée produit une réponse 304 sans corps. HTML, API, comptes et
+photos restent en `no-store`. Une publication retirée cesse donc de servir ses
+photos à toute nouvelle requête. Les photos et les appels de catalogue disposent
+chacun d'un budget de lectures publiques ; une réponse 429 indique le délai de
+reprise par `Retry-After`.

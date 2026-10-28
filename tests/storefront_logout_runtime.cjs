@@ -39,7 +39,7 @@ vm.runInContext(slice("async function call(", "\nconst euros") + listener, conte
   await handler();
   assert.equal(context.state.me, null);
   assert.equal(elements.error.hidden, true);
-  // A known code reads in the page's language; otherwise the French detail stays.
+  // A known code reads in the page's language; unknown errors use a translated fallback.
   const english = JSON.parse(fs.readFileSync(require.resolve("../src/pokeprice/web/messages/en.json"), "utf8"));
   context.t = translator(english, "en-GB");
   respond = () => new Response(JSON.stringify({ detail: "Origine interdite.", code: "origin_forbidden" }), { status: 403 });
@@ -47,7 +47,7 @@ vm.runInContext(slice("async function call(", "\nconst euros") + listener, conte
   assert.match(elements.error.textContent, /does not come from this site/);
   respond = () => new Response(JSON.stringify({ detail: "Refus inédit.", code: "inconnu" }), { status: 403 });
   await handler();
-  assert.match(elements.error.textContent, /Refus inédit/);
+  assert.match(elements.error.textContent, /HTTP 403/);
 })().catch((error) => {
   console.error(error);
   process.exit(1);

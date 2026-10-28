@@ -1,4 +1,10 @@
 {
+  "common.sending": "Sending…",
+  "photo.unavailable": "Photo unavailable",
+  "photo.retry": "Photo unavailable · Try again",
+  "basket.success": "Request sent",
+  "footer.shipping": "Shipping costs are agreed before payment.",
+  "footer.javascript": "Enable JavaScript to view cards, or visit the contact page.",
   "meta.title": "Pokémon cards for sale",
   "common.close": "Close",
   "common.loading": "Loading…",

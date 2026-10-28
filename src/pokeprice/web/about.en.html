@@ -14,15 +14,16 @@
     <script src="/assets/components.js"></script>
   </head>
   <!-- The French page, about.html, prevails: this one follows each of its changes. -->
-  <body>
+  <body class="storefront about-page">
     <header class="top">
+      <a class="brand" href="/en/"><img class="brand-mark" src="/assets/logo.png" alt="" width="40" height="40" /><span class="wordmark">{{site_wordmark}}</span></a>
       <nav class="account" aria-label="Theme">
         <lilydex-theme-picker></lilydex-theme-picker>
       </nav>
-      <p class="brand"><a href="/en/"><img class="brand-mark" src="/assets/logo.png" alt="" width="32" height="32" /> {{site_name}}</a></p>
       <h1>About and contact</h1>
     </header>
     <main class="about">
+      <nav class="about-shortcuts"><a href="/en/">← Back to the shop</a> · <a href="#contact">Contact</a></nav>
       <p class="notice">
         This English version is provided for convenience. If it differs from the
         French version, the French version prevails:
