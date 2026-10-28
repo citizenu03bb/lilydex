@@ -9,6 +9,11 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-10-29
 
+- Mise en ligne des parcours et performances de la vitrine (#34, `e79a561`) :
+  base existante conservée, sauvegarde du code restaurée et comparée, pages
+  publiques à 200, gestion API à 401 et assets revalidés à 304. La recette révèle
+  un débordement de photo verticale de lot ; le cadre de la visionneuse le contient.
+
 - Vitrine : grille progressive, fiche desktop en colonnes, identité publique et
   navigation harmonisées ; menu, focus et soumissions répétés corrigés. Chargement
   stabilisé, cache statique revalidé et budgets photos/API séparés. Recette locale
