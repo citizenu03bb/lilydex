@@ -239,3 +239,13 @@ def test_theme_picker_and_viewer_quick_exam_preserve_drafts_and_csp():
         capture_output=True,
         text=True,
     )
+
+
+def test_storefront_submissions_ignore_repeated_activation_and_allow_retry():
+    node = shutil.which('node')
+    if not node:
+        pytest.skip('Node.js is required')
+    root = Path(__file__).resolve().parents[1]
+    subprocess.run([node, str(root / 'tests/storefront_submission_runtime.cjs'),
+                    str(root / 'src/pokeprice/web/storefront.js')], check=True,
+                   capture_output=True, text=True)

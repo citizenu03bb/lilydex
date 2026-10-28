@@ -13,6 +13,7 @@ const elements = {};
 const shown = [];
 let loads = 0;
 const context = vm.createContext({
+  watchPhoto: () => {}, refreshLanguageLink: () => {}, pageTitle: "Shop",
   t,
   el: (tag, text) => ({ tag, textContent: text }),
   photo: (listing, item, side) => `${listing.id}/${item.index}/${side}`,

@@ -296,3 +296,24 @@ def test_the_logotype_follows_the_site_name(monkeypatch):
     assert site_wordmark() == ("La boutique de la tour", "de Lily")
     monkeypatch.setattr(brand, "SITE_NAME", "Lilydex")
     assert site_wordmark() == ("", "Lilydex")
+
+
+def test_assets_revalidate_without_caching_private_data(shop):
+    _, visitor, *_ = shop
+    asset = visitor.get('/assets/storefront.js')
+    assert asset.headers['cache-control'] == 'public, no-cache'
+    etag = asset.headers['etag']
+    same = visitor.get('/assets/storefront.js', headers={'if-none-match': etag})
+    assert same.status_code == 304 and same.content == b''
+    assert visitor.get('/assets/storefront.js', headers={'if-none-match': '"old"'}).status_code == 200
+    for path in ('/', '/api/me', '/api/public/listings'):
+        assert visitor.get(path).headers['cache-control'] == 'no-store'
+
+
+def test_photo_budget_does_not_block_catalogue_and_exposes_retry_after(shop):
+    _, visitor, *_ = shop
+    for _ in range(300):
+        assert visitor.get('/api/public/listings/absent/photo').status_code == 404
+    limited = visitor.get('/api/public/listings/absent/photo')
+    assert limited.status_code == 429 and limited.headers['retry-after'] == '60'
+    assert visitor.get('/api/public/listings').status_code == 200

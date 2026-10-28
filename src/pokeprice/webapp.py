@@ -674,7 +674,7 @@ def create_app(
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "no-referrer"
-        response.headers["Cache-Control"] = "no-store"
+        response.headers["Cache-Control"] = ("public, no-cache" if request.url.path.startswith("/assets/") and response.status_code in (200, 304) else "no-store")
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://assets.tcgdex.net; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
         )
@@ -866,13 +866,18 @@ def create_app(
 
     @app.get("/assets/{name}")
     def assets(
+        request: Request,
         name: Literal[
             "app.js", "media.js", "workflows.js", "gallery.js", "style.css",
             "storefront.js", "storefront.css", "themes.css", "components.js",
             "logo.png", "apple-touch-icon.png", "mascotte.png",
         ],
     ):
-        return FileResponse(static / name)
+        path = static / name
+        etag = '"' + hashlib.sha256(path.read_bytes()).hexdigest() + '"'
+        if request.headers.get("if-none-match") == etag:
+            return Response(status_code=304, headers={"ETag": etag})
+        return FileResponse(path, headers={"ETag": etag})
 
     # Browsers ask for /favicon.ico on their own, before reading any page.
     @app.get("/favicon.ico", include_in_schema=False)
@@ -885,12 +890,13 @@ def create_app(
 
     def public_rate(request: Request):
         """Anonymous storefront reads: at most 300 requests a minute per address."""
-        key = request.client.host if request.client else "local"
+        host = request.client.host if request.client else "local"
+        key = (host, "photo" if request.url.path.endswith("/photo") else "api")
         timestamp = time.monotonic()
         with public_lock:
             recent = [t for t in public_hits.get(key, []) if timestamp - t < 60]
             if len(recent) >= 300:
-                raise HTTPException(429, "Trop de requêtes. Réessayez dans une minute.")
+                raise HTTPException(429, "Trop de requêtes. Réessayez dans une minute.", headers={"Retry-After": "60"})
             public_hits[key] = recent + [timestamp]
             if len(public_hits) > 10000:  # Forget idle addresses.
                 for address in [a for a, hits in public_hits.items() if timestamp - hits[-1] >= 60]:

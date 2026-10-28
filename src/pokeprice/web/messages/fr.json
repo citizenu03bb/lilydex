@@ -1,4 +1,10 @@
 {
+  "common.sending": "Envoi en cours…",
+  "photo.unavailable": "Photo indisponible",
+  "photo.retry": "Photo indisponible · Réessayer",
+  "basket.success": "Demande envoyée",
+  "footer.shipping": "Les frais d’envoi sont convenus avant paiement.",
+  "footer.javascript": "Activez JavaScript pour afficher les cartes, ou consultez la page de contact.",
   "meta.title": "Cartes Pokémon à vendre",
   "common.close": "Fermer",
   "common.loading": "Chargement…",

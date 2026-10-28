@@ -10,7 +10,7 @@ function translator(messages, locale) {
     if (text && typeof text === "object")
       text = (vars.count === 0 && text.zero) || text[rules.select(vars.count)] || text.other;
     if (typeof text !== "string") return fallback;
-    return text.replace(/\{(\w+)\}/g, (match, name) => (name in vars ? String(vars[name]) : match));
+    return text.replace(/\{(\w+)\}/g, (match, name) => (name in vars ? (typeof vars[name] === "number" ? vars[name].toLocaleString(locale) : String(vars[name])) : match));
   };
   t.locale = locale;
   return t;

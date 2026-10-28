@@ -13,15 +13,16 @@
     {{messages}}
     <script src="/assets/components.js"></script>
   </head>
-  <body>
+  <body class="storefront about-page">
     <header class="top">
+      <a class="brand" href="/"><img class="brand-mark" src="/assets/logo.png" alt="" width="40" height="40" /><span class="wordmark">{{site_wordmark}}</span></a>
       <nav class="account" aria-label="Thème">
         <lilydex-theme-picker></lilydex-theme-picker>
       </nav>
-      <p class="brand"><a href="/"><img class="brand-mark" src="/assets/logo.png" alt="" width="32" height="32" /> {{site_name}}</a></p>
       <h1>À propos et contact</h1>
     </header>
     <main class="about">
+      <nav class="about-shortcuts"><a href="/">← Retour à la vitrine</a> · <a href="#contact">Contact</a></nav>
       <p class="languages"><a href="/en/a-propos" hreflang="en" lang="en">English version</a></p>
       <section>
         <h2>Qui vend ?</h2>
