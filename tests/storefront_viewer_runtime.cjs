@@ -14,6 +14,8 @@ const shown = [];
 let loads = 0;
 const context = vm.createContext({
   watchPhoto: () => {}, refreshLanguageLink: () => {}, pageTitle: "Shop",
+  destroyPhotoZoom: () => {},
+  adaptivePhoto: (listing, item, side, usage, alt) => ({ listing: listing.id, side, usage, alt }),
   t,
   el: (tag, text) => ({ tag, textContent: text }),
   photo: (listing, item, side) => `${listing.id}/${item.index}/${side}`,

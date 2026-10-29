@@ -31,7 +31,7 @@ echo "Transfert chiffré de la configuration secrète vers ${REMOTE_HOST}:/etc/p
     printf "POKEPRICE_HOST=%s\n" "$DOMAIN"
     grep -E "^(GEMINI_API_KEY|GOOGLE_API_KEY)=" "$LOCAL_ENV" | tail -n 1
     # Contact and data controller of the /a-propos notice: the file is rewritten whole.
-    for name in POKEPRICE_CONTACT_EMAIL POKEPRICE_CONTROLLER_NAME; do
+    for name in POKEPRICE_CONTACT_EMAIL POKEPRICE_CONTROLLER_NAME POKEPRICE_PUBLIC_ORIGIN; do
         grep -E "^${name}=" "$LOCAL_ENV" | tail -n 1 || true
     done
 } | ssh "$REMOTE_HOST" "sudo install -d -m 0750 -o root -g pokeprice /etc/pokeprice && \

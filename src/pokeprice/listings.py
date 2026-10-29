@@ -4,6 +4,7 @@ import json
 import re
 import sqlite3
 import uuid
+from urllib.parse import quote, urlencode
 
 from .inventory import Conflict, now
 from .pricing import FLOOR_CENTS, display_price, euros, round_up_tenth
@@ -245,6 +246,14 @@ class Listings:
 # (notes, provenance, history, album place, copy ids, raw prices) can leak.
 # Codes only: the storefront's dictionaries name them (docs/decisions/0020).
 FINISHES = ("non_holo", "holo", "holo_border", "reverse", "special")
+CONDITIONS = ("MT", "NM", "NM/EX", "EX", "GD", "LP", "PL", "PO")
+
+
+def public_condition(card):
+    """Only an explicitly confirmed, nonempty grade is public."""
+    return (card["condition"] or None) if card["condition_confirmed"] else None
+
+
 def public_item(index, card):
     return {
         "index": index,
@@ -253,7 +262,7 @@ def public_item(index, card):
         "number": card["number"],
         "language": card["language"],
         # An estimated condition is never shown as a fact.
-        "condition": card["condition"] if card["condition_confirmed"] else None,
+        "condition": public_condition(card),
         "finish": card["finish"] if card["finish"] in FINISHES else None,
         "stamp": card["stamp"] if card["stamp_state"] == "present" else None,
         "distribution": (
@@ -290,6 +299,9 @@ class Storefront:
 
     def __init__(self, store):
         self.store = store
+        from .public_media import PublicMedia
+
+        self.media = PublicMedia(store.root)
 
     def rows(self, db, listing_id=None):
         rows = db.execute(
@@ -313,17 +325,44 @@ class Storefront:
         ]
 
     def public(self, row, cards):
+        items = []
+        for index, card in enumerate(cards):
+            item = public_item(index, card)
+            item["media"] = {}
+            for side, field in (("front", "photo"), ("back", "back_photo")):
+                if not card[field]:
+                    continue
+                try:
+                    description = self.media.describe(self.store.photos / card[field])
+                except (OSError, ValueError):
+                    # A missing/broken file must not hide the whole catalogue.
+                    continue
+                variants = []
+                for variant in description["variants"]:
+                    formats = ("jpeg",) if variant["size"] == "thumb" else variant.get("formats", self.media.formats)
+                    for format in formats:
+                        query = urlencode({"item": index, "side": side, "size": variant["size"], "format": format})
+                        variants.append({
+                            "size": variant["size"], "width": variant["width"],
+                            "height": variant["height"], "format": format,
+                            "url": f"/api/public/listings/{quote(row['id'], safe='')}/photo?{query}",
+                        })
+                item["media"][side] = {
+                    "width": description["width"], "height": description["height"],
+                    "variants": variants,
+                }
+            items.append(item)
         return {
             "id": row["id"],
             "title": row["title"],
             "price_cents": row["price_cents"],
             "price_date": (row["price_date"] or row["published_at"])[:10],
-            "items": [public_item(i, c) for i, c in enumerate(cards)],
+            "items": items,
         }
 
     def search(
         self, query="", language="", max_cents=None, sort="recent", limit=48, offset=0,
-        *, extension="", finish="",
+        *, extension="", finish="", condition="",
     ):
         """Filter all available publications before sorting and pagination."""
         from .inventory import normalized
@@ -359,6 +398,10 @@ class Storefront:
         languages = sorted({c["language"] for c in on_sale} - {""})
         extensions = sorted({c["set_name"] for c in on_sale} - {""}, key=normalized)
         finishes = [key for key in FINISHES if any(c["finish"] == key for c in on_sale)]
+        public_grades = {public_condition(c) for c in on_sale}
+        conditions = [grade for grade in CONDITIONS if grade in public_grades]
+        if None in public_grades:
+            conditions.append("unknown")
         candidates = []
         for row in rows:
             items = cards.get(row["id"], [])
@@ -370,6 +413,7 @@ class Storefront:
                 (not language or c["language"] == language)
                 and (not extension or c["set_name"] == extension)
                 and (not finish or c["finish"] == finish)
+                and (not condition or (public_condition(c) is None if condition == "unknown" else public_condition(c) == condition))
                 for c in items
             ):
                 continue
@@ -390,18 +434,19 @@ class Storefront:
             # One slip of the keyboard is forgiven, and the page says so.
             matching = [p for p in candidates if all(near(t, p[2]) for t in terms)]
             approximate = bool(matching)
-        found = [(row["published_at"][:10], self.public(row, items)) for row, items, _ in matching]
         # A bulk publication takes minutes: within one day the name, then the id,
         # set the order, so it reads naturally and pages never overlap.
-        found.sort(key=lambda p: (normalized(p[1]["title"] or p[1]["items"][0]["name"]), p[1]["id"]))
+        matching.sort(key=lambda p: (normalized(p[0]["title"] or p[1][0]["name"]), p[0]["id"]))
         if sort != "name":
-            found.sort(key=lambda p: p[0], reverse=True)
+            matching.sort(key=lambda p: p[0]["published_at"][:10], reverse=True)
         if sort in ("price", "price_desc"):
-            found.sort(key=lambda p: p[1]["price_cents"], reverse=sort == "price_desc")
-        found = [listing for _, listing in found]
+            matching.sort(key=lambda p: p[0]["price_cents"], reverse=sort == "price_desc")
         result = {
-            "items": found[offset : offset + limit], "total": len(found),
+            # Decode photo dimensions only for the returned page, never the whole catalogue.
+            "items": [self.public(row, items) for row, items, _ in matching[offset : offset + limit]],
+            "total": len(matching),
             "languages": languages, "extensions": extensions, "finishes": finishes,
+            "conditions": conditions,
         }
         if approximate:
             result["approximate"] = True

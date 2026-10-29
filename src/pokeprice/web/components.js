@@ -233,6 +233,17 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
                 }
               },
             },
+            condition: {
+              value: find("condition")?.value || "",
+              label: t("filters.chip.condition", { value: selectText("condition") }),
+              reset: () => {
+                const el = find("condition");
+                if (el) {
+                  el.value = "";
+                  el.dispatchEvent(new Event("input", { bubbles: true }));
+                }
+              },
+            },
             max: {
               value: find("max")?.value || "",
               label: t("filters.chip.max", { value: find("max")?.value || "" }),

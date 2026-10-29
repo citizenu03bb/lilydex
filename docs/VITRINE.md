@@ -60,7 +60,7 @@ catalogue TCGdex dans les autres langues (`catalog_names`) : « eevee » trouve
 en moins, changée ou inversée) dans les mots de cinq lettres ou plus, et la
 page annonce des résultats approchés.
 
-Les filtres **Extension**, **Langue**, **Budget max**, **Finition** et le tri
+Les filtres **Extension**, **Langue**, **Budget max**, **Finition**, **État** et le tri
 sont visibles sur ordinateur. Sur téléphone, la recherche et le tri restent
 accessibles ; **Filtres** ouvre une vue dédiée avec les mêmes champs, le nombre
 de critères actifs, la remise à zéro et **Voir les N annonces**. Fermer cette
@@ -83,21 +83,29 @@ résultat propose **Voir toutes les annonces** pour remettre les critères à z�
 
 Le serveur applique tous les critères avant la pagination de 48 publications.
 Le compteur indique le total des annonces correspondantes, cartes seules et
-lots compris. Pour un lot, Langue, Extension et Finition doivent correspondre
+lots compris. Pour un lot, Langue, Extension, Finition et État doivent correspondre
 à un **même exemplaire** ; la recherche textuelle examine l'ensemble du lot.
 Le budget porte sur le prix du lot entier, dont la fiche conserve toutes les
 cartes. Une carte réservée ou retirée fait disparaître toute sa publication.
 
-Les choix de langue, extension et finition viennent de toutes les publications
+Les choix de langue, extension, finition et état viennent de toutes les publications
 disponibles, indépendamment du filtre et de la page courants (`languages`,
-`extensions`, `finishes` dans la réponse). Une finition non renseignée n'est
+`extensions`, `finishes`, `conditions` dans la réponse). Une finition non renseignée n'est
 pas assimilée à « Normale ». La finition affichée et filtrée reste celle de
 l'exemplaire, selon la même liste de libellés publics que la fiche.
+
+Le filtre d'état utilise uniquement le grade confirmé. **Non renseigné** réunit
+les grades absents ou non confirmés, même si la gestion possède une estimation.
+NM/EX est distinct de NM et EX ; MT reste reconnu pour les grades historiques.
+Un lot peut correspondre à plusieurs états sans que tous ses membres les
+partagent. La légende des grades rappelle qu'ils ne constituent pas une
+certification externe. Un critère partagé reste retirable même si sa dernière
+publication disparaît.
 
 Chaque carte a son adresse, `/carte/<identifiant de la publication>`, que la
 fiche permet de copier. Une carte retirée renvoie 404 avec la vitrine et un
 message. Les filtres s'écrivent après le `#`
-(`/#q=eevee&langue=en&extension=Jungle&finition=reverse&tri=price`) :
+(`/#q=eevee&langue=en&extension=Jungle&finition=reverse&condition=EX&tri=price`) :
 le serveur ne les voit pas, et `/` garde sa redirection des anciens liens de
 gestion. Le bouton Retour ferme la fiche ouverte. Les vignettes sont des liens
 vers cette adresse : un clic ouvre la fiche sur place, un clic milieu ou
@@ -121,9 +129,39 @@ glissement horizontal sur la photo au téléphone) passent à la carte voisine
 dans l'ordre de la liste filtrée, en chargeant la suite au besoin ; l'adresse
 suit la carte affichée sans ajouter d'étape à l'historique, si bien que Retour
 ramène toujours à la liste. Sur téléphone la fiche occupe tout l'écran ; sur
-ordinateur, **Plein écran** (ou **F**) met la photo à gauche et les
-informations à droite, un choix mémorisé sur l'appareil. Les photos complètes se chargent à l'ouverture de la fiche, sans précharger les
-voisines.
+ordinateur, **Agrandir la fiche** (ou **F**) met la photo à gauche et les
+informations à droite, un choix mémorisé sur l'appareil.
+
+**Zoomer la photo** ouvre le mode photo dans la même fiche. Le curseur et les
+boutons +/− règlent le grossissement, **Ajuster** montre tous les bords.
+La souris déplace la photo agrandie ; sur téléphone, le défilement reste natif.
+Au clavier, les flèches déplacent l'image lorsque sa zone a le focus. Elles ne
+changent alors pas de carte. Le premier Échap revient à la fiche et le suivant
+la ferme. Changer de face ou de publication réinitialise le zoom. Le contrôleur
+de zoom est partagé avec la visionneuse de gestion ; les routes photo et les
+dialogues restent propres à chaque interface.
+
+La grille choisit une définition JPEG selon la place réellement occupée et la
+densité d'écran. La fiche utilise une variante de consultation WebP, si disponible,
+avec repli JPEG. Une petite source n'est jamais agrandie pour fabriquer une
+variante ; un JPEG déjà adapté et sans métadonnée privée évite une recompression
+inutile. La photo complète de consultation se charge à la demande du zoom,
+sans précharger les voisines. L'original privé de prise de vue n'est pas exposé.
+
+Les dimensions réelles et les variantes par face sont publiques dans `media`,
+à côté du tableau `photos`. Les dérivés sont un cache reconstructible, lié au
+contenu et aux paramètres d'encodage. Remplacer une photo change le dérivé ;
+chaque accès vérifie à nouveau la disponibilité de la publication avant de
+servir le cache.
+
+Le serveur produit le titre, la description et les métadonnées Open Graph et de
+carte sociale dans le HTML initial, sans JavaScript, en français et en anglais.
+Un lot conserve son prix global et sa première photo publique. L'origine
+`POKEPRICE_PUBLIC_ORIGIN` fournit les URL absolues ; sans cette configuration,
+les titres et descriptions restent présents, les URL et images sociales sont
+omises. Une publication indisponible répond 404 avec des métadonnées génériques.
+`noindex` reste en place. Le site refuse la photo au prochain accès après
+retrait ; un service tiers peut conserver un aperçu déjà copié.
 
 Les actions de la fiche suivent les informations dans le défilement : elles ne
 recouvrent ni le prix ni l'état. Sur téléphone, la hauteur de la photo laisse
@@ -206,12 +244,18 @@ minute et par adresse :
   (`web/about.en.html`) ; elle annonce que la version française fait foi.
 - `GET /api/public/listings` : recherche `q` (nom, extension, numéro), `language`,
   `extension` (nom exact), `finish` (`non_holo`, `holo`, `holo_border`, `reverse`
-  ou `special`), `max_eur`, `sort`, `limit`, `offset` ; seulement les publications
+  ou `special`), `condition` (grade exact ou `unknown`), `max_eur`, `sort`, `limit`,
+  `offset` ; seulement les publications
   en ligne dont tous les exemplaires sont disponibles. Un critère vide ne filtre
   pas ; les finitions inconnues sont refusées.
 - `GET /api/public/listings/{id}` et `GET /api/public/listings/{id}/photo` :
   détail et photo par identifiant de publication, 404 si la carte n'est plus
-  publiée.
+  publiée. Le détail reçoit `view=1` à chaque ouverture de fiche pour mesurer
+  cette ouverture ; les tailles de photos et le zoom ne la comptent pas à nouveau.
+  La photo accepte `item`, `side`, `size` (`thumb`, `full`, `grid2`, `grid3`, `view`,
+  `view2`) et `format` (`jpeg`, `webp` selon les variantes proposées). `thumb` et
+  `full` conservent leur format JPEG ; les dimensions annoncées sont celles
+  réellement produites.
 - `POST /api/public/signup` : e-mail, nom, mot de passe de 10 caractères au
   moins, lecture de l'information sur les données ; crée un compte `pending`.
   La réponse et son délai sont les mêmes, que l'adresse soit connue ou non ;

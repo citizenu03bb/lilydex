@@ -641,3 +641,28 @@ form[aria-busy="true"] button.primary { opacity: .6; cursor: progress; }
     object-fit: contain;
   }
 }
+
+/* Adaptive sources occupy the same reserved frame as their JPEG fallback. */
+.tile-photo picture { display: block; width: 100%; height: 100%; min-width: 0; }
+.stage > picture { display: block; width: 100%; height: 100%; min-width: 0; min-height: 0; max-height: 100%; }
+.stage > picture > source { display: none; }
+.condition-guide { grid-column: 1 / -1; font-size: 14px; color: var(--muted); }
+.condition-guide summary { min-height: 44px; padding-block: 12px; text-decoration: underline; text-underline-offset: 3px; }
+.condition-guide p { line-height: 1.6; max-width: 75ch; }
+#detail-zoom-open { display: block; margin: 12px auto 0; }
+#detail-zoom-controls button, #detail-zoom-open { min-height: 44px; padding: 8px 12px; border: 1px solid var(--control-border); border-radius: 9px; color: var(--ink); background: var(--card); }
+#detail-zoom-controls label { color: var(--ink); }
+#detail-zoom-controls input { padding: 0; min-height: 44px; }
+#detail-zoom-controls output { min-width: 4ch; font-variant-numeric: tabular-nums; }
+#detail.photo-mode[open] { display: flex; flex-direction: column; width: 100vw; height: 100dvh; max-width: none; max-height: none; margin: 0; padding: 12px; border: 0; border-radius: 0; overflow: auto; }
+#detail.photo-mode #detail-body, #detail.photo-mode #detail-full, #detail.photo-mode #detail-zoom-open { display: none; }
+#detail.photo-mode .viewer-photo { display: block; min-height: 0; margin: 0; }
+#detail.photo-mode #detail-flip { position: static; margin-top: 8px; }
+#detail.photo-mode .stage.photo-zoom-frame { display: block; height: calc(100dvh - 240px); max-height: calc(100dvh - 240px); min-height: 120px; aspect-ratio: auto; touch-action: pan-x pan-y pinch-zoom; }
+#detail.photo-mode .stage > img.photo-zoom-image { height: auto; max-height: none; max-width: none; object-fit: contain; }
+#detail-zoom-hint { margin: 6px 0 10px; line-height: 1.4; }
+@media (max-width: 700px) {
+  .condition-guide { display: none; }
+  .filters-open .condition-guide { display: block; }
+  #detail.photo-mode .stage.photo-zoom-frame { height: calc(100dvh - 290px); max-height: calc(100dvh - 290px); }
+}

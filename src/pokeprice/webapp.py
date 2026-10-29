@@ -96,6 +96,7 @@ ERROR_CODES = {
     "Demande introuvable.": "request_not_found",
     "La demande a changé. Actualisez la page.": "request_changed",
     "Seule une demande en attente peut être annulée.": "request_not_pending",
+    "Format d’image indisponible.": "photo_format_unavailable",
 }
 
 
@@ -524,6 +525,7 @@ def create_app(
     *,
     secure_cookie=False,
     allowed_hosts=None,
+    public_origin=None,
     intake_reader=None,
     intake_lookup=None,
     condition_reader=None,
@@ -537,6 +539,25 @@ def create_app(
     market_fetch=None,
     agent_enabled=True,
 ):
+    # Preview URLs come from explicit deployment configuration, never Host or forwarding headers.
+    public_origin = os.environ.get("POKEPRICE_PUBLIC_ORIGIN", "") if public_origin is None else public_origin
+    public_origin = public_origin.strip()
+    if public_origin:
+        origin = urlsplit(public_origin)
+        try:
+            origin.port  # Reject malformed ports before serving any public metadata.
+        except ValueError as exc:
+            raise ValueError("Origine publique invalide.") from exc
+        if (
+            not origin.hostname or origin.username is not None or origin.password is not None
+            or origin.path not in ("", "/") or origin.query or origin.fragment
+            or any(c.isspace() or ord(c) < 32 or c in "?#\\" for c in public_origin)
+            or (origin.scheme != "https" and not (
+                origin.scheme == "http" and origin.hostname in {"localhost", "127.0.0.1", "::1", "testserver"}
+            ))
+        ):
+            raise ValueError("L’origine publique est une URL HTTPS sans chemin, identifiants ni paramètres.")
+        public_origin = public_origin.rstrip("/")
     store = Store(directory)
     allowed_hosts = allowed_hosts or ["127.0.0.1", "localhost", "testserver"]
     # Web setup is for a private first run: once others can reach the server,
@@ -611,7 +632,57 @@ def create_app(
         for code in LANGUAGES
     }
 
-    def page(name: str, language: str = "fr", rest: str = "") -> str:
+    def public_head(language, rest, listing=None):
+        words = dictionaries[language]
+        generic_title = f"{SITE_NAME} · {words['meta.title']}"
+        title = generic_title
+        description = words.get("meta.description", words["hero.intro"])
+        image = None
+        first = None
+        if listing:
+            first = listing["items"][0]
+            name = listing["title"] or first["name"]
+            title = f"{name} · {SITE_NAME}"
+            price = f"{listing['price_cents'] / 100:,.2f}"
+            price = price.replace(",", "\u202f").replace(".", ",") + "\u00a0€" if language == "fr" else "€" + price
+            fields = {
+                "name": first["name"], "title": name, "extension": first["set_name"],
+                "number": first["number"], "price": price, "count": len(listing["items"]),
+                "condition": words["item.condition"].format(condition=first["condition"])
+                if first["condition"] else words["item.condition_unconfirmed"],
+            }
+            template = words["share.lot_description"] if len(listing["items"]) > 1 else words["share.card_description"]
+            description = template.format(**fields)
+            photo = first.get("media", {}).get("front")
+            if photo:
+                variants = [v for v in photo["variants"] if v["format"] == "jpeg"]
+                # A public consultation derivative, never the private capture original.
+                if variants:
+                    image = max(variants, key=lambda v: v["width"] * v["height"])
+
+        def tag(key, value, *, property=False):
+            attr = "property" if property else "name"
+            return f'<meta {attr}="{key}" content="{html.escape(str(value), quote=True)}" />'
+
+        tags = [tag("description", description), tag("og:type", "website", property=True),
+                tag("og:site_name", SITE_NAME, property=True), tag("og:title", title, property=True),
+                tag("og:description", description, property=True), tag("twitter:card", "summary"),
+                tag("twitter:title", title), tag("twitter:description", description)]
+        if public_origin:
+            tags.append(tag("og:url", public_origin + LANGUAGES[language][1] + rest, property=True))
+            if image:
+                image_url = public_origin + image["url"]
+                alt = words.get("share.image_alt", "{name}").format(name=first["name"])
+                tags.extend([
+                    tag("og:image", image_url, property=True), tag("og:image:type", "image/jpeg", property=True),
+                    tag("og:image:width", image["width"], property=True),
+                    tag("og:image:height", image["height"], property=True),
+                    tag("og:image:alt", alt, property=True), tag("twitter:image", image_url),
+                    tag("twitter:image:alt", alt),
+                ])
+        return generic_title, title, "\n    ".join(tags)
+
+    def page(name: str, language: str = "fr", rest: str = "", *, listing=None) -> str:
         """A page as served: its texts come from the dictionary, the site's name from `brand`.
 
         `rest` is the address after the language's home, so the link to the other
@@ -632,7 +703,7 @@ def create_app(
             + json.dumps(words, ensure_ascii=False).replace("<", "\\u003c")
             + "</script>"
         )
-        return (
+        rendered = (
             TEXT_KEY.sub(word, static.joinpath(name).read_text())
             .replace("{{lang}}", lang)
             .replace("{{home}}", home)
@@ -642,6 +713,13 @@ def create_app(
             .replace("{{site_name}}", html.escape(SITE_NAME))
             .replace("{{site_wordmark}}", wordmark)
         )
+        if name == "storefront.html":
+            generic, title, metadata = public_head(language, rest if listing else "", listing)
+            rendered = re.sub(r"<title>.*?</title>", lambda _: f"<title>{html.escape(title)}</title>", rendered, count=1)
+            rendered = re.sub(r"(<html\b[^>]*)(>)", lambda match:
+                              match[1] + f' data-page-title="{html.escape(generic, quote=True)}">', rendered, count=1)
+            rendered = rendered.replace("</head>", metadata + "\n  </head>", 1)
+        return rendered
 
     failures = {}
     login_lock = threading.Lock()
@@ -876,6 +954,7 @@ def create_app(
         name: Literal[
             "app.js", "media.js", "workflows.js", "gallery.js", "style.css",
             "storefront.js", "storefront.css", "themes.css", "components.js",
+            "photo-zoom.js", "photo-zoom.css",
             "logo.png", "apple-touch-icon.png", "mascotte.png",
         ],
     ):
@@ -926,14 +1005,13 @@ def create_app(
         return card(listing_id, request, "en")
 
     def card(listing_id, request, language):
-        body = page("storefront.html", language, "carte/" + quote(listing_id, safe=""))
         try:
-            storefront.get(listing_id)
+            listing = storefront.get(listing_id)
         except KeyError:
             # The page still loads and says the card is no longer for sale.
-            return HTMLResponse(body, status_code=404)
+            return HTMLResponse(page("storefront.html", language, "carte/" + quote(listing_id, safe="")), status_code=404)
         count_visit(request, "page", "carte")
-        return body
+        return page("storefront.html", language, "carte/" + quote(listing_id, safe=""), listing=listing)
 
     @app.get("/api/public/listings")
     def public_listings(
@@ -941,6 +1019,7 @@ def create_app(
         language: str = Query(default="", pattern=r"^(?:[a-z]{2,3})?$"),
         extension: str = Query(default="", max_length=200),
         finish: Literal["", "non_holo", "holo", "holo_border", "reverse", "special"] = "",
+        condition: Literal["", "MT", "NM", "NM/EX", "EX", "GD", "LP", "PL", "PO", "unknown"] = "",
         max_eur: Decimal | None = Query(default=None, ge=0, le=10000000),
         sort: Literal["recent", "price", "price_desc", "name"] = "recent",
         limit: int = Query(default=48, ge=1, le=96),
@@ -949,7 +1028,7 @@ def create_app(
     ):
         return storefront.search(
             q, language, cents(max_eur), sort, limit, offset,
-            extension=extension, finish=finish,
+            extension=extension, finish=finish, condition=condition,
         )
 
     reservations = Reservations(store, storefront)
@@ -1109,23 +1188,38 @@ def create_app(
         )
 
     @app.get("/api/public/listings/{listing_id}")
-    def public_listing(listing_id: str, _=Depends(public_rate)):
-        return storefront.get(listing_id)
+    def public_listing(listing_id: str, request: Request, view: bool = False, _=Depends(public_rate)):
+        listing = storefront.get(listing_id)
+        if view:
+            count_visit(request, "listing", listing_id)
+        return listing
 
     @app.get("/api/public/listings/{listing_id}/photo")
     def public_photo(
         listing_id: str,
         item: int = Query(default=0, ge=0, le=500),
         side: Literal["front", "back"] = "front",
-        size: Literal["full", "thumb"] = "thumb",
+        size: Literal["full", "thumb", "grid2", "grid3", "view", "view2"] = "thumb",
+        format: Literal["jpeg", "webp"] = "jpeg",
         request: Request = None,
         _=Depends(public_rate),
     ):
-        path = storefront.photo(listing_id, item, side, size)
-        if (size, item, side) == ("full", 0, "front"):
-            # The storefront loads this photo exactly when a visitor opens the card.
-            count_visit(request, "listing", listing_id)
-        return FileResponse(path, media_type="image/jpeg")
+        try:
+            if size in ("full", "thumb"):
+                if format != "jpeg":
+                    raise HTTPException(422, "Format d’image indisponible.")
+                path = storefront.photo(listing_id, item, side, size)
+            else:
+                # Availability is checked before even considering an already generated derivative.
+                source = storefront.photo(listing_id, item, side, "full")
+                if format not in storefront.media.formats:
+                    raise HTTPException(422, "Format d’image indisponible.")
+                path = storefront.media.render(source, size, format)
+        except OSError as exc:
+            raise KeyError("Photo absente.") from exc
+        if not path.is_file():
+            raise KeyError("Photo absente.")
+        return FileResponse(path, media_type="image/webp" if format == "webp" else "image/jpeg")
 
     @app.get("/api/audience")
     def audience_report(

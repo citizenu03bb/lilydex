@@ -1,0 +1,38 @@
+/* Shared by the private photo viewer and the public storefront. */
+.photo-zoom-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.photo-zoom-controls label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.photo-zoom-controls input[type="range"] { width: 120px; }
+.photo-zoom-frame {
+  width: 100%;
+  max-height: 65dvh;
+  overflow: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-x pan-y pinch-zoom;
+  background: var(--photo-well);
+}
+.photo-zoom-frame:focus-visible {
+  outline: 3px solid var(--green);
+  outline-offset: 3px;
+}
+.photo-zoom-frame > .photo-zoom-image {
+  display: block;
+  max-width: none;
+  max-height: none;
+  height: auto;
+  margin: 0 auto;
+}
+.photo-zoom-frame.is-zoomed { cursor: grab; }
+.photo-zoom-frame.is-panning { cursor: grabbing; user-select: none; }
+@media (max-width: 650px) {
+  .photo-zoom-frame { max-height: 55dvh; }
+}

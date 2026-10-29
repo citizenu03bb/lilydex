@@ -29,6 +29,10 @@ Autres hébergeurs possibles, sur un petit serveur privé payant : Scaleway
   `root:pokeprice`, mode `0640`), et nulle part ailleurs :
   - `GEMINI_API_KEY` (ou `GOOGLE_API_KEY`), pour la lecture des photos ;
   - `POKEPRICE_HOST`, le nom de domaine accepté par l'application ;
+  - `POKEPRICE_PUBLIC_ORIGIN`, l'origine HTTPS publique sans chemin, utilisée
+    pour les URL des aperçus de partage ; si elle est absente, le serveur
+    conserve les titres et descriptions mais omet les URL absolues et images
+    de partage. Elle ne se déduit jamais d'un en-tête fourni par le visiteur ;
   - `POKEPRICE_CONTACT_EMAIL` et `POKEPRICE_CONTROLLER_NAME`, l'adresse de
     contact et le nom du responsable du traitement affichés sur la page
     « À propos ». Ils ne sont jamais versionnés.

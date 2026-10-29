@@ -27,9 +27,10 @@ element("max", "INPUT");
 element("extension", "SELECT", [option("")]);
 element("language", "SELECT", ["", "fr", "en"].map(option));
 element("finish", "SELECT", ["", "holo", "reverse"].map(option));
+element("condition", "SELECT", ["", "MT", "NM", "NM/EX", "EX", "GD", "LP", "PL", "PO", "unknown"].map(option));
 element("sort", "SELECT", ["recent", "price", "price_desc", "name"].map(option));
 element("filters", "FORM").reset = () => {
-  for (const id of ["q", "max", "extension", "language", "finish"]) elements[id].value = "";
+  for (const id of ["q", "max", "extension", "language", "finish", "condition"]) elements[id].value = "";
   elements.sort.value = "recent";
 };
 const classes = new Set();
@@ -87,11 +88,13 @@ const respond = (request, body, ok = true, status = ok ? 200 : 500) =>
   assert.equal(elements.more.disabled, false);
   assert.equal(elements.extension.value, "Rare");
   assert.equal(elements.language.options.find(o => o.value === "en").disabled, true);
+  elements.condition.value = "unknown";
   context.state.offset = context.state.items.length;
   const next = context.load(false);
   params = new URL(pending[1].url, "https://example.test").searchParams;
   assert.equal(params.get("offset"), "48");
   assert.equal(params.get("extension"), "Rare");
+  assert.equal(params.get("condition"), "unknown");
   respond(pending[1], result(Array.from({ length: 7 }, (_, i) => card(i + 48)), 55));
   await next;
   assert.equal(context.state.items.length, 55);
@@ -126,6 +129,16 @@ const respond = (request, body, ok = true, status = ok ? 200 : 500) =>
   context.readFilters();
   assert.equal(elements.finish.value, "");
   assert.equal(elements.sort.value, "recent");
+  location.hash = "#condition=NM%2FEX";
+  context.readFilters();
+  assert.equal(elements.condition.value, "NM/EX");
+  context.updateFacets({ languages: [], finishes: [], conditions: [] });
+  assert.equal(elements.condition.options.find(o => o.value === "NM/EX").disabled, false);
+  context.writeFilters();
+  assert.match(location.hash, /condition=NM%2FEX/);
+  location.hash = "#condition=invented";
+  context.readFilters();
+  assert.equal(elements.condition.value, "");
   const failed = context.load();
   respond(pending[4], { detail: "Service indisponible" }, false);
   await failed;
@@ -283,10 +296,12 @@ const respond = (request, body, ok = true, status = ok ? 200 : 500) =>
 
   // Empty results offer a complete reset and preserve a useful focus location.
   elements.finish.value = "reverse";
+  elements.condition.value = "unknown";
   const cleared = elements["results-reset"].handlers.click();
   assert.equal(focused, "q");
   assert.equal(elements.q.value, "");
   assert.equal(elements.finish.value, "");
+  assert.equal(elements.condition.value, "");
   assert.equal(location.hash, "");
   respond(pending.at(-1), result([card("available")], 1));
   await cleared;
