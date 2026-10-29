@@ -13,7 +13,7 @@ from pokeprice.webapp import create_app
 LISTING_KEYS = {"id", "title", "price_cents", "price_date", "items"}
 ITEM_KEYS = {
     "index", "name", "set_name", "number", "language", "condition", "finish",
-    "stamp", "distribution", "photos",
+    "stamp", "distribution", "photos", "media",
 }
 
 
@@ -126,7 +126,8 @@ def test_extension_and_finish_filter_the_catalogue_before_pagination(shop):
             card = {**original, "id": f"copy-page-{i}", "source_key": f"page-{i}",
                     "name": f"Carte {i:03}", "language": "fr",
                     "set_name": "Rare" if i >= 48 else "Commune",
-                    "finish": "reverse" if i >= 48 else "non_holo"}
+                    "finish": "reverse" if i >= 48 else "non_holo",
+                    "condition": "NM" if i >= 48 else "EX", "condition_confirmed": 1}
             listing = {**publication, "id": f"listing-page-{i}"}
             for table, values in [("copies", card), ("listings", listing)]:
                 db.execute(
@@ -137,12 +138,13 @@ def test_extension_and_finish_filter_the_catalogue_before_pagination(shop):
     first = visitor.get("/api/public/listings", params={"sort": "name"}).json()
     assert not any(l["items"][0]["set_name"] == "Rare" for l in first["items"])
     pages = [visitor.get("/api/public/listings", params={
-        "q": "Carte", "extension": "Rare", "finish": "reverse", "language": "fr",
+        "q": "Carte", "extension": "Rare", "finish": "reverse", "language": "fr", "condition": "NM",
         "sort": "name", "limit": 3, "offset": offset,
     }).json() for offset in (0, 3, 6)]
     assert [p["total"] for p in pages] == [7, 7, 7]
     assert [l["id"] for p in pages for l in p["items"]] == [f"listing-page-{i}" for i in range(48, 55)]
     assert "Commune" in pages[-1]["extensions"] and "non_holo" in pages[-1]["finishes"]
+    assert "EX" in pages[-1]["conditions"] and "NM" in pages[-1]["conditions"]
 
 
 def test_a_bulk_publication_reads_in_name_order(shop):
@@ -193,7 +195,7 @@ def test_withdrawn_or_reserved_publications_leave_the_storefront(shop):
     sale = next(s for s in admin.get("/api/sales").json() if s["id"] == sale["id"])
     assert admin.patch(f"/api/sales/{sale['id']}", json={"status": "reserved", "expected_version": sale["version"], "reason": "Test"}).status_code == 200
     assert visitor.get("/api/public/listings").json() == {
-        "items": [], "total": 0, "languages": [], "extensions": [], "finishes": [],
+        "items": [], "total": 0, "languages": [], "extensions": [], "finishes": [], "conditions": [],
     }
     assert visitor.get(f"/api/public/listings/{lot['id']}").status_code == 404
 

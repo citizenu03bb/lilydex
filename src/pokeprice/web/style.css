@@ -1219,34 +1219,6 @@ dialog::backdrop {
   font-weight: 600;
   margin-bottom: 10px;
 }
-.media-controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-.media-controls label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.media-controls input {
-  width: 120px;
-}
-.media-frame {
-  width: 100%;
-  max-height: 65dvh;
-  overflow: auto;
-  overscroll-behavior: contain;
-  background: var(--photo-well);
-}
-.media-frame img {
-  display: block;
-  width: 100%;
-  max-width: none;
-  height: auto;
-}
 .media-camera {
   width: min(750px, 94vw);
   padding: 0;
@@ -1284,19 +1256,6 @@ dialog::backdrop {
   .media-gallery {
     flex-direction: column;
   }
-  .media-frame {
-    max-height: 55dvh;
-  }
-}
-.media-frame img {
-  margin: 0 auto;
-}
-.media-frame.is-zoomed {
-  cursor: grab;
-}
-.media-frame.is-panning {
-  cursor: grabbing;
-  user-select: none;
 }
 .media-hint {
   color: var(--muted);

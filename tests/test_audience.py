@@ -42,6 +42,7 @@ def test_the_storefront_counts_visitors_but_not_robots_nor_the_team(shop):  # no
     admin, visitor, store, cards, single, lot = shop
     visitor.get("/", headers={"user-agent": BROWSER})
     visitor.get("/a-propos", headers={"user-agent": BROWSER})
+    visitor.get(f"/api/public/listings/{lot['id']}", params={"view": "1"}, headers={"user-agent": BROWSER})
     visitor.get(f"/api/public/listings/{lot['id']}/photo",
                 params={"size": "full"}, headers={"user-agent": BROWSER})
     visitor.get(f"/api/public/listings/{lot['id']}/photo", headers={"user-agent": BROWSER})
@@ -56,3 +57,21 @@ def test_the_storefront_counts_visitors_but_not_robots_nor_the_team(shop):  # no
     assert report["listings"] == [{"id": lot["id"], "count": 1, "title": "Deux cartes"}]
     assert report["signups"] == 0 and report["requests"] == 0
     assert visitor.get("/api/audience").status_code == 401
+
+
+def test_only_explicit_fiche_openings_count_not_media_or_previews(shop):  # noqa: F811
+    admin, visitor, _, _, single, _ = shop
+    path = f"/api/public/listings/{single['id']}"
+    for query in ({}, {"view": "0"}):
+        assert visitor.get(path, params=query, headers={"user-agent": BROWSER}).status_code == 200
+    for size in ("thumb", "grid2", "view", "view2", "full"):
+        assert visitor.get(path + "/photo", params={"size": size}, headers={"user-agent": BROWSER}).status_code == 200
+    for headers in ({"user-agent": "SocialPreviewBot/1"}, {"user-agent": BROWSER, "sec-gpc": "1"}):
+        assert visitor.get(path, params={"view": "1"}, headers=headers).status_code == 200
+    assert admin.get(path, params={"view": "1"}, headers={"user-agent": BROWSER}).status_code == 200
+    assert admin.get("/api/audience").json()["listing_views"] == 0
+    assert visitor.get(path, params={"view": "1"}, headers={"user-agent": BROWSER}).status_code == 200
+    assert visitor.get(path + "/photo", params={"size": "full"}, headers={"user-agent": BROWSER}).status_code == 200
+    report = admin.get("/api/audience").json()
+    assert report["listing_views"] == 1
+    assert report["listings"] == [{"id": single["id"], "count": 1, "title": single["items"][0]["name"]}]

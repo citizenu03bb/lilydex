@@ -6,7 +6,7 @@ const language = (code) => t(`language.${code}`, {}, code);
 const PAGE = 48;
 const state = { offset: 0, items: [], total: 0, request: 0, me: null, basket: [] };
 const BASKET = "lilydex-basket";
-const pageTitle = document.title;
+const pageTitle = document.documentElement.dataset.pageTitle || document.title;
 // Capture before submit handlers: a second click or Enter never starts another request.
 const pendingForms = new WeakSet();
 document.addEventListener("submit", (event) => {
@@ -80,8 +80,18 @@ function el(tag, text, className) {
 
 function watchPhoto(image, interactive = true) {
   image.addEventListener("error", () => {
+    // A failed optional format falls back to the JPEG candidates once.
+    const picture = image.closest("picture");
+    const sources = picture?.querySelectorAll("source");
+    if (sources?.length) {
+      sources.forEach(source => source.remove());
+      image.src = image.src;
+      return;
+    }
+    const holder = picture?.parentNode || image.parentNode;
+    if (!holder || holder.querySelector(".photo-retry")) return;
     image.hidden = true;
-    if (!interactive) { image.parentNode?.append(el("span", t("photo.unavailable"), "photo-retry")); return; }
+    if (!interactive) { holder.append(el("span", t("photo.unavailable"), "photo-retry")); return; }
     const retry = el(interactive ? "button" : "span", t("photo.retry"), "photo-retry");
     retry.type = "button";
     image.hidden = true;
@@ -90,11 +100,62 @@ function watchPhoto(image, interactive = true) {
       retry.remove(); image.hidden = false;
       image.src = image.src;
     });
-    image.parentNode?.append(retry);
+    holder.append(retry);
   });
 }
 function photo(listing, item, side, size) {
   return `/api/public/listings/${encodeURIComponent(listing.id)}/photo?item=${item.index}&side=${side}&size=${size}`;
+}
+
+// Width descriptors always use the actual server dimensions, never the preset name.
+function photoSizes(media, usage) {
+  const ratio = media?.width / media?.height || 1;
+  const cap = (width, height) => `min(${width}, ${height * ratio}px)`;
+  if (usage === "grid") return [
+    `(max-width: 360px) ${cap("calc((100vw - 70px) / 2)", 154)}`,
+    `(max-width: 700px) ${cap("calc((100vw - 82px) / 2)", 190)}`,
+    `(max-width: 850px) ${cap("calc((100vw - 132px) / 3)", 160)}`,
+    `(max-width: 1100px) ${cap("calc((100vw - 174px) / 3)", 194)}`,
+    cap("236px", 194),
+  ].join(", ");
+  const mobile = `min(calc(100vw - 24px), ${44 * ratio}dvh, ${320 * ratio}px)`;
+  const desktop = state.widePhoto
+    ? `min(calc(100vw - 420px), ${88 * ratio}dvh)`
+    : `min(560px, ${62 * ratio}dvh, ${560 * ratio}px)`;
+  return `(max-width: 600px) ${mobile}, ${desktop}`;
+}
+function adaptivePhoto(listing, item, face, usage, alt = "", interactive = false) {
+  const image = el("img");
+  image.alt = alt;
+  if (usage === "grid") image.loading = "lazy";
+  const media = item.media?.[face];
+  const sizes = photoSizes(media, usage);
+  const presets = usage === "grid" ? ["thumb", "grid2", "grid3"] : ["view", "view2"];
+  const variants = media?.variants?.filter(v => presets.includes(v.size) && v.width > 0 && v.height > 0) || [];
+  const candidates = format => [...new Map(variants.filter(v => v.format === format)
+    .sort((a, b) => a.width - b.width).map(v => [v.width, v])).values()];
+  const jpeg = candidates("jpeg");
+  const webp = candidates("webp");
+  const picture = el("picture");
+  // Grid JPEGs include the small legacy thumbnail. WebP starts at grid2 and
+  // would overfetch on ordinary-density displays; use it for the larger fiche.
+  if (webp.length && usage === "detail") {
+    const source = el("source");
+    source.type = "image/webp";
+    source.srcset = webp.map(v => `${v.url} ${v.width}w`).join(", ");
+    source.sizes = sizes;
+    picture.append(source);
+  }
+  if (jpeg.length) {
+    image.srcset = jpeg.map(v => `${v.url} ${v.width}w`).join(", ");
+    image.sizes = sizes;
+  }
+  if (media?.width && media?.height) { image.width = media.width; image.height = media.height; }
+  // Set sources before src to avoid a speculative second image download.
+  image.src = jpeg[0]?.url || photo(listing, item, face, usage === "grid" ? "thumb" : "full");
+  picture.append(image);
+  watchPhoto(image, interactive);
+  return picture;
 }
 
 function facts(item) {
@@ -126,16 +187,11 @@ function tile(listing) {
   const li = el("li", undefined, "tile");
   // A real link: middle click or "open in a new tab" reach the card's address.
   const open = el("a", undefined, "tile-open");
-  open.href = cardPath(listing);
+  open.href = cardPath(listing) + location.hash;
   const first = listing.items[0];
   const figure = el("div", undefined, "tile-photo");
   if (first.photos.includes("front")) {
-    const image = el("img");
-    image.src = photo(listing, first, "front", "thumb");
-    image.alt = "";
-    image.loading = "lazy";
-    watchPhoto(image, false);
-    figure.append(image);
+    figure.append(adaptivePhoto(listing, first, "front", "grid"));
   }
   if (listing.items.length > 1)
     figure.append(el("span", t("tile.cards", { count: listing.items.length }), "badge"));
@@ -178,17 +234,16 @@ function faces(listing) {
 const side = (name) => (name === "front" ? t("viewer.front") : t("viewer.back"));
 
 function drawFace() {
+  destroyPhotoZoom();
   const listing = state.current;
   const all = faces(listing);
   const face = all[state.face];
   const stage = $("detail-stage");
   if (face) {
-    const image = el("img");
-    image.src = photo(listing, face.item, face.side, "full");
-    image.alt = t("viewer.alt", { side: side(face.side), name: face.item.name });
-    watchPhoto(image);
-    stage.replaceChildren(image);
+    stage.replaceChildren(adaptivePhoto(listing, face.item, face.side, "detail",
+      t("viewer.alt", { side: side(face.side), name: face.item.name }), true));
   } else stage.replaceChildren(el("p", t("viewer.no_photo"), "help"));
+  $("detail-zoom-open").hidden = !face;
   const flip = $("detail-flip");
   flip.hidden = all.length < 2;
   // One card: recto and verso. A lot: every photo in turn.
@@ -238,7 +293,7 @@ async function step(delta) {
   }
 }
 
-function show(listing, replace = false) {
+function show(listing, replace = false, recordView = true) {
   if (location.pathname !== cardPath(listing)) {
     const address = cardPath(listing) + location.hash;
     // Going from card to card keeps one history entry: Back returns to the list.
@@ -297,7 +352,7 @@ function show(listing, replace = false) {
   const shared = el("span", "", "help");
   shared.setAttribute("role", "status");
   share.addEventListener("click", async () => {
-    const url = location.origin + cardPath(listing);
+    const url = location.origin + cardPath(listing) + location.hash;
     try {
       await navigator.clipboard.writeText(url);
       shared.textContent = t("detail.shared");
@@ -310,13 +365,68 @@ function show(listing, replace = false) {
   body.append(action);
   if (!$("detail").open) $("detail").showModal();
   $("detail").scrollTop = $("detail-body").scrollTop = 0;
+  // Count the user's opening once, independently of photo size, face and zoom.
+  if (recordView) call(`/api/public/listings/${encodeURIComponent(listing.id)}?view=1`).catch(error => {
+    if (error.status === 404 && state.current === listing && $("detail").open) {
+      $("detail").close();
+      $("notice").textContent = t("results.card_gone");
+      $("notice").hidden = false;
+    }
+  });
 }
+
+let photoZoom = null;
+function destroyPhotoZoom() {
+  photoZoom?.destroy();
+  photoZoom = null;
+  state.zoomMode = false;
+  $("detail").classList.remove("photo-mode");
+  $("detail-zoom-controls").hidden = $("detail-zoom-hint").hidden = true;
+  $("detail-stage").removeAttribute("tabindex");
+  $("detail-stage").removeAttribute("aria-label");
+  $("detail-stage").removeAttribute("aria-describedby");
+}
+function exitPhotoZoom(focus = true) {
+  if (!state.zoomMode) return;
+  drawFace();
+  if (focus) $("detail-zoom-open").focus({ preventScroll: true });
+}
+function enterPhotoZoom() {
+  const face = faces(state.current)[state.face];
+  if (!face || state.zoomMode) return;
+  const stage = $("detail-stage");
+  const image = el("img");
+  image.alt = t("viewer.alt", { side: side(face.side), name: face.item.name });
+  image.src = photo(state.current, face.item, face.side, "full");
+  image.draggable = false;
+  watchPhoto(image);
+  stage.replaceChildren(image);
+  state.zoomMode = true;
+  $("detail").classList.add("photo-mode");
+  $("detail-zoom-controls").hidden = $("detail-zoom-hint").hidden = false;
+  stage.tabIndex = 0;
+  stage.setAttribute("aria-label", t("viewer.pan"));
+  stage.setAttribute("aria-describedby", "detail-zoom-hint");
+  photoZoom = PhotoZoom.mount({
+    frame: stage, image, range: $("detail-zoom-range"), output: $("detail-zoom-value"),
+    reset: $("detail-zoom-reset"), minus: $("detail-zoom-minus"), plus: $("detail-zoom-plus"),
+    formatPercent: percent => (percent / 100).toLocaleString(t.locale, { style: "percent" }),
+  });
+  stage.focus({ preventScroll: true });
+}
+$("detail-zoom-open").addEventListener("click", enterPhotoZoom);
+$("detail-zoom-exit").addEventListener("click", () => exitPhotoZoom());
+$("detail").addEventListener("cancel", event => {
+  if (state.zoomMode) { event.preventDefault(); exitPhotoZoom(); }
+});
+$("detail").addEventListener("close", destroyPhotoZoom);
 
 $("detail-previous").addEventListener("click", () => step(-1));
 $("detail-next").addEventListener("click", () => step(1));
 $("detail-flip").addEventListener("click", flip);
 $("detail").addEventListener("keydown", (event) => {
   if (event.altKey || event.ctrlKey || event.metaKey) return;
+  if (state.zoomMode) return;
   if (event.target.closest("input, select, textarea")) return;
   if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
     event.preventDefault();
@@ -328,10 +438,12 @@ $("detail").addEventListener("keydown", (event) => {
 // A horizontal swipe on the photo changes card; vertical scroll and pinch zoom stay native.
 let swipe = null;
 $("detail-stage").addEventListener("pointerdown", (event) => {
+  if (state.zoomMode) { swipe = null; return; }
   swipe = event.isPrimary && event.pointerType !== "mouse" ? { x: event.clientX, y: event.clientY } : null;
 });
 $("detail-stage").addEventListener("pointercancel", () => (swipe = null));
 $("detail-stage").addEventListener("pointerup", (event) => {
+  if (state.zoomMode) { swipe = null; return; }
   if (!swipe) return;
   const dx = event.clientX - swipe.x;
   const dy = event.clientY - swipe.y;
@@ -343,9 +455,16 @@ $("detail-stage").addEventListener("pointerup", (event) => {
 // The choice is a per-visitor convenience, kept on the device.
 const FULL = "lilydex-viewer-full";
 function fullView(on) {
+  state.widePhoto = on;
   $("detail").classList.toggle("full", on);
   $("detail-full").setAttribute("aria-pressed", String(on));
   $("detail-full").textContent = on ? t("viewer.reduce") : t("viewer.full");
+  const face = state.current && faces(state.current)[state.face];
+  if (face && !state.zoomMode) {
+    const picture = $("detail-stage").querySelector("picture");
+    const sizes = photoSizes(face.item.media?.[face.side], "detail");
+    picture?.querySelectorAll("source,img").forEach(node => { node.sizes = sizes; });
+  }
   try {
     if (on) localStorage.setItem(FULL, "1");
     else localStorage.removeItem(FULL);
@@ -366,6 +485,7 @@ const leaveCard = () => {
     history.replaceState(null, "", HOME + location.hash);
 };
 new MutationObserver(() => {
+  if (!$("detail").open) destroyPhotoZoom();
   if ($("detail").open || !CARD.test(location.pathname)) return;
   if (history.state?.card) {
     history.back();
@@ -380,7 +500,7 @@ async function openFromAddress() {
     return;
   }
   try {
-    show(await call(`/api/public/listings/${match[1]}`));
+    show(await call(`/api/public/listings/${match[1]}?view=1`), false, false);
   } catch {
     history.replaceState(null, "", HOME + location.hash);
     $("notice").textContent = t("results.card_gone");
@@ -403,7 +523,7 @@ refreshLanguageLink();
 // links on / keep their redirect.
 const FILTERS = [
   ["q", "q"], ["extension", "extension"], ["language", "langue"],
-  ["max", "max"], ["finish", "finition"], ["sort", "tri"],
+  ["max", "max"], ["finish", "finition"], ["condition", "condition"], ["sort", "tri"],
 ];
 function writeFilters() {
   const query = new URLSearchParams();
@@ -604,7 +724,7 @@ function updateFacets(result) {
     return option;
   }));
   extension.value = selected;
-  for (const [id, values] of [["language", result.languages], ["finish", result.finishes]]) {
+  for (const [id, values] of [["language", result.languages], ["finish", result.finishes], ["condition", result.conditions]]) {
     // Safari ignores hidden options in a select: disable them as well.
     for (const option of $(id).options)
       option.hidden = option.disabled = Boolean(option.value) &&
@@ -654,6 +774,7 @@ async function load(reset = true) {
   if ($("language").value) query.set("language", $("language").value);
   if ($("extension").value) query.set("extension", $("extension").value);
   if ($("finish").value) query.set("finish", $("finish").value);
+  if ($("condition").value) query.set("condition", $("condition").value);
   if ($("max").value) query.set("max_eur", $("max").value);
   $("error").hidden = true;
   $("filter-error").hidden = true;

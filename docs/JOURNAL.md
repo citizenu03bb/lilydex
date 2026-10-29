@@ -9,6 +9,11 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-10-29
 
+- P2 de la vitrine : zoom partagé avec la gestion, images de consultation
+  adaptatives, aperçus sociaux servis sans JavaScript et filtre d'état confirmé.
+  Les variantes et le zoom ne gonflent plus le comptage des ouvertures de fiche.
+  Développement et recette locaux, sans modification de la collection ni mise en ligne.
+
 - Le favicon se conserve un jour avec ETag : les changements d'adresse de la
   visionneuse réutilisent l'icône sans la télécharger à chaque ouverture et fermeture.
 

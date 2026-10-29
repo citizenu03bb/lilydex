@@ -1,5 +1,6 @@
 """The interface dictionaries: every key used exists, none is orphaned, every language agrees."""
 
+import ast
 import html
 import json
 import re
@@ -26,7 +27,18 @@ def dictionaries():
 def used():
     html_keys = {k for name in PAGES for k in TEXT_KEY.findall((WEB / name).read_text())}
     scripts = "".join((WEB / name).read_text() for name in SCRIPTS)
-    return html_keys, set(LITERAL.findall(scripts)), set(FAMILY.findall(scripts))
+    server_keys = set()
+    for node in ast.walk(ast.parse((SOURCE / "webapp.py").read_text())):
+        key = None
+        if isinstance(node, ast.Subscript) and isinstance(node.value, ast.Name) and node.value.id == "words":
+            key = node.slice
+        elif (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+              and isinstance(node.func.value, ast.Name) and node.func.value.id == "words"
+              and node.func.attr == "get" and node.args):
+            key = node.args[0]
+        if isinstance(key, ast.Constant) and isinstance(key.value, str):
+            server_keys.add(key.value)
+    return html_keys | server_keys, set(LITERAL.findall(scripts)), set(FAMILY.findall(scripts))
 
 
 def test_every_language_has_the_same_keys_and_plurals():
@@ -70,7 +82,7 @@ def test_the_storefront_html_holds_no_text_of_its_own():
     body = source[source.index("<body"):]
     text = re.sub(r"<[^>]+>|\{\{[^}]+\}\}", " ", body)
     # Only symbols are left: close, arrows, separators, the empty basket count.
-    assert set(text.split()) <= {"×", "‹", "›", "·", "0"}
+    assert set(text.split()) <= {"×", "‹", "›", "·", "0", "+", "−"}
     for value in re.findall(r'(?:aria-label|placeholder|alt|title)="([^"]*)"', body):
         assert not re.sub(r"\{\{[^}]+\}\}", "", value).strip(" ,"), value
 
@@ -99,7 +111,8 @@ def test_the_storefront_speaks_english_under_its_prefix(tmp_path):
         page = client.get("/en/").text
         gone = client.get("/en/carte/inconnue")
         french = client.get("/carte/inconnue").text
-    assert '<html lang="en-GB" data-home="/en/">' in page and "{{" not in page
+    opening = re.search(r"<html\b[^>]*>", page).group()
+    assert 'lang="en-GB"' in opening and 'data-home="/en/"' in opening and "{{" not in page
     assert words["meta.title"] in page and words["hero.title_html"] in page
     block = re.search(r'<script id="messages" type="application/json">(.*?)</script>', page)
     assert json.loads(block.group(1)) == words

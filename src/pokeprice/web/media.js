@@ -13,7 +13,7 @@ const CardMedia = (() => {
     camera,
     stream,
     request = 0;
-  let resizeObservers = [];
+  let photoZooms = [];
   let guideObserver;
   // Framing guide of captured files, sent so the server can crop on it.
   const guides = new WeakMap();
@@ -65,8 +65,8 @@ const CardMedia = (() => {
       viewer = node("dialog", null, "media-lightbox");
       viewer.setAttribute("aria-label", "Photos agrandies");
       viewer.addEventListener("close", () => {
-        resizeObservers.forEach((observer) => observer.disconnect());
-        resizeObservers = [];
+        photoZooms.forEach((zoom) => zoom.destroy());
+        photoZooms = [];
         viewer.replaceChildren();
         if (origin?.isConnected) origin.focus({ preventScroll: true });
       });
@@ -84,6 +84,8 @@ const CardMedia = (() => {
       });
       document.body.append(viewer);
     }
+    photoZooms.forEach((zoom) => zoom.destroy());
+    photoZooms = [];
     origin = trigger;
     const header = node("div", null, "dialog-header");
     header.append(node("h2", "Photos agrandies"));
@@ -99,7 +101,7 @@ const CardMedia = (() => {
     for (const source of images) {
       const figure = node("figure");
       figure.append(node("figcaption", source.alt || "Photo de carte"));
-      const controls = node("div", null, "media-controls");
+      const controls = node("div", null, "media-controls photo-zoom-controls");
       const label = node("label", "Zoom");
       const range = node("input");
       range.type = "range";
@@ -133,63 +135,8 @@ const CardMedia = (() => {
           error.textContent =
             "Photo indisponible. Fermez cet aperçu et actualisez la fiche.";
       });
-      const update = () => {
-        const fitted =
-          large.naturalWidth && large.naturalHeight
-            ? Math.min(
-                frame.clientWidth,
-                (parseFloat(getComputedStyle(frame).maxHeight) *
-                  large.naturalWidth) /
-                  large.naturalHeight,
-              )
-            : frame.clientWidth;
-        large.style.width = `${fitted * Number(range.value)}px`;
-        output.textContent = `${100 * Number(range.value)} %`;
-        frame.classList.toggle("is-zoomed", Number(range.value) > 1);
-      };
-      let pan;
-      frame.addEventListener("pointerdown", (event) => {
-        // Touch scrolling remains native, including inertia and page gestures.
-        if (
-          event.pointerType === "touch" ||
-          event.button !== 0 ||
-          Number(range.value) === 1
-        )
-          return;
-        event.preventDefault();
-        frame.focus({ preventScroll: true });
-        pan = {
-          id: event.pointerId,
-          x: event.clientX,
-          y: event.clientY,
-          left: frame.scrollLeft,
-          top: frame.scrollTop,
-        };
-        frame.setPointerCapture(event.pointerId);
-        frame.classList.add("is-panning");
-      });
-      frame.addEventListener("pointermove", (event) => {
-        if (!pan || event.pointerId !== pan.id) return;
-        frame.scrollLeft = pan.left + pan.x - event.clientX;
-        frame.scrollTop = pan.top + pan.y - event.clientY;
-      });
-      const endPan = () => {
-        pan = null;
-        frame.classList.remove("is-panning");
-      };
-      for (const event of ["pointerup", "pointercancel", "lostpointercapture"])
-        frame.addEventListener(event, endPan);
-      range.addEventListener("input", update);
-      large.addEventListener("load", update);
-      const observer = new ResizeObserver(update);
-      observer.observe(frame);
-      resizeObservers.push(observer);
-      reset.addEventListener("click", () => {
-        range.value = "1";
-        update();
-        frame.scrollTo(0, 0);
-      });
       frame.append(large);
+      photoZooms.push(PhotoZoom.mount({ frame, image: large, range, output, reset }));
       figure.append(
         controls,
         node("p", "Glissez l’image zoomée pour la déplacer.", "media-hint"),

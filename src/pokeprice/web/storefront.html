@@ -10,6 +10,7 @@
     <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
     <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
     <link rel="stylesheet" href="/assets/themes.css" />
+    <link rel="stylesheet" href="/assets/photo-zoom.css" />
     <link rel="stylesheet" href="/assets/storefront.css" />
     {{messages}}
     <script src="/assets/components.js"></script>
@@ -104,6 +105,15 @@
             <option value="reverse">{{t:finish.reverse}}</option>
             <option value="special">{{t:finish.special}}</option>
           </select></label>
+          <label>{{t:filters.condition}}<select id="condition" aria-describedby="condition-help">
+            <option value="">{{t:filters.all}}</option>
+            <option value="MT">{{t:condition.MT}}</option><option value="NM">{{t:condition.NM}}</option>
+            <option value="NM/EX">{{t:condition.NM_EX}}</option><option value="EX">{{t:condition.EX}}</option>
+            <option value="GD">{{t:condition.GD}}</option><option value="LP">{{t:condition.LP}}</option>
+            <option value="PL">{{t:condition.PL}}</option><option value="PO">{{t:condition.PO}}</option>
+            <option value="unknown">{{t:condition.unknown}}</option>
+          </select></label>
+          <details class="condition-guide"><summary>{{t:condition.guide}}</summary><p id="condition-help">{{t:condition.help}}</p><p>{{t:condition.grades}}</p></details>
           </div>
           <label class="sort-field"
             >{{t:filters.sort}}<select id="sort">
@@ -160,9 +170,19 @@
         <form method="dialog"><button class="close" aria-label="{{t:common.close}}">×</button></form>
       </div>
       <figure class="viewer-photo">
+        <div id="detail-zoom-controls" class="photo-zoom-controls" hidden>
+          <button id="detail-zoom-minus" type="button" aria-label="{{t:viewer.zoom_out}}">−</button>
+          <label>{{t:viewer.zoom}}<input id="detail-zoom-range" type="range" min="1" max="4" step="0.25" value="1" /></label>
+          <button id="detail-zoom-plus" type="button" aria-label="{{t:viewer.zoom_in}}">+</button>
+          <output id="detail-zoom-value" for="detail-zoom-range"></output>
+          <button id="detail-zoom-reset" type="button">{{t:viewer.fit}}</button>
+          <button id="detail-zoom-exit" type="button">{{t:viewer.return}}</button>
+        </div>
+        <p id="detail-zoom-hint" class="help" hidden>{{t:viewer.zoom_help}}</p>
         <div id="detail-stage" class="stage"></div>
         <button id="detail-flip" type="button" hidden>{{t:viewer.back}}</button>
         <figcaption id="detail-caption"></figcaption>
+        <button id="detail-zoom-open" type="button" aria-controls="detail-zoom-controls">{{t:viewer.zoom_open}}</button>
       </figure>
       <div id="detail-body"></div>
     </dialog>
@@ -252,6 +272,7 @@
         <button class="danger">{{t:profile.delete}}</button>
       </form>
     </dialog>
+    <script src="/assets/photo-zoom.js"></script>
     <script src="/assets/storefront.js"></script>
   </body>
 </html>
