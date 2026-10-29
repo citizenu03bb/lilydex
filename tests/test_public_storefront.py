@@ -310,6 +310,19 @@ def test_assets_revalidate_without_caching_private_data(shop):
         assert visitor.get(path).headers['cache-control'] == 'no-store'
 
 
+def test_favicon_is_fresh_between_viewer_navigations_and_revalidates(shop):
+    _, visitor, *_ = shop
+    icon = visitor.get('/favicon.ico')
+    assert icon.status_code == 200 and icon.content
+    assert icon.headers['cache-control'] == 'public, max-age=86400'
+    etag = icon.headers['etag']
+    same = visitor.get('/favicon.ico', headers={'if-none-match': etag})
+    assert same.status_code == 304 and same.content == b''
+    assert same.headers['cache-control'] == icon.headers['cache-control']
+    changed = visitor.get('/favicon.ico', headers={'if-none-match': '"old"'})
+    assert changed.status_code == 200 and changed.content == icon.content
+
+
 def test_photo_budget_does_not_block_catalogue_and_exposes_retry_after(shop):
     _, visitor, *_ = shop
     for _ in range(300):

@@ -310,7 +310,9 @@ lorsqu'aucune carte ne correspond. Une photo en échec présente un repli explic
 la fiche permet de réessayer. Sans JavaScript, un message mène au contact.
 
 Les fichiers statiques publics se conservent avec revalidation obligatoire : une
-empreinte ETag inchangée produit une réponse 304 sans corps. HTML, API, comptes et
+empreinte ETag inchangée produit une réponse 304 sans corps. Le favicon se conserve
+un jour sans requête réseau, puis se revalide par ETag ; ouvrir ou fermer une fiche
+réutilise ainsi l'icône en cache. HTML, API, comptes et
 photos restent en `no-store`. Une publication retirée cesse donc de servir ses
 photos à toute nouvelle requête. Les photos et les appels de catalogue disposent
 chacun d'un budget de lectures publiques ; une réponse 429 indique le délai de
