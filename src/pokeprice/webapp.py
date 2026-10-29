@@ -674,7 +674,13 @@ def create_app(
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "no-referrer"
-        response.headers["Cache-Control"] = ("public, no-cache" if request.url.path.startswith("/assets/") and response.status_code in (200, 304) else "no-store")
+        cache_policy = "no-store"
+        if response.status_code in (200, 304):
+            if request.url.path == "/favicon.ico":
+                cache_policy = "public, max-age=86400"
+            elif request.url.path.startswith("/assets/"):
+                cache_policy = "public, no-cache"
+        response.headers["Cache-Control"] = cache_policy
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://assets.tcgdex.net; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
         )
@@ -881,8 +887,12 @@ def create_app(
 
     # Browsers ask for /favicon.ico on their own, before reading any page.
     @app.get("/favicon.ico", include_in_schema=False)
-    def favicon():
-        return FileResponse(static / "favicon.ico", media_type="image/x-icon")
+    def favicon(request: Request):
+        path = static / "favicon.ico"
+        etag = '"' + hashlib.sha256(path.read_bytes()).hexdigest() + '"'
+        if request.headers.get("if-none-match") == etag:
+            return Response(status_code=304, headers={"ETag": etag})
+        return FileResponse(path, media_type="image/x-icon", headers={"ETag": etag})
 
     storefront = Storefront(store)
     public_hits = {}

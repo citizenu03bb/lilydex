@@ -9,6 +9,9 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-10-29
 
+- Le favicon se conserve un jour avec ETag : les changements d'adresse de la
+  visionneuse réutilisent l'icône sans la télécharger à chaque ouverture et fermeture.
+
 - Mise en ligne des parcours et performances de la vitrine (#34, `e79a561`) :
   base existante conservée, sauvegarde du code restaurée et comparée, pages
   publiques à 200, gestion API à 401 et assets revalidés à 304. La recette révèle
