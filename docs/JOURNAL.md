@@ -9,6 +9,10 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-10-29
 
+- Recette Firefox et WebKit sous Linux : la reprise d'une photo en échec renouvelle
+  les adresses de ses variantes, pour provoquer une nouvelle requête sous WebKit
+  tout en conservant les dimensions adaptatives. Régression couverte sur données synthétiques.
+
 - Entretien : actions CI sur Node 24, versions fixées par commit ; nettoyage
   indépendant des dérivés publics non référencés, après 30 jours, avec simulation
   manuelle et plafonds par passage. Base, photos sources et sauvegardes préservées.
