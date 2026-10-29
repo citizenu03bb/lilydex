@@ -9,6 +9,10 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-10-29
 
+- CI de la vitrine : recette Playwright versionnée, exécutée dans Firefox et
+  WebKit sur données synthétiques locales ; zoom, filtres, toucher, clavier et
+  reprises après erreur. Rapports et captures archivés, traces en cas d'échec.
+
 - Recette Firefox et WebKit sous Linux : la reprise d'une photo en échec renouvelle
   les adresses de ses variantes, pour provoquer une nouvelle requête sous WebKit
   tout en conservant les dimensions adaptatives. Régression couverte sur données synthétiques.

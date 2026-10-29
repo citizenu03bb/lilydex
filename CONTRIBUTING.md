@@ -23,6 +23,43 @@ Les tests n'appellent aucun service : Gemini, DINOv2 et TCGdex y sont remplacés
 par des imitations. Ils ne lisent pas vos clés d'API. N'écrivez jamais un test
 qui touche une vraie collection : utilisez un dossier temporaire (`tmp_path`).
 
+### Recette de la vitrine dans les navigateurs
+
+La recette [Playwright](tests/browser/playwright.config.cjs) s'exécute dans
+Firefox et WebKit sous Linux, en français et en anglais, aux largeurs 320,
+390 et 1440 pixels. Elle vérifie les filtres, le zoom, les commandes tactiles,
+le clavier et la reprise après erreur. Pour la lancer depuis la racine :
+
+```bash
+cd tests/browser
+npm ci
+npx playwright install --with-deps firefox webkit
+npm test
+```
+
+Conservez `uv` dans votre chemin : Playwright démarre le serveur Python avec
+les dépendances web et dev verrouillées. Le serveur écoute uniquement sur
+la boucle locale et crée sa collection et ses photos dans un dossier
+temporaire supprimé à l'arrêt. Il refuse de réutiliser un serveur existant.
+Les requêtes externes et les écritures HTTP sont bloquées et font échouer
+la recette si elles sont tentées ; les services Python sont remplacés par
+des fonctions de test. Aucun secret ni jeu de données local n'est nécessaire.
+
+Le [workflow CI](.github/workflows/tests.yml) lance un job par moteur sur
+chaque pull request et chaque push sur `master`. Les versions npm et les
+actions sont verrouillées ; un échec fait échouer le workflow, sans relance
+automatique. Un échec dans un moteur n'interrompt pas l'autre.
+Les artefacts `storefront-firefox` et `storefront-webkit` conservent les
+rapports HTML, JSON et JUnit, les captures et les audits réseau pendant sept
+jours. Les échecs ajoutent une capture et une trace Playwright. Localement,
+`npm run report` ouvre le rapport HTML ; les résultats sont exclus de Git.
+
+Les petits formats activent le toucher ; WebKit active aussi `isMobile`,
+option indisponible dans Firefox. Les touchers simples sont émulés par
+Playwright ; les flux de pointeurs supplémentaires restent synthétiques.
+Cette recette ne qualifie ni Safari/iOS réel, ni VoiceOver, ni le pincement
+et l'inertie du défilement sur un appareil physique.
+
 Le code est dans `src/pokeprice/`, l'interface web dans `src/pokeprice/web/`,
 les tests dans `tests/`.
 
