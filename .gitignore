@@ -30,6 +30,9 @@ ENV/
 .cache/
 .pytest_cache/
 .ruff_cache/
+node_modules/
+/tests/browser/test-results/
+/tests/browser/playwright-report/
 
 # Local testing data & output
 /output/
