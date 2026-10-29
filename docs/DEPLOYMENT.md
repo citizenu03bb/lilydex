@@ -106,6 +106,9 @@ de la migrer.
 
 ## Lancer une commande sur le serveur
 
+La commande générale est décrite ci-dessous ; l'entretien des dérivés dispose
+aussi d'une [procédure dédiée](#entretenir-le-cache-public).
+
 Sur le serveur, lancez toujours `pokeprice-manage` sous l'utilisateur
 `pokeprice`, avec le Python du déploiement et `--data` explicite :
 
@@ -135,11 +138,52 @@ Donnez aussi des chemins absolus aux fichiers.
 | `oci-deploy.sh` | Déploie le code, l'environnement, la base initiale, les unités et Caddy. |
 | `pokeprice.service` | Le service de l'application. Durcissement : `User=pokeprice`, `NoNewPrivileges`, `PrivateTmp`, `ProtectSystem=strict` (système en lecture seule), `ProtectHome` (dossiers personnels masqués), écriture limitée à `/srv/pokeprice` ; cookie de session marqué `Secure` (`--secure-cookie`) ; seul l'hôte `${POKEPRICE_HOST}` est accepté. |
 | `pokeprice-backup.service` et `.timer` | Chaque nuit vers 3 h : durées de conservation des données clients (`purge`), puis archive vérifiée (`backup-daily`), 7 archives gardées. |
+| `pokeprice-media-cache.service` et `.timer` | Entretien indépendant des dérivés publics, vers 4 h 30, limité au cache. |
 | `Caddyfile.example` | HTTPS, compression, corps de requête limité à 9 Mo, relais vers `127.0.0.1:3820`. |
 | `pokeprice-drive-backup.service` et `.timer` | Unités utilisateur **du portable** : rapatriement, chiffrement et copie Drive à 3 h 15. |
 | `oci-pull-backup.sh` | Raccourci de `backup-server-pull` (ou de `backup-server-drive` avec `--push-drive`) : rapatrie et contrôle la dernière archive du serveur. |
 
+## Entretenir le cache public
+
+`pokeprice-media-cache.timer` déclenche un service indépendant vers 4 h 30,
+heure de Paris, avec un délai aléatoire de dix minutes au plus. Un passage
+manqué est rattrapé au démarrage. Un échec de cet entretien ne bloque pas la
+sauvegarde quotidienne.
+
+Le service traite uniquement `public-media/` : fichiers réguliers à nom
+SHA-256, JPEG ou WebP, âgés d'au moins 30 jours et sans référence actuelle.
+Les liens, sous-dossiers, fichiers inconnus et temporaires restent intacts.
+Les références de toutes les cartes sont lues, même hors vitrine, réservées
+ou supprimées ; les rectos et versos correspondants sont protégés. Le plan
+est limité à 200 fichiers et 64 Mio par passage. Les passages suivants
+traitent l'éventuel reliquat.
+
+La commande n'initialise pas de base et n'utilise pas `Store`. SQLite est
+ouvert en lecture seule ; une référence manquante ou modifiée pendant
+l'analyse annule la suppression. Le service dispose d'un système de fichiers
+en lecture seule, avec une exception limitée au dossier du cache. Il ne lit
+aucune configuration secrète.
+
+Pour mesurer et examiner le plan sans suppression :
+
+```bash
+sudo -u pokeprice env HOME=/srv/pokeprice /opt/pokeprice/.venv/bin/python -m pokeprice.manage --data /srv/pokeprice/inventory public-media-cache
+```
+
+Pour appliquer les mêmes limites :
+
+```bash
+sudo -u pokeprice env HOME=/srv/pokeprice /opt/pokeprice/.venv/bin/python -m pokeprice.manage --data /srv/pokeprice/inventory public-media-cache --apply
+```
+
+`--data` est obligatoire, même pour la simulation. Le rapport JSON distingue
+volume, fichiers ignorés, dérivés protégés, plan, suppressions et plafond
+atteint. Deux nettoyages ne s'exécutent pas en même temps sur ce cache. Le
+timer et ses journaux se consultent avec `systemctl status
+pokeprice-media-cache.timer` et `journalctl -u pokeprice-media-cache.service`.
+
 ## L'option vision
+
 
 `oci-deploy.sh` installe l'option `vision` (torch, transformers). Elle sert au
 contrôle de l'édition par l'image dans l'application et à `scan --energy-gate`

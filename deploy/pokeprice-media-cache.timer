@@ -1,0 +1,11 @@
+[Unit]
+Description=Entretien quotidien du cache des medias publics
+
+[Timer]
+OnCalendar=*-*-* 04:30:00
+Persistent=true
+RandomizedDelaySec=10min
+Unit=pokeprice-media-cache.service
+
+[Install]
+WantedBy=timers.target

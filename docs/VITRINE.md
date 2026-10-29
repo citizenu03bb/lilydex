@@ -154,6 +154,14 @@ contenu et aux paramètres d'encodage. Remplacer une photo change le dérivé ;
 chaque accès vérifie à nouveau la disponibilité de la publication avant de
 servir le cache.
 
+L'entretien du cache public s'exécute séparément des sauvegardes. Il conserve
+les dérivés des rectos et versos encore référencés par les exemplaires, y compris
+hors vitrine, réservés ou supprimés. Il retire uniquement des dérivés reconnus
+et non référencés, âgés d'au moins 30 jours, dans une limite de 200 fichiers et
+64 Mio par passage. La base et les photos sources restent intactes. La commande
+manuelle présente une simulation avant `--apply` ; la procédure figure dans
+[Héberger le site](DEPLOYMENT.md#entretenir-le-cache-public).
+
 Le serveur produit le titre, la description et les métadonnées Open Graph et de
 carte sociale dans le HTML initial, sans JavaScript, en français et en anglais.
 Un lot conserve son prix global et sa première photo publique. L'origine

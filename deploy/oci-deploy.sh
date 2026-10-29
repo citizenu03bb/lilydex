@@ -57,10 +57,12 @@ echo "[5/6] Installation des unités systemd et configuration de Caddy pour ${DO
 ssh "$REMOTE_HOST" "sudo cp /opt/pokeprice/deploy/pokeprice.service /etc/systemd/system/ && \
     sudo cp /opt/pokeprice/deploy/pokeprice-backup.service /etc/systemd/system/ && \
     sudo cp /opt/pokeprice/deploy/pokeprice-backup.timer /etc/systemd/system/ && \
+    sudo cp /opt/pokeprice/deploy/pokeprice-media-cache.service /etc/systemd/system/ && \
+    sudo cp /opt/pokeprice/deploy/pokeprice-media-cache.timer /etc/systemd/system/ && \
     if command -v restorecon >/dev/null 2>&1; then sudo restorecon -v /etc/systemd/system/pokeprice* >/dev/null 2>&1 || true; fi && \
     sudo sed 's/cards.example.com/${DOMAIN}/g' /opt/pokeprice/deploy/Caddyfile.example | sudo tee /etc/caddy/Caddyfile >/dev/null && \
     sudo systemctl daemon-reload && \
-    sudo systemctl enable --now pokeprice.service pokeprice-backup.timer && \
+    sudo systemctl enable --now pokeprice.service pokeprice-backup.timer pokeprice-media-cache.timer && \
     sudo systemctl restart pokeprice.service && \
     sudo systemctl reload-or-restart caddy"
 

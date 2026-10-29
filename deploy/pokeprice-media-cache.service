@@ -1,0 +1,19 @@
+[Unit]
+Description=Nettoyage borne des derives publics obsoletes
+
+[Service]
+Type=oneshot
+User=pokeprice
+Group=pokeprice
+WorkingDirectory=/opt/pokeprice
+Environment=HOME=/srv/pokeprice
+ExecStart=/opt/pokeprice/.venv/bin/python -m pokeprice.manage --data /srv/pokeprice/inventory public-media-cache --apply --min-age-days 30 --max-files 200 --max-bytes 67108864
+UMask=0077
+Nice=10
+IOSchedulingClass=idle
+TimeoutStartSec=5min
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=-/srv/pokeprice/inventory/public-media

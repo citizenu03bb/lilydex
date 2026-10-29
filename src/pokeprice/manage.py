@@ -3,6 +3,7 @@
 import argparse
 import json
 from pathlib import Path
+import sys
 
 from .inventory import Store
 
@@ -15,6 +16,13 @@ def main():
         "--data", default="data/inventory", help="Dossier persistant de base et photos"
     )
     actions = parser.add_subparsers(dest="action", required=True)
+    media_cache = actions.add_parser(
+        "public-media-cache", help="Mesurer et nettoyer les seuls dérivés publics obsolètes"
+    )
+    media_cache.add_argument("--apply", action="store_true", help="Appliquer le plan borné ; simulation par défaut")
+    media_cache.add_argument("--min-age-days", type=int, default=30, help="Ancienneté minimale, au moins 30 jours")
+    media_cache.add_argument("--max-files", type=int, default=200, help="Nombre maximal supprimé par passage")
+    media_cache.add_argument("--max-bytes", type=int, default=67108864, help="Octets maximaux supprimés par passage")
     importer = actions.add_parser(
         "import", help="Import conservateur, sans écraser les modifications"
     )
@@ -199,7 +207,14 @@ def main():
     exporter.add_argument("format", choices=["csv", "json", "html"])
     exporter.add_argument("output")
     args = parser.parse_args()
-    if args.action == "agent-schema":
+    if args.action == "public-media-cache":
+        if not any(arg == "--data" or arg.startswith("--data=") for arg in sys.argv[1:]):
+            parser.error("public-media-cache exige --data explicite")
+        from .media_cache import prune_public_media
+
+        result = prune_public_media(args.data, apply=args.apply, min_age_days=args.min_age_days,
+                                    max_files=args.max_files, max_bytes=args.max_bytes)
+    elif args.action == "agent-schema":
         from .agent_api import schema
 
         result = schema()
