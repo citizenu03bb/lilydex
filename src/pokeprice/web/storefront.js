@@ -79,6 +79,7 @@ function el(tag, text, className) {
 }
 
 function watchPhoto(image, interactive = true) {
+  let attempt = 0;
   image.addEventListener("error", () => {
     // A failed optional format falls back to the JPEG candidates once.
     const picture = image.closest("picture");
@@ -98,7 +99,19 @@ function watchPhoto(image, interactive = true) {
     retry.addEventListener("click", event => {
       event.preventDefault(); event.stopPropagation();
       retry.remove(); image.hidden = false;
-      image.src = image.src;
+      // WebKit retains failed image candidates even when src is assigned again.
+      // Refresh every candidate so the browser keeps its responsive selection.
+      const token = `${Date.now()}-${++attempt}`;
+      const fresh = source => {
+        const url = new URL(source, location.href);
+        url.searchParams.set("_retry", token);
+        return url.href;
+      };
+      if (image.srcset) image.srcset = image.srcset.split(",").map(candidate => {
+        const [source, width] = candidate.trim().split(/\s+/);
+        return `${fresh(source)} ${width}`;
+      }).join(", ");
+      image.src = fresh(image.src);
     });
     holder.append(retry);
   });

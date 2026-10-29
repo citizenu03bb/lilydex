@@ -359,7 +359,9 @@ La sélection vide et la demande envoyée proposent un retour aux cartes.
 
 La zone des résultats réserve de la place avant leur chargement et se réduit
 lorsqu'aucune carte ne correspond. Une photo en échec présente un repli explicite ;
-la fiche permet de réessayer. Sans JavaScript, un message mène au contact.
+la fiche permet de réessayer. Chaque essai renouvelle les adresses des variantes
+pour relancer aussi les images en échec conservées en mémoire par WebKit, tout en
+gardant le choix adapté à l'écran. Sans JavaScript, un message mène au contact.
 
 Les fichiers statiques publics se conservent avec revalidation obligatoire : une
 empreinte ETag inchangée produit une réponse 304 sans corps. Le favicon se conserve

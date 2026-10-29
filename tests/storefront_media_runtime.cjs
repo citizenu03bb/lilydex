@@ -14,7 +14,8 @@ class Node {
 const code = fs.readFileSync(process.argv[2], 'utf8');
 const context = vm.createContext({
   el: (tag, text, cls) => Object.assign(new Node(tag), { textContent: text, className: cls }),
-  t: key => key, encodeURIComponent, state: {},
+  t: key => key, encodeURIComponent, state: {}, URL,
+  location: { href: 'http://localhost/' },
 });
 vm.runInContext(code.slice(code.indexOf('function watchPhoto('), code.indexOf('function facts(')), context);
 const variants = [
@@ -52,5 +53,31 @@ assert.equal(detailImage.srcset, '/photo/view.jpg 640w, /photo/view2.jpg 800w');
 assert(!detailImage.srcset.includes('1280w'));
 assert(!detailImage.srcset.includes('full'));
 assert.equal(detailImage.alt, 'Front');
-const legacy = context.adaptivePhoto({ id: 'public' }, { index: 0 }, 'front', 'detail');
+// A deliberate retry must change every candidate URL: WebKit otherwise retains
+// the failed image without issuing a new request. Width selection stays intact.
+detailImage.handlers.error();
+assert.equal(detailImage.hidden, true);
+const retryClick = { preventDefault() {}, stopPropagation() {} };
+holder.querySelector('.photo-retry').handlers.click(retryClick);
+assert.equal(detailImage.hidden, false);
+assert.equal(holder.querySelector('.photo-retry'), undefined);
+const firstRetry = new URL(detailImage.src).searchParams.get('_retry');
+assert(firstRetry);
+const refreshed = detailImage.srcset.split(', ').map(candidate => candidate.split(' '));
+assert.deepEqual(refreshed.map(([url, width]) => [new URL(url).pathname, width]), [
+  ['/photo/view.jpg', '640w'], ['/photo/view2.jpg', '800w'],
+]);
+assert(refreshed.every(([url]) => new URL(url).searchParams.get('_retry') === firstRetry));
+detailImage.handlers.error();
+holder.querySelector('.photo-retry').handlers.click(retryClick);
+assert.notEqual(new URL(detailImage.src).searchParams.get('_retry'), firstRetry);
+assert.equal([...new URL(detailImage.src).searchParams.keys()].filter(k => k === '_retry').length, 1);
+const legacy = context.adaptivePhoto({ id: 'public' }, { index: 0 }, 'front', 'detail', 'Front', true);
 assert.match(legacy.children[0].src, /size=full$/);
+holder.children = [];
+holder.append(legacy);
+const legacyImage = legacy.children[0];
+legacyImage.handlers.error();
+holder.querySelector('.photo-retry').handlers.click(retryClick);
+assert.equal(new URL(legacyImage.src).searchParams.get('size'), 'full');
+assert(new URL(legacyImage.src).searchParams.get('_retry'));
