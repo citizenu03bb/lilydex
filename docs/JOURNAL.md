@@ -9,6 +9,10 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-10-29
 
+- Entretien : actions CI sur Node 24, versions fixées par commit ; nettoyage
+  indépendant des dérivés publics non référencés, après 30 jours, avec simulation
+  manuelle et plafonds par passage. Base, photos sources et sauvegardes préservées.
+
 - P2 de la vitrine : zoom partagé avec la gestion, images de consultation
   adaptatives, aperçus sociaux servis sans JavaScript et filtre d'état confirmé.
   Les variantes et le zoom ne gonflent plus le comptage des ouvertures de fiche.

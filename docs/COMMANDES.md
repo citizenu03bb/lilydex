@@ -90,6 +90,17 @@ Options communes :
 |---|---|
 | `--data` `DATA` | Dossier persistant de base et photos Par défaut : `data/inventory`. |
 
+### `pokeprice-manage public-media-cache`
+
+Mesurer et nettoyer les seuls dérivés publics obsolètes
+
+| Argument | Effet |
+|---|---|
+| `--apply` | Appliquer le plan borné ; simulation par défaut |
+| `--min-age-days` `MIN_AGE_DAYS` | Ancienneté minimale, au moins 30 jours Par défaut : `30`. |
+| `--max-files` `MAX_FILES` | Nombre maximal supprimé par passage Par défaut : `200`. |
+| `--max-bytes` `MAX_BYTES` | Octets maximaux supprimés par passage Par défaut : `67108864`. |
+
 ### `pokeprice-manage import`
 
 Import conservateur, sans écraser les modifications

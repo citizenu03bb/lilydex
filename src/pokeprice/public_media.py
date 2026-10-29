@@ -26,6 +26,12 @@ JPEG_QUALITY = 90
 WEBP_QUALITY = 92
 
 
+def cache_digest(payload, size, format):
+    """Stable key shared by rendering and the bounded cache maintenance tool."""
+    parameters = f"{VERSION}:{size}:{format}:{JPEG_QUALITY}:{WEBP_QUALITY}".encode()
+    return sha256(parameters + b"\0" + payload).hexdigest()
+
+
 class PublicMedia:
     """Create only named, proportionate variants of an authorized source photo."""
 
@@ -93,8 +99,7 @@ class PublicMedia:
             raise ValueError("Format de consultation indisponible.")
         source = self._source(source)
         payload = source.read_bytes()
-        parameters = f"{VERSION}:{size}:{format}:{JPEG_QUALITY}:{WEBP_QUALITY}".encode()
-        digest = sha256(parameters + b"\0" + payload).hexdigest()
+        digest = cache_digest(payload, size, format)
         target = self.cache / (digest + (".jpg" if format == "jpeg" else ".webp"))
         lock = self._locks[int(digest[:4], 16) % len(self._locks)]
         with lock:
