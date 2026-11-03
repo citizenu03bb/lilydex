@@ -1,6 +1,6 @@
 # 0014 — L’agent applique seulement les corrections déjà autorisées
 
-> **Statut :** en vigueur · **Date :** 2026-10-20
+> **Statut :** en vigueur, complétée par la [décision 0021](0021-autonomie-maximale.md) · **Date :** 2026-10-20
 
 **Contexte.** Le propriétaire demande des rattachements au catalogue et des
 relevés pour des cartes sans prix. La délégation initiale ne permet que la

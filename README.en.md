@@ -22,14 +22,21 @@ run and secured: [case study](CASE-STUDY.md).
 - **Sell** (public storefront at the site root): published cards are browsable without an
   account, and a reservation request only needs an e-mail address. The seller replies from
   their own mailbox; an accepted request becomes a lot and validates the customer.
-- **Delegate to an agent**: an AI agent can work on one album with its own revocable key; it
-  only prepares draft lots, and a person publishes, reserves and sells.
+- **Delegate to an agent**: an AI agent works on one album with its own revocable key; it
+  prepares draft lots and applies pre-authorised catalogue fixes. With operator access, an
+  agent builds lots of duplicates, rotates the drafts and publishes a lot on the storefront.
+  Reservations, payments and messages to customers stay with a person.
 
-## AI and vision: models propose, a person decides
+## AI and vision: agents act, a person keeps money and irreversible steps
 
-Every model output is a *proposal* stored with its evidence (photo, model, protocol, raw
-answer). A person confirms identity, variant and condition; no reading ever changes a record.
-Models abstain when unsure, and every choice was measured on a bench of hand-verified cards.
+The target is maximum agent autonomy: AI identifies, prices, files, builds lots and publishes,
+then logs every action and keeps it reversible. A person supplies the photos the AI asks for
+and decides on money going out, irreversible actions and any price below the anti-undercut
+floor (no sale under the reference price minus a configurable margin, lots included; decision
+record [0021](docs/decisions/0021-autonomie-maximale.md), in French). Today, readings are still
+proposals: a person confirms identity, variant and condition. Every model output is stored with
+its evidence (photo, model, protocol, raw answer). Models abstain when unsure, and every choice
+was measured on a bench of hand-verified cards.
 
 | Component | Model | Runs on | Measured |
 |---|---|---|---|

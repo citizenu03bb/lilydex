@@ -7,6 +7,13 @@
 Une page qui décrit le fonctionnement ne porte pas de date : quand un passage
 daté la quitte, il est versé ici dans le même commit.
 
+## 2026-11-03
+
+- Politique IA : la règle « la machine propose, l'humain décide » laisse place
+  à l'autonomie maximale des agents ([fiche 0021](decisions/0021-autonomie-maximale.md)),
+  avec un plancher anti-bradage et la demande de nouvelle photo. Guide chapeau
+  `pokeprice-autonome` ; aucun comportement du code changé.
+
 ## 2026-10-29
 
 - CI de la vitrine : recette Playwright versionnée, exécutée dans Firefox et

@@ -1,0 +1,22 @@
+[Unit]
+Description=Cotation matinale de la collection (guide Cardmarket, puis TCGdex)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=pokeprice
+Group=pokeprice
+WorkingDirectory=/opt/pokeprice
+Environment=HOME=/srv/pokeprice
+# Known products are priced from the day's guide; the others ask TCGdex once per edition.
+ExecStart=/opt/pokeprice/.venv/bin/python -m pokeprice.manage --data /srv/pokeprice/inventory prices --from-guide --actor system:prices
+UMask=0077
+Nice=10
+IOSchedulingClass=idle
+TimeoutStartSec=30min
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/pokeprice/inventory

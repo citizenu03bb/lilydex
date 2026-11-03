@@ -149,7 +149,7 @@ def test_refresh_records_dated_reference_snapshot_and_link(client):
     assert "language=1" in detail["cardmarket_url"]
     assert "minCondition=6" in detail["cardmarket_url"]
     assert "isReverseHolo=Y" in detail["cardmarket_url"]
-    # Same values again: a new dated snapshot, no new correction or price row.
+    # Same values again: no new snapshot, correction or price row.
     version = detail["version"]
     again = client.post(
         f"/api/copies/{card['id']}/price-refresh", json={"expected_version": version}
@@ -157,7 +157,7 @@ def test_refresh_records_dated_reference_snapshot_and_link(client):
     assert again["version"] == version
     detail = client.get(f"/api/copies/{card['id']}").json()
     assert len(detail["prices"]) == 1
-    assert sum(e["kind"] == "price-snapshot" for e in detail["history"]) == 2
+    assert sum(e["kind"] == "price-snapshot" for e in detail["history"]) == 1
 
 
 def test_refresh_requires_confirmed_identity_current_version_and_tcgdex(client):
