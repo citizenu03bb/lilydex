@@ -53,6 +53,7 @@ PAGES_VIVANTES = {
     "docs/VITRINE.md",
     "skills/pokeprice-agent-prix/SKILL.md",
     "skills/pokeprice-collection/SKILL.md",
+    "skills/pokeprice-lots/SKILL.md",
 }
 
 MOIS = "janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre"

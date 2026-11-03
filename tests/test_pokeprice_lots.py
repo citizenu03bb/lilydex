@@ -3,10 +3,8 @@ import sys
 from pathlib import Path
 
 import pytest
-from test_library import inputs
 
-from pokeprice.inventory import Store
-from pokeprice.inventory_import import import_collection
+from pokeprice.inventory import Store, now
 
 # Permettre l'import de scripts/pokeprice_lots.py
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
@@ -19,17 +17,74 @@ from pokeprice_lots import (
     ScoringHeuristics,
     ValueIntent,
     categorize_card,
+    lot_floor_cents,
+    lot_max_margin,
     main,
     normalize_pokemon_name,
+    run_remote_command,
 )
 
+
+def add_copy(store, album, position, *, price=100, **overrides):
+    """Exemplaire synthétique, chiffré par un relevé TCGdex fictif (aucun appel réseau)."""
+    values = {
+        "name": "Zarbi L",
+        "set_name": "Duels au Sommet",
+        "number": "91/106",
+        "language": "fr",
+        "catalog_id": "dp4-91",
+        "identification_status": "confirmed",
+        "album_id": album,
+        "page": 1,
+        "position": position,
+        "finish": "non_holo",
+        "variant_confirmed": True,
+        "stamp_state": "absent",
+        "distribution_state": "absent",
+        "condition": "EX",
+        "reference_cents": price,
+        "price_source": "TCGdex",
+        "price_date": now(),
+    }
+    values.update(overrides)
+    card = store.create_copy(values, "tester", "Carte de test")
+    if price is not None:
+        with store.connect(write=True) as db:
+            store.event(
+                db,
+                card["id"],
+                "tester",
+                "price-snapshot",
+                "Prix de test",
+                {},
+                {
+                    "catalog_id": values["catalog_id"],
+                    "updated": "2026-10-01",
+                    "source": "TCGdex",
+                    "variant": "normal",
+                    "variants": {"normal": True, "reverse": False},
+                    "raw": {"cardmarket": {"trend": price / 100, "avg30": price / 100, "unit": "EUR"}},
+                },
+            )
+    return card
 
 
 @pytest.fixture
 def test_db(tmp_path):
-    manifest = inputs(tmp_path)
+    """Base temporaire : 3 Zarbi L (1 conservé, 2 doublons) et d'autres cartes chiffrées."""
     store = Store(tmp_path / "inventory")
-    import_collection(store, manifest)
+    with store.connect(write=True) as db:
+        db.executemany("INSERT INTO albums VALUES(?,?)", [("a", "Album A"), ("b", "Album B")])
+    add_copy(store, "a", 1)
+    add_copy(store, "a", 2)
+    add_copy(store, "a", 3, name="Évoli", catalog_id="pl2-59", number="59/111", set_name="Rivaux Émergeants")
+    add_copy(
+        store, "a", 4, price=None, name="À identifier", catalog_id="",
+        identification_status="unresolved", number="", set_name="", variant_confirmed=False,
+    )
+    add_copy(store, "b", 1)
+    add_copy(store, "b", 2, name="Unown L", language="en")
+    add_copy(store, "b", 3, name="Fossile Dôme", catalog_id="dp5-89", number="89/100")
     db_path = tmp_path / "inventory" / "collection.sqlite3"
     return db_path, store
 
@@ -165,7 +220,7 @@ def test_publish_to_storefront(test_db):
 
     # 1. Publier 2 cartes individuellement en vitrine
     with store.connect() as db:
-        copies = [r["id"] for r in db.execute("SELECT id FROM copies WHERE deleted_at='' LIMIT 2").fetchall()]
+        copies = [r["id"] for r in db.execute("SELECT id FROM copies WHERE identification_status='confirmed' LIMIT 2").fetchall()]
 
     listings.publish([copies[0]], "tester", price_cents=100)
     listings.publish([copies[1]], "tester", price_cents=100)
@@ -559,6 +614,7 @@ def test_compose_scope_all_includes_album_copies(test_db):
 
 def test_prompt_parser_system_instruction_price_rule():
     import inspect
+
     from pokeprice_lots import prompt_to_recipe
     source = inspect.getsource(prompt_to_recipe)
     # Vérifier que la consigne stricte interdisant les plafonds arbitraires est bien présente
@@ -574,7 +630,8 @@ def test_compose_only_trainers(test_db):
     # Créer un Dresseur et un Pokémon dans les doublons
     with store.connect(write=True) as db:
         # Modifier une carte pour qu'elle devienne une Poké Ball (dresseur)
-        db.execute("UPDATE copies SET name='Poké Ball' WHERE id=(SELECT id FROM copies WHERE catalog_id='dp4-91' LIMIT 1)")
+        # Exemplaire en pochette 2 : jamais celui conservé dans l'album (pochette 1)
+        db.execute("UPDATE copies SET name='Poké Ball' WHERE id=(SELECT id FROM copies WHERE catalog_id='dp4-91' AND album_id='a' AND position=2)")
 
     recipe = LotCompositionRecipe(
         title="Lot Dresseurs",
@@ -601,3 +658,374 @@ def test_compose_only_trainers(test_db):
 
 
 
+
+
+# --- Publication atomique, gisement et rotation des lots en ligne -----------
+
+
+def online_state(store, listing_id):
+    with store.connect() as db:
+        return db.execute("SELECT state FROM listings WHERE id=?", (listing_id,)).fetchone()["state"]
+
+
+def draft_with_unit_listings(store, copy_ids, title="Lot vitrine"):
+    """Publie chaque carte publiable seule, puis crée le brouillon qui les regroupe."""
+    from pokeprice.listings import Listings
+
+    listings = Listings(store)
+    units = []
+    for cid in copy_ids:
+        try:
+            units.append(listings.publish([cid], "tester", price_cents=100)["id"])
+        except ValueError:
+            pass  # carte non publiable : elle n'a pas d'annonce unitaire
+    with store.connect(write=True) as db:
+        sale_id = store.create_sale(
+            {"title": title, "amount_cents": 300, "asking_cents": 300}, copy_ids, "tester", _db=db
+        )
+    return sale_id, units
+
+
+def lot_listings(store):
+    with store.connect() as db:
+        return db.execute(
+            "SELECT listing_id FROM listing_items WHERE active=1 GROUP BY listing_id HAVING count(*) > 1"
+        ).fetchall()
+
+
+def test_publish_refuses_an_unpublishable_card_before_any_unpublication(test_db):
+    db_path, store = test_db
+    engine = LotsEngine(db_path)
+    with store.connect() as db:
+        zarbis = [r[0] for r in db.execute("SELECT id FROM copies WHERE catalog_id='dp4-91' AND language='fr'")]
+        unknown = db.execute("SELECT id FROM copies WHERE identification_status!='confirmed'").fetchone()[0]
+    sale_id, units = draft_with_unit_listings(store, zarbis[:2] + [unknown])
+    assert len(units) == 2
+
+    with pytest.raises(ValueError, match="aucune annonce n'a été retirée"):
+        engine.publish_to_storefront(sale_id, dry_run=True)
+    with pytest.raises(ValueError, match="Identité à confirmer"):
+        engine.publish_to_storefront(sale_id)
+
+    # Les annonces unitaires restent en ligne, aucun lot n'est créé, la vente est intacte.
+    assert all(online_state(store, u) == "online" for u in units)
+    assert lot_listings(store) == []
+    with store.connect() as db:
+        sale = db.execute("SELECT status, channel, version FROM sales WHERE id=?", (sale_id,)).fetchone()
+    assert (sale["status"], sale["channel"], sale["version"]) == ("draft", "", 1)
+
+
+def test_publish_rolls_back_unpublication_when_a_later_step_fails(test_db, monkeypatch):
+    db_path, store = test_db
+    engine = LotsEngine(db_path)
+    with store.connect() as db:
+        zarbis = [r[0] for r in db.execute("SELECT id FROM copies WHERE catalog_id='dp4-91' AND language='fr'")]
+    sale_id, units = draft_with_unit_listings(store, zarbis[:2])
+
+    def broken_update(*args, **kwargs):
+        raise RuntimeError("panne simulée après la publication du lot")
+
+    monkeypatch.setattr(engine.store(), "update_sale", broken_update)
+    with pytest.raises(RuntimeError):
+        engine.publish_to_storefront(sale_id)
+
+    # La transaction unique annule dépublication et publication.
+    assert all(online_state(store, u) == "online" for u in units)
+    assert lot_listings(store) == []
+    with store.connect() as db:
+        events = db.execute("SELECT count(*) FROM events WHERE kind='unlisting'").fetchone()[0]
+    assert events == 0
+
+
+def test_publish_refuses_a_lot_without_price_or_already_online(test_db):
+    db_path, store = test_db
+    engine = LotsEngine(db_path)
+    with store.connect() as db:
+        zarbis = [r[0] for r in db.execute("SELECT id FROM copies WHERE catalog_id='dp4-91' AND language='fr'")]
+    with store.connect(write=True) as db:
+        no_price = store.create_sale({"title": "Sans prix", "amount_cents": 0}, zarbis[:2], "tester", _db=db)
+    with pytest.raises(ValueError, match="prix du lot"):
+        engine.publish_to_storefront(no_price)
+
+    sale_id, _ = draft_with_unit_listings(store, zarbis[1:3], title="Second lot")
+    engine.publish_to_storefront(sale_id)
+    with pytest.raises(ValueError, match="déjà en ligne"):
+        engine.publish_to_storefront(sale_id)
+
+
+def test_pool_excludes_unpriced_unconfirmed_valuable_and_reviewed_cards(test_db):
+    db_path, store = test_db
+    engine = LotsEngine(db_path)
+    unpriced = add_copy(store, "b", 4, price=None)
+    unconfirmed = add_copy(store, "b", 5, price=None, identification_status="unresolved", variant_confirmed=False)
+    valuable = add_copy(store, "b", 6, price=5000)
+    priced = add_copy(store, "b", 7)
+
+    with engine.connect() as db:
+        pool = engine.classify_pool(db)
+    dup_ids = {c["id"] for c in pool["duplicates"]}
+    assert priced["id"] in dup_ids
+    assert not dup_ids & {unpriced["id"], unconfirmed["id"], valuable["id"]}
+    reasons = {e["id"]: e["reasons"] for e in pool["excluded"]}
+    assert "price_incomplete" in reasons[unpriced["id"]]
+    assert "identity_unconfirmed" in reasons[unconfirmed["id"]]
+    assert "valuable_card" in reasons[valuable["id"]]
+    assert "review_needed" in reasons[valuable["id"]]
+
+    # Le rapport liste les cartes sans prix « à chiffrer », jamais dans un lot.
+    report = engine.analyze()
+    assert unpriced["id"] in {c["id"] for c in report["to_price"]}
+    in_lots = {c["id"] for lot in report["lots"] for c in lot["copies"]}
+    assert priced["id"] in in_lots
+    assert not in_lots & {unpriced["id"], unconfirmed["id"], valuable["id"]}
+
+    recipe = LotCompositionRecipe(
+        title="Tous les Zarbi", summary="Test", filters=HardFilters(pokemon_names=["Zarbi"]),
+        bundle_rules=BundleRules(target_count=50, diversity=DiversityStrategy.ANY),
+    )
+    for scope in ("duplicates", "all"):
+        composed = engine.compose_from_recipe(recipe, scope=scope)
+        ids = {c["id"] for c in composed["lot"]["copies"]}
+        assert not ids & {unpriced["id"], unconfirmed["id"], valuable["id"]}
+        assert unpriced["id"] in {c["id"] for c in composed["to_price"]}
+
+
+def test_rotation_never_cancels_a_draft_whose_lot_is_online(test_db):
+    db_path, store = test_db
+    engine = LotsEngine(db_path)
+    with store.connect() as db:
+        zarbis = [r[0] for r in db.execute("SELECT id FROM copies WHERE catalog_id='dp4-91' AND language='fr'")]
+        others = [r[0] for r in db.execute("SELECT id FROM copies WHERE identification_status='confirmed' AND catalog_id!='dp4-91'")]
+    online_sale, _ = draft_with_unit_listings(store, zarbis[:2], title="Lot en ligne")
+    published = engine.publish_to_storefront(online_sale)
+    with store.connect(write=True) as db:
+        newer = store.create_sale({"title": "Brouillon récent", "amount_cents": 200}, [others[0]], "tester", _db=db)
+
+    status = engine.status(max_drafts=2)
+    assert status["online_drafts_count"] == 1
+    new_lots = [
+        {"theme": "dp", "title": f"Nouveau {i}", "count": 1, "total_reference_cents": 100,
+         "asking_cents": 200, "copies": [{"id": others[1]}]}
+        for i in range(2)
+    ]
+    dry = engine.rotate(lots_to_add=new_lots, dry_run=True, max_drafts=2)
+    # Le plus ancien est en ligne : seul le brouillon récent est annulé, un seul lot entre.
+    assert [d["id"] for d in dry["drafts_to_cancel"]] == [newer]
+    assert [d["id"] for d in dry["online_drafts_kept"]] == [online_sale]
+    assert len(dry["lots_to_create"]) == 1 and dry["lots_skipped_for_capacity"] == ["Nouveau 1"]
+
+    res = engine.rotate(lots_to_add=new_lots, max_drafts=2)
+    assert len(res["created"]) == 1
+    with store.connect() as db:
+        assert db.execute("SELECT status FROM sales WHERE id=?", (online_sale,)).fetchone()[0] == "draft"
+        assert db.execute("SELECT status FROM sales WHERE id=?", (newer,)).fetchone()[0] == "cancelled"
+    assert online_state(store, published["published_listing_id"]) == "online"
+    assert engine.status(max_drafts=2)["active_drafts_count"] == 2
+
+    # Plafond atteint par les seuls lots en ligne : aucune annulation, aucune création.
+    blocked = engine.rotate(lots_to_add=new_lots, dry_run=True, max_drafts=1)
+    assert [d["id"] for d in blocked["drafts_to_cancel"]] == [res["created"][0]["sale_id"]]
+    assert blocked["lots_to_create"] == []
+
+
+def run_cli(monkeypatch, *argv):
+    monkeypatch.setattr(sys, "argv", ["pokeprice_lots.py", *argv])
+    main()
+
+
+def test_cli_max_drafts_and_publish_all(test_db, tmp_path, monkeypatch):
+    db_path, store = test_db
+    out = tmp_path / "out.json"
+    with store.connect() as db:
+        zarbis = [r[0] for r in db.execute("SELECT id FROM copies WHERE catalog_id='dp4-91' AND language='fr'")]
+        unknown = db.execute("SELECT id FROM copies WHERE identification_status!='confirmed'").fetchone()[0]
+    good, units = draft_with_unit_listings(store, zarbis[:2], title="Lot publiable")
+    bad, _ = draft_with_unit_listings(store, [zarbis[2], unknown], title="Lot refusé")
+
+    run_cli(monkeypatch, "--data", str(db_path.parent), "--output", str(out), "status", "--max-drafts", "3")
+    status = json.loads(out.read_text())
+    assert status["max_drafts"] == 3 and status["capacity_available"] == 1
+
+    run_cli(monkeypatch, "--data", str(db_path), "--output", str(out), "publish-to-storefront", "--all", "--dry-run")
+    dry = json.loads(out.read_text())
+    assert [p["sale_id"] for p in dry["published"]] == [good]
+    assert lot_listings(store) == []
+
+    run_cli(monkeypatch, "--data", str(db_path), "--output", str(out), "publish-to-storefront", "--all")
+    done = json.loads(out.read_text())
+    assert [p["sale_id"] for p in done["published"]] == [good]
+    assert [r["sale_id"] for r in done["refused"]] == [bad]
+    assert all(online_state(store, u) == "offline" for u in units)
+    with store.connect() as db:
+        assert db.execute(
+            "SELECT state FROM listings l JOIN listing_items i ON i.listing_id=l.id WHERE i.copy_id=? AND i.active=1",
+            (zarbis[2],),
+        ).fetchone()["state"] == "online"
+
+    # Un second passage ne republie pas le lot déjà en ligne.
+    run_cli(monkeypatch, "--data", str(db_path), "--output", str(out), "publish-to-storefront", "--all")
+    again = json.loads(out.read_text())
+    assert again["published"] == [] and {s["sale_id"] for s in again["skipped"]} == {good}
+
+
+def test_cli_requires_an_explicit_database(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(SystemExit):
+        run_cli(monkeypatch, "--output", str(tmp_path / "out.json"), "status")
+
+
+def test_gemini_model_comes_from_a_constant_or_the_environment(monkeypatch):
+    import pokeprice_lots
+
+    monkeypatch.delenv(pokeprice_lots.GEMINI_MODEL_ENV, raising=False)
+    assert pokeprice_lots.gemini_model() == pokeprice_lots.DEFAULT_GEMINI_MODEL
+    monkeypatch.setenv(pokeprice_lots.GEMINI_MODEL_ENV, "modele-de-test")
+    assert pokeprice_lots.gemini_model() == "modele-de-test"
+
+
+def test_get_duplicates_pool_is_defined_once():
+    source = (Path(__file__).resolve().parent.parent / "scripts" / "pokeprice_lots.py").read_text()
+    assert source.count("def get_duplicates_pool(") == 1
+
+
+def test_lot_floor_follows_the_configured_margin(monkeypatch):
+    monkeypatch.delenv("POKEPRICE_LOT_MAX_MARGIN", raising=False)
+    assert lot_max_margin() == 15
+    assert lot_floor_cents(1000) == 850
+    assert lot_floor_cents(333) == 284  # arrondi au centime supérieur
+    monkeypatch.setenv("POKEPRICE_LOT_MAX_MARGIN", "0")
+    assert lot_floor_cents(1000) == 1000
+    monkeypatch.setenv("POKEPRICE_LOT_MAX_MARGIN", "90")
+    assert lot_max_margin() == 50
+    monkeypatch.setenv("POKEPRICE_LOT_MAX_MARGIN", "beaucoup")
+    with pytest.raises(ValueError, match="pourcentage entier"):
+        lot_max_margin()
+
+
+def test_compose_never_discounts_below_the_floor(test_db, monkeypatch):
+    monkeypatch.delenv("POKEPRICE_LOT_MAX_MARGIN", raising=False)
+    db_path, _ = test_db
+    engine = LotsEngine(db_path)
+    assert BundleRules().target_discount_percent == 0
+    recipe = LotCompositionRecipe(
+        title="Lot bradé",
+        summary="Décote demandée trop forte",
+        bundle_rules=BundleRules(target_count=3, target_discount_percent=40),
+    )
+    lot = engine.compose_from_recipe(recipe)["lot"]
+    assert lot["discount_percent"] == 15
+    assert lot["asking_cents"] >= lot_floor_cents(lot["total_reference_cents"])
+
+
+def test_publish_refuses_a_lot_priced_under_the_floor(test_db, monkeypatch):
+    monkeypatch.delenv("POKEPRICE_LOT_MAX_MARGIN", raising=False)
+    db_path, store = test_db
+    engine = LotsEngine(db_path)
+    cards = [add_copy(store, "b", 10 + i, price=100)["id"] for i in range(3)]
+    sale_id, units = draft_with_unit_listings(store, cards, title="Lot sous la cote")
+    with store.connect(write=True) as db:
+        db.execute("UPDATE sales SET amount_cents=200, asking_cents=200 WHERE id=?", (sale_id,))
+    with pytest.raises(ValueError, match="plancher anti-bradage"):
+        engine.publish_to_storefront(sale_id)
+    with store.connect() as db:
+        active = {r[0] for r in db.execute("SELECT listing_id FROM listing_items WHERE active=1")}
+    assert set(units) <= active  # aucune annonce unitaire retirée
+
+    with store.connect(write=True) as db:
+        db.execute("UPDATE sales SET amount_cents=255, asking_cents=255 WHERE id=?", (sale_id,))
+    engine.publish_to_storefront(sale_id)
+    assert lot_listings(store)
+
+
+def test_publish_refuses_a_lot_with_an_unrated_card(test_db):
+    db_path, store = test_db
+    engine = LotsEngine(db_path)
+    rated = add_copy(store, "b", 20, price=100)["id"]
+    unrated = add_copy(store, "b", 21, price=None)["id"]
+    with store.connect(write=True) as db:
+        sale_id = store.create_sale(
+            {"title": "Lot sans cote", "amount_cents": 500, "asking_cents": 500}, [rated, unrated], "tester", _db=db
+        )
+    with pytest.raises(ValueError, match="sans cote"):
+        engine.publish_to_storefront(sale_id)
+
+
+def three_card_draft(store, first_position, price_cents):
+    cards = [add_copy(store, "b", first_position + i, price=100)["id"] for i in range(3)]
+    sale_id, units = draft_with_unit_listings(store, cards, title=f"Lot {first_position}")
+    with store.connect(write=True) as db:
+        db.execute("UPDATE sales SET amount_cents=?, asking_cents=? WHERE id=?", (price_cents, price_cents, sale_id))
+    return sale_id, cards, units
+
+
+@pytest.mark.parametrize("price_cents, published", [(254, False), (255, True)])
+def test_publish_floor_boundary(test_db, monkeypatch, price_cents, published):
+    monkeypatch.delenv("POKEPRICE_LOT_MAX_MARGIN", raising=False)
+    db_path, store = test_db
+    sale_id, _, _ = three_card_draft(store, 30, price_cents)
+    engine = LotsEngine(db_path)
+    if published:
+        engine.publish_to_storefront(sale_id)
+        assert lot_listings(store)
+    else:
+        with pytest.raises(ValueError, match="plancher anti-bradage"):
+            engine.publish_to_storefront(sale_id)
+
+
+def test_publish_checks_the_cotes_of_the_day(test_db, monkeypatch):
+    monkeypatch.delenv("POKEPRICE_LOT_MAX_MARGIN", raising=False)
+    db_path, store = test_db
+    sale_id, cards, _ = three_card_draft(store, 40, 300)
+    with store.connect(write=True) as db:
+        db.execute(f"UPDATE copies SET reference_cents=200 WHERE id IN ({','.join('?' * len(cards))})", cards)
+    with pytest.raises(ValueError, match="plancher anti-bradage"):
+        LotsEngine(db_path).publish_to_storefront(sale_id)
+
+
+def test_publish_all_refuses_an_undercut_lot_and_keeps_its_cards_online(test_db, monkeypatch):
+    monkeypatch.delenv("POKEPRICE_LOT_MAX_MARGIN", raising=False)
+    db_path, store = test_db
+    sale_id, _, units = three_card_draft(store, 50, 200)
+    report = LotsEngine(db_path).publish_all()
+    refused = {r["sale_id"]: r["reason"] for r in report["refused"]}
+    assert "plancher anti-bradage" in refused[sale_id]
+    with store.connect() as db:
+        active = {r[0] for r in db.execute("SELECT listing_id FROM listing_items WHERE active=1")}
+    assert set(units) <= active
+
+
+def test_a_zero_cote_counts_as_no_cote(test_db):
+    db_path, store = test_db
+    cards = [add_copy(store, "b", 60 + i, price=100)["id"] for i in range(2)]
+    with store.connect(write=True) as db:
+        db.execute("UPDATE copies SET reference_cents=0 WHERE id=?", (cards[0],))
+        sale_id = store.create_sale({"title": "Lot à zéro", "amount_cents": 500, "asking_cents": 500}, cards, "tester", _db=db)
+    with pytest.raises(ValueError, match="sans cote"):
+        LotsEngine(db_path).publish_to_storefront(sale_id)
+
+
+def test_compose_follows_a_stricter_margin(test_db, monkeypatch):
+    monkeypatch.setenv("POKEPRICE_LOT_MAX_MARGIN", "0")
+    db_path, _ = test_db
+    recipe = LotCompositionRecipe(
+        title="Lot sans décote", summary="Marge nulle",
+        bundle_rules=BundleRules(target_count=3, target_discount_percent=30),
+    )
+    lot = LotsEngine(db_path).compose_from_recipe(recipe)["lot"]
+    assert lot["discount_percent"] == 0
+    assert lot["asking_cents"] >= lot["total_reference_cents"]
+
+
+def test_remote_command_carries_the_margin(monkeypatch):
+    calls = []
+
+    class Done:
+        returncode, stdout, stderr = 0, "", ""
+
+    monkeypatch.setattr("pokeprice_lots.subprocess.run", lambda cmd, **_: calls.append(cmd) or Done())
+    monkeypatch.setenv("POKEPRICE_LOT_MAX_MARGIN", "10")
+    run_remote_command("serveur", "/srv/base", "status", [])
+    assert "POKEPRICE_LOT_MAX_MARGIN=10 " in calls[-1][-1]
+    monkeypatch.delenv("POKEPRICE_LOT_MAX_MARGIN")
+    run_remote_command("serveur", "/srv/base", "status", [])
+    assert "POKEPRICE_LOT_MAX_MARGIN" not in calls[-1][-1]
