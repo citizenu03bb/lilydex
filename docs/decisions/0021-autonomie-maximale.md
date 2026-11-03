@@ -45,8 +45,10 @@ la somme des prix de référence de ses exemplaires. La marge vaut 15 % par
 défaut. Le contrôle porte sur le prix final, arrondi compris. Un exemplaire
 sans prix de référence n'a pas de plancher : il ne se vend pas seul tant que
 son prix n'est pas relevé ou fixé. Le plancher absolu de 0,50 € par carte et
-par lot reste en vigueur. Un prix sous le plancher anti-bradage est présenté à
-l'humain, avec sa raison ; il n'est jamais appliqué d'office.
+par lot reste en vigueur. L'outil de lots compose en outre ses lots à 2 € au
+moins ; c'est un minimum de composition, pas un contrôle à la publication. Un
+prix sous le plancher anti-bradage est présenté à l'humain, avec sa raison ; il
+n'est jamais appliqué d'office.
 
 *(c) La demande de nouvelle photo.* Quand l'IA ne tranche pas une variante ou
 un état, elle ne publie pas avec une mention « non vérifiée » et ne devine pas.
@@ -69,13 +71,14 @@ reste hors vente jusqu'à la nouvelle photo, puis l'IA relit et tranche.
 - Une part de cette autonomie est une cible, pas un acquis. Livré : lectures
   automatiques à la saisie, corrections préautorisées, brouillons par l'API
   déléguée, composition, rotation et publication de lots en vitrine par
-  `scripts/pokeprice_lots.py`. À livrer : confirmation de l'identité, de la
-  variante et de l'état par un agent, plancher anti-bradage relatif au prix de
-  référence (seul le plancher absolu de 0,50 € est contrôlé par le code, et la
-  composition de lots accepte une décote jusqu'à 50 %), file des demandes de
-  photo, publication sur Vinted, Leboncoin et Cardmarket, annulation de chaque
-  action. D'ici là, un agent applique lui-même la marge de 15 % et le mécanisme
-  de photo.
+  `scripts/pokeprice_lots.py`, qui refuse tout lot sous le plancher
+  anti-bradage. À livrer : confirmation de l'identité, de la variante et de
+  l'état par un agent, plancher anti-bradage pour le « Mode lot » de la gestion
+  et pour un prix unitaire fixé à la main (seul le plancher absolu de 0,50 €
+  y est contrôlé), file des demandes de photo, publication sur Vinted,
+  Leboncoin et Cardmarket, annulation de chaque action. D'ici là, un agent
+  applique lui-même la marge de 15 % hors de l'outil de lots et formule
+  lui-même ses demandes de photo.
 - Le pilote scellé de la décision 0012 reste un périmètre d'évaluation : ses
   résultats ne bornent pas l'autonomie des autres parcours.
 

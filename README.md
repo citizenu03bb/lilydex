@@ -10,12 +10,14 @@ Le paquet Python et ses commandes s'appellent `pokeprice`, `pokeprice-manage` et
 > priced, sellable inventory: a FastAPI + SQLite web app used from an Android phone, a
 > command-line album scanner, a public storefront, and an ARM Oracle Cloud server behind Caddy
 > with hardened systemd units, nightly backups verified by a test restore, and off-site copies
-> encrypted with age. **Agents act, a person keeps money and irreversible steps:** Gemini reads
-> the card, DINOv2 (CPU only) checks the edition from the image alone, and every disagreement
-> lands in a review queue with its evidence; agents apply pre-authorised fixes and build and
-> publish lots, under an anti-undercut floor. On 27 to 31 hand-verified cards from one collection, no unsafe variant proposal
-> above the value threshold, 22 of 27 editions confirmed by image alone with one false alarm, and
-> Tesseract rejected after measurement. The interface and detailed docs are in French:
+> encrypted with age. **The target is agents that act, with a person keeping money and
+> irreversible steps.** Today Gemini reads the card and DINOv2 (CPU only) checks the edition
+> from the image alone, a person still confirms each reading, and every disagreement lands in a
+> review queue with its evidence; agents apply pre-authorised fixes, and the operator-side lots
+> tool builds and publishes lots, refusing any price below their reference value minus a margin
+> (15 % by default). On 27 to 31 hand-verified cards from one collection, no unsafe variant
+> proposal above the value threshold, 22 of 27 editions confirmed by image alone with one false
+> alarm, and Tesseract rejected after measurement. The interface and detailed docs are in French:
 > [English overview](README.en.md) · [case study](CASE-STUDY.md) (design, operations, security).
 
 <p align="center">

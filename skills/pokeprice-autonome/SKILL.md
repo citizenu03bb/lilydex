@@ -57,14 +57,15 @@ marge vaut 15 % par défaut.
   ses exemplaires, arrondi compris.
 - Un exemplaire sans prix de référence bloque la vente autonome : diagnostiquez
   d'abord son prix avec [pokeprice-agent-prix](../pokeprice-agent-prix/SKILL.md).
-- Le plancher absolu de 0,50 € par carte et par lot s'applique aussi.
+- Le plancher absolu de 0,50 € par carte et par lot s'applique aussi ; l'outil
+  de lots compose ses lots à 2 € au moins.
 
-Le code contrôle seulement le plancher absolu de 0,50 €, et la composition de
-lots accepte une décote jusqu'à 50 %. Le plancher relatif est donc votre
-responsabilité : avant `publish-to-storefront`, comparez `asking_cents` à
-`total_reference_cents` dans la sortie de `compose`. S'il est trop bas,
-recomposez avec une recette dont `target_discount_percent` vaut 15 au plus, ou
-présentez le prix à l'humain. Ne publiez jamais en espérant une correction
+`scripts/pokeprice_lots.py` contrôle ce plancher : `compose` plafonne sa
+décote à la marge, et `publish-to-storefront` refuse un lot sous le plancher ou
+dont un exemplaire n'a pas de prix de référence. Hors de cet outil (« Mode
+lot » de la gestion, prix unitaire fixé à la main), seul le plancher absolu de
+0,50 € est contrôlé : le plancher relatif y est votre responsabilité. Un prix
+trop bas se présente à l'humain. Ne publiez jamais en espérant une correction
 ultérieure.
 
 ## Quand vous ne tranchez pas : demander une photo
@@ -108,7 +109,7 @@ Outils livrés :
   « À identifier », « À vérifier » et « À examiner ».
 
 Cibles, sans outil dédié : confirmation de l'identité, de la variante et de
-l'état par un agent, plancher anti-bradage contrôlé par le serveur, file des
+l'état par un agent, plancher anti-bradage hors de l'outil de lots, file des
 demandes de photo, publication sur Vinted, Leboncoin et Cardmarket. Quand
 l'outil manque, n'en inventez pas un et n'écrivez pas dans la base par un
 chemin détourné : préparez le résultat, et signalez l'outil manquant dans

@@ -207,14 +207,15 @@ défaut), lots compris.
   ([fiche 0014](decisions/0014-corrections-agent-autorisees.md)) ;
 - préparer des brouillons de lots sur un album délégué ;
 - composer des lots de doublons, faire tourner les brouillons et publier un
-  lot en vitrine, par `scripts/pokeprice_lots.py`, avec un accès opérateur.
+  lot en vitrine, par `scripts/pokeprice_lots.py`, avec un accès opérateur ;
+  l'outil refuse tout lot sous le plancher anti-bradage.
 
 **Ce qui est visé, pas livré :**
 
 - confirmer seule l'identité, la variante et l'état : ces trois décisions
   passent encore par un clic dans l'application ;
-- le plancher anti-bradage contrôlé par le serveur : seul le plancher absolu
-  de 0,50 € l'est, et la composition de lots accepte une décote jusqu'à 50 % ;
+- le plancher anti-bradage pour le « Mode lot » de la gestion et pour un prix
+  unitaire fixé à la main : seul le plancher absolu de 0,50 € y est contrôlé ;
   le guide [pokeprice-autonome](../skills/pokeprice-autonome/SKILL.md) fait
   appliquer la marge par l'agent ;
 - une file de demandes de nouvelle photo ;
