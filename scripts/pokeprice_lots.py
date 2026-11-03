@@ -1,11 +1,17 @@
 #!/usr/bin/env python3
 """Gestion et rotation des lots de doublons pour Les cartes de Lily (pokeprice).
 
-Fournit trois sous-commandes CLI :
+Sous-commandes CLI :
 - analyze : examine les doublons et propose des lots thématiques cohérents.
-- status  : inspecte les brouillons de vente actifs et la fenêtre de rotation (max 5).
-- rotate  : applique la rotation (FIFO sur les anciens brouillons si quota atteint,
-            création des nouveaux brouillons).
+- status  : inspecte les brouillons de vente actifs et la fenêtre de rotation.
+- rotate  : applique la rotation (FIFO sur les anciens brouillons hors vitrine si le
+            plafond est atteint, création des nouveaux brouillons).
+- compose : compose un lot sur mesure à partir d'une recette ou d'un prompt.
+- publish-to-storefront : publie un ou tous les brouillons valides en vitrine.
+
+Seules entrent en lot les cartes à l'identité confirmée, chiffrées, sans revue en
+attente et sous le seuil de valeur (mêmes règles que ``AgentService``). Les
+cartes sans prix sont listées « à chiffrer » dans le rapport.
 """
 
 import argparse
@@ -16,6 +22,7 @@ import sqlite3
 import subprocess
 import sys
 from collections import defaultdict
+from contextlib import contextmanager
 from enum import Enum
 from pathlib import Path
 from typing import List, Optional
@@ -24,6 +31,20 @@ from pydantic import BaseModel, Field
 
 MAX_ROTATION_DRAFTS = 5
 DEFAULT_ACTOR = "pokeprice-lots"
+# Seuil de valeur d'une carte au-delà duquel elle ne part pas en lot (centimes),
+# le même que celui de la liste de la collection.
+VALUE_CEILING_CENTS = 1000
+# Motifs d'exclusion d'AgentService.exclusions retenus pour le gisement des lots.
+# « already_published » n'en fait pas partie : la publication du lot retire
+# elle-même les annonces unitaires ; les lots en ligne sont exclus à part.
+LOT_EXCLUSIONS = ("identity_unconfirmed", "price_incomplete", "review_needed", "valuable_card")
+# Modèle Gemini d'interprétation des prompts, remplaçable par variable d'environnement.
+DEFAULT_GEMINI_MODEL = "gemini-3.8-flash"
+GEMINI_MODEL_ENV = "POKEPRICE_LOTS_GEMINI_MODEL"
+
+
+def gemini_model():
+    return os.environ.get(GEMINI_MODEL_ENV) or DEFAULT_GEMINI_MODEL
 
 
 # Classification thématique des extensions Pokémon
@@ -246,9 +267,8 @@ class LotCompositionRecipe(BaseModel):
     bundle_rules: BundleRules = Field(default_factory=BundleRules)
 
 
-def prompt_to_recipe(prompt: str, model_name: str = "gemini-3.8-flash") -> LotCompositionRecipe:
+def prompt_to_recipe(prompt: str, model_name: Optional[str] = None) -> LotCompositionRecipe:
     """Interprète un prompt en langage naturel pour produire une recette de composition typée."""
-    import os
     from dotenv import load_dotenv
     from google import genai
     from google.genai import types
@@ -286,7 +306,7 @@ def prompt_to_recipe(prompt: str, model_name: str = "gemini-3.8-flash") -> LotCo
         )
     )
     response = client.models.generate_content(
-        model=model_name,
+        model=model_name or gemini_model(),
         contents=[prompt],
         config=types.GenerateContentConfig(
             system_instruction=system_instruction,
@@ -302,9 +322,33 @@ def prompt_to_recipe(prompt: str, model_name: str = "gemini-3.8-flash") -> LotCo
 
 
 
+class _SharedTransaction:
+    """Magasin dont les connexions réutilisent une transaction déjà ouverte.
+
+    ``Listings`` ouvre sa propre transaction à chaque écriture. En lui passant ce
+    mandataire, dépublication, publication et mise à jour de la vente partagent
+    une seule transaction : une erreur n'importe où annule l'ensemble. Les
+    lectures de valorisation (``Store.listing``) gardent leur propre connexion.
+    """
+
+    def __init__(self, store, db):
+        self._store = store
+        self._db = db
+
+    def __getattr__(self, name):
+        return getattr(self._store, name)
+
+    @contextmanager
+    def connect(self, *, write=False):
+        # Ni validation ni annulation ici : la transaction englobante décide.
+        yield self._db
+
+
 class LotsEngine:
-    def __init__(self, db_path):
+    def __init__(self, db_path, *, value_ceiling_cents=VALUE_CEILING_CENTS):
         self.db_path = str(db_path)
+        self.value_ceiling_cents = value_ceiling_cents
+        self._store = None
 
     def connect(self, write=False):
         uri = f"file:{self.db_path}?mode={'rw' if write else 'ro'}"
@@ -312,15 +356,27 @@ class LotsEngine:
         con.row_factory = sqlite3.Row
         return con
 
-    def get_duplicates_pool(self, db):
-        """Identifie les exemplaires excédentaires (doublons au-delà du 1er exemplaire conservé).
+    def store(self):
+        if self._store is None:
+            from pokeprice.inventory import Store
 
-        Règles d'intégrité :
-        1. Le meilleur exemplaire (état de conservation le plus neuf, puis plus belle finition)
-           est toujours conservé en priorité dans la collection de Lily.
-        2. Les exemplaires déjà engagés dans un brouillon actif ou un lot en ligne sont exclus
-           du gisement disponible pour éviter tout double-booking.
-        """
+            self._store = Store(str(Path(self.db_path).parent))
+        return self._store
+
+    def valued_cards(self):
+        """Fiches de la collection avec leur valorisation, comme la liste de gestion."""
+        rows = self.store().listing(limit=10**9, threshold_cents=self.value_ceiling_cents)["items"]
+        return {r["id"]: r for r in rows}
+
+    @staticmethod
+    def lot_exclusions(card):
+        """Motifs qui interdisent une carte en lot (règles d'AgentService.exclusions)."""
+        if card is None:
+            return ["identity_unconfirmed", "price_incomplete"]
+        from pokeprice.agent import AgentService
+
+        return [r for r in AgentService.exclusions(card) if r in LOT_EXCLUSIONS]
+
     def get_busy_copy_ids(self, db):
         """Récupère les identifiants des exemplaires déjà engagés dans des ventes ou lots en ligne."""
         cur = db.cursor()
@@ -338,19 +394,21 @@ class LotsEngine:
         """)
         return {r[0] for r in cur.fetchall()}
 
-    def get_duplicates_pool(self, db):
-        """Identifie les exemplaires excédentaires (doublons au-delà du 1er exemplaire conservé).
+    def classify_pool(self, db):
+        """Répartit les exemplaires disponibles entre album, gisement, exclus et « à chiffrer ».
 
         Règles d'intégrité :
         1. Le meilleur exemplaire (état de conservation le plus neuf, puis plus belle finition)
-           est toujours conservé en priorité dans la collection de Lily.
+           est toujours conservé en priorité dans la collection de Lily, qu'il soit chiffré ou non.
         2. Les exemplaires déjà engagés dans un brouillon actif ou un lot en ligne sont exclus
            du gisement disponible pour éviter tout double-booking.
+        3. Une carte n'entre en lot que si son identité est confirmée, son prix connu, sans
+           revue en attente et sous le seuil de valeur. Les cartes sans prix vont dans la
+           liste « à chiffrer », jamais en lot.
         """
         busy_ids = self.get_busy_copy_ids(db)
         cur = db.cursor()
 
-        # 2. Récupérer tous les exemplaires disponibles avec leurs photos et positions
         cur.execute("""
             SELECT id, version, catalog_id, name, set_name, number, language,
                    album_id, page, position, condition, finish, reference_cents,
@@ -361,6 +419,7 @@ class LotsEngine:
             ORDER BY page, position, id
         """)
         all_cards = [dict(r) for r in cur.fetchall()]
+        valued = self.valued_cards()
 
         # Regrouper par référence et langue
         groups = defaultdict(list)
@@ -382,31 +441,52 @@ class LotsEngine:
                 finish_rank = 3
             return (cond_rank, finish_rank, c.get("page") or 999, c.get("position") or 999, c.get("id") or "")
 
-        retained = []
-        duplicates = []
-        for (cat_id, lang), copies in groups.items():
-            # Trier pour conserver le meilleur exemplaire dans la collection
+        result = {"retained": [], "duplicates": [], "album_eligible": [], "excluded": [], "to_price": []}
+
+        def sort_out(card):
+            """Range une carte libre dans le gisement, ou dans les exclus et « à chiffrer »."""
+            reasons = self.lot_exclusions(valued.get(card["id"]))
+            if not reasons:
+                return True
+            entry = {
+                "id": card["id"],
+                "name": card["name"],
+                "set_name": card["set_name"],
+                "number": card["number"],
+                "language": card["language"],
+                "page": card.get("page"),
+                "position": card.get("position"),
+                "from_album": card["from_album"],
+                "reasons": reasons,
+            }
+            result["excluded"].append(entry)
+            if "price_incomplete" in reasons:
+                result["to_price"].append(entry)
+            return False
+
+        for copies in groups.values():
             copies.sort(key=copy_collection_rank)
-            retained.append({**copies[0], "from_album": True})  # Le meilleur exemplaire est conservé dans l'album
-            # Les suivants non engagés constituent les doublons exploitables pour la vente
+            best = {**copies[0], "from_album": True}  # conservé dans l'album
+            result["retained"].append(best)
+            if best["id"] not in busy_ids and sort_out(best):
+                result["album_eligible"].append(best)
             for dup in copies[1:]:
                 dup_item = {**dup, "from_album": False}
-                if dup_item["id"] not in busy_ids:
-                    duplicates.append(dup_item)
+                if dup_item["id"] not in busy_ids and sort_out(dup_item):
+                    result["duplicates"].append(dup_item)
+        return result
 
-        return retained, duplicates
+    def get_duplicates_pool(self, db):
+        """Exemplaires conservés en album et doublons éligibles à un lot."""
+        pool = self.classify_pool(db)
+        return pool["retained"], pool["duplicates"]
 
     def get_pool(self, db, scope="duplicates"):
         """Retourne le gisement de cartes selon le périmètre demandé (duplicates ou all)."""
-        retained, duplicates = self.get_duplicates_pool(db)
+        pool = self.classify_pool(db)
         if scope == "all":
-            busy_ids = self.get_busy_copy_ids(db)
-            pool = list(duplicates)
-            for r in retained:
-                if r["id"] not in busy_ids:
-                    pool.append(r)
-            return pool
-        return duplicates
+            return pool["duplicates"] + pool["album_eligible"]
+        return pool["duplicates"]
 
     def diagnose_stock(self, db, recipe: LotCompositionRecipe):
         """Fournit un diagnostic clair de l'état du stock pour expliquer la pénurie ou l'état partiel."""
@@ -594,21 +674,54 @@ class LotsEngine:
         lots.sort(key=lambda l: (len(l["copies"]) >= 5, l["total_reference_cents"]), reverse=True)
         return lots
 
+    @staticmethod
+    def pool_report(pool, scope="duplicates"):
+        """Cartes écartées du gisement et liste « à chiffrer » pour le rapport."""
+        def keep(entry):
+            return scope == "all" or not entry["from_album"]
+
+        excluded = [e for e in pool["excluded"] if keep(e)]
+        to_price = [e for e in pool["to_price"] if keep(e)]
+        return {
+            "excluded_count": len(excluded),
+            "excluded": excluded,
+            "to_price_count": len(to_price),
+            "to_price": to_price,
+        }
+
     def analyze(self, max_cards_per_lot=20):
         with self.connect(write=False) as db:
-            retained, duplicates = self.get_duplicates_pool(db)
-            candidate_lots = self.compose_candidate_lots(duplicates, max_cards_per_lot=max_cards_per_lot)
-            total_excess_cents = sum(c["reference_cents"] or 0 for c in duplicates)
+            pool = self.classify_pool(db)
+        retained, duplicates = pool["retained"], pool["duplicates"]
+        candidate_lots = self.compose_candidate_lots(duplicates, max_cards_per_lot=max_cards_per_lot)
+        total_excess_cents = sum(c["reference_cents"] or 0 for c in duplicates)
 
-            return {
-                "total_retained_cards": len(retained),
-                "total_excess_duplicates": len(duplicates),
-                "total_excess_reference_cents": total_excess_cents,
-                "total_candidate_lots": len(candidate_lots),
-                "lots": candidate_lots,
-            }
+        return {
+            "total_retained_cards": len(retained),
+            "total_excess_duplicates": len(duplicates),
+            "total_excess_reference_cents": total_excess_cents,
+            "total_candidate_lots": len(candidate_lots),
+            "lots": candidate_lots,
+            **self.pool_report(pool),
+        }
 
-    def status(self):
+    @staticmethod
+    def online_lot(db, sale_id):
+        """Annonce de lot en ligne qui porte les cartes de cette vente, s'il y en a une."""
+        row = db.execute(
+            """
+            SELECT l.id, l.title FROM listings l
+            JOIN listing_items li ON li.listing_id = l.id AND li.active = 1
+            JOIN sale_items si ON si.copy_id = li.copy_id
+            WHERE si.sale_id = ? AND l.state = 'online'
+              AND (SELECT count(*) FROM listing_items x WHERE x.listing_id = l.id AND x.active = 1) > 1
+            LIMIT 1
+            """,
+            (sale_id,),
+        ).fetchone()
+        return dict(row) if row else None
+
+    def status(self, max_drafts=MAX_ROTATION_DRAFTS):
         with self.connect(write=False) as db:
             cur = db.cursor()
             cur.execute("""
@@ -638,97 +751,117 @@ class LotsEngine:
                         f"{it['name']} ({it['id'][:8]}): stock={it['stock_state']}"
                         for it in invalid_items
                     ]
+                    online = self.online_lot(db, s["id"])
+                    s["online_listing_id"] = online["id"] if online else None
                     drafts.append(s)
 
             return {
-                "max_drafts": MAX_ROTATION_DRAFTS,
+                "max_drafts": max_drafts,
                 "active_drafts_count": len(drafts),
-                "capacity_available": max(0, MAX_ROTATION_DRAFTS - len(drafts)),
+                "online_drafts_count": sum(1 for d in drafts if d["online_listing_id"]),
+                "capacity_available": max(0, max_drafts - len(drafts)),
                 "active_drafts": drafts,
                 "total_sales_history": len(all_sales),
             }
 
-    def rotate(self, lots_to_add=None, limit_add=MAX_ROTATION_DRAFTS, dry_run=False, actor=DEFAULT_ACTOR):
-        """Applique la rotation FIFO pour maintenir un maximum de 5 brouillons actifs."""
-        with self.connect(write=not dry_run) as db:
-            status = self.status()
-            existing_drafts = status["active_drafts"]
+    def rotate(
+        self,
+        lots_to_add=None,
+        limit_add=None,
+        dry_run=False,
+        actor=DEFAULT_ACTOR,
+        max_drafts=MAX_ROTATION_DRAFTS,
+    ):
+        """Applique la rotation FIFO pour maintenir au plus ``max_drafts`` brouillons actifs.
 
-            # Si aucun lot n'est fourni, on analyse pour obtenir les meilleurs candidats
-            if lots_to_add is None:
-                analysis = self.analyze()
-                candidate_lots = analysis["lots"]
-            else:
-                candidate_lots = lots_to_add
+        Un brouillon dont le lot est en ligne n'est jamais annulé : l'annuler laisserait
+        l'annonce en vitrine sans dossier de vente. Il compte dans le plafond ; s'il ne
+        reste pas assez de place, moins de nouveaux lots sont créés.
+        """
+        if max_drafts < 1:
+            raise ValueError("Le plafond de brouillons est d'au moins 1.")
+        limit_add = max_drafts if limit_add is None else max(0, limit_add)
+        status = self.status(max_drafts)
+        existing_drafts = status["active_drafts"]
+        online_drafts = [d for d in existing_drafts if d["online_listing_id"]]
+        cancellable = [d for d in existing_drafts if not d["online_listing_id"]]
 
-            selected_new_lots = candidate_lots[:limit_add]
+        # Si aucun lot n'est fourni, on analyse pour obtenir les meilleurs candidats
+        if lots_to_add is None:
+            candidate_lots = self.analyze()["lots"]
+        else:
+            candidate_lots = lots_to_add
 
-            # Calcul des suppressions nécessaires
-            total_after = len(existing_drafts) + len(selected_new_lots)
-            excess = max(0, total_after - MAX_ROTATION_DRAFTS)
+        room = max(0, max_drafts - len(online_drafts))
+        selected_new_lots = candidate_lots[: min(limit_add, room)]
+        skipped_lots = candidate_lots[len(selected_new_lots): limit_add]
 
-            # Priorité de purge : les brouillons invalides (zombies) sont éliminés en premier
-            invalid_drafts = [d for d in existing_drafts if not d.get("is_valid", True)]
-            valid_drafts = [d for d in existing_drafts if d.get("is_valid", True)]
+        total_after = len(existing_drafts) + len(selected_new_lots)
+        excess = max(0, total_after - max_drafts)
 
-            drafts_to_cancel = []
-            if excess > 0:
-                # 1. Annuler les brouillons invalides d'abord
-                drafts_to_cancel.extend(invalid_drafts[:excess])
-                remaining = excess - len(drafts_to_cancel)
-                # 2. Si besoin de place supplémentaire, appliquer le FIFO sur les brouillons valides
-                if remaining > 0:
-                    drafts_to_cancel.extend(list(reversed(valid_drafts))[:remaining])
+        # Priorité de purge : les brouillons invalides (zombies) sont éliminés en premier,
+        # puis les plus anciens ; jamais un brouillon dont le lot est en ligne.
+        invalid_drafts = [d for d in cancellable if not d.get("is_valid", True)]
+        valid_drafts = [d for d in cancellable if d.get("is_valid", True)]
+        drafts_to_cancel = invalid_drafts[:excess]
+        remaining = excess - len(drafts_to_cancel)
+        if remaining > 0:
+            drafts_to_cancel.extend(list(reversed(valid_drafts))[:remaining])
 
-            report = {
-                "dry_run": dry_run,
-                "initial_active_drafts": len(existing_drafts),
-                "drafts_to_cancel": [
-                    {
-                        "id": d["id"],
-                        "title": d["title"],
-                        "created_at": d["created_at"],
-                        "is_valid": d.get("is_valid", True),
-                    }
-                    for d in drafts_to_cancel
-                ],
+        report = {
+            "dry_run": dry_run,
+            "max_drafts": max_drafts,
+            "initial_active_drafts": len(existing_drafts),
+            "drafts_to_cancel": [
+                {
+                    "id": d["id"],
+                    "title": d["title"],
+                    "created_at": d["created_at"],
+                    "is_valid": d.get("is_valid", True),
+                }
+                for d in drafts_to_cancel
+            ],
+            "online_drafts_kept": [
+                {"id": d["id"], "title": d["title"], "online_listing_id": d["online_listing_id"]}
+                for d in online_drafts
+            ],
+            "lots_to_create": [
+                {
+                    "title": l["title"],
+                    "count": l["count"],
+                    "asking_cents": l["asking_cents"],
+                    "total_reference_cents": l["total_reference_cents"],
+                }
+                for l in selected_new_lots
+            ],
+            "lots_skipped_for_capacity": [l["title"] for l in skipped_lots],
+            "final_projected_drafts": len(existing_drafts) - len(drafts_to_cancel) + len(selected_new_lots),
+        }
 
-                "lots_to_create": [
-                    {
-                        "title": l["title"],
-                        "count": l["count"],
-                        "asking_cents": l["asking_cents"],
-                        "total_reference_cents": l["total_reference_cents"],
-                    }
-                    for l in selected_new_lots
-                ],
-                "final_projected_drafts": len(existing_drafts) - len(drafts_to_cancel) + len(selected_new_lots),
-            }
+        if dry_run:
+            return report
 
-            if dry_run:
-                return report
-
-            # Exécution réelle
-            import uuid
-            from pokeprice.inventory import now, Store
-
-            store = Store(str(Path(self.db_path).parent))
-
-            # 1. Annulation FIFO des anciens brouillons
+        store = self.store()
+        created = []
+        # Une seule transaction : annulations et créations réussissent ou échouent ensemble.
+        with store.connect(write=True) as db:
             for d in drafts_to_cancel:
-                row = db.execute("SELECT version FROM sales WHERE id=?", (d["id"],)).fetchone()
-                if row:
-                    store.update_sale(
-                        d["id"],
-                        {"status": "cancelled"},
-                        row["version"],
-                        actor,
-                        "Rotation FIFO : remplacement par un nouveau lot",
-                        _db=db,
+                row = db.execute("SELECT version, status FROM sales WHERE id=?", (d["id"],)).fetchone()
+                if not row or row["status"] != "draft":
+                    continue
+                if self.online_lot(db, d["id"]):
+                    raise ValueError(
+                        f"Le lot « {d['title']} » vient d'être mis en ligne : relancez la rotation."
                     )
+                store.update_sale(
+                    d["id"],
+                    {"status": "cancelled"},
+                    row["version"],
+                    actor,
+                    "Rotation FIFO : remplacement par un nouveau lot",
+                    _db=db,
+                )
 
-            # 2. Création des nouveaux brouillons
-            created = []
             for lot in selected_new_lots:
                 copy_ids = [c["id"] for c in lot["copies"]]
                 values = {
@@ -741,103 +874,169 @@ class LotsEngine:
                 sale_id = store.create_sale(values, copy_ids, actor, _db=db)
                 created.append({"sale_id": sale_id, "title": lot["title"]})
 
-            report["created"] = created
-            return report
+        report["created"] = created
+        return report
 
-    def publish_to_storefront(self, sale_id, actor=DEFAULT_ACTOR, dry_run=False):
-        """Dépublie les cartes du lot de leur annonce individuelle et publie le lot en vitrine."""
-        from pokeprice.inventory import Store
-        from pokeprice.listings import Listings
+    def publication_plan(self, db, listings, sale_id):
+        """Vérifie qu'un brouillon peut être publié en lot, sans rien écrire.
 
-        store = Store(str(Path(self.db_path).parent))
-        listings = Listings(store)
+        Mêmes règles que ``Listings.publish(lot=True)`` (``display_price`` avec le
+        plancher appliqué au lot entier), vérifiées pour toutes les cartes avant
+        toute dépublication. Lève ``ValueError`` avec la liste des refus.
+        """
+        from pokeprice.pricing import FLOOR_CENTS, display_price, euros
 
-        with self.connect(write=not dry_run) as db:
-            sale = db.execute("SELECT * FROM sales WHERE id=?", (sale_id,)).fetchone()
-            if not sale:
-                raise KeyError(f"Vente introuvable : {sale_id}")
-            sale = dict(sale)
+        sale = db.execute("SELECT * FROM sales WHERE id=?", (sale_id,)).fetchone()
+        if not sale:
+            raise KeyError(f"Vente introuvable : {sale_id}")
+        sale = dict(sale)
+        if sale["status"] != "draft":
+            raise ValueError(f"Seul un brouillon se publie en lot (statut : {sale['status']}).")
 
-            cur = db.cursor()
-            cur.execute("""
+        items = [
+            dict(r)
+            for r in db.execute(
+                """
                 SELECT c.id, c.name, c.stock_state, c.deleted_at
                 FROM sale_items si
                 JOIN copies c ON c.id = si.copy_id
                 WHERE si.sale_id = ?
-            """, (sale_id,))
-            items = [dict(r) for r in cur.fetchall()]
-            if not items:
-                raise ValueError("Ce lot ne contient aucun exemplaire.")
+                ORDER BY si.rowid
+                """,
+                (sale_id,),
+            )
+        ]
+        if len(items) < 2:
+            raise ValueError("Un lot réunit au moins deux exemplaires.")
+        online = self.online_lot(db, sale_id)
+        if online:
+            raise ValueError(f"Ce lot est déjà en ligne (annonce {online['id']}).")
 
-            for it in items:
-                if it["deleted_at"] or it["stock_state"] != "available":
-                    raise ValueError(
-                        f"L'exemplaire {it['name']} ({it['id']}) n'est plus disponible (stock={it['stock_state']})."
-                    )
+        price_cents = sale["amount_cents"] or sale["asking_cents"]
+        if not price_cents:
+            raise ValueError("Fixez le prix du lot avant de le publier.")
+        refusals = []
+        if price_cents < FLOOR_CENTS:
+            refusals.append(f"Un lot se vend au moins {euros(FLOOR_CENTS / 100)}.")
 
-            copy_ids = [it["id"] for it in items]
+        copy_ids = [it["id"] for it in items]
+        cards = listings.cards(copy_ids)
+        to_unpublish = []
+        for it in items:
+            label = f"{it['name']} ({it['id'][:8]})"
+            card = cards.get(it["id"])
+            if card is None or it["deleted_at"]:
+                refusals.append(f"{label} : exemplaire supprimé de la collection.")
+                continue
+            proposal = display_price(
+                card,
+                card["valuation"],
+                {"amount_cents": FLOOR_CENTS, "mode": "manual", "source": "Prix fixé à la main"},
+            )
+            if not proposal["publishable"]:
+                refusals.append(f"{label} : " + " ".join(proposal["reasons"]))
+                continue
+            active = listings.active(db, it["id"])
+            if active:
+                count = db.execute(
+                    "SELECT count(*) FROM listing_items WHERE listing_id=? AND active=1",
+                    (active["id"],),
+                ).fetchone()[0]
+                if count > 1:
+                    refusals.append(f"{label} : déjà dans le lot en ligne « {active['title']} ».")
+                    continue
+                to_unpublish.append(active)
+        if refusals:
+            raise ValueError(
+                "Lot non publiable, aucune annonce n'a été retirée : " + " ; ".join(refusals)
+            )
+        return sale, copy_ids, to_unpublish, price_cents
 
-            # Rechercher les annonces individuelles actuellement en ligne pour ces cartes
-            to_unpublish = []
-            for cid in copy_ids:
-                active_l = listings.active(db, cid)
-                if active_l:
-                    to_unpublish.append(active_l)
+    def publish_to_storefront(self, sale_id, actor=DEFAULT_ACTOR, dry_run=False):
+        """Remplace les annonces unitaires des cartes du lot par une annonce de lot.
 
-            price_cents = sale["amount_cents"] or sale["asking_cents"] or 500
-            title = sale["title"]
+        Toutes les cartes sont vérifiées avant la moindre écriture ; dépublication,
+        publication et mise à jour de la vente se font dans une seule transaction.
+        En cas d'erreur, rien n'est écrit et les annonces unitaires restent en ligne.
+        """
+        from pokeprice.listings import Listings
 
-            report = {
-                "dry_run": dry_run,
-                "sale_id": sale_id,
-                "title": title,
-                "price_cents": price_cents,
-                "copies_count": len(copy_ids),
-                "unpublish_count": len(to_unpublish),
-                "unpublish_listings": [
-                    {"id": l["id"], "title": l["title"], "version": l["version"]}
-                    for l in to_unpublish
-                ],
-            }
-
-            if dry_run:
-                return report
-
-            # 1. Dépublication propre des annonces individuelles
-            for l in to_unpublish:
-                cur_l = db.execute("SELECT version FROM listings WHERE id=?", (l["id"],)).fetchone()
-                if cur_l:
+        store = self.store()
+        if dry_run:
+            with store.connect() as db:
+                sale, copy_ids, to_unpublish, price_cents = self.publication_plan(
+                    db, Listings(store), sale_id
+                )
+        else:
+            with store.connect(write=True) as db:
+                listings = Listings(_SharedTransaction(store, db))
+                sale, copy_ids, to_unpublish, price_cents = self.publication_plan(
+                    db, listings, sale_id
+                )
+                title = sale["title"]
+                for l in to_unpublish:
                     listings.unpublish(
-                        l["id"],
-                        cur_l["version"],
-                        actor,
-                        f"Regroupement dans le lot vitrine '{title}'",
+                        l["id"], l["version"], actor, f"Regroupement dans le lot vitrine '{title}'"
                     )
+                new_listing = listings.publish(
+                    copy_ids, actor, price_cents=price_cents, title=title, lot=True
+                )
+                store.update_sale(
+                    sale_id,
+                    {
+                        "channel": "Vitrine",
+                        "notes": ((sale["notes"] or "") + f"\nPublié en vitrine : annonce {new_listing['id']}").strip(),
+                    },
+                    sale["version"],
+                    actor,
+                    "Publication du lot en vitrine publique",
+                    _db=db,
+                )
 
-            # 2. Publication du lot sur la vitrine publique
-            new_listing = listings.publish(
-                copy_ids,
-                actor,
-                price_cents=price_cents,
-                title=title,
-                lot=True,
-            )
+        report = {
+            "dry_run": dry_run,
+            "sale_id": sale_id,
+            "title": sale["title"],
+            "price_cents": price_cents,
+            "copies_count": len(copy_ids),
+            "unpublish_count": len(to_unpublish),
+            "unpublish_listings": [
+                {"id": l["id"], "title": l["title"], "version": l["version"]}
+                for l in to_unpublish
+            ],
+        }
+        if not dry_run:
             report["published_listing_id"] = new_listing["id"]
+        return report
 
-            # 3. Mise à jour du dossier de vente pour tracer la publication vitrine
-            sale_version = db.execute("SELECT version FROM sales WHERE id=?", (sale_id,)).fetchone()[0]
-            store.update_sale(
-                sale_id,
-                {
-                    "channel": "Vitrine",
-                    "notes": (sale["notes"] + f"\nPublié en vitrine : annonce {new_listing['id']}").strip(),
-                },
-                sale_version,
-                actor,
-                "Publication du lot en vitrine publique",
-                _db=db,
-            )
-            return report
+    def publish_all(self, actor=DEFAULT_ACTOR, dry_run=False):
+        """Publie chaque brouillon valide qui n'est pas encore en ligne, un par un.
+
+        Chaque lot est atomique : un refus n'empêche pas les autres et ne retire
+        aucune annonce unitaire du lot refusé.
+        """
+        report = {"dry_run": dry_run, "published": [], "refused": [], "skipped": []}
+        for draft in reversed(self.status()["active_drafts"]):  # du plus ancien au plus récent
+            if draft["online_listing_id"]:
+                report["skipped"].append(
+                    {"sale_id": draft["id"], "title": draft["title"], "reason": "déjà en ligne"}
+                )
+                continue
+            if not draft["is_valid"]:
+                report["skipped"].append(
+                    {"sale_id": draft["id"], "title": draft["title"], "reason": "brouillon invalide",
+                     "details": draft["invalid_reasons"]}
+                )
+                continue
+            try:
+                report["published"].append(
+                    self.publish_to_storefront(draft["id"], actor=actor, dry_run=dry_run)
+                )
+            except (KeyError, ValueError) as exc:
+                report["refused"].append(
+                    {"sale_id": draft["id"], "title": draft["title"], "reason": str(exc)}
+                )
+        return report
 
     def compose_from_recipe(
         self,
@@ -847,13 +1046,18 @@ class LotsEngine:
         scope="duplicates",
     ):
         """Constitue un lot à partir d'une recette typée (LotCompositionRecipe)."""
+        report = None
         if pool is not None:
             candidates_source = pool
         elif duplicates is not None:
             candidates_source = duplicates
         else:
             with self.connect(write=False) as db:
-                candidates_source = self.get_pool(db, scope=scope)
+                classified = self.classify_pool(db)
+            candidates_source = classified["duplicates"]
+            if scope == "all":
+                candidates_source = candidates_source + classified["album_eligible"]
+            report = self.pool_report(classified, scope)
 
         # 1. Filtres durs (Hard Filters)
         candidates = []
@@ -940,6 +1144,8 @@ class LotsEngine:
                 "candidates_count": 0,
                 "scope": scope,
             }
+            if report:
+                res.update(report)
             try:
                 with self.connect(write=False) as db:
                     diagnostic = self.diagnose_stock(db, recipe)
@@ -1068,6 +1274,8 @@ class LotsEngine:
             "scope": scope,
             "lot": lot_data,
         }
+        if report:
+            result.update(report)
         if warning:
             result["warning"] = warning
         elif has_album_copies:
@@ -1106,9 +1314,7 @@ class LotsEngine:
                 result["projected_sale_title"] = lot["title"]
                 return result
 
-            from pokeprice.inventory import Store
-
-            store = Store(str(Path(self.db_path).parent))
+            store = self.store()
             copy_ids = [c["id"] for c in lot["copies"]]
             notes = (
                 f"{lot['summary']} "
@@ -1125,7 +1331,7 @@ class LotsEngine:
                 "amount_cents": lot["asking_cents"],
                 "asking_cents": lot["asking_cents"],
             }
-            with self.connect(write=True) as db:
+            with store.connect(write=True) as db:
                 sale_id = store.create_sale(values, copy_ids, actor, _db=db)
                 result["created_sale_id"] = sale_id
                 result["draft_action"] = "created"
@@ -1134,27 +1340,24 @@ class LotsEngine:
 
 
 def resolve_db_path(args):
-    """Résout le chemin de la base SQLite locale ou d'un export."""
-    if args.data:
-        p = Path(args.data)
-        if p.is_dir():
-            return p / "collection.sqlite3"
-        return p
-    default_p = Path("data/inventory/collection.sqlite3")
-    if default_p.exists():
-        return default_p
-    raise ValueError("Indiquez le chemin de la base avec --data.")
+    """Résout le chemin de la base SQLite, toujours donné explicitement par --data."""
+    if not args.data:
+        raise ValueError("Indiquez la base visée avec --data (aucune base par défaut).")
+    p = Path(args.data)
+    if p.is_dir():
+        return p / "collection.sqlite3"
+    return p
 
 
-def run_remote_command(remote_host, subcmd, extra_args):
-    """Exécute la commande distante sur le serveur via SSH."""
+def run_remote_command(remote_host, data, subcmd, extra_args):
+    """Exécute la commande distante sur le serveur via SSH, sur la base --data indiquée."""
     import shlex
 
     remote_cmd = [
         "/opt/pokeprice/.venv/bin/python",
         "/opt/pokeprice/scripts/pokeprice_lots.py",
         "--data",
-        "/srv/pokeprice/inventory",
+        data,
         "--output",
         f"/tmp/pokeprice_lots_{subcmd}.json",
         subcmd,
@@ -1181,12 +1384,15 @@ def main():
     )
     parser.add_argument(
         "--data",
-        help="Dossier ou fichier de la base de données SQLite (ex: data/inventory ou /srv/pokeprice/inventory)",
+        required=True,
+        help="Dossier ou fichier de la base SQLite visée, toujours explicite "
+        "(sur le serveur : /srv/pokeprice/inventory ; pour un essai : une base temporaire)",
     )
     parser.add_argument(
         "--remote",
         action="store_true",
-        help="Exécuter sur le serveur de production distant via SSH (défini dans ~/.config/pokeprice/backup.env)",
+        help="Exécuter sur le serveur distant via SSH (hôte défini dans ~/.config/pokeprice/backup.env), "
+        "sur la base --data du serveur",
     )
     parser.add_argument(
         "--output",
@@ -1205,16 +1411,26 @@ def main():
         help="Nombre maximum de cartes par lot (défaut: 20)",
     )
 
+    def max_drafts_option(sub):
+        sub.add_argument(
+            "--max-drafts",
+            type=int,
+            default=MAX_ROTATION_DRAFTS,
+            help=f"Plafond de brouillons actifs (défaut: {MAX_ROTATION_DRAFTS})",
+        )
+
     # status
-    subparsers.add_parser("status", help="Consulter l'état de la fenêtre de rotation des brouillons")
+    p_status = subparsers.add_parser("status", help="Consulter l'état de la fenêtre de rotation des brouillons")
+    max_drafts_option(p_status)
 
     # rotate
-    p_rotate = subparsers.add_parser("rotate", help="Appliquer la rotation glissante (max 5 brouillons)")
+    p_rotate = subparsers.add_parser("rotate", help="Appliquer la rotation glissante des brouillons")
+    max_drafts_option(p_rotate)
     p_rotate.add_argument(
         "--limit",
         type=int,
-        default=MAX_ROTATION_DRAFTS,
-        help="Nombre maximal de nouveaux lots à intégrer",
+        default=None,
+        help="Nombre maximal de nouveaux lots à intégrer (défaut: le plafond --max-drafts)",
     )
     p_rotate.add_argument(
         "--dry-run",
@@ -1267,10 +1483,15 @@ def main():
         "publish-to-storefront",
         help="Publier un lot en vitrine publique (avec dépublication unitaire automatique)",
     )
-    p_pub.add_argument(
+    target = p_pub.add_mutually_exclusive_group(required=True)
+    target.add_argument(
         "--sale-id",
-        required=True,
         help="Identifiant UUID du lot de vente à publier en vitrine",
+    )
+    target.add_argument(
+        "--all",
+        action="store_true",
+        help="Publier chaque brouillon valide qui n'est pas encore en ligne",
     )
     p_pub.add_argument(
         "--dry-run",
@@ -1302,10 +1523,13 @@ def main():
         extra = []
         if args.subcommand == "analyze" and hasattr(args, "max_per_lot"):
             extra.extend(["--max-per-lot", str(args.max_per_lot)])
+        elif args.subcommand == "status":
+            extra.extend(["--max-drafts", str(args.max_drafts)])
         elif args.subcommand == "rotate":
+            extra.extend(["--max-drafts", str(args.max_drafts)])
             if args.dry_run:
                 extra.append("--dry-run")
-            if args.limit:
+            if args.limit is not None:
                 extra.extend(["--limit", str(args.limit)])
             if args.actor:
                 extra.extend(["--actor", args.actor])
@@ -1336,7 +1560,10 @@ def main():
                 extra.extend(["--scope", args.scope])
 
         elif args.subcommand == "publish-to-storefront":
-            extra.extend(["--sale-id", args.sale_id])
+            if args.all:
+                extra.append("--all")
+            else:
+                extra.extend(["--sale-id", args.sale_id])
             if args.dry_run:
                 extra.append("--dry-run")
             if args.actor:
@@ -1344,7 +1571,7 @@ def main():
 
 
         # Exécuter à distance
-        out_raw = run_remote_command(remote_host, args.subcommand, extra)
+        run_remote_command(remote_host, args.data, args.subcommand, extra)
         # Télécharger ou lire le JSON distant
         read_cmd = f"ssh -o BatchMode=yes '{remote_host}' 'sudo -u pokeprice cat /tmp/pokeprice_lots_{args.subcommand}.json'"
         json_res = subprocess.run(read_cmd, shell=True, capture_output=True, text=True)
@@ -1363,12 +1590,13 @@ def main():
         if args.subcommand == "analyze":
             result = engine.analyze(max_cards_per_lot=args.max_per_lot)
         elif args.subcommand == "status":
-            result = engine.status()
+            result = engine.status(max_drafts=args.max_drafts)
         elif args.subcommand == "rotate":
             result = engine.rotate(
                 limit_add=args.limit,
                 dry_run=args.dry_run,
                 actor=args.actor,
+                max_drafts=args.max_drafts,
             )
         elif args.subcommand == "compose":
             if not args.prompt and not args.recipe:
@@ -1396,11 +1624,18 @@ def main():
                 scope=getattr(args, "scope", "duplicates"),
             )
         elif args.subcommand == "publish-to-storefront":
-            result = engine.publish_to_storefront(
-                sale_id=args.sale_id,
-                actor=args.actor,
-                dry_run=args.dry_run,
-            )
+            if args.all:
+                result = engine.publish_all(actor=args.actor, dry_run=args.dry_run)
+            else:
+                try:
+                    result = engine.publish_to_storefront(
+                        sale_id=args.sale_id,
+                        actor=args.actor,
+                        dry_run=args.dry_run,
+                    )
+                except (KeyError, ValueError) as exc:
+                    sys.stderr.write(f"Publication refusée : {exc}\n")
+                    sys.exit(1)
 
     out_p = Path(args.output)
     out_p.parent.mkdir(parents=True, exist_ok=True)
