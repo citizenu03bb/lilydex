@@ -40,7 +40,7 @@ sélection**, chaque ligne montre aussi le recto de la première carte.
 | Réservation | Une demande ne bloque rien ; les cartes sont réservées à l'**acceptation** |
 | Paiement | Wero, virement ou PayPal, réglés par l'administrateur ; le client voit les coordonnées, le montant et la référence du lot seulement tant que le lot est réservé et non payé ; `/a-propos` nomme les moyens, sans coordonnées |
 | E-mail | Aucun service d'envoi ; Brevo ou Mailjet, avec un domaine deSEC pour SPF et DKIM, quand le volume ou les mots de passe oubliés le justifieront |
-| Indexation | Réglage `POKEPRICE_INDEXING`, éteint par défaut : la vitrine porte `noindex` ; voir [Partage et indexation](#partage-et-indexation) |
+| Indexation | Vitrine ouverte aux moteurs de recherche ; `POKEPRICE_INDEXING=off` remet `noindex` ; voir [Partage et indexation](#partage-et-indexation) |
 
 ## Ce qui est public, et ce qui ne l'est jamais
 
@@ -191,9 +191,10 @@ connue. Ce bloc est une donnée (`application/ld+json`), que la CSP
 `script-src 'self'` n'exécute pas ; `<` y est échappé. Une carte sociale avec
 image est `summary_large_image`, sans image `summary`.
 
-Le réglage `POKEPRICE_INDEXING` (`1`, `true`, `on` ou `oui` dans
-l'environnement du serveur) ouvre la vitrine aux moteurs de recherche ; toute
-autre valeur, ou son absence, laisse le site tel quel. Allumé :
+La vitrine est ouverte aux moteurs de recherche par défaut. Le réglage
+`POKEPRICE_INDEXING` de l'environnement du serveur la ferme avec `off`, `0`,
+`false`, `no` ou `non` ; toute autre valeur, ou son absence, la laisse ouverte.
+Allumé :
 
 - la vitrine, `/en/`, les pages À propos et les fiches en vente perdent leur
   `noindex`, injecté par le serveur à la place de `{{robots}}` ; une fiche
@@ -207,7 +208,8 @@ autre valeur, ou son absence, laisse le site tel quel. Allumé :
   en `lastmod`. Sans origine publique, il répond 404 : les URL absolues ne se
   déduisent jamais de l'en-tête `Host`.
 
-Éteint, `/robots.txt` et `/sitemap.xml` répondent 404.
+Éteint, toutes les pages publiques portent `noindex`, les photos publiques
+`X-Robots-Tag`, et `/robots.txt` et `/sitemap.xml` répondent 404.
 
 Les actions de la fiche suivent les informations dans le défilement : elles ne
 recouvrent ni le prix ni l'état. Sur téléphone, la hauteur de la photo laisse
@@ -283,7 +285,7 @@ minute et par adresse :
 
 - `GET /` : la vitrine (`web/storefront.html`, `.js`, `.css`), séparée de la
   gestion : elle ne charge aucun code de gestion. `/vitrine` y redirige.
-  `GET /robots.txt` et `GET /sitemap.xml` existent avec `POKEPRICE_INDEXING`.
+  `GET /robots.txt` et `GET /sitemap.xml` existent sauf avec `POKEPRICE_INDEXING=off`.
 - `GET /en/` et `GET /en/carte/{id}` : la même vitrine en anglais ; `/en` y
   redirige.
 - `GET /a-propos` : qui vend, comment se passe un achat, données conservées,
@@ -367,15 +369,15 @@ minute et par adresse :
 - **Données des clients.** Durées de conservation appliquées chaque nuit par
   `purge`, droits exercés dans **Mon compte**, effacement par `forget` : voir
   [Données personnelles](RGPD.md).
-- **Indexation.** Par défaut, `noindex` sur la vitrine ; `X-Robots-Tag:
-  noindex, nofollow` sur la gestion et l'API, photos publiques comprises sauf
-  avec `POKEPRICE_INDEXING` ([Partage et indexation](#partage-et-indexation)).
+- **Indexation.** `X-Robots-Tag: noindex, nofollow` sur la gestion et l'API,
+  sauf les photos publiques ; `noindex` sur une fiche absente. Avec
+  `POKEPRICE_INDEXING=off`, `noindex` sur toute la vitrine et les photos
+  ([Partage et indexation](#partage-et-indexation)).
 
 ## Les prochaines étapes
 
 - D'autres langues que l'anglais ([feuille de route](ROADMAP.md#prévu)).
 - Un essai de bout en bout automatisé sur une copie de la base (jalon M5).
-- L'activation de `POKEPRICE_INDEXING` en production, à la décision du propriétaire.
 - Un service d'envoi d'e-mails, puis des intégrations autorisées aux
   plateformes de vente.
 

@@ -82,8 +82,8 @@ PUBLIC_PHOTO = re.compile(r"/api/public/listings/[^/]+/photo")
 
 
 def indexing_enabled(value):
-    """POKEPRICE_INDEXING: off unless explicitly switched on."""
-    return str(value or "").strip().lower() in {"1", "true", "yes", "on", "oui"}
+    """POKEPRICE_INDEXING: on unless explicitly switched off."""
+    return str(value).strip().lower() not in {"0", "false", "no", "off", "non"}
 # The errors a storefront visitor can meet, by their French detail. The answer adds
 # the code; the storefront shows web/messages' "error.<code>" in its own language.
 ERROR_CODES = {
@@ -572,8 +572,8 @@ def create_app(
         ):
             raise ValueError("L’origine publique est une URL HTTPS sans chemin, identifiants ni paramètres.")
         public_origin = public_origin.rstrip("/")
-    # Search engines may index the storefront only once the owner switches it on.
-    indexing = indexing_enabled(os.environ.get("POKEPRICE_INDEXING", "") if indexing is None else indexing)
+    # Search engines may index the storefront unless the owner switches it off.
+    indexing = indexing_enabled(os.environ.get("POKEPRICE_INDEXING", "on") if indexing is None else indexing)
     store = Store(directory)
     allowed_hosts = allowed_hosts or ["127.0.0.1", "localhost", "testserver"]
     # Web setup is for a private first run: once others can reach the server,

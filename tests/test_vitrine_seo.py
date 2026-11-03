@@ -82,9 +82,18 @@ def test_a_shared_link_counts_as_a_visit(shop, monkeypatch):  # noqa: F811
     assert seen.count(("page", "accueil")) == 2
 
 
-def test_indexing_is_off_by_default(shop, monkeypatch):  # noqa: F811
+def test_indexing_is_on_by_default(shop, monkeypatch):  # noqa: F811
     _, _, store, _, single, _ = shop
     monkeypatch.delenv("POKEPRICE_INDEXING", raising=False)
+    with TestClient(create_app(store.root, public_origin=ORIGIN)) as visitor:
+        assert "robots" not in Head(visitor.get("/").text).meta
+        assert visitor.get("/robots.txt").status_code == 200
+        assert visitor.get("/sitemap.xml").status_code == 200
+
+
+def test_indexing_switched_off_keeps_everything_out(shop, monkeypatch):  # noqa: F811
+    _, _, store, _, single, _ = shop
+    monkeypatch.setenv("POKEPRICE_INDEXING", "off")
     with TestClient(create_app(store.root, public_origin=ORIGIN)) as visitor:
         for path in ("/", "/en/", "/a-propos", "/en/a-propos", f"/carte/{single['id']}"):
             assert Head(visitor.get(path).text).meta["robots"] == "noindex", path
@@ -94,8 +103,9 @@ def test_indexing_is_off_by_default(shop, monkeypatch):  # noqa: F811
         assert photo.status_code == 200 and photo.headers["x-robots-tag"] == "noindex, nofollow"
 
 
-@pytest.mark.parametrize("value, expected", [("", False), ("0", False), ("off", False), ("non", False),
-                                             ("1", True), ("on", True), ("true", True), (" Oui ", True)])
+@pytest.mark.parametrize("value, expected", [("0", False), ("off", False), (" OFF ", False), ("false", False),
+                                             ("non", False), ("", True), ("1", True), ("on", True),
+                                             ("true", True), (" Oui ", True)])
 def test_the_indexing_setting_is_read_from_the_environment(value, expected, tmp_path, monkeypatch):
     assert indexing_enabled(value) is expected
     monkeypatch.setenv("POKEPRICE_INDEXING", value)
