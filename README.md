@@ -10,9 +10,10 @@ Le paquet Python et ses commandes s'appellent `pokeprice`, `pokeprice-manage` et
 > priced, sellable inventory: a FastAPI + SQLite web app used from an Android phone, a
 > command-line album scanner, a public storefront, and an ARM Oracle Cloud server behind Caddy
 > with hardened systemd units, nightly backups verified by a test restore, and off-site copies
-> encrypted with age. **Models propose, a person decides:** Gemini reads the card, DINOv2 (CPU
-> only) checks the edition from the image alone, and every proposal lands in a review queue with
-> its evidence. On 27 to 31 hand-verified cards from one collection, no unsafe variant proposal
+> encrypted with age. **Agents act, a person keeps money and irreversible steps:** Gemini reads
+> the card, DINOv2 (CPU only) checks the edition from the image alone, and every disagreement
+> lands in a review queue with its evidence; agents apply pre-authorised fixes and build and
+> publish lots, under an anti-undercut floor. On 27 to 31 hand-verified cards from one collection, no unsafe variant proposal
 > above the value threshold, 22 of 27 editions confirmed by image alone with one false alarm, and
 > Tesseract rejected after measurement. The interface and detailed docs are in French:
 > [English overview](README.en.md) · [case study](CASE-STUDY.md) (design, operations, security).
@@ -39,15 +40,21 @@ doublon ni perte de vos corrections.
 compte, et une réservation se demande avec un simple e-mail. Le vendeur répond depuis sa
 messagerie ; s'il accepte, la demande devient un lot et le client est validé.
 
-**Déléguer à un agent.** Un agent IA peut travailler sur un album, avec sa propre clé d'accès,
-révocable à tout moment : il prépare seulement des brouillons de lots ; une personne publie,
-réserve et vend ([pilote agent](docs/AGENT_CONTROL.md)).
+**Déléguer à un agent.** Un agent IA travaille sur un album avec sa propre clé d'accès,
+révocable à tout moment : il prépare des brouillons de lots et applique les corrections de
+catalogue préautorisées. Avec un accès opérateur, un agent compose les lots de doublons, fait
+tourner les brouillons et publie un lot en vitrine. Réservations, paiements et messages aux
+clients restent humains ([pilote agent](docs/AGENT_CONTROL.md)).
 
-## IA et vision : la machine propose, l'humain décide
+## IA et vision : l'IA agit, l'humain garde l'argent et l'irréversible
 
-Les modèles proposent, s'abstiennent quand ils doutent et gardent une trace (photo lue,
-modèle, protocole, réponse brute). Une personne confirme l'identité, la
-[variante](docs/GLOSSAIRE.md#les-variantes) et l'état : aucune lecture ne modifie une fiche.
+La cible est l'autonomie maximale des agents : l'IA identifie, cote, range, compose les lots et
+publie, puis journalise et rend chaque action annulable. L'humain fournit les photos que l'IA
+demande, et tranche l'argent qui sort, l'irréversible et tout prix sous le plancher
+anti-bradage ([fiche 0021](docs/decisions/0021-autonomie-maximale.md)). Aujourd'hui, les
+lectures restent des propositions : une personne confirme l'identité, la
+[variante](docs/GLOSSAIRE.md#les-variantes) et l'état. Les modèles s'abstiennent quand ils
+doutent et gardent une trace (photo lue, modèle, protocole, réponse brute).
 Gemini, un modèle vision-langage, lit une photo ; DINOv2 compare des images, sans texte.
 
 | Brique | Modèle | Où ça tourne | Mesure |

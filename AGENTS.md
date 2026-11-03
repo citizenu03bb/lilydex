@@ -20,6 +20,11 @@ Les guides versionnés vivent dans `skills/` et sont exposés via les liens
 symboliques `.agents/skills` et `.codex/skills` pour la découverte automatique
 par les clients agents (Pi, Codex, Antigravity) :
 
+- [`pokeprice-autonome`](skills/pokeprice-autonome/SKILL.md) : guide chapeau,
+  à lire en premier ; l'agent agit sans attendre de clic (identifier, coter,
+  ranger, composer et publier des lots), sans jamais vendre sous le plancher
+  anti-bradage, et demande une nouvelle photo quand il ne tranche pas
+  ([décision 0021](docs/decisions/0021-autonomie-maximale.md)) ;
 - [`pokeprice-collection`](skills/pokeprice-collection/SKILL.md) : exploitation
   de la collection par l'opérateur (serveur, sauvegardes, imports, délégations,
   approbation de corrections en lot) ;
@@ -28,7 +33,9 @@ par les clients agents (Pi, Codex, Antigravity) :
   dans l'ordre du classeur et brouillons de lots de doublons ;
 - [`pokeprice-agent-prix`](skills/pokeprice-agent-prix/SKILL.md) : diagnostic
   des cartes sans prix et application des corrections catalogue préautorisées
-  (`pokeprice-agent apply-correction`).
+  (`pokeprice-agent apply-correction`) ;
+- [`pokeprice-lots`](skills/pokeprice-lots/SKILL.md) : composition, rotation
+  et publication de lots de doublons (`scripts/pokeprice_lots.py`).
 
 Pour accélérer le traitement des cartes « À identifier », « À vérifier » et
 « À examiner », suivez le parcours décrit dans
