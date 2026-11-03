@@ -200,10 +200,10 @@ def test_withdrawn_or_reserved_publications_leave_the_storefront(shop):
     assert visitor.get(f"/api/public/listings/{lot['id']}").status_code == 404
 
 
-def test_the_storefront_page_is_separate_and_not_indexed(shop):
+def test_the_storefront_page_is_separate_and_indexable(shop):
     _, visitor, *_ = shop
     page = visitor.get("/")
-    assert page.status_code == 200 and 'name="robots" content="noindex"' in page.text
+    assert page.status_code == 200 and 'name="robots"' not in page.text
     assert "/assets/storefront.js" in page.text and "/assets/app.js" not in page.text
     assert "/assets/themes.css" in page.text and "/assets/components.js" in page.text
     assert visitor.get("/assets/storefront.js").status_code == 200

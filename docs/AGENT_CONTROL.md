@@ -2,7 +2,7 @@
 
 > **Pour qui :** toute personne qui veut déléguer un album à un agent IA.
 > **Vous y trouverez :** ce que l'agent peut faire et ne peut pas faire, le skill qui le guide, les commandes du client et les évaluations faites.
-> **Statut :** en vigueur ; pilote technique. La délégation initiale est expliquée dans la [fiche 0012](decisions/0012-agent-brouillons.md), complétée pour les corrections préautorisées par la [fiche 0014](decisions/0014-corrections-agent-autorisees.md).
+> **Statut :** en vigueur ; pilote technique. La délégation initiale est expliquée dans la [fiche 0012](decisions/0012-agent-brouillons.md), complétée pour les corrections préautorisées par la [fiche 0014](decisions/0014-corrections-agent-autorisees.md), puis pour l'autonomie maximale par la [fiche 0021](decisions/0021-autonomie-maximale.md).
 
 Un agent peut consulter **un album délégué**, préparer
 un lot prudent de doublons et créer un brouillon visible dans **Ventes**. Il
@@ -18,8 +18,20 @@ client livré n’est pas un chatbot intégré au site.
 
 Le [plan révisé](AGENT_CONTROL_PLAN.md) explique l’apport par rôle et les
 extensions possibles. Les corrections de catalogue préautorisées passent par le parcours décrit ci-dessous.
-Les confirmations physiques, réservations, publications, ventes et paiements
-restent sous les droits humains.
+
+La politique d'ensemble vise l'autonomie maximale des agents : ils identifient,
+cotent, rangent, composent les lots et publient, sans attendre de clic, et
+rendent chaque action annulable. Restent humains les paiements et
+remboursements, les suppressions définitives, les messages libres aux clients,
+tout prix sous le plancher anti-bradage et le plafond de délégation. Le guide
+chapeau [pokeprice-autonome](../skills/pokeprice-autonome/SKILL.md) porte cette
+politique ; la composition et la publication de lots passent par
+[pokeprice-lots](../skills/pokeprice-lots/SKILL.md), avec un accès opérateur.
+
+Le pilote décrit sur cette page reste un **périmètre d'évaluation** : son guide
+scellé et son API déléguée ne publient, ne réservent et ne vendent rien. Ces
+limites mesurent un usage précis ; elles ne bornent pas l'autonomie des autres
+parcours.
 
 ## Agent et skill d'exploitation
 

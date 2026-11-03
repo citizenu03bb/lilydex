@@ -160,7 +160,8 @@ def main():
     )
     restore.add_argument("archive")
     prices = actions.add_parser(
-        "prices", help="Relevé TCGdex des identités confirmées (prix et variantes)"
+        "prices",
+        help="Relevé TCGdex des identités confirmées (prix et variantes), un appel par édition",
     )
     prices.add_argument("--album", default="", help="Limiter à un album (identifiant)")
     prices.add_argument(
@@ -174,6 +175,17 @@ def main():
         help="Seulement les cartes sans prix de référence, relevées ou non",
     )
     prices.add_argument("--limit", type=int, default=None)
+    prices.add_argument(
+        "--from-guide",
+        action="store_true",
+        help="Coter d'abord par le guide des prix Cardmarket du jour (produit connu), sans requête TCGdex ; les autres cartes suivent le relevé habituel",
+    )
+    prices.add_argument(
+        "--threshold",
+        type=float,
+        default=20,
+        help="Variation signalée dans le rapport, en pour cent (cartes de 2 € et plus)",
+    )
     prices.add_argument(
         "--actor", default="manage", help="Auteur inscrit dans l'historique"
     )
@@ -477,16 +489,38 @@ def main():
             from .market_product import MarketProducts
             from .pricing import PriceService, fetch_card_with_guide
 
+            if args.threshold <= 0:
+                parser.error("--threshold doit être positif")
             guide = CardmarketGuide(store.root / "cardmarket", store)
-            result = PriceService(
+            service = PriceService(
                 store, fetch_card_with_guide(guide), market=MarketProducts(store)
-            ).refresh_many(
-                args.actor,
-                album=args.album,
-                only_missing=args.only_missing,
-                unpriced=args.unpriced,
-                limit=args.limit,
             )
+            options = {
+                "album": args.album,
+                "only_missing": args.only_missing,
+                "unpriced": args.unpriced,
+                "limit": args.limit,
+                "threshold": args.threshold / 100,
+            }
+            result = (
+                service.refresh_from_guide(args.actor, guide, **options)
+                if args.from_guide
+                else service.refresh_many(args.actor, **options)
+            )
+            from .listings import Listings
+
+            # A newer quote never changes a storefront price by itself.
+            result["stale_storefront"] = [
+                {
+                    "listing_id": listing["id"],
+                    "title": listing["title"] or listing["items"][0]["name"],
+                    "price_cents": listing["price_cents"],
+                    "current_cents": listing["drift"]["current_cents"],
+                    "price_date": listing["price_date"],
+                }
+                for listing in Listings(store).all()
+                if listing["drift"]
+            ]
             from .names import NameCatalog
 
             # New editions get their names too; known ones cost no request.

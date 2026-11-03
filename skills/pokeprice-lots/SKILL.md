@@ -1,135 +1,209 @@
 ---
 name: pokeprice-lots
-description: Analyser les doublons de la collection Pokémon, générer des suggestions de lots thématiques cohérents et maintenir une rotation glissante plafonnée à 5 brouillons dans l'espace Ventes du serveur de production.
+description: Analyser les doublons de la collection Pokémon, générer des suggestions de lots thématiques cohérents, maintenir une rotation glissante plafonnée de brouillons dans l'espace Ventes et publier les lots en vitrine sans jamais laisser de carte hors ligne.
 ---
 
 # Rotation et suggestions de lots de vente
 
 ## Overview
 
-Ce skill permet d'analyser systématiquement les exemplaires excédentaires (doublons) de la collection de référence des Cartes de Lily, de composer des regroupements thématiques cohérents (Vintage Wizards of the Coast, Bloc Diamant & Perle / Platine, Dresseurs et Objets, HeartGold SoulSilver, Brillantes, etc.) et d'alimenter l'espace privé **Gestion → Ventes** avec une fenêtre glissante de **5 brouillons au maximum**.
+Ce guide décrit `scripts/pokeprice_lots.py`, qui isole les exemplaires
+excédentaires (doublons) de la collection, compose des regroupements
+thématiques (Vintage Wizards of the Coast, Diamant & Perle / Platine, Dresseurs
+et Objets, HeartGold SoulSilver, Brillantes…) et alimente l'espace privé
+**Gestion → Ventes** avec une fenêtre glissante de brouillons, plafonnée à 5 par
+défaut (`--max-drafts`).
 
-Lors de chaque renouvellement périodique (~toutes les 2 semaines) :
-- Les cartes restent en vitrine individuelle sans perturbation tant que le lot n'est pas vendu.
-- Si le quota de 5 brouillons actifs est atteint lors de l'ajout de nouveaux lots, une rotation **FIFO** (First In, First Out) annule les brouillons les plus anciens non concrétisés (`status='cancelled'`).
-- La vente d'un lot (`status='reserved'`) retire automatiquement les exemplaires de la vitrine au moment précis de la transaction.
+Principes :
+
+- Le meilleur exemplaire de chaque référence reste dans l'album.
+- Seules entrent en lot les cartes à l'identité confirmée, chiffrées, sans revue
+  en attente et sous le seuil de valeur (mêmes règles que `AgentService` :
+  `identity_unconfirmed`, `price_incomplete`, `review_needed`, `valuable_card`).
+  Une carte sans prix n'entre jamais en lot : elle figure dans la liste
+  `to_price` (« à chiffrer ») du rapport.
+- Un brouillon de vente n'altère pas la vitrine : les cartes y restent à l'unité
+  jusqu'à la publication du lot.
+- La publication d'un lot est atomique : toutes les cartes sont vérifiées avant
+  la moindre dépublication, puis dépublication, publication et mise à jour de la
+  vente se font dans une seule transaction. Si une carte est refusée ou si une
+  étape échoue, rien n'est écrit et les annonces unitaires restent en ligne.
+- La rotation n'annule jamais un brouillon dont le lot est en ligne.
+- Un lot n'est jamais bradé : son prix ne descend pas sous la somme des cotes de
+  ses cartes moins 15 % (variable d'environnement `POKEPRICE_LOT_MAX_MARGIN`,
+  entre 0 et 50). `compose` plafonne sa décote à cette marge, sans décote par
+  défaut, et `publish-to-storefront` refuse un lot sous ce plancher ou dont une
+  carte n'a pas de cote (une cote nulle compte comme absente), en recalculant
+  les cotes du jour. Avec `--remote`, la marge réglée sur le poste est transmise
+  au serveur.
 
 ## Dependencies
 
-- [`pokeprice-collection`](../pokeprice-collection/SKILL.md) : Fait autorité sur l'accès et les règles de gestion du serveur de production (`/srv/pokeprice/inventory/collection.sqlite3`).
-- [`pokeprice-agent`](../pokeprice-agent/SKILL.md) : Définit les principes de préservation du stock de collection (au moins 1 exemplaire conservé par référence).
+- [`pokeprice-collection`](../pokeprice-collection/SKILL.md) : fait autorité sur
+  l'accès au serveur de production, les sauvegardes et la base de référence.
+- [`pokeprice-agent`](../pokeprice-agent/SKILL.md) : préservation du stock de
+  collection (au moins un exemplaire conservé par référence).
+
+## Choisir la base
+
+Toute commande prend `--data` explicite ; le script n'a aucune base par défaut.
+
+- Sur le serveur : `--data /srv/pokeprice/inventory`, la base de référence.
+- Depuis le poste de travail, `--remote --data /srv/pokeprice/inventory` exécute
+  la commande sur le serveur (hôte lu dans `~/.config/pokeprice/backup.env`) et
+  y transmet le `--data` indiqué.
+- Pour un essai : une base temporaire ou une sauvegarde restaurée, jamais
+  `data/inventory/` du poste pour une écriture.
 
 ## Quick Start
 
+Sur le serveur, toujours une simulation (`--dry-run`) avant l'écriture :
+
 ```bash
-# 1. Vérifier l'état de la fenêtre de rotation (max 5 brouillons actifs)
-uv run python scripts/pokeprice_lots.py --remote --output /tmp/status.json status
+# 1. État de la fenêtre de rotation
+pokeprice_lots.py --data /srv/pokeprice/inventory --output /tmp/status.json status
 
-# 2. Analyser les doublons disponibles et prévisualiser les lots candidats
-uv run python scripts/pokeprice_lots.py --remote --output /tmp/lots_candidats.json analyze
+# 2. Doublons disponibles, lots candidats et cartes à chiffrer
+pokeprice_lots.py --data /srv/pokeprice/inventory --output /tmp/lots.json analyze
 
-# 3. Simuler la rotation (dry-run : aucun changement en base)
-uv run python scripts/pokeprice_lots.py --remote --output /tmp/rotation_preview.json rotate --dry-run
-
-# 4. Appliquer la rotation sur le serveur de production
-uv run python scripts/pokeprice_lots.py --remote --output /tmp/rotation_applied.json rotate
+# 3. Rotation simulée, puis appliquée
+pokeprice_lots.py --data /srv/pokeprice/inventory --output /tmp/rotation.json rotate --dry-run
+pokeprice_lots.py --data /srv/pokeprice/inventory --output /tmp/rotation.json rotate
 ```
 
-Pour une exécution locale sur une copie de base de données :
+`pokeprice_lots.py` désigne `scripts/pokeprice_lots.py` lancé avec le Python de
+l'installation (sur le serveur : `/opt/pokeprice/.venv/bin/python
+/opt/pokeprice/scripts/pokeprice_lots.py`, sous l'utilisateur `pokeprice`).
+
+Depuis le poste de travail :
+
 ```bash
-uv run python scripts/pokeprice_lots.py --data data/inventory --output /tmp/lots.json analyze
+uv run python scripts/pokeprice_lots.py --remote --data /srv/pokeprice/inventory --output /tmp/status.json status
 ```
 
-## Utility Scripts
+Essai sur une copie temporaire :
 
-Le script CLI [`scripts/pokeprice_lots.py`](file:///home/pat/Projects/pokeprice/scripts/pokeprice_lots.py) propose cinq sous-commandes :
+```bash
+uv run python scripts/pokeprice_lots.py --data /tmp/essai-lots/inventory --output /tmp/lots.json analyze
+```
+
+## Sous-commandes
 
 ### `analyze`
-Parcourt la collection pour isoler les exemplaires excédentaires au-delà du premier exemplaire conservé, puis les regroupe par affinité de bloc ou d'usage :
-- `vintage_wotc` : Set de Base, Jungle, Fossile (1999-2000).
-- `dp_platine` : Génération 4 Sinnoh (2007-2009).
-- `dresseurs` : Supporters, objets et stades utilitaires pour les joueurs.
-- `hgss` : Génération 2 Johto (2010).
-- `brillantes` : Cartes holographiques ou reverse en surplus.
-- `energies` : Vracs d'énergies de base.
 
-Paramètres :
-- `--max-per-lot <N>` : Nombre maximal de cartes par lot (défaut : 20).
-- `--output <fichier.json>` : Fichier obligatoire enregistrant les propositions de lots et leur valorisation.
+Isole les exemplaires excédentaires au-delà de l'exemplaire conservé, écarte les
+cartes non éligibles et regroupe les autres par bloc ou usage :
+`vintage_wotc`, `dp_platine`, `dresseurs`, `hgss`, `brillantes`, `energies`…
+
+Le rapport contient :
+
+- `lots` : lots candidats, avec prix demandé et valeur de référence ;
+- `excluded` : doublons écartés, avec leurs motifs ;
+- `to_price` : doublons sans prix, à chiffrer avant tout lot.
+
+Paramètre : `--max-per-lot <N>` (défaut : 20).
 
 ### `status`
-Inspecte la table `sales` de la base de référence :
-- Indique le nombre de brouillons actifs actuels et la capacité restante (sur 5).
-- Vérifie l'intégrité de chaque carte d'un lot (alerte si une carte a été réservée, vendue ou supprimée entre-temps).
-- `--output <fichier.json>` : Enregistre le rapport d'état.
+
+Inspecte les brouillons de vente :
+
+- nombre de brouillons actifs et capacité restante sous le plafond ;
+- `is_valid` : faux si une carte a été réservée, vendue ou supprimée ;
+- `online_listing_id` : annonce de lot en ligne qui porte les cartes du
+  brouillon, le cas échéant.
+
+Paramètre : `--max-drafts <N>` (défaut : 5).
 
 ### `rotate`
-Applique la rotation glissante des lots :
-- Si la somme des brouillons existants et des nouveaux lots dépasse 5, les plus anciens brouillons sont annulés avec traçabilité dans le journal (`sale_events`).
-- Insère les nouveaux lots au statut `draft` dans `sales` et `sale_items`.
-- `--dry-run` : Simule l'opération et détaille les annulations/créations projetées sans rien écrire.
-- `--limit <N>` : Nombre de nouveaux lots à intégrer (défaut : 5).
-- `--actor <nom>` : Auteur tracé dans l'historique des ventes (défaut : `pokeprice-lots`).
 
-### `compose`
-Compose un lot sur-mesure à partir d'un prompt en langage naturel interprété par Gemini (`gemini-3.8-flash` via Structured Outputs) ou d'une recette typée JSON directe :
-- Interprète les intentions sémantiques et subjectives (*pépites sous-évaluées*, *panaché 1ère génération*, *cartes reverses*, *petits budgets*) en un schéma typé `LotCompositionRecipe`.
-- Applique des filtres durs déterministes (état minimal, finitions, blocs, exclusions) et des heuristiques de scoring sans jamais halluciner d'exemplaires.
-- Évite les doublons de Pokémon dans le lot (`diversity: maximize_species`) et applique une décote commerciale cohérente.
+Applique la rotation glissante :
+
+- si les brouillons existants et les nouveaux lots dépassent le plafond, les
+  brouillons invalides sont annulés d'abord, puis les plus anciens ;
+- un brouillon dont le lot est en ligne n'est jamais annulé (rapport :
+  `online_drafts_kept`). Il compte dans le plafond : s'il ne reste pas de place,
+  moins de lots sont créés (rapport : `lots_skipped_for_capacity`) ;
+- annulations et créations se font dans une seule transaction.
 
 Paramètres :
-- `--prompt "<texte>"` : Requête en langage naturel (ex: `"trouve-moi les pépites sous-évaluées"`).
-- `--recipe "<json_ou_fichier>"` : Recette JSON structurée directe (optionnel, permet d'éviter l'appel réseau ou pour les tests).
-- `--scope duplicates|all` : Périmètre de sélection des cartes (`duplicates` par défaut, ou `all` pour inclure exceptionnellement les cartes uniques d'album).
-- `--create-draft` : Enregistre le lot en tant que brouillon de vente dans `sales`.
-- `--dry-run` : Simule la composition ou la création sans écriture en base.
-- `--actor <nom>` : Auteur tracé dans l'historique (défaut : `pokeprice-lots`).
-- `--output <fichier.json>` : Enregistre le lot généré, la recette, les métadonnées photos (`photo`, `page`, `position`, `from_album`) et le bloc de diagnostic transparent `stock_diagnostic` en cas de stock insuffisant ou ciblé.
+
+- `--max-drafts <N>` : plafond de brouillons actifs (défaut : 5) ;
+- `--limit <N>` : nombre de nouveaux lots à intégrer (défaut : le plafond) ;
+- `--dry-run` : détaille annulations et créations sans rien écrire ;
+- `--actor <nom>` : auteur tracé dans l'historique (défaut : `pokeprice-lots`).
+
+### `compose`
+
+Compose un lot sur mesure à partir d'une recette JSON (`LotCompositionRecipe`)
+ou d'un prompt en langage naturel interprété par Gemini (Structured Outputs).
+Le modèle est la constante `DEFAULT_GEMINI_MODEL` du script, remplaçable par la
+variable d'environnement `POKEPRICE_LOTS_GEMINI_MODEL` ; la clé est lue dans
+`GEMINI_API_KEY`. Avec `--remote`, le prompt est interprété sur le poste de
+travail et seule la recette part sur le serveur.
+
+Les filtres de la recette s'appliquent au gisement éligible : une carte sans
+prix, non confirmée, à revoir ou de valeur n'entre jamais dans le lot composé.
+
+Paramètres :
+
+- `--prompt "<texte>"` ou `--recipe "<json_ou_fichier>"` (la recette évite tout
+  appel réseau) ;
+- `--scope duplicates|all` : doublons seuls (défaut) ou aussi les exemplaires
+  d'album, marqués `from_album` ;
+- `--create-draft` : enregistre le lot en brouillon de vente ;
+- `--dry-run`, `--actor <nom>`.
 
 ```bash
-# Exemple de composition par prompt (simulation sur doublons)
-uv run python scripts/pokeprice_lots.py --remote --output /tmp/pepites.json compose --prompt "trouve-moi les pépites sous-évaluées"
-
-# Exemple explorant toute la collection (avec cartes d'album marquées)
-uv run python scripts/pokeprice_lots.py --remote --output /tmp/pikachus_all.json compose --prompt "lot de 3 cartes Pikachu au meilleur marché-prix" --scope all
-
-# Exemple avec création immédiate du brouillon de vente
-uv run python scripts/pokeprice_lots.py --remote --output /tmp/pepites_draft.json compose --prompt "panaché de 10 cartes de la 1ère génération" --create-draft
+pokeprice_lots.py --data /srv/pokeprice/inventory --output /tmp/pepites.json \
+  compose --recipe /tmp/recette-pepites.json --dry-run
 ```
 
 ### `publish-to-storefront`
-Bascule un brouillon de vente (`sales`) en annonce de lot sur la vitrine publique (`listings`) :
-- Dépublie proprement les annonces individuelles des cartes du lot (évite l'erreur de contrainte unique).
-- Publie le lot sous une seule annonce publique avec son titre et son prix en vitrine.
-- Met à jour le dossier de vente dans l'espace Ventes pour y consigner l'identifiant de l'annonce vitrine.
+
+Remplace les annonces unitaires des cartes d'un brouillon par une seule annonce
+de lot en vitrine :
+
+1. vérifie le brouillon (statut `draft`, au moins deux cartes, chacune cotée,
+   prix fixé, au moins égal au plancher de 0,50 € et au plancher anti-bradage)
+   et chaque carte avec la règle de `display_price`
+   appliquée par `Listings.publish(lot=True)` : identité confirmée, carte
+   disponible, absente de tout autre lot en ligne ;
+2. au moindre refus, s'arrête avec la liste des motifs, sans rien retirer ;
+3. sinon, dans une seule transaction : dépublie les annonces unitaires, publie
+   le lot et consigne l'annonce dans le dossier de vente (canal `Vitrine`).
 
 Paramètres :
-- `--sale-id <UUID>` : Identifiant du brouillon de lot à publier.
-- `--dry-run` : Simule l'opération (liste les dépublications unitaires et le lot projeté sans rien écrire).
-- `--actor <nom>` : Auteur tracé dans l'historique (défaut : `pokeprice-lots`).
-- `--output <fichier.json>` : Enregistre le rapport de publication.
+
+- `--sale-id <UUID>` : publie ce brouillon ;
+- `--all` : publie chaque brouillon valide hors ligne, chacun
+  de façon atomique ; le rapport sépare `published`, `refused` et `skipped` ;
+- `--dry-run`, `--actor <nom>`.
 
 ```bash
-uv run python scripts/pokeprice_lots.py --remote --output /tmp/pub.json publish-to-storefront --sale-id <UUID>
+pokeprice_lots.py --data /srv/pokeprice/inventory --output /tmp/pub.json publish-to-storefront --all --dry-run
+pokeprice_lots.py --data /srv/pokeprice/inventory --output /tmp/pub.json publish-to-storefront --sale-id <UUID>
 ```
 
 ## Workflow
 
-### 1. Diagnostic bimensuel
-1. Lancer `status` pour vérifier combien de brouillons sont encore en attente et s'ils sont tous valides.
-2. Si un brouillon a une carte réservée entre-temps via la vitrine, il apparaît avec `is_valid: false`.
-
-### 2. Revue des candidats
-1. Lancer `analyze` pour mettre à jour la liste des doublons disponibles et leurs prix de référence.
-2. Consulter le fichier JSON produit pour identifier les thèmes les plus attractifs du moment.
-
-### 3. Simulation & Application
-1. Lancer `rotate --dry-run` pour prévisualiser quels anciens brouillons seront remplacés par les nouveaux.
-2. Exécuter `rotate` pour créer les brouillons sur le serveur.
-3. Les lots apparaissent immédiatement dans l'interface de gestion sous **Ventes → Brouillons**, prêts à être exploités pour une publication sur les plateformes de vente (Vinted, Leboncoin, bourses).
+1. **Diagnostic** : `status` pour compter les brouillons, repérer les invalides
+   et ceux déjà en ligne.
+2. **Revue** : `analyze`, puis lecture du rapport ; les cartes de `to_price` se
+   chiffrent dans l'application avant de pouvoir entrer en lot.
+3. **Rotation** : `rotate --dry-run`, vérification des annulations projetées,
+   puis `rotate`.
+4. **Vitrine** : `publish-to-storefront --all --dry-run`, revue des refus, puis
+   la commande sans `--dry-run`.
 
 ## Common Mistakes
 
-- **Confondre brouillon de vente (`sales`) et publication de vitrine (`listings`)** : Un brouillon de lot n'altère pas la vitrine publique. Ne pas dépublier manuellement les cartes de la vitrine pour préparer un lot de vente.
-- **Modifier la collection locale au lieu de la production** : Ne jamais exécuter de commande d'écriture avec `--data data/inventory` en pensant modifier le site en production. Utiliser `--remote` depuis le poste de travail ou exécuter sur le serveur avec `--data /srv/pokeprice/inventory`.
-- **Forcer plus de 5 brouillons** : Le plafond de 5 lots garantit la clarté du catalogue et le renouvellement régulier du stock.
+- **Omettre `--data` ou viser la mauvaise base** : le script refuse de démarrer
+  sans `--data`. Vérifier le chemin avant toute écriture ; `data/inventory/` du
+  poste est une copie.
+- **Confondre brouillon de vente (`sales`) et publication de vitrine
+  (`listings`)** : un brouillon ne touche pas la vitrine. Ne pas dépublier les
+  cartes à la main pour préparer un lot : `publish-to-storefront` s'en charge.
+- **Annuler à la main un brouillon dont le lot est en ligne** : l'annonce
+  resterait en vitrine sans dossier de vente. Retirer d'abord l'annonce de lot.
+- **Forcer un lot avec des cartes sans prix** : elles sont écartées du gisement
+  et listées « à chiffrer ». Les chiffrer, puis relancer `analyze`.

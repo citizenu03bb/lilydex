@@ -9,10 +9,15 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-03
 
+- Politique IA : la règle « la machine propose, l'humain décide » laisse place
+  à l'autonomie maximale des agents ([fiche 0021](decisions/0021-autonomie-maximale.md)),
+  avec un plancher anti-bradage et la demande de nouvelle photo. Guide chapeau
+  `pokeprice-autonome` ; aucun comportement du code changé.
+
 - L'agent de revue confirme variante et état par le chemin d'écriture humain
   quand finition, édition par l'image et état concordent ; sinon il demande
   une photo, listée dans « Photos à reprendre ». Commande `agent-review`,
-  passage annulable ([décision 0021](decisions/0021-agent-confirme-ou-demande-photo.md)).
+  passage annulable ([décision 0022](decisions/0022-agent-confirme-ou-demande-photo.md)).
 
 ## 2026-10-29
 

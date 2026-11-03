@@ -72,6 +72,19 @@ TEXT_KEY = re.compile(r"\{\{t:([\w.]+)\}\}")
 # The storefront's languages: dictionary, <html lang> and home address. French is the
 # reference; another language lives under its prefix (docs/decisions/0020).
 LANGUAGES = {"fr": ("fr", "/"), "en": ("en-GB", "/en/")}
+# The query keys of the former management links (/?view=sales, filters), read by
+# app.js. Any other parameter on / (fbclid, utm_*, gclid…) leaves the storefront.
+MANAGEMENT_QUERY = {
+    "view", "display", "q", "album", "stock", "status", "variant", "sort",
+    "review", "threshold", "limit", "offset",
+}
+NOINDEX = '<meta name="robots" content="noindex" />'
+PUBLIC_PHOTO = re.compile(r"/api/public/listings/[^/]+/photo")
+
+
+def indexing_enabled(value):
+    """POKEPRICE_INDEXING: on unless explicitly switched off."""
+    return str(value).strip().lower() not in {"0", "false", "no", "off", "non"}
 # The errors a storefront visitor can meet, by their French detail. The answer adds
 # the code; the storefront shows web/messages' "error.<code>" in its own language.
 ERROR_CODES = {
@@ -539,6 +552,7 @@ def create_app(
     variant_fetch=None,
     market_fetch=None,
     agent_enabled=True,
+    indexing=None,
 ):
     # Preview URLs come from explicit deployment configuration, never Host or forwarding headers.
     public_origin = os.environ.get("POKEPRICE_PUBLIC_ORIGIN", "") if public_origin is None else public_origin
@@ -559,6 +573,8 @@ def create_app(
         ):
             raise ValueError("L’origine publique est une URL HTTPS sans chemin, identifiants ni paramètres.")
         public_origin = public_origin.rstrip("/")
+    # Search engines may index the storefront unless the owner switches it off.
+    indexing = indexing_enabled(os.environ.get("POKEPRICE_INDEXING", "on") if indexing is None else indexing)
     store = Store(directory)
     allowed_hosts = allowed_hosts or ["127.0.0.1", "localhost", "testserver"]
     # Web setup is for a private first run: once others can reach the server,
@@ -665,10 +681,14 @@ def create_app(
             attr = "property" if property else "name"
             return f'<meta {attr}="{key}" content="{html.escape(str(value), quote=True)}" />'
 
-        tags = [tag("description", description), tag("og:type", "website", property=True),
+        has_image = bool(public_origin and image)
+        tags = [tag("description", description),
+                tag("og:type", "product" if listing else "website", property=True),
                 tag("og:site_name", SITE_NAME, property=True), tag("og:title", title, property=True),
-                tag("og:description", description, property=True), tag("twitter:card", "summary"),
+                tag("og:description", description, property=True),
+                tag("twitter:card", "summary_large_image" if has_image else "summary"),
                 tag("twitter:title", title), tag("twitter:description", description)]
+        image_url = None
         if public_origin:
             tags.append(tag("og:url", public_origin + LANGUAGES[language][1] + rest, property=True))
             if image:
@@ -681,13 +701,56 @@ def create_app(
                     tag("og:image:alt", alt, property=True), tag("twitter:image", image_url),
                     tag("twitter:image:alt", alt),
                 ])
+        if listing:
+            tags.append(product_data(listing, title, description, image_url, language, rest))
         return generic_title, title, "\n    ".join(tags)
 
-    def page(name: str, language: str = "fr", rest: str = "", *, listing=None) -> str:
+    def product_data(listing, title, description, image_url, language, rest):
+        """The fiche as schema.org Product/Offer, in a JSON-LD data block."""
+        offer = {
+            "@type": "Offer",
+            "price": f"{listing['price_cents'] / 100:.2f}",
+            "priceCurrency": "EUR",
+            "availability": "https://schema.org/InStock",
+            "itemCondition": "https://schema.org/UsedCondition",
+        }
+        product = {
+            "@context": "https://schema.org",
+            "@type": "Product",
+            "name": title.rsplit(f" · {SITE_NAME}", 1)[0],
+            "description": description,
+            "category": "Pokémon trading card" if language == "en" else "Carte Pokémon",
+            "offers": offer,
+        }
+        if public_origin:
+            url = public_origin + LANGUAGES[language][1] + rest
+            product["url"] = offer["url"] = url
+            if image_url:
+                product["image"] = image_url
+        # A data block, not a script: the CSP (script-src 'self') does not run it.
+        return (
+            '<script type="application/ld+json">'
+            + json.dumps(product, ensure_ascii=False).replace("<", "\\u003c")
+            + "</script>"
+        )
+
+    def alternate_links(language, rest):
+        """canonical and hreflang links for a public address, given after the home."""
+        if not public_origin:
+            return ""
+        canonical = public_origin + LANGUAGES[language][1] + rest
+        links = [f'<link rel="canonical" href="{html.escape(canonical, quote=True)}" />']
+        links += [f'<link rel="alternate" hreflang="{code}" href="{html.escape(public_origin + LANGUAGES[code][1] + rest, quote=True)}" />'
+                 for code in LANGUAGES]
+        links.append(f'<link rel="alternate" hreflang="x-default" href="{html.escape(public_origin + "/" + rest, quote=True)}" />')
+        return "\n    ".join(links)
+
+    def page(name: str, language: str = "fr", rest: str = "", *, listing=None, public=None) -> str:
         """A page as served: its texts come from the dictionary, the site's name from `brand`.
 
         `rest` is the address after the language's home, so the link to the other
-        language leads to the same card.
+        language leads to the same card. `public` is that address for a page search
+        engines may know (canonical, hreflang); None keeps it out of their index.
         """
         words = dictionaries[language]
         lang, home = LANGUAGES[language]
@@ -714,12 +777,17 @@ def create_app(
             .replace("{{site_name}}", html.escape(SITE_NAME))
             .replace("{{site_wordmark}}", wordmark)
         )
+        # Without indexing, or on a page no engine should keep, the noindex stays.
+        robots = "" if indexing and public is not None else r"\g<1>" + NOINDEX + "\n"
+        rendered = re.sub(r"( *)\{\{robots\}\}\n", robots, rendered, count=1)
         if name == "storefront.html":
             generic, title, metadata = public_head(language, rest if listing else "", listing)
             rendered = re.sub(r"<title>.*?</title>", lambda _: f"<title>{html.escape(title)}</title>", rendered, count=1)
             rendered = re.sub(r"(<html\b[^>]*)(>)", lambda match:
                               match[1] + f' data-page-title="{html.escape(generic, quote=True)}">', rendered, count=1)
             rendered = rendered.replace("</head>", metadata + "\n  </head>", 1)
+        if public is not None and (links := alternate_links(language, public)):
+            rendered = rendered.replace("</head>", "  " + links + "\n  </head>", 1)
         return rendered
 
     failures = {}
@@ -747,8 +815,11 @@ def create_app(
         if secure_cookie:
             # Behind HTTPS only: browsers then refuse plain HTTP for a year.
             response.headers["Strict-Transport-Security"] = "max-age=31536000"
-        if request.url.path.startswith(("/gestion", "/api/")):
-            # The seller's login and data never belong in a search engine.
+        if request.url.path.startswith(("/gestion", "/api/")) and not (
+            indexing and PUBLIC_PHOTO.fullmatch(request.url.path)
+        ):
+            # The seller's login and data never belong in a search engine; with
+            # indexing on, the public photos may illustrate the cards.
             response.headers["X-Robots-Tag"] = "noindex, nofollow"
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
@@ -862,11 +933,12 @@ def create_app(
     # The public storefront is the home page; management lives at /gestion.
     @app.get("/", response_class=HTMLResponse)
     def home(request: Request):
-        if request.url.query:
-            # Former management links (/?view=sales, filters) keep working.
+        if MANAGEMENT_QUERY & set(request.query_params.keys()):
+            # Former management links (/?view=sales, filters) keep working; a
+            # shared link's fbclid, utm_* or gclid stays on the storefront.
             return RedirectResponse("/gestion?" + request.url.query, status_code=301)
         count_visit(request, "page", "accueil")
-        return page("storefront.html")
+        return page("storefront.html", public="")
 
     @app.get("/en", include_in_schema=False)
     def home_en_slash():
@@ -876,7 +948,7 @@ def create_app(
     @app.get("/en/", response_class=HTMLResponse)
     def home_en(request: Request):
         count_visit(request, "page", "accueil")
-        return page("storefront.html", "en")
+        return page("storefront.html", "en", public="")
 
     # The seller's contact comes from the server's environment, never from the
     # public repository.
@@ -939,7 +1011,7 @@ def create_app(
                 else "Le vendeur vous indique dans sa réponse comment payer."
             )
         return (
-            page("about.en.html" if en else "about.html", language)
+            page("about.en.html" if en else "about.html", language, public="a-propos")
             .replace("{{contact}}", contact)
             .replace("{{controller}}", controller)
             .replace("{{payment}}", html.escape(payment))
@@ -1012,7 +1084,52 @@ def create_app(
             # The page still loads and says the card is no longer for sale.
             return HTMLResponse(page("storefront.html", language, "carte/" + quote(listing_id, safe="")), status_code=404)
         count_visit(request, "page", "carte")
-        return page("storefront.html", language, "carte/" + quote(listing_id, safe=""), listing=listing)
+        rest = "carte/" + quote(listing_id, safe="")
+        return page("storefront.html", language, rest, listing=listing, public=rest)
+
+    def online_listings():
+        """The publications on sale, newest first, for the sitemap."""
+        with store.connect() as db:
+            rows = [r for r in storefront.rows(db) if storefront.cards(db, r["id"])]
+        return sorted(rows, key=lambda r: r["published_at"] or "", reverse=True)
+
+    if indexing:
+        @app.get("/robots.txt", include_in_schema=False)
+        def robots():
+            lines = [
+                "User-agent: *",
+                "Allow: /api/public/listings/*/photo",
+                "Disallow: /gestion",
+                "Disallow: /api/",
+            ]
+            if public_origin:
+                lines.append(f"Sitemap: {public_origin}/sitemap.xml")
+            return Response("\n".join(lines) + "\n", media_type="text/plain")
+
+        @app.get("/sitemap.xml", include_in_schema=False)
+        def sitemap():
+            if not public_origin:
+                # Absolute addresses come from configuration, never from Host.
+                raise HTTPException(404, "Plan du site indisponible sans origine publique.")
+            entries = [("", None), ("a-propos", None)] + [
+                ("carte/" + quote(r["id"], safe=""), (r["price_date"] or r["published_at"])[:10])
+                for r in online_listings()
+            ]
+            urls = []
+            for rest, modified in entries:
+                alternates = "".join(
+                    f'<xhtml:link rel="alternate" hreflang="{code}" href="{html.escape(public_origin + home + rest)}"/>'
+                    for code, (_, home) in LANGUAGES.items()
+                ) + f'<xhtml:link rel="alternate" hreflang="x-default" href="{html.escape(public_origin + "/" + rest)}"/>'
+                for _, home in LANGUAGES.values():
+                    lastmod = f"<lastmod>{html.escape(modified)}</lastmod>" if modified else ""
+                    urls.append(f"<url><loc>{html.escape(public_origin + home + rest)}</loc>{lastmod}{alternates}</url>")
+            body = (
+                '<?xml version="1.0" encoding="UTF-8"?>\n'
+                '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" '
+                'xmlns:xhtml="http://www.w3.org/1999/xhtml">\n' + "\n".join(urls) + "\n</urlset>\n"
+            )
+            return Response(body, media_type="application/xml")
 
     @app.get("/api/public/listings")
     def public_listings(

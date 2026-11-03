@@ -1,25 +1,35 @@
-# IA et vision : la machine propose, l'humain décide
+# IA et vision : l'IA agit, l'humain garde l'argent et l'irréversible
 
-> **Pour qui :** toute personne qui veut comprendre ce que font les modèles dans Les cartes de Lily, et ce qu'ils ne font pas.
+> **Pour qui :** toute personne qui veut comprendre ce que font les modèles dans Les cartes de Lily, ce qu'ils ne font pas, et ce qu'ils visent.
 > **Vous y trouverez :** les principes, chaque brique avec ses mesures et ses limites, les garde-fous, le coût, et la place de l'IA dans le développement du projet.
 > **Statut :** en vigueur. Le détail des mesures est dans le [banc d'essai](BANC-RECONNAISSANCE.md).
 
 > **In short.** The project uses applied, measured and supervised AI. A vision-language
 > model (Gemini) reads each card photo; a pre-trained image model (DINOv2, CPU only)
 > checks the edition from the image alone; a nearest-neighbour gate with rejection
-> skips cloud calls for basic Energy cards. Every model output is a *proposal* with its
-> evidence (photo, model, protocol, raw answer); a person confirms identity, variant and
-> condition. Models abstain when unsure, safety thresholds are never lowered, and every
-> choice was measured on a bench of hand-verified cards. No model is trained or fine-tuned.
+> skips cloud calls for basic Energy cards. The policy aims at maximum agent autonomy:
+> AI identifies, prices, files, builds lots and publishes, logs every action and keeps it
+> reversible; a person supplies the photos the AI asks for and decides on money going
+> out, irreversible actions and any price below the anti-undercut floor. Today the
+> readings at intake are still proposals that a person confirms; agents apply
+> pre-authorised corrections and build, rotate and publish lots. Models abstain when
+> unsure, safety thresholds are never lowered, and every choice was measured on a bench
+> of hand-verified cards. No model is trained or fine-tuned.
 
 ## Les principes
 
-1. **Le modèle propose, une personne décide.** Aucune lecture ne modifie une
-   fiche. Une identité n'est « confirmée » qu'après le choix d'une édition par
-   une personne ; la variante et l'état aussi.
+1. **L'IA agit seule ; l'humain garde l'argent, l'irréversible et le
+   plancher.** L'IA identifie, cote, range, compose les lots et publie, puis
+   journalise et rend chaque action annulable. L'humain fournit les photos que
+   l'IA demande, et tranche l'argent qui sort, l'irréversible et tout prix sous
+   le plancher anti-bradage ([fiche 0021](decisions/0021-autonomie-maximale.md)).
+   C'est la cible ; la part livrée est décrite
+   [plus bas](#ce-que-lia-fait-seule-et-ce-quelle-ne-fait-pas).
 2. **S'abstenir plutôt que deviner.** Une photo illisible est refusée ; deux
    éditions trop proches laissent le contrôle « indécis » ; une variante de
-   valeur demande un examen physique.
+   valeur demande un examen physique. Quand l'IA ne tranche pas, elle demande
+   une autre photo ; elle ne publie jamais une variante ou un état non
+   vérifiés.
 3. **Tout garder.** Chaque lecture conserve la photo lue, le modèle, le
    protocole, la réponse brute et les jetons consommés. Une lecture devient
    obsolète dès que la photo change.
@@ -180,10 +190,40 @@ l'original, pas la photo retouchée.
   ([hébergement](DEPLOYMENT.md)).
 - La porte énergie évite un appel Gemini par énergie de base reconnue.
 
-## Ce que l'IA ne fait pas dans le projet
+## Ce que l'IA fait seule, et ce qu'elle ne fait pas
 
-- Elle ne confirme rien : identité, variante et état restent des décisions
-  humaines.
+**Ce qui reste humain**, par principe : paiement et remboursement,
+suppression définitive, message libre à un client, prix sous le plancher
+anti-bradage, plafond de délégation d'un agent. Le plancher interdit toute
+vente sous le prix de référence diminué d'une marge configurable (15 % par
+défaut), lots compris.
+
+**Ce que l'IA fait seule dans le code livré :**
+
+- lire chaque carte à la saisie, sa finition, son tampon et sa langue, et
+  contrôler l'édition par l'image ; un désaccord envoie la carte dans « À
+  examiner » ;
+- appliquer les corrections de catalogue préautorisées, par l'API déléguée
+  ([fiche 0014](decisions/0014-corrections-agent-autorisees.md)) ;
+- préparer des brouillons de lots sur un album délégué ;
+- composer des lots de doublons, faire tourner les brouillons et publier un
+  lot en vitrine, par `scripts/pokeprice_lots.py`, avec un accès opérateur ;
+  l'outil refuse tout lot sous le plancher anti-bradage.
+
+**Ce qui est visé, pas livré :**
+
+- confirmer seule l'identité, la variante et l'état : ces trois décisions
+  passent encore par un clic dans l'application ;
+- le plancher anti-bradage pour le « Mode lot » de la gestion et pour un prix
+  unitaire fixé à la main : seul le plancher absolu de 0,50 € y est contrôlé ;
+  le guide [pokeprice-autonome](../skills/pokeprice-autonome/SKILL.md) fait
+  appliquer la marge par l'agent ;
+- une file de demandes de nouvelle photo ;
+- la publication sur Vinted, Leboncoin et Cardmarket ;
+- l'annulation de chaque action d'un agent depuis l'application.
+
+**Ce que l'IA ne fait pas :**
+
 - Elle ne repère pas les reverses de façon sûre sur une photo de classeur.
 - Elle ne signale pas les contrefaçons : une seule au banc, et des fausses
   alertes.
@@ -196,8 +236,10 @@ l'original, pas la photo retouchée.
 ## Le pilote agent
 
 Un agent IA peut travailler sur un album délégué, avec sa propre clé d'accès,
-révocable à tout moment. Il ne prépare que des brouillons de lots ; une
-personne publie, réserve et vend. Voir le [pilote agent](AGENT_CONTROL.md).
+révocable à tout moment. Par l'API déléguée, il prépare des brouillons de lots
+et applique les corrections préautorisées ; la composition et la publication
+de lots passent par le script opérateur. Le pilote scellé reste un périmètre
+d'évaluation. Voir le [pilote agent](AGENT_CONTROL.md).
 
 ## L'IA dans le développement du projet
 

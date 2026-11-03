@@ -1,0 +1,12 @@
+[Unit]
+Description=Cotation quotidienne de la collection, chaque matin
+
+[Timer]
+# Cardmarket publishes its guide overnight; backup (03:00) and media cache (04:30) run first.
+OnCalendar=*-*-* 06:20:00 Europe/Paris
+Persistent=true
+RandomizedDelaySec=10min
+Unit=pokeprice-prices.service
+
+[Install]
+WantedBy=timers.target
