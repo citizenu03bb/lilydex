@@ -9,6 +9,10 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-03
 
+- Vente sur les plateformes : `scripts/export_annonces.py` prépare, en lecture
+  seule, une annonce par dossier pour Vinted et Leboncoin et le fichier d'import
+  de stock Cardmarket ; prix jamais sous la cote moins une marge réglable
+  ([guide](VENTE-PLATEFORMES.md)). Rien n'est publié automatiquement.
 - Politique IA : la règle « la machine propose, l'humain décide » laisse place
   à l'autonomie maximale des agents ([fiche 0021](decisions/0021-autonomie-maximale.md)),
   avec un plancher anti-bradage et la demande de nouvelle photo. Guide chapeau
