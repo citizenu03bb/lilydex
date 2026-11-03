@@ -163,6 +163,7 @@ async function showWorkspace(user) {
   $("trash-filter").hidden = user.role !== "admin";
   $("select-page").hidden = !editAllowed();
   await refreshSummary();
+  refreshPhotoRequests().catch((e) => toast(e.message));
   restoreLocation();
   await loadCards();
   if (state.view === "sales") await loadSales();
@@ -3797,3 +3798,85 @@ $("album-form").addEventListener("submit", async (e) => {
     $("login-error").textContent = err.message;
   }
 })();
+
+// Photos the review agent asks for, in binder order (agent_review.py). A new
+// photo closes the request; the server then reads the card again on its own.
+const photoRequestViews = ["front", "back", "holo", "corner"];
+async function refreshPhotoRequests() {
+  const panel = $("photo-requests");
+  if (!editAllowed()) {
+    panel.hidden = true;
+    return;
+  }
+  const requests = await api("/photo-requests");
+  panel.replaceChildren();
+  panel.hidden = !requests.length;
+  if (!requests.length) return;
+  const title = el("h2", t("photo_requests.title"));
+  title.id = "photo-requests-title";
+  panel.append(
+    title,
+    el(
+      "p",
+      t("photo_requests.help", {
+        count: new Set(requests.map((r) => r.copy_id)).size,
+      }),
+      "help",
+    ),
+  );
+  const list = el("ol", undefined, "photo-requests");
+  for (const request of requests) {
+    const item = el("li", undefined, "workflow-actions");
+    const view = photoRequestViews.includes(request.view) ? request.view : "front";
+    const place = t("photo_requests.place", {
+      album: request.album,
+      page: request.page,
+      position: request.position,
+    });
+    const text = el("span");
+    text.append(
+      el("strong", `${request.name} ${request.number}`),
+      document.createTextNode(` · ${place} · `),
+      el("em", t(`photo_requests.view.${view}`)),
+      el("br"),
+      document.createTextNode(request.reason),
+    );
+    const input = el("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.setAttribute("capture", "environment");
+    input.hidden = true;
+    const take = el("button", t("photo_requests.take"), "primary");
+    take.type = "button";
+    take.onclick = () => input.click();
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      take.disabled = true;
+      take.textContent = t("photo_requests.sending");
+      try {
+        const card = await api(`/copies/${request.copy_id}`);
+        await api(
+          `/copies/${request.copy_id}/photo?version=${card.version}&side=${request.side}`,
+          {
+            method: "PUT",
+            body: file,
+            headers: { "Content-Type": file.type || "image/jpeg" },
+          },
+        );
+        toast(t("photo_requests.sent"));
+        await refreshPhotoRequests();
+      } catch (error) {
+        toast(error.message);
+        take.disabled = false;
+        take.textContent = t("photo_requests.take");
+      }
+    };
+    const open = el("button", t("photo_requests.open"));
+    open.type = "button";
+    open.onclick = () => openDetail(request.copy_id).catch((e) => toast(e.message));
+    item.append(text, take, open, input);
+    list.append(item);
+  }
+  panel.append(list);
+}

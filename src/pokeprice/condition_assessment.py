@@ -268,7 +268,10 @@ class ConditionService:
             with self.lock:
                 self.running.discard(copy_id)
 
-    def confirm(self, copy_id, assessment_id, version, grade, actor, reason):
+    def confirm(
+        self, copy_id, assessment_id, version, grade, actor, reason, decision=None
+    ):
+        """The human's grade; the review agent takes the same path with ``decision``."""
         with self.store.connect() as db:
             card = self.store.get(db, copy_id)
             row = next(
@@ -297,5 +300,53 @@ class ConditionService:
                 "suggested_condition": row["result"]["suggested_condition"],
                 "human_condition": grade,
                 "photos": row["photos"],
+                **(decision or {}),
             },
         )
+
+
+def auto_condition_decision(card, assessment, *, high_value):
+    """What the review agent does with the condition: confirm, ask a photo, or leave it.
+
+    The server rules above already withdraw an NM without two original faces
+    and adequate photos. The agent confirms an adequate assessment of a usable
+    front; a copy of value needs a usable back as well (decision 0008).
+    """
+    if not assessment or assessment["stale"]:
+        return {"action": "skip", "reason": "Pas d’évaluation de l’état sur les photos actuelles."}
+    result = assessment["result"]
+    if result["quality"] == "unusable" or not result["front_usable"]:
+        return {
+            "action": "photo",
+            "view": "front",
+            "reason": "Le recto ne permet pas de juger l’état : reprenez-le net, les quatre bords visibles.",
+        }
+    if high_value and not result["back_usable"]:
+        return {
+            "action": "photo",
+            "view": "back",
+            "reason": "Carte de valeur : l’état se juge sur les deux faces, ajoutez une photo nette du verso.",
+        }
+    if result["quality"] == "limited":
+        return {
+            "action": "photo",
+            "view": "corner",
+            "reason": "Les coins ne se jugent pas sur cette photo : reprenez le recto de plus près, les quatre coins nets.",
+        }
+    if not result["suggested_condition"]:
+        if not result["back_usable"]:
+            return {
+                "action": "photo",
+                "view": "back",
+                "reason": "L’état reste indécis sur le recto seul : ajoutez une photo nette du verso.",
+            }
+        return {"action": "skip", "reason": "Le modèle ne propose pas d’état : examen en main."}
+    return {
+        "action": "confirm",
+        "grade": result["suggested_condition"],
+        "score": {
+            "photo_quality": result["quality"],
+            "faces": int(result["front_usable"]) + int(result["back_usable"]),
+        },
+        "reason": result["explanation"],
+    }

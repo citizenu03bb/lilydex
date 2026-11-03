@@ -278,5 +278,17 @@
   "condition.LP": "LP",
   "condition.PL": "PL",
   "condition.PO": "PO",
-  "error.photo_format_unavailable": "Image format unavailable."
+  "error.photo_format_unavailable": "Image format unavailable.",
+
+  "photo_requests.title": "Photos to retake",
+  "photo_requests.help": { "one": "The agent needs another shot of {count} card. A new photo restarts the analysis on its own.", "other": "The agent needs another shot of {count} cards. A new photo restarts the analysis on its own." },
+  "photo_requests.place": "{album} · page {page}, pocket {position}",
+  "photo_requests.view.front": "Sharp front",
+  "photo_requests.view.back": "Back",
+  "photo_requests.view.holo": "Holo glint",
+  "photo_requests.view.corner": "Corners up close",
+  "photo_requests.take": "Take the photo",
+  "photo_requests.sending": "Sending…",
+  "photo_requests.sent": "Photo saved; new analysis under way.",
+  "photo_requests.open": "Open the card"
 }

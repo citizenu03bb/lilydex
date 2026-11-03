@@ -6,8 +6,9 @@
 
 L'état d'une carte (de MT à PO, sur l'échelle de Cardmarket) se décide carte en
 main. L'application aide en deux temps : elle garde une photo du verso avec celle du
-recto, puis, si vous le demandez, propose un état à partir de ces photos. La
-proposition reste une aide : c'est une personne qui retient l'état.
+recto, puis propose un état à partir de ces photos. Une personne retient
+l'état, ou l'agent de revue le confirme quand les preuves concordent ; sinon,
+l'agent demande une autre prise de vue.
 
 ## Le parcours
 
@@ -45,6 +46,39 @@ estimation de prix ne sont demandées.
   plus être validée. Les modifications concurrentes de la fiche sont refusées
   par son numéro de version.
 - Le modèle reçoit l'original, pas la photo retouchée.
+
+## L'agent de revue
+
+L'agent de revue (`agent:revue`, module `agent_review.py`) confirme la
+variante et l'état **par le même chemin d'écriture qu'une personne** : la
+fiche change de version, l'événement de validation garde les lectures, et
+porte en plus `decided_by: agent`, le score et l'identifiant du passage.
+
+Il confirme les deux ensemble, ou rien, si :
+
+- la lecture de finition est « proposée », sur une photo de qualité
+  suffisante, sans désaccord de finition, de tampon ou de langue ;
+- le contrôle d'édition par l'image désigne l'édition de la fiche, avec au
+  moins la marge de 0,05 de la [décision 0006](decisions/0006-dinov2-marge.md) ;
+- l'évaluation de l'état est exploitable sur le recto et de qualité suffisante ;
+- au seuil de valeur (10 € par défaut) ou sans valeur prudente connue, le
+  verso est aussi exploitable ([décision 0008](decisions/0008-reverses-examen-physique.md)).
+
+Sinon, il inscrit une **demande de photo** dans le journal (`photo-request`) :
+la carte, la vue (recto net, verso, reflet holo, coins de près) et une raison
+en une phrase. Une seule vue par face, la plus précise. La gestion les liste
+sous « Photos à reprendre », dans l'ordre du classeur. Le bouton ouvre
+l'appareil photo du téléphone ; la nouvelle photo ferme la demande et le
+serveur relance seul les lectures et la décision pour cette carte. Une vue déjà
+reprise sans succès n'est pas redemandée : la carte reste à une personne.
+Un désaccord avec la fiche n'appelle pas de photo : la carte reste « À examiner ».
+
+En lot : `pokeprice-manage --data <base> agent-review` simule, `--apply`
+écrit, `--read` lance les lectures manquantes. Le rapport compte les cartes
+confirmées, les demandes de photo, les cartes laissées de côté et les
+décisions humaines évitées. `agent-review-runs` liste les passages ;
+`agent-review-undo <passage> --actor <compte>` les annule, sauf les fiches
+modifiées depuis, signalées.
 
 ## Les données
 

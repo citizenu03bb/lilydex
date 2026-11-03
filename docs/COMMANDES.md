@@ -306,6 +306,31 @@ Auditer les pages décalées par une couverture comptée comme page 1
 |---|---|
 | `--apply` | Appliquer le plan audité |
 
+### `pokeprice-manage agent-review`
+
+L'agent confirme variante et état sur preuves, ou demande une photo ; simulation par défaut
+
+| Argument | Effet |
+|---|---|
+| `--apply` | Écrire confirmations et demandes de photo |
+| `--read` | Lancer les lectures manquantes (Gemini, image) ; avec --apply seulement |
+| `--album` `ALBUM` | Limiter à un album (identifiant ou nom) |
+| `--limit` `LIMIT` | Nombre maximal d'exemplaires |
+| `--threshold-eur` `THRESHOLD_EUR` | Seuil de valeur (0008) Par défaut : `10`. |
+
+### `pokeprice-manage agent-review-undo`
+
+Annuler un passage entier de l'agent de revue
+
+| Argument | Effet |
+|---|---|
+| `run_id` |  |
+| `--actor` `ACTOR` | Compte qui annule |
+
+### `pokeprice-manage agent-review-runs`
+
+Lister les passages de l'agent de revue
+
 ### `pokeprice-manage names`
 
 Noms des éditions en plusieurs langues (TCGdex, une fois par édition)

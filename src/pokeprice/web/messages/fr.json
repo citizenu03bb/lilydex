@@ -278,5 +278,17 @@
   "condition.LP": "LP",
   "condition.PL": "PL",
   "condition.PO": "PO",
-  "error.photo_format_unavailable": "Format d’image indisponible."
+  "error.photo_format_unavailable": "Format d’image indisponible.",
+
+  "photo_requests.title": "Photos à reprendre",
+  "photo_requests.help": { "one": "L’agent a besoin d’une autre prise de vue pour {count} carte. Une nouvelle photo relance l’analyse toute seule.", "other": "L’agent a besoin d’une autre prise de vue pour {count} cartes. Une nouvelle photo relance l’analyse toute seule." },
+  "photo_requests.place": "{album} · page {page}, pochette {position}",
+  "photo_requests.view.front": "Recto net",
+  "photo_requests.view.back": "Verso",
+  "photo_requests.view.holo": "Reflet holo",
+  "photo_requests.view.corner": "Coins de près",
+  "photo_requests.take": "Prendre la photo",
+  "photo_requests.sending": "Envoi…",
+  "photo_requests.sent": "Photo enregistrée ; nouvelle analyse en cours.",
+  "photo_requests.open": "Ouvrir la fiche"
 }
