@@ -7,6 +7,13 @@
 Une page qui décrit le fonctionnement ne porte pas de date : quand un passage
 daté la quitte, il est versé ici dans le même commit.
 
+## 2026-11-03
+
+- Vente sur les plateformes : `scripts/export_annonces.py` prépare, en lecture
+  seule, une annonce par dossier pour Vinted et Leboncoin et le fichier d'import
+  de stock Cardmarket ; prix jamais sous la cote moins une marge réglable
+  ([guide](VENTE-PLATEFORMES.md)). Rien n'est publié automatiquement.
+
 ## 2026-10-29
 
 - CI de la vitrine : recette Playwright versionnée, exécutée dans Firefox et
