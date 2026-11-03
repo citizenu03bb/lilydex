@@ -139,6 +139,7 @@ Donnez aussi des chemins absolus aux fichiers.
 | `pokeprice.service` | Le service de l'application. Durcissement : `User=pokeprice`, `NoNewPrivileges`, `PrivateTmp`, `ProtectSystem=strict` (système en lecture seule), `ProtectHome` (dossiers personnels masqués), écriture limitée à `/srv/pokeprice` ; cookie de session marqué `Secure` (`--secure-cookie`) ; seul l'hôte `${POKEPRICE_HOST}` est accepté. |
 | `pokeprice-backup.service` et `.timer` | Chaque nuit vers 3 h : durées de conservation des données clients (`purge`), puis archive vérifiée (`backup-daily`), 7 archives gardées. |
 | `pokeprice-media-cache.service` et `.timer` | Entretien indépendant des dérivés publics, vers 4 h 30, limité au cache. |
+| `pokeprice-prices.service` et `.timer` | Cotation matinale de la collection vers 6 h 20 (`prices --from-guide`). Non activés par `oci-deploy.sh`. |
 | `Caddyfile.example` | HTTPS, compression, corps de requête limité à 9 Mo, relais vers `127.0.0.1:3820`. |
 | `pokeprice-drive-backup.service` et `.timer` | Unités utilisateur **du portable** : rapatriement, chiffrement et copie Drive à 3 h 15. |
 | `oci-pull-backup.sh` | Raccourci de `backup-server-pull` (ou de `backup-server-drive` avec `--push-drive`) : rapatrie et contrôle la dernière archive du serveur. |
@@ -181,6 +182,25 @@ volume, fichiers ignorés, dérivés protégés, plan, suppressions et plafond
 atteint. Deux nettoyages ne s'exécutent pas en même temps sur ce cache. Le
 timer et ses journaux se consultent avec `systemctl status
 pokeprice-media-cache.timer` et `journalctl -u pokeprice-media-cache.service`.
+
+## Coter la collection chaque matin
+
+`pokeprice-prices.timer` lance vers 6 h 20, heure de Paris, la cotation
+matinale décrite dans [Valorisation](VALUATION.md#la-cotation-matinale) :
+`prices --from-guide --actor system:prices`, avec `--data
+/srv/pokeprice/inventory`. Elle passe après la sauvegarde de la nuit et
+l'entretien du cache, et après la publication du guide Cardmarket. Un passage
+manqué est rattrapé au démarrage. Le service n'écrit que dans le dossier de la
+collection.
+
+`oci-deploy.sh` copie le dépôt mais n'installe ni n'active ce timer.
+L'opérateur l'active à la main :
+
+```bash
+sudo cp /opt/pokeprice/deploy/pokeprice-prices.service /opt/pokeprice/deploy/pokeprice-prices.timer /etc/systemd/system/ && sudo systemctl daemon-reload && sudo systemctl enable --now pokeprice-prices.timer
+```
+
+Le rapport du passage se lit avec `journalctl -u pokeprice-prices.service`.
 
 ## L'option vision
 

@@ -279,7 +279,7 @@ Restaurer dans un nouveau dossier --data
 
 ### `pokeprice-manage prices`
 
-Relevé TCGdex des identités confirmées (prix et variantes)
+Relevé TCGdex des identités confirmées (prix et variantes), un appel par édition
 
 | Argument | Effet |
 |---|---|
@@ -287,6 +287,8 @@ Relevé TCGdex des identités confirmées (prix et variantes)
 | `--only-missing` | Seulement les cartes jamais relevées |
 | `--unpriced` | Seulement les cartes sans prix de référence, relevées ou non |
 | `--limit` `LIMIT` |  |
+| `--from-guide` | Coter d'abord par le guide des prix Cardmarket du jour (produit connu), sans requête TCGdex ; les autres cartes suivent le relevé habituel |
+| `--threshold` `THRESHOLD` | Variation signalée dans le rapport, en pour cent (cartes de 2 € et plus) Par défaut : `20`. |
 | `--actor` `ACTOR` | Auteur inscrit dans l'historique Par défaut : `manage`. |
 
 ### `pokeprice-manage repair-prices`

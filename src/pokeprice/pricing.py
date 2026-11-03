@@ -1,5 +1,6 @@
 """Dated TCGdex price snapshots for confirmed identities; no condition discount."""
 
+import copy
 import json
 import re
 import statistics
@@ -450,6 +451,109 @@ def display_price(card, valuation, override=None):
     return result
 
 
+# A batch reports the copies whose reference moves by this share or more.
+NOTABLE_CHANGE = 0.2
+# What makes a new snapshot worth a journal entry.
+SNAPSHOT_KEYS = ("catalog_id", "source", "id_product", "reference_field", "reference_eur")
+
+
+def snapshot_changed(previous, snapshot):
+    return previous is None or any(
+        previous.get(k) != snapshot.get(k) for k in SNAPSHOT_KEYS
+    )
+
+
+def remember_product(db, catalog_id, snapshot, data):
+    """Keep the product TCGdex gives as the card's catalogue lookup.
+
+    A batch then prices the card from Cardmarket's guide without asking TCGdex.
+    A product the guide matched itself is not TCGdex's and is not kept.
+    """
+    from .cardmarket_guide import TCGDEX_PRODUCT
+
+    product = snapshot.get("id_product")
+    guide = snapshot.get("cardmarket_guide")
+    if not isinstance(product, int) or (guide and guide.get("method") != TCGDEX_PRODUCT):
+        return
+    key = f"cardmarket-product:{catalog_id}"
+    row = db.execute(
+        "SELECT value FROM catalog_lookups WHERE key=? AND found=1", (key,)
+    ).fetchone()
+    old = json.loads(row[0] or "{}") if row else {}
+    if old.get("id_product") == product:
+        return
+    # Neighbour warnings show English names: other languages keep the old one.
+    english = (data.get("_acquisition") or {}).get("served_language") == "en"
+    value = {
+        "id_product": product,
+        "name": (data.get("name") if english else old.get("name")) or "",
+        "hp": data.get("hp") if english else old.get("hp"),
+    }
+    db.execute(
+        "INSERT OR REPLACE INTO catalog_lookups VALUES(?,?,?,?)",
+        (key, 1, json.dumps(value, ensure_ascii=False), now()),
+    )
+
+
+def new_summary(selected):
+    return {
+        "selected": selected,
+        "editions": 0,
+        "refreshed": 0,
+        "changed": 0,
+        "recorded": 0,
+        "warned": 0,
+        "variant_check": 0,
+        "shared_product": [],
+        "failed": [],
+        "notable": [],
+        "reference_before_cents": 0,
+        "reference_after_cents": 0,
+    }
+
+
+def tally(summary, row, card, error, threshold=NOTABLE_CHANGE):
+    """Add one copy's outcome to a batch summary."""
+    before = row["reference_cents"]
+    summary["reference_before_cents"] += before or 0
+    if error:
+        summary["failed"].append({"id": row["id"], "error": error})
+        summary["reference_after_cents"] += before or 0
+        return
+    after = card["reference_cents"]
+    snapshot = card["price_snapshot"]
+    summary["refreshed"] += 1
+    summary["changed"] += after != before
+    summary["recorded"] += bool(card.get("snapshot_recorded"))
+    summary["warned"] += bool(snapshot["warnings"])
+    summary["variant_check"] += bool(snapshot.get("variant_check"))
+    summary["reference_after_cents"] += after or 0
+    if snapshot.get("shared_product_with"):
+        summary["shared_product"].append(row["id"])
+    if notable(before, after, threshold):
+        summary["notable"].append(
+            {
+                "id": row["id"],
+                "name": row.get("name") or card.get("name") or "",
+                "catalog_id": row["catalog_id"],
+                "before_cents": before,
+                "after_cents": after,
+                "source": card.get("price_source") or "",
+            }
+        )
+
+
+def notable(before, after, threshold):
+    """A price that appears, disappears or moves by the threshold, from 2 € up."""
+    if before == after:
+        return False
+    if before is None or after is None:
+        return True
+    if max(before, after) < MATERIAL_EUR * 100:
+        return False
+    return abs(after - before) >= threshold * before
+
+
 class PriceService:
     def __init__(self, store, fetch=fetch_card, market=None):
         self.store, self.fetch, self.market = store, fetch, market
@@ -461,6 +565,32 @@ class PriceService:
         ).fetchone()
         return json.loads(row[0]) if row else None
 
+    def selected(self, *, album="", only_missing=False, unpriced=False, limit=None, copy_ids=None):
+        """Confirmed copies linked to the catalogue, in a stable order."""
+        with self.store.connect() as db:
+            rows = db.execute(
+                "SELECT id,version,reference_cents,catalog_id,language,name FROM copies WHERE deleted_at='' AND identification_status='confirmed' AND catalog_id IS NOT NULL AND (?='' OR album_id=?) ORDER BY id",
+                (album, album),
+            ).fetchall()
+            done = (
+                {
+                    r[0]
+                    for r in db.execute(
+                        "SELECT DISTINCT copy_id FROM events WHERE kind='price-snapshot'"
+                    )
+                }
+                if only_missing
+                else set()
+            )
+        wanted = None if copy_ids is None else set(copy_ids)
+        return [
+            dict(r)
+            for r in rows
+            if not (only_missing and r["id"] in done)
+            and not (unpriced and r["reference_cents"] is not None)
+            and (wanted is None or r["id"] in wanted)
+        ][:limit]
+
     def refresh_many(
         self,
         actor,
@@ -470,62 +600,181 @@ class PriceService:
         unpriced=False,
         limit=None,
         workers=4,
+        copy_ids=None,
+        threshold=NOTABLE_CHANGE,
     ):
-        """Snapshot every confirmed identity; one failure never stops the others."""
+        """Snapshot every confirmed identity; one failure never stops the others.
+
+        Copies of one edition (catalogue id and language) share a single
+        catalogue request: its answer is applied to each of them.
+        """
         from concurrent.futures import ThreadPoolExecutor
 
-        with self.store.connect() as db:
-            rows = db.execute(
-                "SELECT id,version,reference_cents FROM copies WHERE deleted_at='' AND identification_status='confirmed' AND catalog_id IS NOT NULL AND (?='' OR album_id=?) ORDER BY id",
-                (album, album),
-            ).fetchall()
-            done = {
-                r[0]
-                for r in db.execute(
-                    "SELECT DISTINCT copy_id FROM events WHERE kind='price-snapshot'"
-                )
-            }
-        rows = [
-            r
-            for r in rows
-            if not (only_missing and r["id"] in done)
-            and not (unpriced and r["reference_cents"] is not None)
-        ][:limit]
+        rows = self.selected(
+            album=album,
+            only_missing=only_missing,
+            unpriced=unpriced,
+            limit=limit,
+            copy_ids=copy_ids,
+        )
+        editions = list(dict.fromkeys((r["catalog_id"], r["language"]) for r in rows))
+
+        def fetch(edition):
+            catalog_id, language = edition
+            try:
+                if self.market:
+                    # Cached for the search link, even when TCGdex has no euro quote.
+                    self.market.set_code(catalog_id)
+                return edition, self.fetch(catalog_id, language), None
+            except Exception as error:  # noqa: BLE001 - Reported per card.
+                return edition, None, str(error)
 
         def one(row):
+            data, error = answers[(row["catalog_id"], row["language"])]
+            if error:
+                return row, None, error
             try:
-                card = self.refresh(row["id"], row["version"], actor)
+                card = self.refresh(
+                    row["id"], row["version"], actor, data=copy.deepcopy(data), batch=True
+                )
                 return row, card, None
             except Exception as error:  # noqa: BLE001 - Reported per card.
                 return row, None, str(error)
 
-        summary = {
-            "selected": len(rows),
-            "refreshed": 0,
-            "changed": 0,
-            "warned": 0,
-            "variant_check": 0,
-            "shared_product": [],
-            "failed": [],
-            "reference_before_cents": 0,
-            "reference_after_cents": 0,
-        }
+        summary = new_summary(len(rows))
+        summary["editions"] = len(editions)
         with ThreadPoolExecutor(workers) as pool:
+            answers = {e: (d, err) for e, d, err in pool.map(fetch, editions)}
             for row, card, error in pool.map(one, rows):
-                summary["reference_before_cents"] += row["reference_cents"] or 0
-                if error:
-                    summary["failed"].append({"id": row["id"], "error": error})
-                    summary["reference_after_cents"] += row["reference_cents"] or 0
-                    continue
-                summary["refreshed"] += 1
-                summary["changed"] += card["reference_cents"] != row["reference_cents"]
-                summary["warned"] += bool(card["price_snapshot"]["warnings"])
-                summary["variant_check"] += bool(
-                    card["price_snapshot"].get("variant_check")
+                tally(summary, row, card, error, threshold)
+        return summary
+
+    def refresh_from_guide(
+        self,
+        actor,
+        guide,
+        *,
+        album="",
+        only_missing=False,
+        unpriced=False,
+        limit=None,
+        workers=4,
+        threshold=NOTABLE_CHANGE,
+    ):
+        """Price every copy whose Cardmarket product is known from the day's guide.
+
+        The product comes from the catalogue lookups TCGdex filled
+        (``cardmarket-product:*``); the variants come from the copy's last
+        snapshot. All these snapshots are written in one transaction, without
+        any catalogue request. The other copies take the usual path.
+        """
+        from .cardmarket_guide import CACHED_PRODUCT, FILES
+        from .market_product import neighbours
+
+        loaded = guide.load()
+        if not loaded:
+            raise RuntimeError(
+                "Guide des prix Cardmarket indisponible : relancez sans --from-guide."
+            )
+        rows = self.selected(
+            album=album, only_missing=only_missing, unpriced=unpriced, limit=limit
+        )
+        with self.store.connect() as db:
+            products = {
+                r["key"].partition(":")[2]: json.loads(r["value"] or "{}")
+                for r in db.execute(
+                    "SELECT key,value FROM catalog_lookups WHERE found=1 AND key LIKE 'cardmarket-product:%'"
                 )
-                summary["reference_after_cents"] += card["reference_cents"] or 0
-                if card["price_snapshot"].get("shared_product_with"):
-                    summary["shared_product"].append(row["id"])
+            }
+            verdicts = self.store.market_verdicts(db)
+            latest = {
+                r["copy_id"]: json.loads(r["after_json"])
+                for r in db.execute(
+                    "SELECT copy_id,after_json FROM events WHERE id IN "
+                    "(SELECT max(id) FROM events WHERE kind='price-snapshot' GROUP BY copy_id) ORDER BY id"
+                )
+            }
+        # Variants of an edition, from any copy's snapshot of the same catalogue id.
+        known = {s.get("catalog_id"): s for s in latest.values() if s.get("catalog_id")}
+        planned, fallback = [], []
+        for row in rows:
+            catalog_id = row["catalog_id"]
+            product = (products.get(catalog_id) or {}).get("id_product")
+            base = latest.get(row["id"])
+            if (base or {}).get("catalog_id") != catalog_id:
+                base = known.get(catalog_id)
+            data = (
+                guide.quote(
+                    {
+                        "id": catalog_id,
+                        # TCGdex's other markets still tell parallel holos apart.
+                        "pricing": base.get("raw") or {},
+                        "variants": base.get("variants") or {},
+                        "rarity": base.get("rarity") or "",
+                        "_acquisition": {
+                            "provider": "Cardmarket",
+                            "requested_language": row["language"],
+                            "served_language": None,
+                            "source": FILES["price_guide_6.json"],
+                        },
+                    },
+                    product,
+                    CACHED_PRODUCT,
+                    loaded=loaded,
+                )
+                if base and applicable(verdicts.get(catalog_id), product) != "wrong"
+                else None
+            )
+            (planned if data else fallback).append((row, data))
+        summary = new_summary(len(rows))
+        summary["guide"] = {"created": loaded[0], "priced": 0}
+        with self.store.connect(write=True) as db:
+            for row, data in planned:
+                # One savepoint per copy: a refused copy leaves the others intact.
+                db.execute("SAVEPOINT copy")
+                try:
+                    card = self.store.get(db, row["id"])
+                    if card["version"] != row["version"]:
+                        raise Conflict("La fiche a changé pendant le relevé.")
+                    card, data, snapshot = self._quote(
+                        card, data, verdicts.get(row["catalog_id"])
+                    )
+                    product = snapshot["id_product"]
+                    snapshot["shared_product_with"] = [
+                        {
+                            "catalog_id": other,
+                            "name": products[other].get("name") or "",
+                            "hp": products[other].get("hp"),
+                        }
+                        for other in neighbours(row["catalog_id"])
+                        if (products.get(other) or {}).get("id_product") == product
+                    ]
+                    snapshot["observed_at"] = now()
+                    result = self._record(
+                        db, row["id"], row["version"], card, snapshot, actor, batch=True
+                    )
+                    db.execute("RELEASE copy")
+                except Exception as error:  # noqa: BLE001 - Reported per card.
+                    db.execute("ROLLBACK TO copy")
+                    db.execute("RELEASE copy")
+                    tally(summary, row, None, str(error), threshold)
+                    continue
+                summary["guide"]["priced"] += 1
+                tally(summary, row, result, None, threshold)
+        if fallback:
+            rest = self.refresh_many(
+                actor,
+                workers=workers,
+                copy_ids=[row["id"] for row, _ in fallback],
+                threshold=threshold,
+            )
+            summary["editions"] = rest["editions"]
+            for key, value in rest.items():
+                if key in ("selected", "editions"):
+                    continue
+                summary[key] = summary[key] + value
+        else:
+            summary["editions"] = 0
         return summary
 
     def estimate(self, copy_id, text, actor):
@@ -569,7 +818,12 @@ class PriceService:
             )
         return result
 
-    def refresh(self, copy_id, version, actor):
+    def refresh(self, copy_id, version, actor, *, data=None, batch=False):
+        """Quote one copy; ``data`` is the edition's answer when a batch has it.
+
+        A batch leaves the copy untouched when only the quote date moves, so
+        an unchanged price costs neither a new version nor a journal entry.
+        """
         with self.store.connect() as db:
             card = self.store.get(db, copy_id)
         if card["identification_status"] != "confirmed" or not card["catalog_id"]:
@@ -579,10 +833,35 @@ class PriceService:
         if card["version"] != version:
             raise Conflict("La fiche a changé. Rechargez-la avant de relever le prix.")
         # The network calls stay outside the write transaction.
-        if self.market:
-            # Cached for the search link, even when TCGdex has no euro quote.
-            self.market.set_code(card["catalog_id"])
-        data = self.fetch(card["catalog_id"], card["language"])
+        if data is None:
+            if self.market:
+                # Cached for the search link, even when TCGdex has no euro quote.
+                self.market.set_code(card["catalog_id"])
+            data = self.fetch(card["catalog_id"], card["language"])
+        with self.store.connect() as db:
+            verdict = self.store.market_verdicts(db).get(card["catalog_id"])
+        card, data, snapshot = self._quote(card, data, verdict)
+        snapshot["shared_product_with"] = (
+            self.market.shared_with(card["catalog_id"], snapshot["id_product"])
+            if self.market
+            else []
+        )
+        snapshot["observed_at"] = now()
+        with self.store.connect(write=True) as db:
+            result = self._record(
+                db, copy_id, version, card, snapshot, actor, batch=batch
+            )
+            # The edition name in the copy's language comes free with the relevé.
+            from .names import NameCatalog
+
+            NameCatalog.record(
+                db, card["catalog_id"], card["language"], data.get("name"), "edition"
+            )
+            remember_product(db, card["catalog_id"], snapshot, data)
+            return result
+
+    def _quote(self, card, data, verdict):
+        """The copy (with its calculated category) and its checked snapshot."""
         if data.get("id") != card["catalog_id"]:
             raise ValueError("Le catalogue retourné ne correspond pas à cette édition.")
         decision = category(card, summarize(data, card["foil"]))
@@ -591,8 +870,6 @@ class PriceService:
         snapshot = summarize(data, card["foil"])
         if issue := pricing_issue(card, snapshot):
             raise ValueError(issue)
-        with self.store.connect() as db:
-            verdict = self.store.market_verdicts(db).get(card["catalog_id"])
         if applicable(verdict, snapshot["id_product"]) == "wrong":
             # The guide may know the print's own product (decision 0016).
             guide = getattr(self.fetch, "guide", None)
@@ -620,39 +897,46 @@ class PriceService:
                 "signalé incorrect. Saisissez la tendance relevée sur la bonne "
                 "page comme prix de référence, avec sa source."
             )
-        snapshot["shared_product_with"] = (
-            self.market.shared_with(card["catalog_id"], snapshot["id_product"])
-            if self.market
-            else []
-        )
-        snapshot["observed_at"] = now()
+        return card, data, snapshot
+
+    def _record(self, db, copy_id, version, card, snapshot, actor, *, batch=False):
+        """Apply a snapshot inside the caller's write transaction.
+
+        The price-snapshot event is written only when the price, the source or
+        the Cardmarket product changes, or when the copy itself changes.
+        """
+        current = self.store.get(db, copy_id)
+        if current["version"] != version:
+            raise Conflict("La fiche a changé pendant le relevé. Rechargez-la.")
         changes = {
             "foil": bool(card["foil"]),
             "reference_cents": cents(snapshot["reference_eur"]),
             "price_source": f"{snapshot['source']} {snapshot['reference_field']}",
             "price_date": snapshot["updated"] or snapshot["observed_at"],
         }
-        with self.store.connect(write=True) as db:
-            current = self.store.get(db, copy_id)
-            if current["version"] != version:
-                raise Conflict("La fiche a changé pendant le relevé. Rechargez-la.")
-            if any(current[k] != v for k, v in changes.items()):
-                self.store.patch(
-                    copy_id,
-                    changes,
-                    version,
-                    actor,
-                    f"Relevé de prix {snapshot['source']}",
-                    _db=db,
-                    _category_snapshot=snapshot,
-                )
+        compared = (
+            ("foil", "reference_cents", "price_source")
+            if batch and current["price_date"]
+            else changes
+        )
+        patched = any(current[k] != changes[k] for k in compared)
+        if patched:
+            self.store.patch(
+                copy_id,
+                changes,
+                version,
+                actor,
+                f"Relevé de prix {snapshot['source']}",
+                _db=db,
+                _category_snapshot=snapshot,
+            )
+        recorded = patched or snapshot_changed(self.latest(db, copy_id), snapshot)
+        if recorded:
             self.store.event(
                 db, copy_id, actor, "price-snapshot", "Relevé TCGdex", {}, snapshot
             )
-            # The edition name in the copy's language comes free with the relevé.
-            from .names import NameCatalog
-
-            NameCatalog.record(
-                db, card["catalog_id"], card["language"], data.get("name"), "edition"
-            )
-            return {**self.store.get(db, copy_id), "price_snapshot": snapshot}
+        return {
+            **self.store.get(db, copy_id),
+            "price_snapshot": snapshot,
+            "snapshot_recorded": recorded,
+        }
