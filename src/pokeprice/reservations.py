@@ -109,8 +109,8 @@ def sale_reference(sale_id):
 
 
 class Reservations:
-    def __init__(self, store, storefront):
-        self.store, self.storefront = store, storefront
+    def __init__(self, store, storefront, notifier=None):
+        self.store, self.storefront, self.notifier = store, storefront, notifier
 
     # -- Accounts ---------------------------------------------------------
 
@@ -314,7 +314,9 @@ class Reservations:
     def create(self, client_id, listing_ids, message):
         prices = self.prices(listing_ids)
         with self.store.connect(write=True) as db:
-            return self.insert(db, client_id, prices(db), message, OPEN_LIMIT)
+            request = self.insert(db, client_id, prices(db), message, OPEN_LIMIT)
+        self.notified()
+        return request
 
     def guest(self, email, display_name, listing_ids, message, unusable_hash):
         """A request without signing in: the address is checked when the seller replies.
@@ -345,6 +347,12 @@ class Reservations:
                      display_name.strip(), "pending", timestamp),
                 )
             self.insert(db, client_id, chosen, message, GUEST_LIMIT)
+        self.notified()
+
+    def notified(self):
+        """After the commit: the alert thread sends at once, never this request."""
+        if self.notifier:
+            self.notifier.wake()
 
     def prices(self, listing_ids):
         """Check the choice now; read each card's price inside the request's transaction."""
@@ -389,6 +397,8 @@ class Reservations:
             "INSERT INTO request_items(request_id,listing_id,price_cents) VALUES(?,?,?)",
             [(request["id"], l, p) for l, p in prices.items()],
         )
+        if self.notifier:
+            self.notifier.enqueue(db, request["id"], timestamp)
         return self.describe(db, db.execute("SELECT * FROM requests WHERE id=?", (request["id"],)).fetchone())
 
     def cancel(self, client_id, request_id, version):

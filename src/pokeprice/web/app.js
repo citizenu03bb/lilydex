@@ -149,6 +149,14 @@ async function refreshSummary() {
     $("add-form").elements.album_id.value,
   );
 }
+// An alert's link (/gestion?demande=…) opens that request, ready to answer.
+// Read once, on opening the workspace and before syncLocation rewrites the
+// address, not at load: the module must also run without a browser URL API.
+let requestToFocus;
+function focusedRequest() {
+  if (requestToFocus === undefined) requestToFocus = new URLSearchParams(location.search).get("demande");
+  return requestToFocus;
+}
 async function showWorkspace(user) {
   state.user = user;
   $("access").hidden = true;
@@ -162,9 +170,11 @@ async function showWorkspace(user) {
   $("sales-create-lot").hidden = !editAllowed();
   $("trash-filter").hidden = user.role !== "admin";
   $("select-page").hidden = !editAllowed();
+  const requestLink = focusedRequest();
   await refreshSummary();
   refreshPhotoRequests().catch((e) => toast(e.message));
   restoreLocation();
+  if (requestLink) changeView("sales", false);
   await loadCards();
   if (state.view === "sales") await loadSales();
   if (state.view === "settings") await loadUsers();
@@ -2279,6 +2289,8 @@ async function loadRequests() {
     : "Aucune demande en attente";
   for (const request of requests) {
     const card = el("article", undefined, "sale-card");
+    card.id = `demande-${request.id}`;
+    if (request.id === focusedRequest()) card.classList.add("focused");
     card.append(
       el("h3", `${request.display_name || request.email} · ${money(request.total_cents)} · ${request.status_label}`),
       el(
@@ -2338,7 +2350,7 @@ async function loadRequests() {
         }
       });
       refuse.addEventListener("click", async () => {
-        const reason = prompt("Motif du refus, visible par le client :");
+        const reason = prompt("Motif du refus, visible par le client :", "Désolée, ces cartes ne sont plus disponibles.");
         if (!reason) return;
         try {
           await api(`/requests/${request.id}/refuse`, {
@@ -2369,6 +2381,10 @@ async function loadRequests() {
     }
     box.append(card);
   }
+  const focusRequest = focusedRequest();
+  const focused = focusRequest && document.getElementById(`demande-${focusRequest}`);
+  if (focused) focused.scrollIntoView({ block: "start" });
+  else if (focusRequest) toast("Cette demande n’est plus dans la liste : elle a peut-être déjà reçu une réponse.");
 }
 function paymentText(payment) {
   const lines = [

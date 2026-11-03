@@ -120,6 +120,23 @@ def test_capture_preserves_disabled_fields_and_retries_lost_save_response():
     )
 
 
+def test_alert_link_opens_its_request_after_the_address_is_rewritten():
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("Node.js is required")
+    root = Path(__file__).resolve().parents[1]
+    subprocess.run(
+        [
+            node,
+            str(root / "tests/web_request_link_runtime.cjs"),
+            str(root / "src/pokeprice/web/app.js"),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+
 def test_summary_refresh_keeps_the_album_of_a_capture_series():
     node = shutil.which("node")
     if not node:

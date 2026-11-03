@@ -2055,6 +2055,14 @@ lilydex-filter-bar {
   }
 }
 
+/* The request an alert's link points to. */
+.sale-card.focused {
+  outline: 3px solid var(--accent, #c2410c);
+  outline-offset: 2px;
+}
+.sale-card.focused button {
+  min-height: 48px;
+}
 .photo-requests {
   list-style: none;
   margin: 0;
