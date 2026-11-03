@@ -54,6 +54,7 @@ from .pricing import (
 from .cardmarket_guide import CardmarketGuide
 from .listings import Listings, Storefront
 from .privacy import Privacy
+from .notifications import Notifier, channels_from_env
 from .reservations import Reservations, valid_email
 from .variant_catalogue import VariantCatalogue
 from .catalogue_image import CatalogueImages
@@ -1148,7 +1149,11 @@ def create_app(
             extension=extension, finish=finish, condition=condition,
         )
 
-    reservations = Reservations(store, storefront)
+    # Seller alerts: each channel is off until its environment variables are set.
+    notifier = Notifier(store, channels_from_env(), public_origin)
+    app.state.notifier = notifier
+    notifier.start()  # A daemon thread, only when a channel is configured.
+    reservations = Reservations(store, storefront, notifier)
     signups = {}
 
     @app.post("/api/public/signup", status_code=202)
