@@ -322,3 +322,16 @@ devant l'écran, mesuré sur des tranches réelles de 20 puis 100 cartes :
   acquièrent un `reference_cents` en euros ou sortent de `needs_review` ;
 - **Taux d'indétermination prudente** : part des cartes laissées explicitement
   en « Indéterminé » lorsque la pochette empêche de trancher sans risque.
+
+Le point de départ de ces mesures est l'historique de la base.
+[`scripts/audit_temps_humain.py`](../scripts/audit_temps_humain.py) l'ouvre en
+lecture seule, reconstitue les séances actives de chaque auteur (écart de moins
+de 5 minutes, réglable par `--gap-minutes`), compte les décisions par type
+(identité, variante, état, prix, lot, déplacement, autre) avec leur durée
+médiane, sépare les décisions humaines des actions d'agent et estime le temps
+restant de chaque file à partir des médianes humaines. Les auteurs y sont
+pseudonymisés ; `--json` donne la même mesure en JSON :
+
+```bash
+uv run --extra web python scripts/audit_temps_humain.py --data /srv/pokeprice/inventory
+```
