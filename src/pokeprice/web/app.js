@@ -150,9 +150,12 @@ async function refreshSummary() {
   );
 }
 // An alert's link (/gestion?demande=…) opens that request, ready to answer.
-// Read when needed, not at load: the module must also run without a browser URL API.
+// Read once, on opening the workspace and before syncLocation rewrites the
+// address, not at load: the module must also run without a browser URL API.
+let requestToFocus;
 function focusedRequest() {
-  return new URLSearchParams(location.search).get("demande");
+  if (requestToFocus === undefined) requestToFocus = new URLSearchParams(location.search).get("demande");
+  return requestToFocus;
 }
 async function showWorkspace(user) {
   state.user = user;
@@ -167,9 +170,10 @@ async function showWorkspace(user) {
   $("sales-create-lot").hidden = !editAllowed();
   $("trash-filter").hidden = user.role !== "admin";
   $("select-page").hidden = !editAllowed();
+  const requestLink = focusedRequest();
   await refreshSummary();
   restoreLocation();
-  if (focusedRequest()) changeView("sales", false);
+  if (requestLink) changeView("sales", false);
   await loadCards();
   if (state.view === "sales") await loadSales();
   if (state.view === "settings") await loadUsers();
