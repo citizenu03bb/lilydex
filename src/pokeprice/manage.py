@@ -202,6 +202,25 @@ def main():
         help="Auditer les pages décalées par une couverture comptée comme page 1",
     )
     pages.add_argument("--apply", action="store_true", help="Appliquer le plan audité")
+    review = actions.add_parser(
+        "agent-review",
+        help="L'agent confirme variante et état sur preuves, ou demande une photo ; simulation par défaut",
+    )
+    review.add_argument("--apply", action="store_true", help="Écrire confirmations et demandes de photo")
+    review.add_argument(
+        "--read",
+        action="store_true",
+        help="Lancer les lectures manquantes (Gemini, image) ; avec --apply seulement",
+    )
+    review.add_argument("--album", help="Limiter à un album (identifiant ou nom)")
+    review.add_argument("--limit", type=int, help="Nombre maximal d'exemplaires")
+    review.add_argument("--threshold-eur", default="10", help="Seuil de valeur (0008)")
+    review_undo = actions.add_parser(
+        "agent-review-undo", help="Annuler un passage entier de l'agent de revue"
+    )
+    review_undo.add_argument("run_id")
+    review_undo.add_argument("--actor", required=True, help="Compte qui annule")
+    actions.add_parser("agent-review-runs", help="Lister les passages de l'agent de revue")
     names = actions.add_parser(
         "names",
         help="Noms des éditions en plusieurs langues (TCGdex, une fois par édition)",
@@ -422,6 +441,44 @@ def main():
 
             plan = candidates(store, copy_ids=args.copy_id)
             result = apply(store, plan) if args.apply else {"candidates": plan}
+        elif args.action in ("agent-review", "agent-review-undo", "agent-review-runs"):
+            from .agent_review import AgentReview
+            from .condition_assessment import ConditionService
+            from .edition_check import EditionCheckService
+            from .inventory import cents
+            from .verification import VariantCheckService, check_inputs
+
+            catalogue = None
+            if args.action == "agent-review" and args.read and args.apply:
+                from .pricing import fetch_catalogue_card
+                from .variant_catalogue import VariantCatalogue
+
+                catalogue = VariantCatalogue(store, fetch_catalogue_card)
+            review = AgentReview(
+                store,
+                VariantCheckService(store),
+                ConditionService(store),
+                EditionCheckService(store),
+                lambda copy_id, threshold: check_inputs(store, catalogue, copy_id, threshold),
+            )
+            if args.action == "agent-review-runs":
+                result = review.runs()
+            elif args.action == "agent-review-undo":
+                result = review.undo(args.run_id, args.actor)
+            else:
+                result = review.run(
+                    apply=args.apply,
+                    read=args.read,
+                    album=args.album,
+                    limit=args.limit,
+                    threshold_cents=cents(args.threshold_eur),
+                )
+                for item in result["confirmed"]:
+                    item.pop("undo", None)
+                result["counts"] = {
+                    key: len(result[key])
+                    for key in ("confirmed", "photo_requests", "skipped")
+                }
         elif args.action == "repair-pages":
             from .page_shift import apply, candidates
 

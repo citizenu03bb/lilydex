@@ -14,6 +14,11 @@ daté la quitte, il est versé ici dans le même commit.
   avec un plancher anti-bradage et la demande de nouvelle photo. Guide chapeau
   `pokeprice-autonome` ; aucun comportement du code changé.
 
+- L'agent de revue confirme variante et état par le chemin d'écriture humain
+  quand finition, édition par l'image et état concordent ; sinon il demande
+  une photo, listée dans « Photos à reprendre ». Commande `agent-review`,
+  passage annulable ([décision 0022](decisions/0022-agent-confirme-ou-demande-photo.md)).
+
 ## 2026-10-29
 
 - CI de la vitrine : recette Playwright versionnée, exécutée dans Firefox et

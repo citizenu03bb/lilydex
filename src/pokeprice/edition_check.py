@@ -293,6 +293,7 @@ class EditionCheckService(CheckService):
     labels = {
         "manual": "Contrôle de l’édition par l’image demandé explicitement ; fiche inchangée",
         "intake": "Contrôle de l’édition par l’image lancé automatiquement à la saisie ; fiche inchangée",
+        "agent": "Contrôle de l’édition par l’image lancé par l’agent de revue ; fiche inchangée",
         "failed": "Contrôle automatique de l’édition impossible ; demandez-le depuis la fiche",
     }
 

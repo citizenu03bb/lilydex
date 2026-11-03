@@ -225,11 +225,15 @@ def propose_variant(card, reading, snapshot=None, valuation=None):
 
 
 def check_inputs(store, variant_catalogue, copy_id, threshold_cents=1000):
-    """Catalogue metadata and value at stake behind a variant proposal."""
+    """Catalogue metadata and value at stake behind a variant proposal.
+
+    Without ``variant_catalogue``, only the metadata already cached is used.
+    """
     with store.connect() as db:
         card = store.get(db, copy_id)
     # Fetch the edition's prints as for a holo reading, without assuming one.
-    variant_catalogue.ensure({**card, "finish": "holo", "stamp": ""})
+    if variant_catalogue is not None:
+        variant_catalogue.ensure({**card, "finish": "holo", "stamp": ""})
     with store.connect() as db:
         snapshot = store.category_snapshot(db, card)
         card["reference_resolution"] = store.reference.decision_for(db, card, snapshot)
@@ -514,6 +518,7 @@ class VariantCheckService(CheckService):
     labels = {
         "manual": "Lecture de la finition demandée explicitement ; fiche inchangée",
         "intake": "Lecture de la finition lancée automatiquement à la saisie ; fiche inchangée",
+        "agent": "Lecture de la finition lancée par l’agent de revue ; fiche inchangée",
         "failed": "Lecture automatique de la finition impossible ; demandez-la depuis la fiche",
     }
 
@@ -558,8 +563,14 @@ class VariantCheckService(CheckService):
 
         return super().evaluate_new_copy(copy_id, actor, evaluate)
 
-    def confirm(self, copy_id, check_id, version, values, actor, reason, proposal):
-        """Apply the human's decision; the reading is only its evidence."""
+    def confirm(
+        self, copy_id, check_id, version, values, actor, reason, proposal, decision=None
+    ):
+        """Apply the human's decision; the reading is only its evidence.
+
+        The review agent takes the same path; ``decision`` adds its author,
+        score and run to the evidence (docs/CONDITION-ASSESSMENT.md).
+        """
         with self.store.connect() as db:
             card = self.store.get(db, copy_id)
             row = next((r for r in check_rows(db, card) if r["id"] == check_id), None)
@@ -584,6 +595,7 @@ class VariantCheckService(CheckService):
                 "proposal": proposal,
                 "human_values": values,
                 "photos": row["photos"],
+                **(decision or {}),
             },
         )
 
@@ -616,3 +628,104 @@ class VariantCheckService(CheckService):
                 },
             )
             return self.store.get(db, copy_id)
+
+
+def high_stakes(valuation):
+    """A copy whose prudent value is unknown or reaches the value threshold (0008)."""
+    risk = (valuation or {}).get("risk_cents")
+    return risk is None or risk >= (valuation or {}).get("threshold_cents", 1000)
+
+
+def edition_score(card, row):
+    """Agreement of the image check with the recorded print, and its margin.
+
+    The margin is the similarity gap to the closest other print of the same
+    name; one known print counts as a full margin.
+    """
+    from .edition_check import propose_edition
+
+    proposal = propose_edition(card, row["result"])
+    scores = row["result"].get("scores") or {}
+    recorded = card.get("catalog_id")
+    others = [v for k, v in scores.items() if k != recorded]
+    gap = (
+        round(scores[recorded] - max(others), 4)
+        if recorded in scores and others
+        else 1.0
+    )
+    return proposal, gap
+
+
+def auto_variant_decision(card, check, proposal, edition, margin, *, high_value, back_usable):
+    """What the review agent does with the variant: confirm, ask a photo, or leave it.
+
+    Confirms only a proposal Gemini itself calls « proposed » (decision 0008
+    already holds back matte cards with a valuable reverse), on an adequate
+    photo, without any disagreement, with the image check agreeing beyond the
+    edition margin (0006), and, for a copy of value, a usable back too.
+    """
+    if not check or check["stale"]:
+        return {"action": "skip", "reason": "Pas de lecture de la finition sur la photo actuelle."}
+    reading = check["result"]
+    if proposal["conflicts"] or proposal["language_conflicts"]:
+        return {
+            "action": "skip",
+            "reason": "La lecture contredit la fiche : la carte reste « À examiner ».",
+        }
+    if proposal["status"] == "unreadable" or reading["photo_quality"] != "adequate":
+        return {
+            "action": "photo",
+            "view": "front",
+            "reason": "Le recto est flou ou a des reflets : reprenez-le net, à plat, hors pochette.",
+        }
+    if proposal["status"] != "proposed":
+        if proposal["finish"] in ("reverse", "non_holo"):
+            return {
+                "action": "photo",
+                "view": "holo",
+                "reason": "Une reverse ne se voit pas de face : reprenez le recto incliné sous une lampe, pour faire apparaître le reflet holo.",
+            }
+        return {"action": "skip", "reason": proposal["reason"]}
+    recorded = card.get("finish") or ""
+    if recorded and recorded != proposal["finish"]:
+        return {
+            "action": "skip",
+            "reason": "La finition lue diffère de la fiche : décision humaine.",
+        }
+    if not edition:  # (proposal, margin) of the image check on the current photo
+        return {
+            "action": "skip",
+            "reason": "Pas de contrôle de l’édition par l’image sur la photo actuelle.",
+        }
+    edition_proposal, gap = edition
+    if edition_proposal["status"] == "disagree":
+        return {
+            "action": "skip",
+            "reason": "L’image ressemble à une autre impression : la carte reste « À examiner ».",
+        }
+    if edition_proposal["status"] != "agree" or gap < margin:
+        return {
+            "action": "photo",
+            "view": "front",
+            "reason": "Deux impressions se ressemblent trop sur cette photo : reprenez le recto net, entier et bien droit.",
+        }
+    if high_value and not back_usable:
+        return {
+            "action": "photo",
+            "view": "back",
+            "reason": "Carte de valeur : ajoutez une photo nette du verso, en plus du recto.",
+        }
+    stamp = proposal["stamp"]
+    return {
+        "action": "confirm",
+        "values": {
+            "finish": proposal["finish"],
+            "stamp_state": card.get("stamp_state")
+            if card.get("stamp_state") in ("absent", "present")
+            else ("present" if stamp else "absent"),
+            "stamp": stamp,
+            "variant_confirmed": True,
+        },
+        "score": {"edition_margin": gap, "photo_quality": reading["photo_quality"]},
+        "reason": proposal["reason"],
+    }
