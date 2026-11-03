@@ -52,6 +52,7 @@ PAGES_VIVANTES = {
     "docs/VALUATION.md",
     "docs/VITRINE.md",
     "skills/pokeprice-agent-prix/SKILL.md",
+    "skills/pokeprice-autonome/SKILL.md",
     "skills/pokeprice-collection/SKILL.md",
     "skills/pokeprice-lots/SKILL.md",
 }
