@@ -1,7 +1,10 @@
 import csv
 import hashlib
+import importlib.util
 import json
 import sqlite3
+import sys
+from pathlib import Path
 
 import pytest
 from test_library import inputs
@@ -12,6 +15,12 @@ from pokeprice.inventory_import import import_collection
 from pokeprice.listings import Listings
 
 SITE = "https://vitrine.example"
+SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
+
+
+@pytest.fixture(autouse=True)
+def default_margin(monkeypatch):
+    monkeypatch.delenv(mx.LOT_MAX_MARGIN_ENV, raising=False)
 
 
 @pytest.fixture
@@ -61,21 +70,23 @@ def test_prices_never_go_under_the_floor(base, tmp_path):
     export = mx.collect(mx.ReadOnlyStore(store.root))
     by_kind = {(a.kind, a.cards[0]["name"]): a for a in export.annonces}
     evoli = by_kind[("carte", "Évoli")]
-    assert evoli.price_cents == 60 and evoli.floor_cents == 180
-    assert mx.platform_price(evoli.price_cents, evoli.floor_cents, "vinted") == 180
+    assert evoli.price_cents == 60 and evoli.floor_cents == 170
+    assert mx.platform_price(evoli.price_cents, evoli.floor_cents, "vinted") == 170
     lot = next(a for a in export.annonces if a.kind == "lot")
-    assert lot.floor_cents == 201  # (1.23 + 1.00) less 10 %, rounded up.
-    assert mx.platform_price(lot.price_cents, lot.floor_cents, "leboncoin") == 300
-    assert mx.platform_price(lot.price_cents, lot.floor_cents, "vinted") == 210
-    assert mx.collect(mx.ReadOnlyStore(store.root), margin=0.5).annonces[0].floor_cents >= 50
-    assert mx.floor_price(200, 0) == 200 and mx.floor_price(10, 0.1) == 50
-    with pytest.raises(ValueError):
-        mx.floor_price(200, 1.5)
+    assert lot.floor_cents == 190  # (1.23 + 1.00) less 15 %, rounded up.
+    assert mx.platform_price(lot.price_cents, lot.floor_cents, "leboncoin") == 200
+    assert mx.platform_price(lot.price_cents, lot.floor_cents, "vinted") == 190
+    assert mx.collect(mx.ReadOnlyStore(store.root), margin=50).annonces[0].floor_cents >= 50
+    assert mx.floor_price(200, 0) == 200 and mx.floor_price(10, 10) == 50
+    assert mx.floor_price(200) == 170
+    for bad in (51, -1, 0.1, 15.0, "15", True):
+        with pytest.raises(ValueError):
+            mx.floor_price(200, bad)
     written, _ = mx.run(store.root, "leboncoin", tmp_path / "lbc", site=SITE)
     assert all(w["price_cents"] % 100 == 0 for w in written)
     texts = folders(tmp_path / "lbc")
     lot_text = next(t for t in texts.values() if "Lot de 2" in t)
-    assert section(lot_text, "PRIX") == "3,00 €"
+    assert section(lot_text, "PRIX") == "2,00 €"
     assert f"{SITE}/carte/{ids['lot']}" in lot_text
     evoli_text = next(t for t in texts.values() if "Nom : Évoli" in t)
     assert section(evoli_text, "PRIX") == "2,00 €"
@@ -191,8 +202,6 @@ def test_the_output_folder_must_be_new(base, tmp_path):
 
 
 def test_the_command_reports_what_it_wrote(base, tmp_path, capsys, monkeypatch):
-    import importlib.util
-    from pathlib import Path
 
     store, _ = base
     monkeypatch.delenv("POKEPRICE_HOST", raising=False)
@@ -206,3 +215,42 @@ def test_the_command_reports_what_it_wrote(base, tmp_path, capsys, monkeypatch):
     out = capsys.readouterr().out
     assert "4 annonce(s)" in out and "exclues.txt" in out and "--site" in out
     assert module.main(args) == 1
+
+
+def lots_script():
+    sys.path.insert(0, str(SCRIPTS))
+    try:
+        import pokeprice_lots
+    finally:
+        sys.path.remove(str(SCRIPTS))
+    return pokeprice_lots
+
+
+def test_the_floor_follows_the_rule_of_the_lots(monkeypatch):
+    lots = lots_script()
+    assert (mx.DEFAULT_LOT_MAX_MARGIN, mx.LOT_MAX_MARGIN_ENV) == (
+        lots.DEFAULT_LOT_MAX_MARGIN, lots.LOT_MAX_MARGIN_ENV)
+    for raw in (None, "", " ", "0", "10", "15", "33", "50", "80", "-5"):
+        if raw is None:
+            monkeypatch.delenv(mx.LOT_MAX_MARGIN_ENV, raising=False)
+        else:
+            monkeypatch.setenv(mx.LOT_MAX_MARGIN_ENV, raw)
+        assert mx.lot_max_margin() == lots.lot_max_margin()
+        for cents in (0, 1, 99, 123, 223, 1999, 12345):
+            assert mx.lot_floor_cents(cents) == lots.lot_floor_cents(cents)
+            assert mx.floor_price(cents) == max(50, lots.lot_floor_cents(cents))
+    monkeypatch.setenv(mx.LOT_MAX_MARGIN_ENV, "quinze")
+    with pytest.raises(ValueError):
+        mx.lot_max_margin()
+    with pytest.raises(ValueError):
+        lots.lot_max_margin()
+
+
+def test_the_variable_sets_the_margin_and_the_option_overrides_it(base, monkeypatch):
+    store, _ = base
+    monkeypatch.setenv(mx.LOT_MAX_MARGIN_ENV, "30")
+    lot = next(a for a in mx.collect(mx.ReadOnlyStore(store.root)).annonces if a.kind == "lot")
+    assert lot.floor_cents == 157  # 2.23 less 30 %, rounded up.
+    lot = next(a for a in mx.collect(mx.ReadOnlyStore(store.root), margin=10).annonces
+               if a.kind == "lot")
+    assert lot.floor_cents == 201

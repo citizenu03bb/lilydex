@@ -6,13 +6,15 @@ person copies, pastes or imports it. See docs/VENTE-PLATEFORMES.md.
 
 A price is never below the anti-bargain floor: the reference price (the
 Cardmarket trend, or the dated manual quote that stands in for it) less a
-configurable margin. A copy whose identity, condition or variant is not confirmed,
+margin of POKEPRICE_LOT_MAX_MARGIN percent (15 by default), the same rule as the
+lot floor of scripts/pokeprice_lots.py. A copy whose identity, condition or variant is not confirmed,
 or that has no price, is left out and listed apart with the reason.
 """
 
 import contextlib
 import csv
 import json
+import os
 import re
 import shutil
 import sqlite3
@@ -25,9 +27,27 @@ from .pricing import CARDMARKET_LANGUAGES, FLOOR_CENTS, display_price, euros
 
 PLATFORMS = ("vinted", "leboncoin", "cardmarket")
 
-# Default share of the reference price a listing may go below it. 0.10: never
-# under 90 % of the reference. The command takes --marge to change it.
-DEFAULT_MARGIN = 0.10
+# Anti-bargain margin, in whole percent of the reference price. Faithful copy of
+# DEFAULT_LOT_MAX_MARGIN, LOT_MAX_MARGIN_ENV, lot_max_margin and lot_floor_cents
+# of scripts/pokeprice_lots.py (a script cannot be imported from the package);
+# tests/test_marketplace_export.py checks that the two stay equal.
+DEFAULT_LOT_MAX_MARGIN = 15
+LOT_MAX_MARGIN_ENV = "POKEPRICE_LOT_MAX_MARGIN"
+
+
+def lot_max_margin():
+    raw = os.environ.get(LOT_MAX_MARGIN_ENV, "")
+    try:
+        margin = int(raw) if raw.strip() else DEFAULT_LOT_MAX_MARGIN
+    except ValueError:
+        raise ValueError(f"{LOT_MAX_MARGIN_ENV} attend un pourcentage entier, pas « {raw} ».")
+    return max(0, min(50, margin))
+
+
+def lot_floor_cents(total_reference_cents):
+    """Lowest price of a lot: the sum of the references less the margin, rounded up to the cent."""
+    keep = 100 - lot_max_margin()
+    return -(-total_reference_cents * keep // 100)
 
 # Title limits. Neither platform documents them publicly; these are the
 # shortest values sellers report, so a title is never cut. Check the posting
@@ -149,11 +169,22 @@ def round_up(amount_cents, step):
     return -(-amount_cents // step) * step
 
 
-def floor_price(reference_cents, margin):
-    """Lowest acceptable price: the reference less the margin, never under 0.50 €."""
-    if not 0 <= margin < 1:
-        raise ValueError("La marge est une part du prix, entre 0 et 1 (0.10 pour 10 %).")
-    return max(FLOOR_CENTS, -(-round(reference_cents * (1 - margin) * 1000) // 1000))
+def check_margin(margin):
+    """An explicit margin override: a whole percentage from 0 to 50."""
+    if isinstance(margin, bool) or not isinstance(margin, int) or not 0 <= margin <= 50:
+        raise ValueError("La marge est un pourcentage entier entre 0 et 50.")
+
+
+def floor_price(reference_cents, margin=None):
+    """Lowest acceptable price: the reference less the margin, never under 0.50 €.
+
+    Without ``margin``, the rule of the lots applies (POKEPRICE_LOT_MAX_MARGIN,
+    15 % by default); an explicit whole percentage overrides it.
+    """
+    if margin is None:
+        return max(FLOOR_CENTS, lot_floor_cents(reference_cents))
+    check_margin(margin)
+    return max(FLOOR_CENTS, -(-reference_cents * (100 - margin) // 100))
 
 
 def platform_price(price_cents, floor_cents, platform):
@@ -182,7 +213,7 @@ def blockers(card):
     return reasons
 
 
-def collect(store, margin=DEFAULT_MARGIN):
+def collect(store, margin=None):
     """Every available copy and published lot, priced, or excluded with a reason."""
     floor_price(0, margin)  # Validates the margin before reading anything.
     cards = {c["id"]: c for c in store.listing(limit=10**9)["items"]}
@@ -446,7 +477,7 @@ def write_cardmarket(store, export, target):
     return rows
 
 
-def run(data, platform, target, *, margin=DEFAULT_MARGIN, site=""):
+def run(data, platform, target, *, margin=None, site=""):
     if platform not in PLATFORMS:
         raise ValueError("Plateforme inconnue : " + ", ".join(PLATFORMS) + ".")
     store = ReadOnlyStore(data)

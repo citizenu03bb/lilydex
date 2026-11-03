@@ -17,7 +17,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from pokeprice.marketplace_export import DEFAULT_MARGIN, PLATFORMS, run
+from pokeprice.marketplace_export import PLATFORMS, run
 
 
 def main(argv=None):
@@ -26,8 +26,9 @@ def main(argv=None):
     parser.add_argument("--plateforme", required=True, choices=PLATFORMS)
     parser.add_argument("--sortie", required=True, help="dossier neuf où écrire les annonces")
     parser.add_argument(
-        "--marge", type=float, default=DEFAULT_MARGIN * 100,
-        help="pourcentage maximal sous la cote de référence (défaut : %(default)s)",
+        "--marge", type=int, default=None,
+        help="dérogation : pourcentage entier (0 à 50) sous la cote de référence ; "
+        "sans elle, POKEPRICE_LOT_MAX_MARGIN (15 par défaut)",
     )
     host = os.environ.get("POKEPRICE_HOST", "")
     parser.add_argument(
@@ -37,7 +38,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
     try:
         written, export = run(
-            args.data, args.plateforme, args.sortie, margin=args.marge / 100, site=args.site
+            args.data, args.plateforme, args.sortie, margin=args.marge, site=args.site
         )
     except (FileNotFoundError, FileExistsError, ValueError) as error:
         print(f"Erreur : {error}", file=sys.stderr)

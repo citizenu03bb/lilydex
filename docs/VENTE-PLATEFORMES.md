@@ -25,7 +25,7 @@ uv run python scripts/export_annonces.py --data /srv/pokeprice/inventory --plate
 | `--data` | Dossier de la collection. Il est ouvert en lecture seule. |
 | `--plateforme` | `vinted`, `leboncoin` ou `cardmarket`. |
 | `--sortie` | Dossier où écrire les annonces. Il doit être neuf ou vide : rien n'est écrasé. |
-| `--marge` | Pourcentage maximal sous la cote de référence (10 par défaut). Voir [Prix](#prix). |
+| `--marge` | Dérogation : pourcentage entier, de 0 à 50, sous la cote de référence. Sans elle, la variable `POKEPRICE_LOT_MAX_MARGIN` (15 par défaut) s'applique. Voir [Prix](#prix). |
 | `--site` | Adresse publique de la vitrine, pour le lien vers la fiche. Par défaut, celle du serveur (`POKEPRICE_HOST`). |
 
 À la fin, la commande affiche le nombre d'annonces et renvoie vers
@@ -105,12 +105,14 @@ l'application, selon les règles de la [vitrine](VITRINE.md) : prix manuel,
 estimation sur les offres, ou tendance Cardmarket arrondie.
 
 Ce prix ne descend **jamais sous le plancher anti-bradage** : la cote de
-référence diminuée de la marge, et jamais moins de 0,50 €. Pour un lot, la cote
-est la somme des cotes de ses cartes. Un prix trop bas est relevé au plancher,
+référence diminuée de la marge, et jamais moins de 0,50 €. La marge est celle
+des lots : `POKEPRICE_LOT_MAX_MARGIN`, 15 % par défaut, entier borné de 0 à 50,
+arrondi au centime supérieur. `--marge` y déroge pour un export, dans les mêmes
+bornes. Pour un lot, la cote est la somme des cotes de ses cartes. Un prix trop bas est relevé au plancher,
 puis arrondi vers le haut au format de la plateforme.
 
-Exemple avec la marge par défaut de 10 % : une carte cotée 2,00 € et publiée en
-vitrine à 0,60 € part à 1,80 € sur Vinted et à 2 € sur Leboncoin.
+Exemple avec la marge par défaut de 15 % : une carte cotée 2,00 € et publiée en
+vitrine à 0,60 € part à 1,70 € sur Vinted et à 2 € sur Leboncoin.
 
 La cote de référence est la tendance Cardmarket relevée, ou à défaut le relevé
 manuel daté qui la remplace. Sans cote, le plancher ne peut pas être vérifié :
