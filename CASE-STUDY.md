@@ -191,16 +191,20 @@ through an HTTP API only; it never opens the database.
   [0012](docs/decisions/0012-agent-brouillons.md) and
   [0014](docs/decisions/0014-corrections-agent-autorisees.md)).
 
-## Models propose, a person decides
+## Agents act, a person keeps money and irreversible steps
 
-Recognition serves the domain rules above. Every model output is a proposal
-stored with its evidence (photo, model, protocol, raw answer); no reading
-changes a record. Choices were measured on a bench of cards checked by hand:
+Recognition serves the domain rules above. The policy aims at maximum agent
+autonomy: agents identify, price, file, build lots and publish, log every action
+and keep it reversible; a person decides on money going out, irreversible steps
+and any price below an anti-undercut floor
+([decision 0021](docs/decisions/0021-autonomie-maximale.md), in French). Today
+every model reading is still a proposal stored with its evidence (photo, model,
+protocol, raw answer), and no reading changes a record by itself. Choices were measured on a bench of cards checked by hand:
 Gemini is the only text reader, DINOv2 settles editions that share a name,
 Tesseract was rejected, thresholds that protect a valuable card are never
 lowered. What no model could do: spot reverse holos through a sleeve. The
 figures and their limits (21 to 31 cards, no Japanese card) are in the
-[English overview](README.en.md#ai-and-vision-models-propose-a-person-decides).
+[English overview](README.en.md#ai-and-vision-agents-act-a-person-keeps-money-and-irreversible-steps).
 
 ## How it was built
 

@@ -652,7 +652,11 @@ de sélection ; le nombre compte les cartes confirmées avec édition, les autre
 sont ignorées. Chaque carte est relevée séparément : un échec n'arrête pas les
 suivantes. Le bilan donne les prix relevés, les cartes ignorées, les échecs et
 les alertes. En ligne de commande, `pokeprice-manage prices` relève toutes les
-identités confirmées (`--album <id>`, `--only-missing`, `--actor`).
+identités confirmées (`--album <id>`, `--only-missing`, `--actor`) avec une
+seule requête TCGdex par édition et par langue, appliquée à tous ses
+exemplaires. `--from-guide` cote d'abord par le guide des prix Cardmarket les
+cartes dont le produit est connu, sans requête TCGdex ; c'est la cotation
+matinale décrite dans [Valorisation](VALUATION.md#la-cotation-matinale).
 
 ### Ce que devient le prix
 
@@ -818,9 +822,10 @@ distribution, le prix et sa date. Les réponses publiques sont construites champ
 par champ : jamais de notes, de provenance, d'historique, de prix bruts,
 d'emplacement ni d'identifiant d'exemplaire ; les photos passent par
 l'identifiant de la publication. Les lectures anonymes sont limitées à 300
-requêtes par minute et par adresse. La page porte `noindex` tant que
-l'indexation par les moteurs de recherche n'est pas décidée ; la gestion et
-l'API portent `X-Robots-Tag: noindex, nofollow`.
+requêtes par minute et par adresse. La vitrine est ouverte aux moteurs
+de recherche, sauf avec `POKEPRICE_INDEXING=off` ; la gestion et l'API, hors
+photos publiques, portent `X-Robots-Tag: noindex, nofollow`
+([Partage et indexation](VITRINE.md#partage-et-indexation)).
 
 **Confiance et contact.** La vitrine dit qu'il s'agit d'un site personnel non
 officiel, sans paiement en ligne ni téléchargement, et renvoie à `/a-propos` :

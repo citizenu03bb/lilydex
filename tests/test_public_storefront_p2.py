@@ -142,7 +142,7 @@ def test_server_previews_are_localized_escaped_and_use_configured_origin(shop): 
             assert title in head.title and title in head.meta["og:title"]
             assert html.escape(title) in response.text and title not in response.text
             assert head.meta["og:url"] == f"https://shop.example{prefix}/carte/{lot['id']}"
-            assert head.meta["og:type"] == "website" and head.meta["robots"] == "noindex"
+            assert head.meta["og:type"] == "product" and "robots" not in head.meta
             assert "2" in head.meta["og:description"]
             assert ("2,00" if language == "fr" else "2.00") in head.meta["og:description"]
             assert "attacker.example" not in response.text

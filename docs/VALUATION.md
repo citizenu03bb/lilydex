@@ -64,6 +64,36 @@ l'emporte toujours. Le relevé échoue alors avec un message explicite (erreur
 numéro, avec le code imprimé de l'extension quand il est connu (« Darkrai GE 4 »
 ouvre directement la bonne page).
 
+### La cotation matinale
+
+`pokeprice-manage prices --from-guide` cote toute la collection en lot, sans
+requête à la demande :
+
+1. Le guide des prix Cardmarket du jour est chargé une fois.
+2. Une carte dont le produit Cardmarket est connu prend la cote de ce produit
+   dans le guide. Le produit est celui que TCGdex a donné lors d'un relevé
+   précédent, gardé dans le cache du catalogue (`cardmarket-product:<édition>`) ;
+   les variantes viennent du dernier relevé de la même édition. Ces relevés
+   s'écrivent dans une seule transaction, avec la source « Cardmarket · guide
+   des prix » et la méthode « correspondance en cache ».
+3. Les autres cartes suivent le relevé habituel : TCGdex d'abord, puis le
+   guide si TCGdex ne donne pas de cote. Une seule requête sert tous les
+   exemplaires d'une même édition et d'une même langue. Un produit signalé
+   incorrect, une carte sans produit connu ou une édition jamais relevée
+   passent par ce chemin.
+
+Un relevé n'entre dans l'historique que si le prix, la source, la variante
+cotée ou le produit changent ; un prix inchangé ne modifie pas non plus la
+fiche, qui garde sa version et la date de sa cote.
+
+Le rapport JSON compte les cartes cotées par le guide (`guide.priced`), les
+requêtes TCGdex (`editions`) et les relevés écrits (`recorded`). Il liste les
+variations notables (`notable` : prix apparu ou disparu, ou écart d'au moins
+`--threshold` pour cent, 20 par défaut, pour une carte de 2 € et plus) et les
+prix de vitrine en tendance que la nouvelle cote rend périmés
+(`stale_storefront`). Un prix de vitrine ne change jamais seul : il se republie
+à la main.
+
 ### Une énergie de base
 
 Une énergie de base confirmée et sans cotation (Énergie Feu, Fighting

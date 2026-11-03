@@ -25,6 +25,9 @@ FILES = {
     "products_singles_6.json": BASE + "productList/products_singles_6.json",
 }
 SOURCE = "Cardmarket · guide des prix"
+# Methods whose product comes from TCGdex, not from a match in the guide.
+TCGDEX_PRODUCT = "produit indiqué par TCGdex"
+CACHED_PRODUCT = "produit indiqué par TCGdex, correspondance en cache"
 MAX_BYTES = 64 * 1024 * 1024
 MAX_AGE_SECONDS = 24 * 3600
 FIELDS = ("avg", "low", "trend", "avg1", "avg7", "avg30")
@@ -112,6 +115,13 @@ class CardmarketGuide:
             )
         return self._loaded[1:]
 
+    def load(self):
+        """(date of the guide, prices by product, products by id), or None.
+
+        Downloaded at most once a day; a batch reads it once for every card.
+        """
+        return self._data()
+
     def _remember(self, key_, value):
         if self.store is None:
             return
@@ -169,17 +179,26 @@ class CardmarketGuide:
         loaded = self._data()
         if not loaded:
             return data
-        created, prices, products = loaded
-        product, method = block.get("idProduct"), "produit indiqué par TCGdex"
+        products = loaded[2]
+        product, method = block.get("idProduct"), TCGDEX_PRODUCT
         try:
             if not isinstance(product, int):
                 product = self.match(data.get("id", ""), products)
                 method = "même extension, même nom, mêmes attaques"
         except Exception:  # noqa: BLE001 - no match is a valid answer
             product = None
-        entry = prices.get(product) if isinstance(product, int) else None
+        return self.quote(data, product, method, loaded=loaded) or data
+
+    def quote(self, data, product, method, *, loaded=None):
+        """Card data priced from the guide entry of a known product, or None."""
+        loaded = loaded or self._data()
+        if not loaded or not isinstance(product, int) or isinstance(product, bool):
+            return None
+        created, prices, products = loaded
+        entry = prices.get(product)
         if not has_quote(entry):
-            return data
+            return None
+        pricing = data.get("pricing") or {}
         completed = {
             **{k + s: entry.get(k + s) for k in FIELDS for s in ("", "-holo")},
             "idProduct": product,

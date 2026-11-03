@@ -14,6 +14,8 @@ PUBLIC = {
     ("GET", "/"),
     ("GET", "/assets/{name}"),
     ("GET", "/favicon.ico"),
+    ("GET", "/robots.txt"),
+    ("GET", "/sitemap.xml"),
     ("GET", "/vitrine"),
     ("GET", "/carte/{listing_id}"),
     ("GET", "/en"),
