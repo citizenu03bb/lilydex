@@ -255,3 +255,33 @@ def test_http_answer_does_not_wait_for_sending(shop):  # noqa: F811
 def no_alert_environment(monkeypatch):
     for name in ("POKEPRICE_NTFY_URL", "POKEPRICE_SMTP_HOST"):
         monkeypatch.delenv(name, raising=False)
+
+
+def test_a_public_request_queues_alerts_without_client_data(shop):  # noqa: F811
+    admin, store, listings = shop
+    from pokeprice import webapp
+
+    apps = []
+
+    def factory(root):
+        app = webapp.create_app(root)
+        wire(store, app, [Fake(), Fake("email")])
+        apps.append(app)
+        return app
+
+    assert guest_request(store, [listings[0]["id"]], factory).status_code == 202
+    assert apps[0].state.notifier.enabled
+    with store.connect() as db:
+        rows = db.execute(
+            "SELECT * FROM notifications ORDER BY channel, kind").fetchall()
+        columns = rows[0].keys()
+    # Three kinds on two channels, none sent yet, and only ids, kinds and dates.
+    assert [(r["channel"], r["kind"]) for r in rows] == [
+        (channel, kind) for channel in ("email", "ntfy")
+        for kind in ("new", "reminder-2", "reminder-5")]
+    assert all(r["sent_at"] is None and r["attempts"] == 0 for r in rows)
+    assert set(columns) == {"id", "request_id", "kind", "channel", "due_at", "attempts",
+                            "sent_at", "given_up_at", "error"}
+    dump = " ".join(str(value) for r in rows for value in tuple(r))
+    for secret in ("sacha", "Sacha", "Privée", "example.org"):
+        assert secret not in dump

@@ -9,6 +9,11 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-03
 
+- Vitrine : chaque demande de réservation prévient le vendeur par ntfy et par
+  courriel, avec rappels à J+2 et J+5, sans donnée du client
+  ([fonctionnement](VITRINE.md#les-alertes-au-vendeur)). Le client web lit
+  `?demande=` au moment du focus et non plus au chargement du module
+  (`tests/test_notifications.py`, `tests/test_web_client.py`).
 - Politique IA : la règle « la machine propose, l'humain décide » laisse place
   à l'autonomie maximale des agents ([fiche 0021](decisions/0021-autonomie-maximale.md)),
   avec un plancher anti-bradage et la demande de nouvelle photo. Guide chapeau

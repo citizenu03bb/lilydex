@@ -374,6 +374,28 @@ minute et par adresse :
   `POKEPRICE_INDEXING=off`, `noindex` sur toute la vitrine et les photos
   ([Partage et indexation](#partage-et-indexation)).
 
+## Les alertes au vendeur
+
+Chaque demande de réservation prévient le vendeur par une notification push
+(ntfy) et un courriel (SMTP). Les variables sont décrites dans
+[Où vivent les secrets](DEPLOYMENT.md#où-vivent-les-secrets).
+
+- **Contenu.** Le nombre de cartes, le total et le lien vers la demande dans
+  `/gestion` : jamais le nom, l'adresse, le message ni aucune donnée du client.
+- **File d'attente.** L'alerte est écrite dans la table `notifications` dans la
+  transaction qui crée la demande, puis envoyée par un fil d'arrière-plan : la
+  réponse HTTP n'attend jamais l'envoi et un redémarrage ne perd rien.
+- **Réessais.** Un échec est retenté après 1 min, 5 min, 30 min, 2 h puis 6 h,
+  avant abandon. Le journal ne garde ni adresse ni contenu.
+- **Rappels.** Tant que la demande attend une réponse, un rappel part à J+2 et
+  un autre à J+5 ; aucun ne part une fois la demande acceptée, refusée,
+  annulée ou expirée.
+- **Désactivation.** Sans variable, un canal est éteint et rien n'est mis en
+  file ; la vitrine fonctionne comme avant.
+- **Risque de `POKEPRICE_SMTP_SECURITY=none`.** Le courriel et le mot de passe
+  SMTP circulent en clair : seulement vers un relais sur la même machine ou un
+  réseau privé de confiance.
+
 ## Les prochaines étapes
 
 - D'autres langues que l'anglais ([feuille de route](ROADMAP.md#prévu)).

@@ -150,7 +150,10 @@ async function refreshSummary() {
   );
 }
 // An alert's link (/gestion?demande=…) opens that request, ready to answer.
-const focusRequest = new URLSearchParams(location.search).get("demande");
+// Read when needed, not at load: the module must also run without a browser URL API.
+function focusedRequest() {
+  return new URLSearchParams(location.search).get("demande");
+}
 async function showWorkspace(user) {
   state.user = user;
   $("access").hidden = true;
@@ -166,7 +169,7 @@ async function showWorkspace(user) {
   $("select-page").hidden = !editAllowed();
   await refreshSummary();
   restoreLocation();
-  if (focusRequest) changeView("sales", false);
+  if (focusedRequest()) changeView("sales", false);
   await loadCards();
   if (state.view === "sales") await loadSales();
   if (state.view === "settings") await loadUsers();
@@ -2282,7 +2285,7 @@ async function loadRequests() {
   for (const request of requests) {
     const card = el("article", undefined, "sale-card");
     card.id = `demande-${request.id}`;
-    if (request.id === focusRequest) card.classList.add("focused");
+    if (request.id === focusedRequest()) card.classList.add("focused");
     card.append(
       el("h3", `${request.display_name || request.email} · ${money(request.total_cents)} · ${request.status_label}`),
       el(
@@ -2373,6 +2376,7 @@ async function loadRequests() {
     }
     box.append(card);
   }
+  const focusRequest = focusedRequest();
   const focused = focusRequest && document.getElementById(`demande-${focusRequest}`);
   if (focused) focused.scrollIntoView({ block: "start" });
   else if (focusRequest) toast("Cette demande n’est plus dans la liste : elle a peut-être déjà reçu une réponse.");

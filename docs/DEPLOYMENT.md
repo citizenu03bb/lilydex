@@ -35,7 +35,22 @@ Autres hébergeurs possibles, sur un petit serveur privé payant : Scaleway
     de partage. Elle ne se déduit jamais d'un en-tête fourni par le visiteur ;
   - `POKEPRICE_CONTACT_EMAIL` et `POKEPRICE_CONTROLLER_NAME`, l'adresse de
     contact et le nom du responsable du traitement affichés sur la page
-    « À propos ». Ils ne sont jamais versionnés.
+    « À propos ». Ils ne sont jamais versionnés ;
+  - les alertes de demande de réservation ([fonctionnement](VITRINE.md#les-alertes-au-vendeur)),
+    chaque canal étant éteint tant que ses variables manquent :
+    - `POKEPRICE_NTFY_URL`, l'adresse du sujet ntfy (`https://` obligatoire,
+      ou `http://localhost` pour un essai) : l'adresse est le secret ;
+    - `POKEPRICE_NTFY_TOKEN`, un jeton d'accès si le sujet est protégé
+      (facultatif) ;
+    - `POKEPRICE_SMTP_HOST`, `POKEPRICE_SMTP_FROM` et `POKEPRICE_NOTIFY_EMAIL`
+      (à défaut `POKEPRICE_CONTACT_EMAIL`) : le serveur d'envoi, l'expéditeur
+      et le destinataire, tous trois requis pour le courriel ;
+    - `POKEPRICE_SMTP_PORT` (facultatif : 587 en `starttls`, 465 en `ssl`,
+      25 en `none`), `POKEPRICE_SMTP_USER` et `POKEPRICE_SMTP_PASSWORD`
+      (facultatifs : sans identifiant, pas d'authentification) ;
+    - `POKEPRICE_SMTP_SECURITY`, `starttls` (défaut), `ssl` ou `none` ; toute
+      autre valeur retombe sur `starttls`. `none` envoie en clair, mot de
+      passe compris : à réserver à un relais local de confiance.
 - **Sur le portable seulement** : le jeton Google Drive (configuration
   rclone, `rclone.conf`), l'identifiant du dossier Drive et la clé de chiffrement des
   sauvegardes. Aucun n'est copié sur le serveur.
