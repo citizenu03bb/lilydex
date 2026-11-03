@@ -17,8 +17,11 @@ from pokeprice_lots import (
     ScoringHeuristics,
     ValueIntent,
     categorize_card,
+    lot_floor_cents,
+    lot_max_margin,
     main,
     normalize_pokemon_name,
+    run_remote_command,
 )
 
 
@@ -883,3 +886,146 @@ def test_gemini_model_comes_from_a_constant_or_the_environment(monkeypatch):
 def test_get_duplicates_pool_is_defined_once():
     source = (Path(__file__).resolve().parent.parent / "scripts" / "pokeprice_lots.py").read_text()
     assert source.count("def get_duplicates_pool(") == 1
+
+
+def test_lot_floor_follows_the_configured_margin(monkeypatch):
+    monkeypatch.delenv("POKEPRICE_LOT_MAX_MARGIN", raising=False)
+    assert lot_max_margin() == 15
+    assert lot_floor_cents(1000) == 850
+    assert lot_floor_cents(333) == 284  # arrondi au centime supérieur
+    monkeypatch.setenv("POKEPRICE_LOT_MAX_MARGIN", "0")
+    assert lot_floor_cents(1000) == 1000
+    monkeypatch.setenv("POKEPRICE_LOT_MAX_MARGIN", "90")
+    assert lot_max_margin() == 50
+    monkeypatch.setenv("POKEPRICE_LOT_MAX_MARGIN", "beaucoup")
+    with pytest.raises(ValueError, match="pourcentage entier"):
+        lot_max_margin()
+
+
+def test_compose_never_discounts_below_the_floor(test_db, monkeypatch):
+    monkeypatch.delenv("POKEPRICE_LOT_MAX_MARGIN", raising=False)
+    db_path, _ = test_db
+    engine = LotsEngine(db_path)
+    assert BundleRules().target_discount_percent == 0
+    recipe = LotCompositionRecipe(
+        title="Lot bradé",
+        summary="Décote demandée trop forte",
+        bundle_rules=BundleRules(target_count=3, target_discount_percent=40),
+    )
+    lot = engine.compose_from_recipe(recipe)["lot"]
+    assert lot["discount_percent"] == 15
+    assert lot["asking_cents"] >= lot_floor_cents(lot["total_reference_cents"])
+
+
+def test_publish_refuses_a_lot_priced_under_the_floor(test_db, monkeypatch):
+    monkeypatch.delenv("POKEPRICE_LOT_MAX_MARGIN", raising=False)
+    db_path, store = test_db
+    engine = LotsEngine(db_path)
+    cards = [add_copy(store, "b", 10 + i, price=100)["id"] for i in range(3)]
+    sale_id, units = draft_with_unit_listings(store, cards, title="Lot sous la cote")
+    with store.connect(write=True) as db:
+        db.execute("UPDATE sales SET amount_cents=200, asking_cents=200 WHERE id=?", (sale_id,))
+    with pytest.raises(ValueError, match="plancher anti-bradage"):
+        engine.publish_to_storefront(sale_id)
+    with store.connect() as db:
+        active = {r[0] for r in db.execute("SELECT listing_id FROM listing_items WHERE active=1")}
+    assert set(units) <= active  # aucune annonce unitaire retirée
+
+    with store.connect(write=True) as db:
+        db.execute("UPDATE sales SET amount_cents=255, asking_cents=255 WHERE id=?", (sale_id,))
+    engine.publish_to_storefront(sale_id)
+    assert lot_listings(store)
+
+
+def test_publish_refuses_a_lot_with_an_unrated_card(test_db):
+    db_path, store = test_db
+    engine = LotsEngine(db_path)
+    rated = add_copy(store, "b", 20, price=100)["id"]
+    unrated = add_copy(store, "b", 21, price=None)["id"]
+    with store.connect(write=True) as db:
+        sale_id = store.create_sale(
+            {"title": "Lot sans cote", "amount_cents": 500, "asking_cents": 500}, [rated, unrated], "tester", _db=db
+        )
+    with pytest.raises(ValueError, match="sans cote"):
+        engine.publish_to_storefront(sale_id)
+
+
+def three_card_draft(store, first_position, price_cents):
+    cards = [add_copy(store, "b", first_position + i, price=100)["id"] for i in range(3)]
+    sale_id, units = draft_with_unit_listings(store, cards, title=f"Lot {first_position}")
+    with store.connect(write=True) as db:
+        db.execute("UPDATE sales SET amount_cents=?, asking_cents=? WHERE id=?", (price_cents, price_cents, sale_id))
+    return sale_id, cards, units
+
+
+@pytest.mark.parametrize("price_cents, published", [(254, False), (255, True)])
+def test_publish_floor_boundary(test_db, monkeypatch, price_cents, published):
+    monkeypatch.delenv("POKEPRICE_LOT_MAX_MARGIN", raising=False)
+    db_path, store = test_db
+    sale_id, _, _ = three_card_draft(store, 30, price_cents)
+    engine = LotsEngine(db_path)
+    if published:
+        engine.publish_to_storefront(sale_id)
+        assert lot_listings(store)
+    else:
+        with pytest.raises(ValueError, match="plancher anti-bradage"):
+            engine.publish_to_storefront(sale_id)
+
+
+def test_publish_checks_the_cotes_of_the_day(test_db, monkeypatch):
+    monkeypatch.delenv("POKEPRICE_LOT_MAX_MARGIN", raising=False)
+    db_path, store = test_db
+    sale_id, cards, _ = three_card_draft(store, 40, 300)
+    with store.connect(write=True) as db:
+        db.execute(f"UPDATE copies SET reference_cents=200 WHERE id IN ({','.join('?' * len(cards))})", cards)
+    with pytest.raises(ValueError, match="plancher anti-bradage"):
+        LotsEngine(db_path).publish_to_storefront(sale_id)
+
+
+def test_publish_all_refuses_an_undercut_lot_and_keeps_its_cards_online(test_db, monkeypatch):
+    monkeypatch.delenv("POKEPRICE_LOT_MAX_MARGIN", raising=False)
+    db_path, store = test_db
+    sale_id, _, units = three_card_draft(store, 50, 200)
+    report = LotsEngine(db_path).publish_all()
+    refused = {r["sale_id"]: r["reason"] for r in report["refused"]}
+    assert "plancher anti-bradage" in refused[sale_id]
+    with store.connect() as db:
+        active = {r[0] for r in db.execute("SELECT listing_id FROM listing_items WHERE active=1")}
+    assert set(units) <= active
+
+
+def test_a_zero_cote_counts_as_no_cote(test_db):
+    db_path, store = test_db
+    cards = [add_copy(store, "b", 60 + i, price=100)["id"] for i in range(2)]
+    with store.connect(write=True) as db:
+        db.execute("UPDATE copies SET reference_cents=0 WHERE id=?", (cards[0],))
+        sale_id = store.create_sale({"title": "Lot à zéro", "amount_cents": 500, "asking_cents": 500}, cards, "tester", _db=db)
+    with pytest.raises(ValueError, match="sans cote"):
+        LotsEngine(db_path).publish_to_storefront(sale_id)
+
+
+def test_compose_follows_a_stricter_margin(test_db, monkeypatch):
+    monkeypatch.setenv("POKEPRICE_LOT_MAX_MARGIN", "0")
+    db_path, _ = test_db
+    recipe = LotCompositionRecipe(
+        title="Lot sans décote", summary="Marge nulle",
+        bundle_rules=BundleRules(target_count=3, target_discount_percent=30),
+    )
+    lot = LotsEngine(db_path).compose_from_recipe(recipe)["lot"]
+    assert lot["discount_percent"] == 0
+    assert lot["asking_cents"] >= lot["total_reference_cents"]
+
+
+def test_remote_command_carries_the_margin(monkeypatch):
+    calls = []
+
+    class Done:
+        returncode, stdout, stderr = 0, "", ""
+
+    monkeypatch.setattr("pokeprice_lots.subprocess.run", lambda cmd, **_: calls.append(cmd) or Done())
+    monkeypatch.setenv("POKEPRICE_LOT_MAX_MARGIN", "10")
+    run_remote_command("serveur", "/srv/base", "status", [])
+    assert "POKEPRICE_LOT_MAX_MARGIN=10 " in calls[-1][-1]
+    monkeypatch.delenv("POKEPRICE_LOT_MAX_MARGIN")
+    run_remote_command("serveur", "/srv/base", "status", [])
+    assert "POKEPRICE_LOT_MAX_MARGIN" not in calls[-1][-1]

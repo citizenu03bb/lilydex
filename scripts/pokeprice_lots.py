@@ -47,6 +47,28 @@ def gemini_model():
     return os.environ.get(GEMINI_MODEL_ENV) or DEFAULT_GEMINI_MODEL
 
 
+# Plancher anti-bradage (décision 0021) : un lot ne se vend jamais sous la somme
+# des cotes de ses cartes diminuée de cette marge, en pourcentage. Une variable
+# d'environnement la resserre ou l'élargit, sans dépasser 50 %.
+DEFAULT_LOT_MAX_MARGIN = 15
+LOT_MAX_MARGIN_ENV = "POKEPRICE_LOT_MAX_MARGIN"
+
+
+def lot_max_margin():
+    raw = os.environ.get(LOT_MAX_MARGIN_ENV, "")
+    try:
+        margin = int(raw) if raw.strip() else DEFAULT_LOT_MAX_MARGIN
+    except ValueError:
+        raise ValueError(f"{LOT_MAX_MARGIN_ENV} attend un pourcentage entier, pas « {raw} ».")
+    return max(0, min(50, margin))
+
+
+def lot_floor_cents(total_reference_cents):
+    """Le prix minimal d'un lot : la somme des cotes moins la marge, arrondie au centime supérieur."""
+    keep = 100 - lot_max_margin()
+    return -(-total_reference_cents * keep // 100)
+
+
 # Classification thématique des extensions Pokémon
 THEME_PATTERNS = [
     ("vintage_wotc", r"^(base[1-5]|gym[12]|neo[1-4]|ecard[1-3])(-|$)"),
@@ -256,7 +278,7 @@ class ScoringHeuristics(BaseModel):
 class BundleRules(BaseModel):
     target_count: int = Field(10, description="Nombre de cartes souhaité dans le lot")
     diversity: DiversityStrategy = Field(DiversityStrategy.MAXIMIZE_SPECIES, description="Stratégie de diversité")
-    target_discount_percent: int = Field(15, description="Pourcentage de décote commerciale sur le lot")
+    target_discount_percent: int = Field(0, description="Pourcentage de décote commerciale sur le lot, plafonné par le plancher anti-bradage")
 
 
 class LotCompositionRecipe(BaseModel):
@@ -897,7 +919,7 @@ class LotsEngine:
             dict(r)
             for r in db.execute(
                 """
-                SELECT c.id, c.name, c.stock_state, c.deleted_at
+                SELECT c.id, c.name, c.stock_state, c.deleted_at, c.reference_cents
                 FROM sale_items si
                 JOIN copies c ON c.id = si.copy_id
                 WHERE si.sale_id = ?
@@ -918,6 +940,21 @@ class LotsEngine:
         refusals = []
         if price_cents < FLOOR_CENTS:
             refusals.append(f"Un lot se vend au moins {euros(FLOOR_CENTS / 100)}.")
+        # Plancher anti-bradage, sur les cotes du jour : une baisse de prix ne passe
+        # pas en douce si les cotes ont monté depuis le brouillon.
+        # Une cote nulle ne vaut pas mieux qu'une cote absente : elle annulerait le plancher.
+        unrated = [it for it in items if not it["reference_cents"]]
+        if unrated:
+            refusals.append(
+                f"{len(unrated)} carte(s) sans cote : impossible de vérifier que le lot n'est pas bradé."
+            )
+        else:
+            floor = lot_floor_cents(sum(it["reference_cents"] for it in items))
+            if price_cents < floor:
+                refusals.append(
+                    f"Prix du lot {euros(price_cents / 100)} sous le plancher anti-bradage de "
+                    f"{euros(floor / 100)} (somme des cotes moins {lot_max_margin()} %)."
+                )
 
         copy_ids = [it["id"] for it in items]
         cards = listings.cards(copy_ids)
@@ -1220,9 +1257,11 @@ class LotsEngine:
 
         # Calcul financier
         total_ref_cents = sum(c.get("reference_cents") or 0 for c in selected)
-        discount = max(0, min(50, recipe.bundle_rules.target_discount_percent))
-        raw_asking = total_ref_cents * (1.0 - discount / 100.0)
-        asking_cents = max(200, int(round(raw_asking / 50.0) * 50))
+        # La décote ne descend jamais sous le plancher anti-bradage ; l'arrondi au
+        # demi-euro se fait vers le haut pour ne pas repasser dessous.
+        discount = max(0, min(lot_max_margin(), recipe.bundle_rules.target_discount_percent))
+        raw_asking = -(-total_ref_cents * (100 - discount) // 100)
+        asking_cents = max(200, -(-raw_asking // 50) * 50)
 
         partial_fill = len(selected) < target_count
         warning = None
@@ -1363,8 +1402,11 @@ def run_remote_command(remote_host, data, subcmd, extra_args):
         subcmd,
     ] + extra_args
     sudo_inner = " ".join(shlex.quote(arg) for arg in remote_cmd)
+    # sudo repart d'un environnement vide : la marge anti-bradage choisie ici suit.
+    margin = os.environ.get(LOT_MAX_MARGIN_ENV, "").strip()
+    margin_env = f" {LOT_MAX_MARGIN_ENV}={shlex.quote(margin)}" if margin else ""
     full_ssh_cmd = (
-        f"cd /tmp && sudo -u pokeprice env HOME=/srv/pokeprice PYTHONPATH=/opt/pokeprice/src {sudo_inner}"
+        f"cd /tmp && sudo -u pokeprice env HOME=/srv/pokeprice PYTHONPATH=/opt/pokeprice/src{margin_env} {sudo_inner}"
     )
     res = subprocess.run(
         ["ssh", "-o", "BatchMode=yes", remote_host, full_ssh_cmd],
@@ -1615,14 +1657,18 @@ def main():
             else:
                 recipe = prompt_to_recipe(args.prompt)
 
-            result = engine.compose(
-                recipe=recipe,
-                create_draft=args.create_draft,
-                actor=args.actor,
-                prompt=args.prompt,
-                dry_run=args.dry_run,
-                scope=getattr(args, "scope", "duplicates"),
-            )
+            try:
+                result = engine.compose(
+                    recipe=recipe,
+                    create_draft=args.create_draft,
+                    actor=args.actor,
+                    prompt=args.prompt,
+                    dry_run=args.dry_run,
+                    scope=getattr(args, "scope", "duplicates"),
+                )
+            except ValueError as exc:
+                sys.stderr.write(f"Composition refusée : {exc}\n")
+                sys.exit(1)
         elif args.subcommand == "publish-to-storefront":
             if args.all:
                 result = engine.publish_all(actor=args.actor, dry_run=args.dry_run)

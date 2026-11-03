@@ -29,6 +29,13 @@ Principes :
   vente se font dans une seule transaction. Si une carte est refusée ou si une
   étape échoue, rien n'est écrit et les annonces unitaires restent en ligne.
 - La rotation n'annule jamais un brouillon dont le lot est en ligne.
+- Un lot n'est jamais bradé : son prix ne descend pas sous la somme des cotes de
+  ses cartes moins 15 % (variable d'environnement `POKEPRICE_LOT_MAX_MARGIN`,
+  entre 0 et 50). `compose` plafonne sa décote à cette marge, sans décote par
+  défaut, et `publish-to-storefront` refuse un lot sous ce plancher ou dont une
+  carte n'a pas de cote (une cote nulle compte comme absente), en recalculant
+  les cotes du jour. Avec `--remote`, la marge réglée sur le poste est transmise
+  au serveur.
 
 ## Dependencies
 
@@ -156,8 +163,9 @@ pokeprice_lots.py --data /srv/pokeprice/inventory --output /tmp/pepites.json \
 Remplace les annonces unitaires des cartes d'un brouillon par une seule annonce
 de lot en vitrine :
 
-1. vérifie le brouillon (statut `draft`, au moins deux cartes, prix fixé et au
-   moins égal au plancher) et chaque carte avec la règle de `display_price`
+1. vérifie le brouillon (statut `draft`, au moins deux cartes, chacune cotée,
+   prix fixé, au moins égal au plancher de 0,50 € et au plancher anti-bradage)
+   et chaque carte avec la règle de `display_price`
    appliquée par `Listings.publish(lot=True)` : identité confirmée, carte
    disponible, absente de tout autre lot en ligne ;
 2. au moindre refus, s'arrête avec la liste des motifs, sans rien retirer ;
