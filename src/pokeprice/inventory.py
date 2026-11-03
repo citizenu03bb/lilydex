@@ -1201,8 +1201,12 @@ class Store:
                     else "identification",
                     "Préparation locale de la photo et validation humaine"
                     if photo_preparation
+                    else "État proposé, preuves concordantes : confirmé par l’agent"
+                    if condition_validation and evidence.get("decided_by") == "agent"
                     else "État proposé confronté à la carte et validé humainement"
                     if condition_validation
+                    else "Finition lue, preuves concordantes : confirmée par l’agent"
+                    if variant_validation and evidence.get("decided_by") == "agent"
                     else "Finition lue confrontée à la carte et décidée humainement"
                     if variant_validation
                     else "Lecture assistée et confirmation humaine",
@@ -1265,7 +1269,11 @@ class Store:
                     if field == "finish"
                     else card.get(field + "_state", "unobserved"),
                     "text": card.get(field, ""),
-                    "origin": "maintenance" if actor.startswith("system:") else "human",
+                    "origin": "maintenance"
+                    if actor.startswith("system:")
+                    else "agent"
+                    if actor.startswith("agent:")
+                    else "human",
                 }
         return json.dumps(provenance, ensure_ascii=False, sort_keys=True)
 

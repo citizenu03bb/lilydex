@@ -15,6 +15,8 @@ const context = vm.createContext({
   $: () => ({}),
   editAllowed: () => true,
   refreshSummary: async () => {},
+  refreshPhotoRequests: async () => {},
+  toast: () => {},
   restoreLocation: () => {},
   changeView: (view) => {
     views.push(view);

@@ -50,6 +50,7 @@ PAGES_VIVANTES = {
     "docs/RGPD.md",
     "docs/ROADMAP.md",
     "docs/VALUATION.md",
+    "docs/VENTE-PLATEFORMES.md",
     "docs/VITRINE.md",
     "skills/pokeprice-agent-prix/SKILL.md",
     "skills/pokeprice-autonome/SKILL.md",

@@ -2063,3 +2063,15 @@ lilydex-filter-bar {
 .sale-card.focused button {
   min-height: 48px;
 }
+.photo-requests {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.photo-requests li {
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+.photo-requests li span {
+  flex: 1 1 18rem;
+}

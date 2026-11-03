@@ -9,15 +9,24 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-03
 
+- Vente sur les plateformes : `scripts/export_annonces.py` prépare, en lecture
+  seule, une annonce par dossier pour Vinted et Leboncoin et le fichier d'import
+  de stock Cardmarket ; prix jamais sous la cote moins une marge réglable
+  ([guide](VENTE-PLATEFORMES.md)). Rien n'est publié automatiquement.
 - Vitrine : chaque demande de réservation prévient le vendeur par ntfy et par
   courriel, avec rappels à J+2 et J+5, sans donnée du client
   ([fonctionnement](VITRINE.md#les-alertes-au-vendeur)). Le client web lit
-  `?demande=` au moment du focus et non plus au chargement du module
-  (`tests/test_notifications.py`, `tests/test_web_client.py`).
+  `?demande=` une fois, à l'ouverture de la gestion, avant que l'adresse ne soit
+  réécrite (`tests/test_notifications.py`, `tests/test_web_client.py`).
 - Politique IA : la règle « la machine propose, l'humain décide » laisse place
   à l'autonomie maximale des agents ([fiche 0021](decisions/0021-autonomie-maximale.md)),
   avec un plancher anti-bradage et la demande de nouvelle photo. Guide chapeau
   `pokeprice-autonome` ; aucun comportement du code changé.
+
+- L'agent de revue confirme variante et état par le chemin d'écriture humain
+  quand finition, édition par l'image et état concordent ; sinon il demande
+  une photo, listée dans « Photos à reprendre ». Commande `agent-review`,
+  passage annulable ([décision 0022](decisions/0022-agent-confirme-ou-demande-photo.md)).
 
 ## 2026-10-29
 

@@ -35,6 +35,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from .audience import Audience, counted
 from .brand import SITE_NAME, site_slug, site_wordmark
+from .agent_review import AgentReview
 from .condition_assessment import ConditionService, assessment_rows, read_condition
 from .intake import IntakeService, catalogue_candidates, normalize_photo, read_photo
 from .inventory import Conflict, Store, cents, now
@@ -2006,8 +2007,9 @@ def create_app(
 
     @app.post("/api/copies/{copy_id}/photo-from-intake")
     def attach_prepared_photo(
-        copy_id: str, values: PhotoAttachment, user=Depends(editor)
+        copy_id: str, values: PhotoAttachment, tasks: BackgroundTasks, user=Depends(editor)
     ):
+        review_after_photo(tasks, copy_id)
         return intake.attach_photo(
             values.token,
             user["id"],
@@ -2129,10 +2131,12 @@ def create_app(
     async def upload(
         copy_id: str,
         request: Request,
+        tasks: BackgroundTasks,
         version: int = Query(ge=1),
         side: Literal["front", "back"] = "front",
         user=Depends(editor),
     ):
+        review_after_photo(tasks, copy_id)
         data = bytearray()
         async for chunk in request.stream():
             data.extend(chunk)
@@ -2201,6 +2205,19 @@ def create_app(
 
     def variant_inputs(copy_id, threshold_cents=1000):
         return check_inputs(store, variant_catalogue, copy_id, threshold_cents)
+
+    # The review agent confirms on evidence or asks for a photo (agent_review.py).
+    review = AgentReview(store, variant_checks, conditions, edition_checks, variant_inputs)
+    app.state.agent_review = review
+
+    def review_after_photo(tasks, copy_id):
+        """A new photo answering a request is read again after the response."""
+        if auto_checks:
+            tasks.add_task(review.after_photo, copy_id)
+
+    @app.get("/api/photo-requests")
+    def photo_requests(user=Depends(staff)):
+        return review.photo_requests()
 
     @app.post("/api/copies/{copy_id}/variant-checks", status_code=201)
     def check_variant(
