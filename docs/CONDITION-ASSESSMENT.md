@@ -70,7 +70,7 @@ en une phrase. Une seule vue par face, la plus précise. La gestion les liste
 sous « Photos à reprendre », dans l'ordre du classeur. Le bouton ouvre
 l'appareil photo du téléphone ; la nouvelle photo ferme la demande et le
 serveur relance seul les lectures et la décision pour cette carte. Une vue déjà
-reprise sans succès n'est pas redemandée : la carte reste à une personne.
+reprise sans succès n'est pas redemandée : la carte revient à une personne.
 Un désaccord avec la fiche n'appelle pas de photo : la carte reste « À examiner ».
 
 En lot : `pokeprice-manage --data <base> agent-review` simule, `--apply`

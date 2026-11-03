@@ -164,6 +164,55 @@ def test_agent_confirms_both_halves_through_the_human_path(env):
     assert provenance["finish"]["origin"] == "agent"
 
 
+def test_a_failed_condition_takes_the_variant_back_and_keeps_the_copy_waiting(env, monkeypatch):
+    client, review, _, _ = env
+    card = photographed(client)
+
+    def failing(*args, **kwargs):
+        raise Conflict("Évaluation périmée.")
+
+    monkeypatch.setattr(review.conditions, "confirm", failing)
+    report = review.run(apply=True, read=True)
+    assert report["confirmed"] == [] and report["interrupted"] == []
+    assert [s["copy_id"] for s in report["skipped"]] == [card["id"]]
+    assert "variante remise en attente" in report["skipped"][0]["reason"]
+    detail = card_of(client, card)
+    assert not detail["variant_confirmed"] and not detail["condition_confirmed"]
+    assert detail["finish"] == ""
+    # Still waiting: a later pass with a working service decides it.
+    monkeypatch.undo()
+    again = review.run(apply=True, read=True)
+    assert [c["copy_id"] for c in again["confirmed"]] == [card["id"]]
+
+
+def test_a_failed_take_back_is_recorded_for_the_undo(env, monkeypatch):
+    client, review, _, _ = env
+    card = photographed(client)
+
+    def failing(*args, **kwargs):
+        raise Conflict("Évaluation périmée.")
+
+    monkeypatch.setattr(review.conditions, "confirm", failing)
+
+    real_patch = review.store.patch
+
+    def stuck(copy_id, changes, *args, **kwargs):
+        if not changes.get("variant_confirmed", True):
+            raise Conflict("Fiche modifiée.")
+        return real_patch(copy_id, changes, *args, **kwargs)
+
+    monkeypatch.setattr(review.store, "patch", stuck)
+    report = review.run(apply=True, read=True)
+    assert [i["copy_id"] for i in report["interrupted"]] == [card["id"]]
+    assert "agent-review-undo" in report["skipped"][0]["reason"]
+    assert card_of(client, card)["variant_confirmed"]
+    monkeypatch.undo()
+    result = review.undo(report["run_id"], "pat")
+    assert result["restored"] == [card["id"]]
+    detail = card_of(client, card)
+    assert not detail["variant_confirmed"] and detail["finish"] == ""
+
+
 def test_price_gate_opens_without_touching_pricing(env):
     client, review, _, _ = env
     card = photographed(client)

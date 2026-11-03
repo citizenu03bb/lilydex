@@ -10,7 +10,7 @@ open while the photo of its face is unchanged, its run is not undone and the
 copy is still available. A new photo closes it and, on the server, starts a
 fresh analysis of that copy (``after_photo``).
 
-See docs/CONDITION-ASSESSMENT.md and docs/decisions/0021.
+See docs/CONDITION-ASSESSMENT.md and docs/decisions/0022.
 """
 
 import json
@@ -38,6 +38,18 @@ VIEW_PRIORITY = {view: rank for rank, view in enumerate(VIEWS)}
 # A close-up with four sharp corners is also a sharp front; a holo glint is
 # what decision 0008 needs before any price.
 SPECIFIC = {"holo": 0, "corner": 1, "front": 2, "back": 0}
+
+
+class Interrupted(Conflict):
+    """The second confirmation failed after the first one was written.
+
+    ``record`` is the undo record of what stays written (None once the first
+    confirmation was taken back), so the half-done copy is never lost.
+    """
+
+    def __init__(self, message, record=None):
+        super().__init__(message)
+        self.record = record
 
 
 def run_events(db):
@@ -287,23 +299,48 @@ class AgentReview:
             applied.append("variant")
         condition = verdict["decisions"].get("condition")
         if condition:
-            changed = self.conditions.confirm(
-                card["id"],
-                condition["assessment_id"],
-                version,
-                condition["grade"],
-                self.actor,
-                f"État {condition['grade']} confirmé par l’agent sur photos",
-                decision={
-                    "decided_by": "agent",
-                    "run_id": run_id,
-                    "score": condition["score"],
-                    "high_value": verdict["high_value"],
-                },
-            )
+            try:
+                changed = self.conditions.confirm(
+                    card["id"],
+                    condition["assessment_id"],
+                    version,
+                    condition["grade"],
+                    self.actor,
+                    f"État {condition['grade']} confirmé par l’agent sur photos",
+                    decision={
+                        "decided_by": "agent",
+                        "run_id": run_id,
+                        "score": condition["score"],
+                        "high_value": verdict["high_value"],
+                    },
+                )
+            except Exception as error:  # noqa: BLE001 - Both halves, or neither.
+                if not applied:
+                    raise
+                raise self.take_back(card, before, version, applied, error) from error
             version = changed["version"]
             applied.append("condition")
         return {"copy_id": card["id"], "before": before, "version": version, "applied": applied}
+
+    def take_back(self, card, before, version, applied, error):
+        """Withdraw the variant written before a failed condition confirmation."""
+        cause = str(error) if isinstance(error, (Conflict, ValueError, KeyError)) else type(error).__name__
+        record = {"copy_id": card["id"], "before": before, "version": version, "applied": applied}
+        try:
+            self.store.patch(
+                card["id"],
+                before,
+                version,
+                self.actor,
+                "Variante remise en attente : l’état n’a pas pu être confirmé",
+            )
+        except Exception:  # noqa: BLE001 - Keep the record so the undo can still try.
+            return Interrupted(
+                "État non confirmé et variante restée confirmée, annulable par "
+                "agent-review-undo : " + cause,
+                record,
+            )
+        return Interrupted("État non confirmé, variante remise en attente : " + cause)
 
     def request(self, db, card, view, reason, run_id, undone):
         """Record a photo request unless the same view is already open.
@@ -351,6 +388,7 @@ class AgentReview:
             "applied": apply,
             "trigger": trigger,
             "confirmed": [],
+            "interrupted": [],
             "photo_requests": [],
             "skipped": [],
             "human_decisions_saved": 0,
@@ -379,6 +417,10 @@ class AgentReview:
                     try:
                         record = self.confirm(found, verdict, run_id)
                     except (Conflict, ValueError, KeyError) as error:
+                        # The copy stays in the queue; a half-written one is undoable.
+                        record = getattr(error, "record", None)
+                        if record:
+                            report["interrupted"].append({**item, "undo": record})
                         report["skipped"].append({**item, "reason": str(error)})
                         continue
                     item["undo"] = record
@@ -429,6 +471,10 @@ class AgentReview:
                             {k: c[k] for k in ("copy_id", "decisions", "undo")}
                             for c in report["confirmed"]
                         ],
+                        "interrupted": [
+                            {k: c[k] for k in ("copy_id", "undo")}
+                            for c in report["interrupted"]
+                        ],
                         "photo_requests": len(report["photo_requests"]),
                         "skipped": len(report["skipped"]),
                         "human_decisions_saved": report["human_decisions_saved"],
@@ -450,7 +496,7 @@ class AgentReview:
             raise Conflict("Ce passage est déjà annulé.")
         restored, kept = [], []
         reason = reason or f"Annulation du passage de l’agent {run_id}"
-        for item in runs[run_id]["confirmed"]:
+        for item in runs[run_id]["confirmed"] + runs[run_id].get("interrupted", []):
             record = item["undo"]
             try:
                 self.store.patch(
