@@ -652,7 +652,11 @@ de sélection ; le nombre compte les cartes confirmées avec édition, les autre
 sont ignorées. Chaque carte est relevée séparément : un échec n'arrête pas les
 suivantes. Le bilan donne les prix relevés, les cartes ignorées, les échecs et
 les alertes. En ligne de commande, `pokeprice-manage prices` relève toutes les
-identités confirmées (`--album <id>`, `--only-missing`, `--actor`).
+identités confirmées (`--album <id>`, `--only-missing`, `--actor`) avec une
+seule requête TCGdex par édition et par langue, appliquée à tous ses
+exemplaires. `--from-guide` cote d'abord par le guide des prix Cardmarket les
+cartes dont le produit est connu, sans requête TCGdex ; c'est la cotation
+matinale décrite dans [Valorisation](VALUATION.md#la-cotation-matinale).
 
 ### Ce que devient le prix
 
