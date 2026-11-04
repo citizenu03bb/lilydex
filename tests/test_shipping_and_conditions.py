@@ -266,3 +266,15 @@ def test_client_request_with_hand_delivery_and_postal_shipping(tmp_path):
     assert accepted_client["payment"]["total_cents"] == 6500 + 729
     assert "reply_text" not in accepted_client["payment"]
     assert "reply_text" not in accepted_client
+
+
+def test_conditions_pages_show_the_rates_the_basket_uses(tmp_path, monkeypatch):
+    monkeypatch.setenv("POKEPRICE_REGISTERED_THRESHOLD_EUR", "60")
+    client, _, _, _ = setup_shop(tmp_path)
+    fr = client.get("/conditions").text
+    en = client.get("/en/conditions").text
+    assert "{{" not in fr and "{{" not in en
+    assert "60,00 €" in fr and "60.00 €" in en
+    assert "<td>1 000 g</td><td>9,59 €</td><td>Colissimo</td>" in fr
+    assert "<td>1,000 g</td><td>9.59 €</td><td>Colissimo</td>" in en
+    assert fr.count("<tr><td>") == len(TRACKED_TARIFFS) + len(REGISTERED_TARIFFS)

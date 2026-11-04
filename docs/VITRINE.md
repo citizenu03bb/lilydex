@@ -390,10 +390,10 @@ choisi :
 - **Remise en main propre.** Gratuite (0 €), sélectionnée au panier par l'option
   dédiée.
 - **Expédition postale.** Calculée à partir du nombre total de cartes (environ 2 g
-  par carte) et du conditionnement rigide protecteur (25 g par défaut, réglable
+  par carte) et du conditionnement rigide protecteur (10 g par défaut, réglable
   par `POKEPRICE_PACKING_GRAMS`).
 - **Lettre suivie et recommandé.** En dessous du seuil de confort (50,00 € de
-  cartes par défaut, réglable par `POKEPRICE_REGISTERED_THRESHOLD_CENTS`),
+  cartes par défaut, réglable en euros par `POKEPRICE_REGISTERED_THRESHOLD_EUR`),
   l'envoi se fait en lettre suivie. Dès que le sous-total atteint ce seuil,
   l'envoi bascule automatiquement en recommandé R2 avec remise contre signature
   pour sécuriser l'acheminement et l'indemnisation.
@@ -402,8 +402,10 @@ choisi :
   destination de l'acheteur (liste des cartes avec montants, affranchissement,
   total, coordonnées de paiement et rappel du délai de garde de 7 jours).
 - **Conditions de vente.** Les pages `/conditions` et `/en/conditions` détaillent
-  la grille tarifaire postale, les modalités de paiement, les délais de réponse
-  (48 h en semaine, 120 h le week-end) et les règles relatives aux retours.
+  la grille tarifaire postale, tirée des mêmes tarifs que le panier, les
+  modalités de paiement, le délai de réponse (48 h quand les alertes au vendeur
+  sont actives, 120 h sinon, réglable par `POKEPRICE_RESPONSE_DELAY_HOURS`) et
+  les règles relatives aux retours.
 
 ## Les alertes au vendeur
 

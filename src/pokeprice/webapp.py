@@ -57,8 +57,8 @@ from .pricing import (
 from .cardmarket_guide import CardmarketGuide
 from .listings import Listings, Storefront
 from .privacy import Privacy
-from .notifications import Notifier, channels_from_env
-from .reservations import Reservations, valid_email, shipping_config
+from .notifications import Notifier, channels_from_env, euros
+from .reservations import SHIPPING_SERVICES, Reservations, shipping_config, valid_email
 from .variant_catalogue import VariantCatalogue
 from .catalogue_image import CatalogueImages
 from .variant_pricing import category
@@ -1013,28 +1013,16 @@ def create_app(
                 f"Responsable du traitement : {who or 'le vendeur'}, à titre "
                 "personnel, joignable à l’adresse de contact ci-dessous."
             )
-        if en:
-            methods = reservations.payment_methods(
-                {"wero": "Wero", "iban": "bank transfer", "paypal": "PayPal (goods and services)"}
-            )
-            payment = (
-                "Payment by " + ", ".join(methods[:-1]) + (" or " if len(methods) > 1 else "")
-                + methods[-1] + ": the seller sends you the amount, the lot’s reference "
-                "and their payment details by email; with an account, you also find "
-                "them in “My requests” while the lot awaits payment."
-                if methods
-                else "The seller tells you in their reply how to pay."
-            )
-        else:
-            methods = reservations.payment_methods()
-            payment = (
-                "Paiement par " + ", ".join(methods[:-1]) + (" ou " if len(methods) > 1 else "")
-                + methods[-1] + " : le vendeur vous envoie le montant, la référence du lot "
-                "et ses coordonnées par e-mail ; avec un compte, vous les retrouvez aussi "
-                "dans « Mes demandes » tant que le lot attend son paiement."
-                if methods
-                else "Le vendeur vous indique dans sa réponse comment payer."
-            )
+        payment = payment_sentence(
+            en,
+            ": the seller sends you the amount, the lot’s reference "
+            "and their payment details by email; with an account, you also find "
+            "them in “My requests” while the lot awaits payment."
+            if en
+            else " : le vendeur vous envoie le montant, la référence du lot "
+            "et ses coordonnées par e-mail ; avec un compte, vous les retrouvez aussi "
+            "dans « Mes demandes » tant que le lot attend son paiement.",
+        )
         return (
             page("about.en.html" if en else "about.html", language, public="a-propos")
             .replace("{{contact}}", contact)
@@ -1052,6 +1040,27 @@ def create_app(
         count_visit(request, "page", "conditions")
         return conditions_page("en")
 
+    def payment_sentence(en, detail):
+        """The accepted payment methods, followed by what the seller sends."""
+        if en:
+            methods = reservations.payment_methods(
+                {"wero": "Wero", "iban": "bank transfer", "paypal": "PayPal (goods and services)"}
+            )
+            start, last = "Payment by ", " or "
+        else:
+            methods = reservations.payment_methods()
+            start, last = "Paiement par ", " ou "
+        if not methods:
+            return (
+                "The seller tells you in their reply how to pay."
+                if en
+                else "Le vendeur vous indique dans sa réponse comment payer."
+            )
+        return (
+            start + ", ".join(methods[:-1]) + (last if len(methods) > 1 else "")
+            + methods[-1] + detail
+        )
+
     def conditions_page(language):
         en = language == "en"
         contact = (
@@ -1060,30 +1069,36 @@ def create_app(
             else "The contact address will be given here soon." if en
             else "L’adresse de contact sera bientôt indiquée ici."
         )
-        if en:
-            methods = reservations.payment_methods(
-                {"wero": "Wero", "iban": "bank transfer", "paypal": "PayPal (goods and services)"}
+        payment = payment_sentence(
+            en,
+            ": the seller sends you the total amount, the reservation reference "
+            "and payment details by email."
+            if en
+            else " : le vendeur vous envoie le montant total, la référence du lot "
+            "et ses coordonnées par e-mail.",
+        )
+        # The tables come from the rates the basket uses: one grid to update.
+        rates = shipping_config(notifier)
+
+        def price(cents):
+            return f"{cents / 100:.2f} €" if en else euros(cents)
+
+        def rows(tariffs):
+            return "\n".join(
+                f"<tr><td>{r['max_grams']:,} g</td>".replace(",", "," if en else "\u202f")
+                + f"<td>{price(r['shipping_cents'])}</td><td>{SHIPPING_SERVICES[r['service']]}</td></tr>"
+                for r in tariffs
             )
-            payment = (
-                "Payment by " + ", ".join(methods[:-1]) + (" or " if len(methods) > 1 else "")
-                + methods[-1] + ": the seller sends you the total amount, the reservation reference "
-                "and payment details by email."
-                if methods
-                else "The seller tells you in their reply how to pay."
-            )
-        else:
-            methods = reservations.payment_methods()
-            payment = (
-                "Paiement par " + ", ".join(methods[:-1]) + (" ou " if len(methods) > 1 else "")
-                + methods[-1] + " : le vendeur vous envoie le montant total, la référence du lot "
-                "et ses coordonnées par e-mail."
-                if methods
-                else "Le vendeur vous indique dans sa réponse comment payer."
-            )
+
         return (
             page("conditions.en.html" if en else "conditions.html", language, rest="conditions", public="conditions")
             .replace("{{contact}}", contact)
             .replace("{{payment}}", html.escape(payment))
+            .replace("{{threshold}}", price(rates["registered_threshold_cents"]).replace(" €", "\u00a0€"))
+            .replace("{{packing_grams}}", str(rates["packing_grams"]))
+            .replace("{{card_grams}}", str(rates["card_weight_grams"]))
+            .replace("{{tracked_rows}}", rows(rates["tracked_tariffs"]))
+            .replace("{{registered_rows}}", rows(rates["registered_tariffs"]))
         )
 
     @app.get("/gestion", response_class=HTMLResponse)

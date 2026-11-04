@@ -7,13 +7,14 @@ to the same request either comes first and wins, or waits and is refused.
 
 import hashlib
 import json
+import os
 import re
 import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
 
-import os
 from .inventory import Conflict, now
+from .notifications import euros
 
 EXPIRY = timedelta(days=7)
 OPEN_LIMIT = 10  # Open requests per client, against abuse.
@@ -52,6 +53,14 @@ REGISTERED_TARIFFS = (
     (2000, 1619, "colissimo_recommande_r2"),
     (5000, 2239, "colissimo_recommande_r2"),
 )
+
+# La Poste's names for the services, the same in both languages.
+SHIPPING_SERVICES = {
+    "lettre_suivie": "Lettre verte suivie",
+    "colissimo": "Colissimo",
+    "lettre_recommandee_r2": "Lettre recommandée R2",
+    "colissimo_recommande_r2": "Colissimo recommandé R2",
+}
 
 
 def packing_grams(env=None):
@@ -163,11 +172,8 @@ def reply_message(request, payment, client_name=""):
     accepted_items = [i for i in request.get("items", []) if i.get("outcome") == "accepted"]
     if not accepted_items:
         accepted_items = request.get("items", [])
-    def fmt_eur(cents):
-        return f"{cents / 100:.2f}".replace(".", ",") + " €"
-
     for item in accepted_items:
-        lines.append(f"- {item['label']} ({fmt_eur(item['price_cents'])})")
+        lines.append(f"- {item['label']} ({euros(item['price_cents'])})")
     lines.append("")
     total_cards = sum(i["price_cents"] for i in accepted_items) or request.get("total_cents", 0)
     shipping_amt = payment.get("shipping_cents", 0)
@@ -176,17 +182,17 @@ def reply_message(request, payment, client_name=""):
     registered = request.get("registered", False)
 
     if delivery == "hand":
-        lines.append(f"Montant des cartes : {fmt_eur(total_cards)}")
+        lines.append(f"Montant des cartes : {euros(total_cards)}")
         lines.append("Livraison : remise en main propre (sans frais de port).")
-        lines.append(f"Total à régler : {fmt_eur(total_cents)}")
+        lines.append(f"Total à régler : {euros(total_cents)}")
     elif registered:
-        lines.append(f"Montant des cartes : {fmt_eur(total_cards)}")
-        lines.append(f"Frais d’envoi : {fmt_eur(shipping_amt)} (envoi recommandé avec remise contre signature R2).")
-        lines.append(f"Total à régler : {fmt_eur(total_cents)}")
+        lines.append(f"Montant des cartes : {euros(total_cards)}")
+        lines.append(f"Frais d’envoi : {euros(shipping_amt)} (envoi recommandé avec remise contre signature R2).")
+        lines.append(f"Total à régler : {euros(total_cents)}")
     else:
-        lines.append(f"Montant des cartes : {fmt_eur(total_cards)}")
-        lines.append(f"Frais d’envoi : {fmt_eur(shipping_amt)} (lettre verte suivie / colissimo).")
-        lines.append(f"Total à régler : {fmt_eur(total_cents)}")
+        lines.append(f"Montant des cartes : {euros(total_cards)}")
+        lines.append(f"Frais d’envoi : {euros(shipping_amt)} (lettre verte suivie / colissimo).")
+        lines.append(f"Total à régler : {euros(total_cents)}")
 
     lines.append(f"Référence à indiquer dans le libellé : {payment.get('reference', '')}.")
     lines.append("")

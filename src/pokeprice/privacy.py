@@ -13,6 +13,8 @@ from collections import Counter
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from .reservations import extract_delivery_mode
+
 REFUSED_ACCOUNTS = timedelta(days=30)
 PENDING_ACCOUNTS = timedelta(days=90)
 CLOSED_REQUESTS = timedelta(days=183)
@@ -65,7 +67,6 @@ class Privacy:
             msg = r["message"].strip()
             if msg:
                 secrets.append((msg, ERASED_MESSAGE))
-                from pokeprice.reservations import extract_delivery_mode
                 _, _, clean = extract_delivery_mode(msg)
                 if clean and clean != msg:
                     secrets.append((clean, ERASED_MESSAGE))

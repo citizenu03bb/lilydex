@@ -49,7 +49,7 @@
         <p>
           All orders are carefully packed in protective sleeves (sleeves / toploaders with rigid
           reinforcement in bubble mailers or boxes). The total shipping weight is calculated as
-          <strong>10&nbsp;g for packaging</strong> plus <strong>2&nbsp;g per card</strong>.
+          <strong>{{packing_grams}}&nbsp;g for packaging</strong> plus <strong>{{card_grams}}&nbsp;g per card</strong>.
         </p>
 
         <h3>1. Hand delivery</h3>
@@ -58,9 +58,9 @@
           by email once your reservation is accepted.
         </p>
 
-        <h3>2. Standard tracked shipping (orders under 50&nbsp;€)</h3>
+        <h3>2. Standard tracked shipping (orders under {{threshold}})</h3>
         <p>
-          For orders where cards total less than 50&nbsp;€, shipments are handled by La Poste via
+          For orders where cards total less than {{threshold}}, shipments are handled by La Poste via
           Lettre verte suivie or Colissimo with tracking:
         </p>
         <table class="conditions-table">
@@ -72,21 +72,14 @@
             </tr>
           </thead>
           <tbody>
-            <tr><td>20 g</td><td>2.02 €</td><td>Lettre verte suivie</td></tr>
-            <tr><td>100 g</td><td>3.60 €</td><td>Lettre verte suivie</td></tr>
-            <tr><td>250 g</td><td>5.49 €</td><td>Colissimo</td></tr>
-            <tr><td>500 g</td><td>7.59 €</td><td>Colissimo</td></tr>
-            <tr><td>750 g</td><td>9.29 €</td><td>Colissimo</td></tr>
-            <tr><td>1,000 g (1 kg)</td><td>9.59 €</td><td>Colissimo</td></tr>
-            <tr><td>2,000 g (2 kg)</td><td>11.19 €</td><td>Colissimo</td></tr>
-            <tr><td>5,000 g (5 kg)</td><td>17.39 €</td><td>Colissimo</td></tr>
+            {{tracked_rows}}
           </tbody>
         </table>
 
-        <h3>3. Registered shipping with signature R2 (mandatory for orders of 50&nbsp;€ or more)</h3>
+        <h3>3. Registered shipping with signature R2 (mandatory for orders of {{threshold}} or more)</h3>
         <p>
           To protect valuable cards and cover loss or damage in transit, <strong>any order where cards
-          reach or exceed 50&nbsp;€ is strictly shipped with registered mail and signature on delivery (tier R2)</strong>.
+          reach or exceed {{threshold}} is strictly shipped with registered mail and signature on delivery (tier R2)</strong>.
         </p>
         <table class="conditions-table">
           <thead>
@@ -97,15 +90,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr><td>20 g</td><td>7.29 €</td><td>Lettre recommandée R2</td></tr>
-            <tr><td>50 g</td><td>8.07 €</td><td>Lettre recommandée R2</td></tr>
-            <tr><td>100 g</td><td>8.97 €</td><td>Lettre recommandée R2</td></tr>
-            <tr><td>250 g</td><td>10.73 €</td><td>Lettre recommandée R2</td></tr>
-            <tr><td>500 g</td><td>12.59 €</td><td>Colissimo recommandé R2</td></tr>
-            <tr><td>750 g</td><td>14.29 €</td><td>Colissimo recommandé R2</td></tr>
-            <tr><td>1,000 g (1 kg)</td><td>14.59 €</td><td>Colissimo recommandé R2</td></tr>
-            <tr><td>2,000 g (2 kg)</td><td>16.19 €</td><td>Colissimo recommandé R2</td></tr>
-            <tr><td>5,000 g (5 kg)</td><td>22.39 €</td><td>Colissimo recommandé R2</td></tr>
+            {{registered_rows}}
           </tbody>
         </table>
         <p>

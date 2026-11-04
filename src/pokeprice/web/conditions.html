@@ -46,8 +46,8 @@
         <p>
           Toutes les commandes sont soigneusement conditionnées sous protection adaptée
           (pochette plastique / toploader et renfort rigide en enveloppe à bulles ou carton).
-          Le poids total pris en compte pour l’expédition correspond à <strong>10&nbsp;g d’emballage</strong>
-          auquel s’ajoutent <strong>2&nbsp;g par carte</strong>.
+          Le poids total pris en compte pour l’expédition correspond à <strong>{{packing_grams}}&nbsp;g d’emballage</strong>
+          auquel s’ajoutent <strong>{{card_grams}}&nbsp;g par carte</strong>.
         </p>
 
         <h3>1. Remise en main propre</h3>
@@ -56,9 +56,9 @@
           sont convenus par échange d’e-mails après acceptation de votre réservation.
         </p>
 
-        <h3>2. Envoi suivi standard (commandes de cartes inférieures à 50&nbsp;€)</h3>
+        <h3>2. Envoi suivi standard (commandes de cartes inférieures à {{threshold}})</h3>
         <p>
-          Pour toute commande dont le montant des cartes est inférieur à 50&nbsp;€, l’envoi est
+          Pour toute commande dont le montant des cartes est inférieur à {{threshold}}, l’envoi est
           acheminé par La Poste en Lettre verte suivie ou Colissimo avec numéro de suivi :
         </p>
         <table class="conditions-table">
@@ -70,21 +70,14 @@
             </tr>
           </thead>
           <tbody>
-            <tr><td>20 g</td><td>2,02 €</td><td>Lettre verte suivie</td></tr>
-            <tr><td>100 g</td><td>3,60 €</td><td>Lettre verte suivie</td></tr>
-            <tr><td>250 g</td><td>5,49 €</td><td>Colissimo</td></tr>
-            <tr><td>500 g</td><td>7,59 €</td><td>Colissimo</td></tr>
-            <tr><td>750 g</td><td>9,29 €</td><td>Colissimo</td></tr>
-            <tr><td>1 000 g (1 kg)</td><td>9,59 €</td><td>Colissimo</td></tr>
-            <tr><td>2 000 g (2 kg)</td><td>11,19 €</td><td>Colissimo</td></tr>
-            <tr><td>5 000 g (5 kg)</td><td>17,39 €</td><td>Colissimo</td></tr>
+            {{tracked_rows}}
           </tbody>
         </table>
 
-        <h3>3. Envoi recommandé avec signature R2 (obligatoire dès 50&nbsp;€ d’achat)</h3>
+        <h3>3. Envoi recommandé avec signature R2 (obligatoire dès {{threshold}} d’achat)</h3>
         <p>
           Pour garantir la sécurité des cartes de valeur et couvrir les risques de perte ou
-          d’avarie, <strong>tout envoi dont le sous-total des cartes atteint ou dépasse 50&nbsp;€
+          d’avarie, <strong>tout envoi dont le sous-total des cartes atteint ou dépasse {{threshold}}
           est obligatoirement expédié en recommandé avec remise contre signature (palier R2)</strong>.
         </p>
         <table class="conditions-table">
@@ -96,15 +89,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr><td>20 g</td><td>7,29 €</td><td>Lettre recommandée R2</td></tr>
-            <tr><td>50 g</td><td>8,07 €</td><td>Lettre recommandée R2</td></tr>
-            <tr><td>100 g</td><td>8,97 €</td><td>Lettre recommandée R2</td></tr>
-            <tr><td>250 g</td><td>10,73 €</td><td>Lettre recommandée R2</td></tr>
-            <tr><td>500 g</td><td>12,59 €</td><td>Colissimo recommandé R2</td></tr>
-            <tr><td>750 g</td><td>14,29 €</td><td>Colissimo recommandé R2</td></tr>
-            <tr><td>1 000 g (1 kg)</td><td>14,59 €</td><td>Colissimo recommandé R2</td></tr>
-            <tr><td>2 000 g (2 kg)</td><td>16,19 €</td><td>Colissimo recommandé R2</td></tr>
-            <tr><td>5 000 g (5 kg)</td><td>22,39 €</td><td>Colissimo recommandé R2</td></tr>
+            {{registered_rows}}
           </tbody>
         </table>
         <p>

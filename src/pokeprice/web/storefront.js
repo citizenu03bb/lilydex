@@ -26,37 +26,14 @@ function releaseForm(form) {
   if (status) status.textContent = "";
 }
 
-const shippingRates = {
-  packing_grams: 10,
-  card_weight_grams: 2,
-  registered_threshold_cents: 5000,
-  tracked_tariffs: [
-    { max_grams: 20, shipping_cents: 202 },
-    { max_grams: 100, shipping_cents: 360 },
-    { max_grams: 250, shipping_cents: 549 },
-    { max_grams: 500, shipping_cents: 759 },
-    { max_grams: 750, shipping_cents: 929 },
-    { max_grams: 1000, shipping_cents: 959 },
-    { max_grams: 2000, shipping_cents: 1119 },
-    { max_grams: 5000, shipping_cents: 1739 },
-  ],
-  registered_tariffs: [
-    { max_grams: 20, shipping_cents: 729 },
-    { max_grams: 50, shipping_cents: 807 },
-    { max_grams: 100, shipping_cents: 897 },
-    { max_grams: 250, shipping_cents: 1073 },
-    { max_grams: 500, shipping_cents: 1259 },
-    { max_grams: 750, shipping_cents: 1429 },
-    { max_grams: 1000, shipping_cents: 1459 },
-    { max_grams: 2000, shipping_cents: 1619 },
-    { max_grams: 5000, shipping_cents: 2239 },
-  ],
-};
+// Filled from /api/public/shipping: the server holds the only copy of the rates.
+let shippingRates = null;
 
 function shippingQuote(cardCount, totalCents, delivery) {
   if (delivery === "hand") {
     return { shipping_cents: 0, registered: false };
   }
+  if (!shippingRates) return null;
   const weight = shippingRates.packing_grams + Math.max(0, cardCount) * shippingRates.card_weight_grams;
   const registered = totalCents >= shippingRates.registered_threshold_cents;
   const table = registered ? shippingRates.registered_tariffs : shippingRates.tracked_tariffs;
@@ -74,7 +51,7 @@ async function loadShippingRates() {
   try {
     const res = await fetch("/api/public/shipping");
     if (res.ok) {
-      Object.assign(shippingRates, await res.json());
+      shippingRates = await res.json();
       renderBasket();
     }
   } catch (_) {}
@@ -706,8 +683,10 @@ function renderBasket() {
     }
     const shipEl = $("basket-shipping");
     if (shipEl) {
-      shipEl.hidden = false;
-      if (delivery === "hand") {
+      shipEl.hidden = !quote;
+      if (!quote) {
+        shipEl.textContent = "";
+      } else if (delivery === "hand") {
         shipEl.textContent = t("basket.shipping_hand");
       } else if (quote.registered) {
         shipEl.textContent = t("basket.shipping_cost_registered", { cost: euros(quote.shipping_cents) });
@@ -717,10 +696,15 @@ function renderBasket() {
     }
     const regNotice = $("basket-registered-notice");
     if (regNotice) {
-      regNotice.hidden = delivery === "hand" || !quote.registered;
+      regNotice.hidden = !quote || !quote.registered;
+      if (quote && quote.registered)
+        regNotice.textContent = t("basket.registered_notice", {
+          threshold: euros(shippingRates.registered_threshold_cents),
+        });
     }
-    const total = subtotal + quote.shipping_cents;
-    $("basket-total").textContent = t("basket.total", { total: euros(total) });
+    $("basket-total").textContent = quote
+      ? t("basket.total", { total: euros(subtotal + quote.shipping_cents) })
+      : t("basket.total_before_shipping", { total: euros(subtotal) });
   } else {
     if (summary) summary.hidden = false;
     if (conditionsNote) conditionsNote.hidden = true;
@@ -1171,15 +1155,11 @@ $("basket-form").addEventListener("submit", async (event) => {
   try {
   formError(form, "");
   const deliveryInput = form.querySelector('input[name="delivery"]:checked');
-  const delivery = deliveryInput ? deliveryInput.value : "shipping";
-  const subtotal = state.basket.reduce((sum, x) => sum + x.price_cents, 0);
-  const cardCount = state.basket.reduce((sum, x) => sum + (x.card_count || 1), 0);
-  const quote = shippingQuote(cardCount, subtotal, delivery);
+  // The server sets the registered tier from the cards' total.
   const body = {
     listing_ids: state.basket.map((x) => x.id),
     message: form.message.value,
-    delivery: delivery,
-    registered: quote.registered,
+    delivery: deliveryInput ? deliveryInput.value : "shipping",
   };
   // A guest's address is read before the form is reset: the answer names it.
   const guest = state.me ? "" : form.email.value.trim();
