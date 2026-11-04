@@ -1,6 +1,6 @@
 # 0028 — Le serveur garde ses photos une seule fois, dans une réserve par empreinte, et le portable reconstitue l'archive autonome
 
-> **Statut :** proposée · **Date :** 2026-11-04
+> **Statut :** en vigueur · **Date :** 2026-11-04
 
 **Contexte.** Chaque archive `pokeprice-inventory-v1` recopie toutes les
 photos : 758 Mo de JPEG (3 104 fichiers) pour 35 Mo de base et 6 Mo de
