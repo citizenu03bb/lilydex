@@ -24,6 +24,10 @@ PUBLIC = {
     ("GET", "/en/a-propos"),
     ("GET", "/en/conditions"),
     ("GET", "/gestion"),
+    # The installable app: manifest, service worker and offline page, without data.
+    ("GET", "/gestion/manifest.webmanifest"),
+    ("GET", "/gestion/sw.js"),
+    ("GET", "/gestion/hors-ligne"),
     ("GET", "/a-propos"),
     ("GET", "/conditions"),
     ("GET", "/health"),

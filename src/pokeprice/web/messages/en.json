@@ -403,5 +403,22 @@
   "todo.action.payment": "See the lot",
   "todo.action.photo": "Take the photo",
   "todo.minutes": {"one": "≈ {count} min", "other": "≈ {count} min"},
-  "todo.gone": "This item no longer waits: the list has changed."
+  "todo.gone": "This item no longer waits: the list has changed.",
+
+  "install.description": "Managing the collection: cards, sales and requests.",
+  "install.link": "Install on the phone",
+  "install.title": "Install the management app",
+  "install.close": "Close the install help",
+  "install.intro": "Added to the home screen, the management app opens full screen, like an app.",
+  "install.button": "Install the app",
+  "install.done": "Installation started. The icon appears on the home screen.",
+  "install.installed": "The management app is already open as an app.",
+  "install.iphone_title": "iPhone or iPad",
+  "install.iphone_help": "Open this page in Safari, tap Share (the square with an arrow pointing up), then “Add to Home Screen”.",
+  "install.android_title": "Android",
+  "install.android_help": "In Chrome, open the ⋮ menu, then “Add to Home screen” or “Install app”.",
+  "install.privacy": "Prices and customer data are never kept on the phone: without a network, the app only shows a waiting page.",
+  "offline.title": "Offline",
+  "offline.help": "The phone has no network. The collection, prices and requests stay on the server: reconnect, then try again.",
+  "offline.retry": "Try again"
 }

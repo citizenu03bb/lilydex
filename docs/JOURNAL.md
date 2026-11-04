@@ -16,6 +16,12 @@ daté la quitte, il est versé ici dans le même commit.
   (`/api/agent/v1/assistant-tools`) ; aucune sortie ne porte de donnée de client
   ([fiche 0032](decisions/0032-outils-assistant-lecture.md),
   [schémas](assistant-tools.json), `tests/test_assistant_tools.py`).
+- Gestion installable comme application (PWA) : manifeste et service worker de
+  portée `/gestion`, icônes tirées de la mascotte, page hors ligne, aide à
+  l'installation dans les Réglages (iPhone et Android). Le cache, nommé d'après
+  le contenu de l'interface, ne garde jamais `/api` ni les photos ; la vitrine
+  ne change pas ([guide](APP.md#installer-la-gestion-sur-le-téléphone),
+  `tests/test_app_install.py`).
 - Brief du jour programmé sur le serveur : `pokeprice-brief.timer` envoie
   chaque matin vers 7 h 30 `brief --notify`, après la cotation matinale
   ([déploiement](DEPLOYMENT.md#envoyer-le-brief-du-jour)). Son texte compte aussi les photos
