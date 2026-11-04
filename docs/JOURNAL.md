@@ -9,6 +9,10 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-04
 
+- Chat de gestion activé sur le serveur avec sa clé Gemini dédiée. Le banc,
+  rejoué avec la consigne finale du chat, donne 46/46 et 14/14 pièges évités
+  pour Gemini 3.8 Flash (réponse p50 4,2 s ;
+  [rapport](../bench/assistant/results/gemini-3.8-flash-v1.md)).
 - `oci-sync-secrets.sh` transmet aussi `POKEPRICE_PACKING_GRAMS` : le fichier du
   serveur est réécrit en entier, et cette variable s'y perdait.
 - Chat de gestion, V1 en lecture : bouton **Assistant** dans la gestion,
