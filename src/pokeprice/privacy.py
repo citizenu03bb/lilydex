@@ -13,7 +13,6 @@ from collections import Counter
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from .reservations import extract_delivery_mode
 
 REFUSED_ACCOUNTS = timedelta(days=30)
 PENDING_ACCOUNTS = timedelta(days=90)
@@ -67,9 +66,6 @@ class Privacy:
             msg = r["message"].strip()
             if msg:
                 secrets.append((msg, ERASED_MESSAGE))
-                _, _, clean = extract_delivery_mode(msg)
-                if clean and clean != msg:
-                    secrets.append((clean, ERASED_MESSAGE))
         request_ids = {r["id"] for r in requests}
         sale_ids = {r["sale_id"] for r in requests if r["sale_id"]}
         # Accepted requests copied the client into their lot and its history.

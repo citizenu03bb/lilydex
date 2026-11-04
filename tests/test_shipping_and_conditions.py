@@ -9,8 +9,6 @@ from pokeprice.reservations import (
     DEFAULT_REGISTERED_THRESHOLD_CENTS,
     REGISTERED_TARIFFS,
     TRACKED_TARIFFS,
-    extract_delivery_mode,
-    format_delivery_message,
     packing_grams,
     registered_threshold_cents,
     reply_message,
@@ -82,36 +80,6 @@ def test_shipping_quote_explicit_registered_request():
     quote = shipping_quote(card_count=1, total_cents=2000, delivery="shipping", registered=True)
     assert quote["shipping_cents"] == 729
     assert quote["registered"] is True
-
-
-def test_delivery_mode_prefix_roundtrip():
-    msg = "Merci de bien emballer."
-    h_msg = format_delivery_message(msg, delivery="hand", registered=False)
-    assert h_msg.startswith("[delivery:hand]")
-    mode, reg, clean = extract_delivery_mode(h_msg)
-    assert mode == "hand"
-    assert reg is False
-    assert clean == msg
-
-    r_msg = format_delivery_message(msg, delivery="shipping", registered=True)
-    assert r_msg.startswith("[delivery:registered]")
-    mode, reg, clean = extract_delivery_mode(r_msg)
-    assert mode == "shipping"
-    assert reg is True
-    assert clean == msg
-
-    s_msg = format_delivery_message(msg, delivery="shipping", registered=False)
-    assert s_msg == msg
-    mode, reg, clean = extract_delivery_mode(s_msg)
-    assert mode == "shipping"
-    assert reg is False
-    assert clean == msg
-
-    legacy_s_msg = f"[delivery:shipping]\n{msg}"
-    mode, reg, clean = extract_delivery_mode(legacy_s_msg)
-    assert mode == "shipping"
-    assert reg is False
-    assert clean == msg
 
 
 def test_reply_message_formatting():
@@ -226,6 +194,12 @@ def test_client_request_with_hand_delivery_and_postal_shipping(tmp_path):
     assert req_hand["delivery"] == "hand"
     assert req_hand["shipping_cents"] == 0
     assert req_hand["total_with_shipping_cents"] == req_hand["total_cents"]
+    assert req_hand["message"] == "Je suis du coin"
+    with store.connect() as db:
+        stored = db.execute(
+            "SELECT delivery,registered,message FROM requests WHERE id=?", (req_hand["id"],)
+        ).fetchone()
+    assert tuple(stored) == ("hand", 0, "Je suis du coin")
 
     # Case 2: shipping for Dracaufeu (>= 50 € -> 65 € -> automatic registered R2)
     req_drac = client_buyer.post(
@@ -278,3 +252,30 @@ def test_conditions_pages_show_the_rates_the_basket_uses(tmp_path, monkeypatch):
     assert "<td>1 000 g</td><td>9,59 €</td><td>Colissimo</td>" in fr
     assert "<td>1,000 g</td><td>9.59 €</td><td>Colissimo</td>" in en
     assert fr.count("<tr><td>") == len(TRACKED_TARIFFS) + len(REGISTERED_TARIFFS)
+
+
+def test_schema_24_moves_the_delivery_prefix_out_of_old_messages(tmp_path):
+    client, store, dracaufeu_id, pikachu_id = setup_shop(tmp_path)
+    for listing_id in (pikachu_id, dracaufeu_id, pikachu_id):
+        client.post(
+            "/api/public/requests",
+            json={"email": f"{listing_id[:8]}@example.org", "display_name": "Ancien", "listing_ids": [listing_id],
+                  "message": "", "consent": True},
+        ).raise_for_status()
+    old_messages = ["[delivery:hand]\nJe passe samedi", "[delivery:registered]\nMerci", "[delivery:shipping]"]
+    with store.connect(write=True) as db:
+        ids = [r[0] for r in db.execute("SELECT id FROM requests ORDER BY rowid")]
+        db.execute("ALTER TABLE requests DROP COLUMN delivery")
+        db.execute("ALTER TABLE requests DROP COLUMN registered")
+        for request_id, message in zip(ids, old_messages):
+            db.execute("UPDATE requests SET message=? WHERE id=?", (message, request_id))
+        db.execute("PRAGMA user_version=23")
+    migrated = Store(store.root)
+    with migrated.connect() as db:
+        assert db.execute("PRAGMA user_version").fetchone()[0] == 24
+        rows = [tuple(db.execute("SELECT delivery,registered,message FROM requests WHERE id=?", (i,)).fetchone())
+                for i in ids]
+    assert rows == [("hand", 0, "Je passe samedi"), ("shipping", 1, "Merci"), ("shipping", 0, "")]
+    assert list((tmp_path / "backups").glob("before-schema24-from23-*"))
+    hand = next(r for r in client.get("/api/requests").json() if r["id"] == ids[0])
+    assert hand["delivery"] == "hand" and hand["shipping_cents"] == 0 and hand["message"] == "Je passe samedi"

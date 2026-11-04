@@ -9,6 +9,10 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-04
 
+- Vitrine : le mode de livraison d'une demande (`delivery`, `registered`) a
+  ses propres colonnes au lieu d'un préfixe `[delivery:…]` dans le message ;
+  le schéma 24 reprend les demandes existantes et retire le préfixe de leur
+  message (`tests/test_shipping_and_conditions.py`).
 - Vitrine : calcul des frais de port avant réservation selon les tarifs La Poste
   2026 (lettre suivie, recommandé R2 obligatoire dès 50 € de cartes, remise en
   main propre gratuite) ; réponse préremplie en un clic pour l'opératrice dans
