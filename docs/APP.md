@@ -168,7 +168,14 @@ demande l'adresse HTTPS du serveur hébergé.
 
 ### Recevoir les notifications sur le téléphone
 
-Dans **Réglages**, l'interrupteur « Notifications sur ce téléphone » abonne
+Tant qu'un appareil ne reçoit pas les notifications, le brief propose une
+carte « Recevoir le brief sur cet appareil », avec « Activer » ou « Plus
+tard » (la carte revient deux semaines après) ; sur un iPhone hors de
+l'application installée, elle explique comment l'installer. La carte n'est
+pas une décision de la file : le serveur ne sait pas quel appareil est
+abonné, c'est le navigateur qui le vérifie.
+
+En tête des **Réglages**, l'interrupteur « Notifications sur ce téléphone » abonne
 le téléphone au brief du matin et aux alertes de la vitrine (nouvelle
 demande, rappels). Le téléphone demande la permission au moment où vous
 touchez l'interrupteur. Sur iPhone, il faut d'abord installer la gestion

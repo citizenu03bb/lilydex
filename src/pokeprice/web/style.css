@@ -2206,6 +2206,19 @@ lilydex-filter-bar {
   grid-column: 1 / -1;
   min-height: 44px;
 }
+.todo-notify {
+  margin-top: 12px;
+  border-left: 4px solid var(--accent);
+}
+.todo-notify-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.todo-notify-actions button {
+  flex: 1 1 auto;
+}
 .todo-focus {
   outline: 3px solid var(--accent);
   outline-offset: 2px;
@@ -2214,7 +2227,8 @@ lilydex-filter-bar {
   .todo-item {
     grid-template-columns: 1fr auto auto;
   }
-  .todo-item button {
+  .todo-item button,
+  .todo-notify-actions {
     grid-column: auto;
   }
 }

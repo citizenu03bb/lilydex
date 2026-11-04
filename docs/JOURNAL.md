@@ -9,6 +9,10 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-04
 
+- Notifications plus visibles : l'interrupteur passe en tête des Réglages, au-dessus
+  des sauvegardes, où il passait inaperçu, et le brief propose « Recevoir le
+  brief sur cet appareil » tant que l'appareil n'est pas abonné
+  ([guide](APP.md#recevoir-les-notifications-sur-le-téléphone)).
 - Chat de gestion activé sur le serveur avec sa clé Gemini dédiée. Le banc,
   rejoué avec la consigne finale du chat, donne 46/46 et 14/14 pièges évités
   pour Gemini 3.8 Flash (réponse p50 4,2 s ;
