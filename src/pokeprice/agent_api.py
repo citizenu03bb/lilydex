@@ -5,9 +5,9 @@ import threading
 import time
 import uuid
 from collections import OrderedDict, deque
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, Depends, Header, Query, Request
+from fastapi import APIRouter, Body, Depends, Header, Path, Query, Request
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import FileResponse
 from fastapi.routing import APIRoute
@@ -127,6 +127,8 @@ def router(service):
             operations.append("create-draft")
         if "corrections:apply" in grant["permissions"]:
             operations.extend(["corrections", "apply-correction"])
+        if "assistant:read" in grant["permissions"]:
+            operations.extend(["assistant-tools", "call-assistant-tool"])
         return {
             "contract_version": "1",
             "agent_id": grant["id"],
@@ -276,6 +278,35 @@ def router(service):
             values.approval_sha256,
             request.state.agent_request_id,
         )
+
+    def assistant_grant(request):
+        # Rechecked on every call: a revoked or narrowed delegation stops at once.
+        with service.store.connect() as db:
+            return service.authorize(db, *read_transaction(request, "assistant:read"))
+
+    @api.get("/assistant-tools")
+    def assistant_tools(request: Request, grant=principal):
+        from .assistant_tools import tool_schemas
+
+        assistant_grant(request)
+        return {**tool_schemas(), "request_id": request.state.agent_request_id}
+
+    @api.post("/assistant-tools/{name}")
+    def call_assistant_tool(
+        name: Annotated[str, Path(pattern=r"^[a-z_]{1,40}$")],
+        request: Request,
+        arguments: Annotated[dict[str, Any] | None, Body()] = None,
+        grant=principal,
+    ):
+        from .assistant_tools import Context, call
+
+        assistant_grant(request)
+        context = Context(service.store, getattr(request.app.state, "todo", None))
+        return {
+            "tool": name,
+            "result": call(context, name, arguments if arguments is not None else {}),
+            "request_id": request.state.agent_request_id,
+        }
 
     @api.get("/drafts/{sale_id}")
     def get_draft(sale_id: str, request: Request, grant=principal):

@@ -28,8 +28,11 @@ PRAGMA user_version=18;
 COMMIT;
 """
 PERMISSIONS = frozenset(
-    {"copies:read", "photos:read", "drafts:create", "corrections:apply"}
+    {"copies:read", "photos:read", "drafts:create", "corrections:apply", "assistant:read"}
 )
+# Read-only tools of the management assistant (decision 0032): collection-wide,
+# so only a management account (editor or admin) may delegate them.
+STAFF_ONLY = ("drafts:create", "corrections:apply", "assistant:read")
 MAX_ALBUM_COPIES = 2000
 MAX_DRAFT_COPIES = 20
 CARD_FIELDS = (
@@ -136,6 +139,8 @@ class AgentService:
                 raise ValueError("Un lecteur ne peut pas déléguer la création de lots.")
             if "corrections:apply" in permissions and user["role"] == "reader":
                 raise ValueError("Un lecteur ne peut pas déléguer des corrections.")
+            if "assistant:read" in permissions and user["role"] == "reader":
+                raise ValueError("Un lecteur ne peut pas déléguer l’assistant de gestion.")
             if not db.execute("SELECT 1 FROM albums WHERE id=?", (album,)).fetchone():
                 raise ValueError("Album inconnu.")
             db.execute(
@@ -198,8 +203,7 @@ class AgentService:
         grant = dict(row)
         grant["permissions"] = set(json.loads(grant["permissions_json"]))
         if grant["role"] == "reader":
-            grant["permissions"].discard("drafts:create")
-            grant["permissions"].discard("corrections:apply")
+            grant["permissions"].difference_update(STAFF_ONLY)
         if permission not in grant["permissions"]:
             raise AgentError(403, "forbidden", "Opération non déléguée à cet agent.")
         return grant
