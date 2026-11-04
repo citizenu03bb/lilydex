@@ -257,8 +257,13 @@ def main():
     )
     brief.add_argument("--since", help="Depuis cette date (AAAA-MM-JJ) ; 24 heures par défaut")
     brief.add_argument(
-        "--notify", action="store_true", help="Envoyer une notification courte (ntfy, e-mail)"
+        "--notify", action="store_true", help="Envoyer une notification courte (ntfy, e-mail, Web Push)"
     )
+    vapid = actions.add_parser(
+        "vapid-keys", help="Générer la paire de clés VAPID des notifications Web Push"
+    )
+    vapid.add_argument("--output", help="Écrire les variables dans ce fichier (0600, jamais écrasé)")
+    vapid.add_argument("--subject", default="", help="Contact du serveur : mailto:… ou https://…")
     exporter = actions.add_parser("export", help="Export de la collection gérée")
     exporter.add_argument("format", choices=["csv", "json", "html"])
     exporter.add_argument("output")
@@ -267,6 +272,12 @@ def main():
         arg == "--data" or arg.startswith("--data=") for arg in sys.argv[1:]
     ):
         parser.error("brief exige --data explicite")
+    if args.action == "vapid-keys":
+        try:
+            write_vapid_keys(args.output, args.subject)
+        except (ValueError, FileExistsError) as error:
+            parser.error(str(error))
+        return
     if args.action == "public-media-cache":
         if not any(arg == "--data" or arg.startswith("--data=") for arg in sys.argv[1:]):
             parser.error("public-media-cache exige --data explicite")
@@ -618,9 +629,9 @@ def send_brief(store, since=None, notify=False, channels=None, origin=None):
     if notify:
         origin = os.environ.get("POKEPRICE_PUBLIC_ORIGIN", "") if origin is None else origin
         link = origin.rstrip("/") + "/gestion"
-        channels = channels_from_env() if channels is None else channels
+        channels = channels_from_env(store=store) if channels is None else channels
         if not channels:
-            raise ValueError("Aucun canal d'alerte configuré (POKEPRICE_NTFY_URL ou SMTP).")
+            raise ValueError("Aucun canal d'alerte configuré (POKEPRICE_NTFY_URL, SMTP ou VAPID).")
         result["notified"], result["errors"] = [], {}
         for channel in channels:
             try:
@@ -631,6 +642,36 @@ def send_brief(store, since=None, notify=False, channels=None, origin=None):
         if not result["notified"]:
             raise RuntimeError("Brief non envoyé : " + ", ".join(result["errors"].values()))
     return result
+
+
+def write_vapid_keys(output=None, subject="", stdout=None):
+    """A new VAPID pair, as environment lines: shown once, or written to a 0600 file.
+
+    The keys are never stored anywhere else; the private one never reaches a
+    log (this command is not run by a timer, its output is the operator's).
+    """
+    import os
+
+    from .notifications import vapid_keys
+
+    subject = subject.strip()
+    if subject and not subject.startswith(("mailto:", "https://")):
+        raise ValueError("Le sujet VAPID commence par mailto: ou https://.")
+    public, private = vapid_keys()
+    lines = [f"POKEPRICE_VAPID_PUBLIC_KEY={public}", f"POKEPRICE_VAPID_PRIVATE_KEY={private}"]
+    if subject:
+        lines.append(f"POKEPRICE_VAPID_SUBJECT={subject}")
+    text = "\n".join(lines) + "\n"
+    stdout = stdout or sys.stdout
+    if output:
+        # O_EXCL: an existing pair is never replaced (its phones would stop receiving).
+        descriptor = os.open(output, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            handle.write(text)
+        print(f"Clés VAPID écrites dans {output} (0600).", file=stdout)
+    else:
+        print(text, end="", file=stdout)
+    return public
 
 
 def without_drive_folder(value):

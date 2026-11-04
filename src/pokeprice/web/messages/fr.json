@@ -456,5 +456,15 @@
   "chat.tool.sales_summary": "Je compte les ventes…",
   "chat.tool.agent_activity": "Je relis ce qu’ont fait les agents…",
   "chat.tool.todo_queue": "Je regarde la file « À toi »…",
-  "chat.tool.unknown": "Je vérifie ce que je peux faire…"
+  "chat.tool.unknown": "Je vérifie ce que je peux faire…",
+  "push.title": "Notifications",
+  "push.label": "Notifications sur ce téléphone",
+  "push.help": "Le brief du matin et les nouvelles demandes, en nombres seulement : jamais le nom ni l’adresse d’un client.",
+  "push.install_first": "Sur iPhone, installez d’abord l’application (bouton « Installer sur le téléphone »), puis ouvrez-la depuis l’écran d’accueil pour activer les notifications.",
+  "push.unsupported": "Ce navigateur ne reçoit pas les notifications de la gestion.",
+  "push.server_off": "Les notifications ne sont pas encore configurées sur le serveur.",
+  "push.denied": "Les notifications sont bloquées pour cette application : autorisez-les dans les réglages du téléphone.",
+  "push.on": "Notifications activées sur ce téléphone.",
+  "push.off": "Notifications désactivées sur ce téléphone.",
+  "push.error": "Impossible de changer les notifications. Réessayez."
 }

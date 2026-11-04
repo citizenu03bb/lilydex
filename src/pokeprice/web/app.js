@@ -2937,6 +2937,7 @@ async function loadPayment() {
   for (const [name, value] of Object.entries(payment)) form.elements[name].value = value;
 }
 async function loadUsers() {
+  window.lilydexPush?.refresh();
   if (typeof Workflows !== "undefined") await Workflows.backupStatus();
   const users = await api("/users");
   await loadClients();

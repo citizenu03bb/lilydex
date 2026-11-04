@@ -1,7 +1,7 @@
 import json
 import re
 from test_library import inputs
-from pokeprice.inventory import Store
+from pokeprice.inventory import SCHEMA_VERSION, Store
 from pokeprice.inventory_import import import_collection
 from pokeprice.reservations import (
     CARD_WEIGHT_GRAMS,
@@ -272,10 +272,10 @@ def test_schema_24_moves_the_delivery_prefix_out_of_old_messages(tmp_path):
         db.execute("PRAGMA user_version=23")
     migrated = Store(store.root)
     with migrated.connect() as db:
-        assert db.execute("PRAGMA user_version").fetchone()[0] == 24
+        assert db.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
         rows = [tuple(db.execute("SELECT delivery,registered,message FROM requests WHERE id=?", (i,)).fetchone())
                 for i in ids]
     assert rows == [("hand", 0, "Je passe samedi"), ("shipping", 1, "Merci"), ("shipping", 0, "")]
-    assert list((tmp_path / "backups").glob("before-schema24-from23-*"))
+    assert list((tmp_path / "backups").glob(f"before-schema{SCHEMA_VERSION}-from23-*"))
     hand = next(r for r in client.get("/api/requests").json() if r["id"] == ids[0])
     assert hand["delivery"] == "hand" and hand["shipping_cents"] == 0 and hand["message"] == "Je passe samedi"

@@ -62,4 +62,49 @@ self.addEventListener("fetch", (event) => {
   }
 });
 
-// Web Push (V1 and later) adds its "push" and "notificationclick" listeners here.
+// Web Push (decision 0033): the server sends {title, body, url}, counts only,
+// with a path under /gestion; the worker shows it with the app's icon.
+const ICON = "/assets/icon-192.png";
+const HOME = "/gestion";
+
+function openingUrl(value) {
+  try {
+    const url = new URL(value || HOME, self.location.origin);
+    if (url.origin === self.location.origin && (url.pathname === HOME || url.pathname.startsWith(HOME + "/")))
+      return url.href;
+  } catch {}
+  return new URL(HOME, self.location.origin).href;
+}
+
+self.addEventListener("push", (event) => {
+  let message = {};
+  try {
+    message = event.data ? event.data.json() : {};
+  } catch {
+    message = {};
+  }
+  const title = typeof message.title === "string" && message.title ? message.title : "Les cartes de Lily";
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body: typeof message.body === "string" ? message.body : "",
+      icon: ICON,
+      data: { url: openingUrl(message.url) },
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const target = openingUrl(event.notification.data?.url);
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((windows) => {
+      // The app already open comes to the front, at the page the notification names.
+      const open = windows.find((client) => new URL(client.url).pathname.startsWith(HOME));
+      if (!open) return self.clients.openWindow(target);
+      return open
+        .focus()
+        .then((client) => (client || open).navigate(target))
+        .catch(() => self.clients.openWindow(target));
+    }),
+  );
+});

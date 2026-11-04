@@ -166,6 +166,36 @@ mascotte ; `scripts/make_app_icons.py` les régénère. En HTTP sur le Wi-Fi
 (section précédente), le navigateur refuse le service worker : l'installation
 demande l'adresse HTTPS du serveur hébergé.
 
+### Recevoir les notifications sur le téléphone
+
+Dans **Réglages**, l'interrupteur « Notifications sur ce téléphone » abonne
+le téléphone au brief du matin et aux alertes de la vitrine (nouvelle
+demande, rappels). Le téléphone demande la permission au moment où vous
+touchez l'interrupteur. Sur iPhone, il faut d'abord installer la gestion
+(section précédente) puis l'ouvrir depuis l'écran d'accueil : dans Safari,
+l'interrupteur reste grisé et le rappelle. Le désactiver retire l'abonnement
+du serveur et du téléphone.
+
+![L'interrupteur « Notifications sur ce téléphone » dans les Réglages, activé](images/gestion-notifications-telephone.png)
+
+La notification porte le titre et le texte courts des autres canaux, des
+nombres seulement, jamais le nom ni l'adresse d'un client, avec l'icône de
+l'application. La toucher ouvre la gestion à la bonne vue : `/gestion` pour le
+brief, la demande concernée pour une alerte. Le serveur garde pour chaque
+téléphone son point d'accès chez le service de push, ses deux clés et le
+compte ; un abonnement que le service déclare expiré est supprimé.
+L'interrupteur reste grisé tant que le serveur n'a pas ses clés
+([activation](DEPLOYMENT.md#activer-les-notifications-web-push)) ; ce qui
+passe par les services de push d'Apple, de Google ou de Mozilla est décrit
+dans la [fiche 0033](decisions/0033-notifications-web-push.md).
+
+| Route | Rôle | Droits |
+|---|---|---|
+| `GET /api/push` | Canal actif et clé publique VAPID | compte de gestion |
+| `POST /api/push/subscriptions` | Enregistre l'abonnement du téléphone | compte de gestion |
+| `POST /api/push/subscriptions/check` | Dit si ce téléphone est abonné pour ce compte | compte de gestion |
+| `DELETE /api/push/subscriptions` | Retire l'abonnement, pour ce compte seulement | compte de gestion |
+
 ### Clé Gemini (facultative)
 
 La lecture des photos passe par Gemini, un modèle vision-langage de Google
@@ -235,7 +265,7 @@ La même synthèse est servie par `GET /api/todo` (paramètre `since` facultatif
 `AAAA-MM-JJ`), qui renvoie `done_since`, `waiting` et `minutes`. La commande
 `pokeprice-manage --data <base> brief` l'affiche dans le terminal ; avec
 `--notify`, elle envoie aussi un résumé court (des nombres, aucune donnée de
-client) sur les canaux d'alerte de la vitrine
+client) sur les canaux d'alerte de la vitrine, Web Push compris
 ([variables](DEPLOYMENT.md#où-vivent-les-secrets)). Sur le serveur,
 `pokeprice-brief.timer` l'envoie chaque matin vers 7 h 30
 ([déploiement](DEPLOYMENT.md#envoyer-le-brief-du-jour)). Le code est dans

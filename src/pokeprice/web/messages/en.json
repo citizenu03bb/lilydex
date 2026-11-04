@@ -456,5 +456,15 @@
   "chat.tool.sales_summary": "Counting the sales…",
   "chat.tool.agent_activity": "Reading what the agents did…",
   "chat.tool.todo_queue": "Looking at the “Your turn” queue…",
-  "chat.tool.unknown": "Checking what I can do…"
+  "chat.tool.unknown": "Checking what I can do…",
+  "push.title": "Notifications",
+  "push.label": "Notifications on this phone",
+  "push.help": "The morning brief and new requests, as numbers only: never a customer’s name or address.",
+  "push.install_first": "On iPhone, first install the app (“Install on the phone” button), then open it from the Home Screen to turn notifications on.",
+  "push.unsupported": "This browser does not receive the management app’s notifications.",
+  "push.server_off": "Notifications are not configured on the server yet.",
+  "push.denied": "Notifications are blocked for this app: allow them in the phone’s settings.",
+  "push.on": "Notifications are on for this phone.",
+  "push.off": "Notifications are off for this phone.",
+  "push.error": "The notifications could not be changed. Please try again."
 }

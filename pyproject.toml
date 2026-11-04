@@ -25,6 +25,7 @@ dev = [
 ]
 web = [
     "fastapi>=0.115.0,<1",
+    "pywebpush>=2.0",
     "uvicorn>=0.34.0,<1",
 ]
 # Independent edition check (M2): DINOv2 image similarity, local, CPU or GPU.

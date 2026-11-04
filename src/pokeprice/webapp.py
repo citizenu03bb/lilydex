@@ -58,7 +58,9 @@ from .cardmarket_guide import CardmarketGuide
 from .floor_requests import FloorRequests, HumanOnly
 from .listings import Listings, Storefront
 from .privacy import Privacy
-from .notifications import Notifier, channels_from_env, euros
+from .notifications import (
+    Notifier, WebPush, channels_from_env, euros, subscribe, subscribed, unsubscribe,
+)
 from .reservations import SHIPPING_SERVICES, Reservations, shipping_config, valid_email
 from .variant_catalogue import VariantCatalogue
 from .catalogue_image import CatalogueImages
@@ -224,6 +226,19 @@ class UserCreate(Credentials):
 class UserPatch(Model):
     role: Literal["admin", "editor", "reader"]
     disabled: bool = False
+
+
+class PushKeys(Model):
+    p256dh: str = Field(min_length=1, max_length=200)
+    auth: str = Field(min_length=1, max_length=100)
+
+
+class PushEndpoint(Model):
+    endpoint: str = Field(min_length=1, max_length=1024)
+
+
+class PushSubscription(PushEndpoint):
+    keys: PushKeys
 
 
 class CardFields(Model):
@@ -1323,7 +1338,8 @@ def create_app(
         )
 
     # Seller alerts: each channel is off until its environment variables are set.
-    notifier = Notifier(store, channels_from_env(), public_origin)
+    notifier = Notifier(store, channels_from_env(store=store), public_origin)
+    web_push = next((c for c in notifier.channels if isinstance(c, WebPush)), None)
     app.state.notifier = notifier
     notifier.start()  # A daemon thread, only when a channel is configured.
     reservations = Reservations(store, storefront, notifier)
@@ -1622,6 +1638,28 @@ def create_app(
     @app.get("/api/session")
     def session(user=Depends(current_user)):
         return user
+
+    # Web Push of the management (decision 0033): the public key, then one
+    # subscription per phone, owned by the account that took it.
+    @app.get("/api/push")
+    def push_settings(user=Depends(staff)):
+        return {"enabled": web_push is not None,
+                "public_key": web_push.public_key if web_push else None}
+
+    @app.post("/api/push/subscriptions", status_code=201)
+    def push_subscribe(values: PushSubscription, user=Depends(staff)):
+        if web_push is None:
+            raise HTTPException(409, "Notifications non configurées sur le serveur.")
+        subscribe(store, user["id"], values.endpoint, values.keys.p256dh, values.keys.auth)
+        return {"subscribed": True}
+
+    @app.post("/api/push/subscriptions/check")
+    def push_check(values: PushEndpoint, user=Depends(staff)):
+        return {"subscribed": subscribed(store, user["id"], values.endpoint)}
+
+    @app.delete("/api/push/subscriptions")
+    def push_unsubscribe(values: PushEndpoint, user=Depends(staff)):
+        return {"removed": unsubscribe(store, user["id"], values.endpoint)}
 
     @app.post("/api/logout")
     def logout(request: Request, response: Response, user=Depends(current_user)):

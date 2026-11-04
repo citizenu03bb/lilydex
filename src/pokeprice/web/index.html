@@ -385,6 +385,15 @@
             <button id="backup-now">Sauvegarder et vérifier maintenant</button>
             <p id="backup-error" class="error" role="alert"></p>
           </section>
+          <section id="push-panel" class="workflow-panel push-panel">
+            <h2>{{t:push.title}}</h2>
+            <label class="push-switch"
+              ><input id="push-toggle" type="checkbox" role="switch" disabled />
+              <span>{{t:push.label}}</span></label
+            >
+            <p class="help">{{t:push.help}}</p>
+            <p id="push-status" role="status"></p>
+          </section>
           <div class="settings-grid">
             <section class="panel">
               <h2>Donner un accès</h2>
