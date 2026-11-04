@@ -184,6 +184,28 @@ def test_the_brief_text_counts_without_naming_anyone():
     assert brief_text(empty)[0] == "Rien ne t’attend aujourd’hui"
 
 
+def test_the_brief_counts_photos_asked_and_requests_answered():
+    """An agent pass that only asks for photos is still something done."""
+    brief = {
+        "minutes": 5, "waiting": [{"kind": "photo"}] * 5,
+        "done_since": {
+            "agent": {"passes": 2, "confirmed": 0, "photos_asked": 5},
+            "listings": {"published": 0, "lots": 0, "cards": 0, "unpublished": 0},
+            "sales": {"transitions": {}, "sold_cents": 0},
+            "requests": {"received": 0, "answered": {"refused": 2}},
+        },
+    }
+    assert brief_text(brief)[1].splitlines()[0] == (
+        "Fait : 5 photo(s) demandée(s) par l’agent, 2 demande(s) traitée(s)."
+    )
+    idle = {**brief, "done_since": {**brief["done_since"],
+            "agent": {"passes": 1, "confirmed": 0, "photos_asked": 0},
+            "requests": {"received": 0, "answered": {}}}}
+    assert brief_text(idle)[1].splitlines()[0] == "Fait : 1 passage(s) de l’agent, sans changement."
+    nothing = {**idle, "done_since": {**idle["done_since"], "agent": {"passes": 0, "confirmed": 0}}}
+    assert brief_text(nothing)[1].splitlines()[0] == "Fait : rien de nouveau."
+
+
 class Channel:
     def __init__(self, name, fail=False):
         self.name, self.fail, self.sent = name, fail, []

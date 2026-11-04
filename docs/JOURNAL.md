@@ -11,7 +11,8 @@ daté la quitte, il est versé ici dans le même commit.
 
 - Brief du jour programmé sur le serveur : `pokeprice-brief.timer` envoie
   chaque matin vers 7 h 30 `brief --notify`, après la cotation matinale
-  ([déploiement](DEPLOYMENT.md#envoyer-le-brief-du-jour)).
+  ([déploiement](DEPLOYMENT.md#envoyer-le-brief-du-jour)). Son texte compte aussi les photos
+  demandées par l'agent et les demandes de la vitrine traitées.
 - Gestion : assistant de gestion, V0 sans modèle de langage. En haut de la
   gestion, un « Brief du jour » résume ce que les agents ont fait depuis
   24 heures, d'après les événements journalisés, et la file « À toi » liste
