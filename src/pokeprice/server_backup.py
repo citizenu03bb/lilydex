@@ -8,14 +8,27 @@ import hashlib
 import os
 import re
 import subprocess
+import tarfile
+import tempfile
+import zipfile
 from pathlib import Path
 
-from .daily_backup import record_local, serialized, status, verify
+from .daily_backup import RESERVE, record_local, serialized, status, verify
 from .drive_backup import transfer_timeout
+from .inventory_backup import (
+    PHOTO,
+    assemble,
+    light_photos,
+    private_file,
+    prune_reserve,
+)
 
 BACKUPS = "/srv/pokeprice/backups"
 DAILY = re.compile(r"daily-(\d{4}-\d{2}-\d{2})\.zip")
-KEEP = 3  # ~800 MB each on a nearly full laptop disk; the server keeps seven.
+# Light (v2) archives pulled from the server: a few MB each.
+KEEP = 3
+# Self-contained archives rebuilt for Drive: ~800 MB each on a nearly full disk.
+FULL_KEEP = 1
 # The server backup restores its archive as a check before returning.
 BACKUP_TIMEOUT = 30 * 60
 
@@ -38,7 +51,7 @@ class Server:
             raise ValueError("Hôte SSH invalide (attendu : utilisateur@hôte).")
         self.host, self.ssh = host, str(ssh)
 
-    def run(self, command, *, timeout=120, stdout=subprocess.PIPE):
+    def run(self, command, *, timeout=120, stdout=subprocess.PIPE, input=None):
         try:
             result = subprocess.run(
                 [
@@ -53,6 +66,7 @@ class Server:
                 ],
                 stdout=stdout,
                 stderr=subprocess.PIPE,
+                input=input,
                 timeout=timeout,
                 check=False,
             )
@@ -101,6 +115,52 @@ class Server:
                 stdout=stream,
             )
 
+    def fetch_photos(self, photos, folder):
+        """Copy the named photos {name: bytes} of the server's reserve into folder."""
+        if any(not PHOTO.fullmatch(name) for name in photos):
+            raise ValueError("Nom de photo invalide.")
+        if not photos:
+            return
+        # Names go on stdin: thousands of them would not fit a command line.
+        with tempfile.TemporaryFile(dir=folder) as stream:
+            self.run(
+                f"sudo tar -C {BACKUPS}/{RESERVE} -cf - --files-from=-",
+                input="".join(name + "\n" for name in photos).encode(),
+                timeout=transfer_timeout(sum(photos.values())),
+                stdout=stream,
+            )
+            stream.seek(0)
+            receive_photos(stream, photos, folder)
+
+
+def receive_photos(stream, photos, folder):
+    """Write the photos of a tar stream into folder, each checked by its name."""
+    received = set()
+    with tarfile.open(fileobj=stream, mode="r:") as tar:
+        for member in tar:
+            name = member.name
+            if (
+                not member.isfile()
+                or name not in photos
+                or name in received
+                or member.size != photos[name]
+            ):
+                raise ValueError("Photo inattendue dans le transfert.")
+            body = tar.extractfile(member).read()
+            if hashlib.sha256(body).hexdigest() != Path(name).stem:
+                raise ValueError("Photo altérée pendant le transfert.")
+            pending = Path(folder) / f".{name}.part"
+            pending.unlink(missing_ok=True)
+            try:
+                with private_file(pending) as output:
+                    output.write(body)
+                os.replace(pending, Path(folder) / name)
+            finally:
+                pending.unlink(missing_ok=True)
+            received.add(name)
+    if received != set(photos):
+        raise ValueError("Photos manquantes dans le transfert.")
+
 
 def digest(path):
     with open(path, "rb") as stream:
@@ -110,8 +170,14 @@ def digest(path):
 @serialized
 def pull(mirror, server, *, keep=KEEP):
     remote = server.latest()
+    date = DAILY.fullmatch(remote["name"])[1]
     target = mirror.root / ("oci-" + remote["name"])
-    if not (target.exists() and digest(target) == remote["sha256"]):
+    light = mirror.root / f"oci-light-{date}.zip"
+    known = next(
+        (p for p in (light, target) if p.exists() and digest(p) == remote["sha256"]),
+        None,
+    )
+    if known is None:
         pending = mirror.root / f".{target.name}.part"
         try:
             pending.unlink(missing_ok=True)
@@ -121,18 +187,47 @@ def pull(mirror, server, *, keep=KEEP):
                 or digest(pending) != remote["sha256"]
             ):
                 raise ValueError("L'archive rapatriée diffère de celle du serveur.")
+            # Archives written before the reserve hold their photos.
+            known = target if light_photos(pending) is None else light
+            os.replace(pending, known)
+        finally:
+            pending.unlink(missing_ok=True)
+    if known == light:
+        # Only photos the laptop lacks travel; the rebuilt archive is self-contained.
+        reserve = mirror.root / RESERVE
+        reserve.mkdir(mode=0o700, exist_ok=True)
+        photos = light_photos(light)
+        server.fetch_photos(
+            {n: size for n, size in photos.items() if not (reserve / n).is_file()},
+            reserve,
+        )
+        pending = mirror.root / f".{target.name}.part"
+        try:
+            pending.unlink(missing_ok=True)
+            assemble(light, reserve, pending)
             os.replace(pending, target)
         finally:
             pending.unlink(missing_ok=True)
     verified = verify(target)
-    if verified["sha256"] != remote["sha256"]:
+    if known == target and verified["sha256"] != remote["sha256"]:
         raise ValueError("L'archive rapatriée a changé pendant sa vérification.")
     verified["source"] = {"host": server.host, "name": remote["name"]}
+    if known == light:
+        verified["source"]["sha256"] = remote["sha256"]
     record_local(mirror, verified)
-    for old in sorted(mirror.root.glob("oci-daily-????-??-??.zip"), reverse=True)[
-        keep:
-    ]:
-        old.unlink()
+    for pattern, count in (
+        ("oci-daily-????-??-??.zip", FULL_KEEP),
+        ("oci-light-????-??-??.zip", keep),
+    ):
+        for old in sorted(mirror.root.glob(pattern), reverse=True)[count:]:
+            old.unlink()
+    try:
+        prune_reserve(
+            mirror.root / RESERVE,
+            [*mirror.root.glob("oci-light-*.zip"), *mirror.root.glob("oci-daily-*.zip")],
+        )
+    except (OSError, ValueError, KeyError, zipfile.BadZipFile):
+        pass  # An unreadable archive leaves the reserve as it is, never short.
     return verified
 
 

@@ -67,7 +67,7 @@ def test_old_archives_make_room_before_the_daily_archive_is_written(tmp_path, mo
     touch(folder, "before-lot-3.zip", 10, now)
     seen = {}
 
-    def write(_store, destination):
+    def write(_store, destination, reserve=None):
         seen["left"] = sorted(p.name for p in folder.iterdir() if p.is_file())
         raise OSError("Espace disque insuffisant")
 

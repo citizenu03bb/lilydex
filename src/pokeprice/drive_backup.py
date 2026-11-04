@@ -7,6 +7,7 @@ Recovery without this code: `age -d -i backup-key.txt archive.zip.age > archive.
 """
 
 import fcntl
+import hashlib
 import json
 import math
 import os
@@ -22,6 +23,7 @@ import requests
 
 from .daily_backup import (
     DRIVE_FOLDER,
+    RESERVE,
     daily,
     record_external,
     record_failure,
@@ -29,6 +31,7 @@ from .daily_backup import (
     status,
     verify,
 )
+from .inventory_backup import assemble, light_photos
 
 
 # rclone gets as long as a slow ~2 Mbit/s home uplink needs for the archive:
@@ -256,12 +259,25 @@ def load_key(path=None):
 @serialized
 def snapshot(store, destination):
     local = status(store)["local"]
-    shutil.copyfile(local["path"], destination)
-    destination.chmod(0o600)
-    captured = verify(destination)
-    if captured["sha256"] != local["sha256"]:
-        raise ValueError("La sauvegarde a changé avant sa copie stable.")
-    return local
+    if light_photos(local["path"]) is None:
+        shutil.copyfile(local["path"], destination)
+        destination.chmod(0o600)
+        captured = verify(destination)
+        if captured["sha256"] != local["sha256"]:
+            raise ValueError("La sauvegarde a changé avant sa copie stable.")
+        return local
+    # A light archive needs its reserve: Drive gets the self-contained rebuild,
+    # whose bytes are the same for the same archive.
+    source = Path(local["path"])
+    unchanged(local, "La sauvegarde a changé avant sa copie stable.")
+    assemble(source, source.parent / RESERVE, destination)
+    return {**verify(destination), "name": local["name"], "light": local}
+
+
+def unchanged(local, message):
+    with open(local["path"], "rb") as stream:
+        if hashlib.file_digest(stream, "sha256").hexdigest() != local["sha256"]:
+            raise ValueError(message)
 
 
 def upload_daily(store, *, binary=None, remote="gdrive"):
@@ -342,6 +358,11 @@ def upload(store, produce, *, binary=None, remote="gdrive"):
                 # Recheck permissions after downloading and before marking success.
                 drive.private(drive.metadata(DRIVE_FOLDER))
                 drive.private(drive.metadata(file["id"]))
+                if "light" in local:
+                    unchanged(
+                        local["light"],
+                        "La sauvegarde locale a changé pendant le transfert. Ne pas marquer cette copie comme à jour.",
+                    )
                 result = record_external(
                     store,
                     local["path"],

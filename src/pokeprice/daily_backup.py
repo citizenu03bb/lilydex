@@ -6,16 +6,19 @@ import json
 import os
 import tempfile
 import time
+import zipfile
 from datetime import datetime
 from functools import wraps
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from .inventory import now
-from .inventory_backup import backup, restore_backup
+from .inventory_backup import backup, prune_reserve, restore_backup
 
-# Each archive holds every photo (~800 MB): the server keeps few, while the
-# laptop mirror and Drive keep the history.
+# Archives of the backups folder keep their photos once, in this reserve.
+RESERVE = "photos"
+# Archives written before the reserve hold every photo (~800 MB): the server
+# keeps few, while the laptop mirror and Drive keep the history.
 DAILY_KEEP = 3
 # Occasional backups (before a batch, a migration…) are not mirrored off the server.
 OCCASIONAL_KEEP = 2
@@ -80,10 +83,10 @@ def _write(store, data):
     os.replace(pending, target)
 
 
-def verify(path):
+def verify(path, photos=None):
     path = Path(path)
     with tempfile.TemporaryDirectory(prefix="pokeprice-restore-check-") as tmp:
-        summary = restore_backup(path, Path(tmp) / "collection")
+        summary = restore_backup(path, Path(tmp) / "collection", photos)
     return {
         "path": str(path.resolve()),
         "name": path.name,
@@ -114,8 +117,8 @@ def daily(store, *, force=False):
         prune_occasional(folder)
         with tempfile.TemporaryDirectory(dir=folder) as tmp:
             pending = Path(tmp) / "collection.zip"
-            backup(store, pending)
-            verified = verify(pending)
+            backup(store, pending, reserve=folder / RESERVE)
+            verified = verify(pending, folder / RESERVE)
             os.replace(pending, target)
         verified.update(path=str(target.resolve()), name=target.name)
     else:
@@ -123,6 +126,15 @@ def daily(store, *, force=False):
     record_local(store, verified)
     prune_daily(folder, DAILY_KEEP)
     prune_occasional(folder)
+    # The live photos stay reserved even when no archive lists them yet.
+    try:
+        prune_reserve(
+            folder / RESERVE,
+            folder.glob("*.zip"),
+            keep=(p.name for p in store.photos.glob("*.jpg")),
+        )
+    except (OSError, ValueError, KeyError, zipfile.BadZipFile):
+        pass  # An unreadable archive leaves the reserve as it is, never short.
     return verified
 
 

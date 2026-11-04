@@ -159,6 +159,10 @@ def main():
         "restore", help="Restaurer dans un nouveau dossier --data"
     )
     restore.add_argument("archive")
+    restore.add_argument(
+        "--photos",
+        help="Réserve de photos d'une archive v2 ; par défaut, photos/ à côté de l'archive",
+    )
     prices = actions.add_parser(
         "prices",
         help="Relevé TCGdex des identités confirmées (prix et variantes), un appel par édition",
@@ -264,7 +268,7 @@ def main():
     elif args.action == "restore":
         from .inventory_backup import restore_backup
 
-        result = restore_backup(args.archive, args.data)
+        result = restore_backup(args.archive, args.data, args.photos)
         from .privacy import Privacy, erasure_log
 
         # The archive may predate erasures: they are applied again.
@@ -394,12 +398,19 @@ def main():
 
             from .inventory_backup import backup
 
-            target = args.output or store.root.parent / "backups" / (
+            from .daily_backup import RESERVE
+
+            folder = store.root.parent / "backups"
+            # In the backups folder, photos join the reserve; elsewhere the
+            # archive stays self-contained.
+            target = args.output or folder / (
                 "collection-"
                 + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
                 + ".zip"
             )
-            result = backup(store, target)
+            result = backup(
+                store, target, reserve=None if args.output else folder / RESERVE
+            )
         elif args.action in (
             "backup-drive",
             "backup-daily",

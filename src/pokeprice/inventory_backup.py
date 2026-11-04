@@ -16,11 +16,51 @@ from pathlib import Path
 
 from .inventory import SCHEMA_VERSION, Store, now
 
+FORMAT = "pokeprice-inventory-v1"
+# Same base and documents, but photos stay once in a reserve beside the archives.
+LIGHT_FORMAT = "pokeprice-inventory-v2"
+PHOTO = re.compile(r"[a-f0-9]{64}\.jpg")
+DOCUMENT = re.compile(r"[a-f0-9]{64}\.(pdf|json|html|jpg|png)")
+# Fixed ZIP timestamps: the same light archive always rebuilds the same bytes.
+EPOCH = (1980, 1, 1, 0, 0, 0)
+
 # Room left for the app and the restore check after an archive is written.
 FREE_SPACE_MARGIN = 512 * 2**20
 
 
-def backup(store, destination):
+def private_file(destination):
+    # Private from its first byte: a chmod after writing leaves a readable window.
+    return os.fdopen(
+        os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), "wb"
+    )
+
+
+def reserve_photo(source, reserve):
+    """Keep one photo in the reserve: a hard link, or a copy across disks."""
+    target = reserve / source.name
+    if target.exists():
+        return
+    try:
+        os.link(source, target)
+    except FileExistsError:
+        pass
+    except OSError:
+        pending = reserve / f".{source.name}.part"
+        pending.unlink(missing_ok=True)
+        try:
+            with source.open("rb") as body, private_file(pending) as output:
+                shutil.copyfileobj(body, output)
+            os.replace(pending, target)
+        finally:
+            pending.unlink(missing_ok=True)
+
+
+def backup(store, destination, reserve=None):
+    """Archive the base, its photos and reference documents.
+
+    With a reserve folder, photos named by their SHA-256 go there once instead
+    of into the archive, which only lists them (format v2).
+    """
     destination = Path(destination)
     destination.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     if destination.exists():
@@ -35,27 +75,31 @@ def backup(store, destination):
             disable_tokens(target)
             target.commit()
         files = {"collection.sqlite3": snapshot.read_bytes()}
+        reserved = {}
         # Include previous photos referenced in correction history as well.
         for photo in sorted(store.photos.glob("*.jpg")):
-            files["photos/" + photo.name] = photo.read_bytes()
+            if reserve is not None and PHOTO.fullmatch(photo.name):
+                reserved[photo.name] = photo.stat().st_size
+            else:
+                files["photos/" + photo.name] = photo.read_bytes()
         documents = store.root / "reference_documents"
         if documents.exists():
             for document in sorted(documents.iterdir()):
-                if not document.is_file() or not re.fullmatch(
-                    r"[a-f0-9]{64}\.(pdf|json|html|jpg|png)", document.name
-                ):
+                if not document.is_file() or not DOCUMENT.fullmatch(document.name):
                     raise ValueError("Document de référence non qualifié.")
                 body = document.read_bytes()
                 if hashlib.sha256(body).hexdigest() != document.stem:
                     raise ValueError("Document de référence altéré.")
                 files["reference_documents/" + document.name] = body
         manifest = {
-            "format": "pokeprice-inventory-v1",
+            "format": FORMAT if reserve is None else LIGHT_FORMAT,
             "created_at": now(),
             "files": {
                 name: hashlib.sha256(body).hexdigest() for name, body in files.items()
             },
         }
+        if reserve is not None:
+            manifest["photos"] = reserved
         # A full disk would also starve the running app: refuse before writing.
         needed = sum(len(body) for body in files.values()) + FREE_SPACE_MARGIN
         free = shutil.disk_usage(destination.parent).free
@@ -65,11 +109,14 @@ def backup(store, destination):
                 f"{needed // 2**20} Mo nécessaires. Libérez de la place (anciennes "
                 "sauvegardes ponctuelles, caches) avant de recommencer."
             )
-        # Private from its first byte: a chmod after writing leaves a readable window.
-        handle = os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        if reserve is not None:
+            reserve = Path(reserve)
+            reserve.mkdir(mode=0o700, parents=True, exist_ok=True)
+            for name in reserved:
+                reserve_photo(store.photos / name, reserve)
         try:
             with (
-                os.fdopen(handle, "wb") as output,
+                private_file(destination) as output,
                 zipfile.ZipFile(
                     output, "w", compression=zipfile.ZIP_DEFLATED
                 ) as archive,
@@ -84,19 +131,142 @@ def backup(store, destination):
             raise
     return {
         "path": str(destination),
-        "files": len(files),
+        "files": len(files) + len(reserved),
         "bytes": destination.stat().st_size,
     }
 
 
-def restore_backup(archive_path, destination):
+def read_manifest(archive):
+    """Manifest of a v1 or v2 archive, with its external photos ({} for v1)."""
+    manifest = json.loads(archive.read("manifest.json"))
+    if manifest.get("format") not in (FORMAT, LIGHT_FORMAT):
+        raise ValueError("Format de sauvegarde inconnu.")
+    photos = manifest.get("photos", {}) if manifest["format"] == LIGHT_FORMAT else {}
+    if not isinstance(photos, dict) or any(
+        not PHOTO.fullmatch(name)
+        or type(size) is not int
+        or "photos/" + name in manifest["files"]
+        for name, size in photos.items()
+    ):
+        raise ValueError("Manifeste de photos incohérent.")
+    return manifest, photos
+
+
+def photo_names(archive_path):
+    """Every photo an archive needs, whether it holds it or lists it."""
+    with zipfile.ZipFile(archive_path) as archive:
+        manifest, photos = read_manifest(archive)
+    return set(photos) | {
+        name.removeprefix("photos/")
+        for name in manifest["files"]
+        if name.startswith("photos/")
+    }
+
+
+def light_photos(archive_path):
+    """Photos listed by a v2 archive ({name: bytes}), or None for a v1 archive."""
+    with zipfile.ZipFile(archive_path) as archive:
+        manifest, photos = read_manifest(archive)
+    return photos if manifest["format"] == LIGHT_FORMAT else None
+
+
+def reserved_photo(reserve, name, size):
+    path = Path(reserve) / name
+    if not PHOTO.fullmatch(name) or not path.is_file():
+        raise ValueError(f"Photo absente de la réserve : {name}.")
+    body = path.read_bytes()
+    if len(body) != size or hashlib.sha256(body).hexdigest() != path.stem:
+        raise ValueError(f"Photo altérée dans la réserve : {name}.")
+    return body
+
+
+def prune_reserve(reserve, archives, keep=()):
+    """Remove reserve photos that no kept archive needs and `keep` does not hold.
+
+    An unreadable archive stops the pruning: nothing is removed. Returns the
+    names removed.
+    """
+    reserve = Path(reserve)
+    if not reserve.is_dir():
+        return []
+    needed = set(keep)
+    for archive in archives:
+        needed |= photo_names(archive)
+    removed = []
+    for photo in sorted(reserve.glob("*.jpg")):
+        if photo.name not in needed:
+            photo.unlink()
+            removed.append(photo.name)
+    return removed
+
+
+def assemble(light_path, reserve, destination):
+    """Rebuild a self-contained v1 archive from a v2 archive and its reserve.
+
+    The result is deterministic: the same inputs always give the same bytes.
+    """
+    destination = Path(destination)
+    with zipfile.ZipFile(light_path) as light:
+        manifest, photos = read_manifest(light)
+        if manifest["format"] != LIGHT_FORMAT:
+            raise ValueError("Seule une archive v2 se reconstitue.")
+        names = light.namelist()
+        if len(names) != len(set(names)) or set(names) != set(manifest["files"]) | {
+            "manifest.json"
+        }:
+            raise ValueError("Contenu de sauvegarde incohérent.")
+        files = dict(manifest["files"])
+        files.update(
+            {"photos/" + name: Path(name).stem for name in photos}
+        )
+        try:
+            with private_file(destination) as output, zipfile.ZipFile(
+                output, "w"
+            ) as archive:
+                for name in sorted(files):
+                    if name in manifest["files"]:
+                        body = light.read(name)
+                        if hashlib.sha256(body).hexdigest() != files[name]:
+                            raise ValueError("Somme de contrôle invalide.")
+                    else:
+                        stem = name.removeprefix("photos/")
+                        body = reserved_photo(reserve, stem, photos[stem])
+                    archive.writestr(
+                        zipfile.ZipInfo(name, EPOCH),
+                        body,
+                        compress_type=zipfile.ZIP_DEFLATED,
+                    )
+                archive.writestr(
+                    zipfile.ZipInfo("manifest.json", EPOCH),
+                    json.dumps(
+                        {
+                            "format": FORMAT,
+                            "created_at": manifest["created_at"],
+                            "files": files,
+                        },
+                        ensure_ascii=False,
+                        indent=2,
+                        sort_keys=True,
+                    ),
+                    compress_type=zipfile.ZIP_DEFLATED,
+                )
+        except BaseException:
+            destination.unlink(missing_ok=True)
+            raise
+    return {"path": str(destination), "files": len(files)}
+
+
+def restore_backup(archive_path, destination, photos=None):
+    """Restore into a new folder.
+
+    A v2 archive reads its photos from `photos`, by default the reserve
+    `photos/` beside the archive.
+    """
     destination = Path(destination)
     if destination.exists():
         raise ValueError("La restauration exige un nouveau dossier.")
     with zipfile.ZipFile(archive_path) as archive:
-        manifest = json.loads(archive.read("manifest.json"))
-        if manifest.get("format") != "pokeprice-inventory-v1":
-            raise ValueError("Format de sauvegarde inconnu.")
+        manifest, external = read_manifest(archive)
         expected = manifest["files"]
         names = archive.namelist()
         if len(names) != len(set(names)) or set(names) != set(expected) | {
@@ -117,7 +287,7 @@ def restore_backup(archive_path, destination):
                 and not (
                     len(parts) == 2
                     and parts[0] == "reference_documents"
-                    and re.fullmatch(r"[a-f0-9]{64}\.(pdf|json|html|jpg|png)", parts[1])
+                    and DOCUMENT.fullmatch(parts[1])
                 )
             ):
                 raise ValueError("Chemin de sauvegarde interdit.")
@@ -125,6 +295,11 @@ def restore_backup(archive_path, destination):
                 raise ValueError("Somme de contrôle invalide.")
             if parts[0] == "reference_documents" and Path(name).stem != checksum:
                 raise ValueError("Identité de document incohérente.")
+        reserve = Path(photos) if photos else Path(archive_path).parent / "photos"
+        if external and not reserve.is_dir():
+            raise ValueError(
+                "Réserve de photos introuvable : indiquez son dossier (option --photos)."
+            )
         destination.parent.mkdir(parents=True, exist_ok=True)
         with tempfile.TemporaryDirectory(dir=destination.parent) as temporary:
             recovered = Path(temporary) / "restored"
@@ -133,6 +308,12 @@ def restore_backup(archive_path, destination):
                 target = recovered / name
                 target.parent.mkdir(exist_ok=True)
                 target.write_bytes(archive.read(name))
+            if external:
+                (recovered / "photos").mkdir(exist_ok=True)
+            for name, size in external.items():
+                (recovered / "photos" / name).write_bytes(
+                    reserved_photo(reserve, name, size)
+                )
             with sqlite3.connect(recovered / "collection.sqlite3") as db:
                 if (
                     db.execute("PRAGMA integrity_check").fetchone()[0] != "ok"

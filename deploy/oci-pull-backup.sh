@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Rapatriement ("Pull") de la dernière sauvegarde quotidienne vérifiée du serveur OCI vers
-# data/oci-backups/oci-daily-<date>.zip, avec contrôle SHA-256 et restauration de contrôle,
-# puis en option la copie Drive. Le jeton Google Drive reste uniquement sur le portable.
+# Rapatriement ("Pull") de la dernière sauvegarde quotidienne vérifiée du serveur OCI :
+# l'archive légère (data/oci-backups/oci-light-<date>.zip) et les seules photos nouvelles
+# (data/oci-backups/photos/), contrôlées par SHA-256, puis l'archive complète reconstituée
+# data/oci-backups/oci-daily-<date>.zip et sa restauration de contrôle ; en option la copie Drive. Le jeton Google Drive reste uniquement sur le portable.
 # Mêmes commandes que le timer pokeprice-drive-backup : voir docs/DAILY-BACKUPS.md.
 # Usage : ./deploy/oci-pull-backup.sh opc@<IP_OCI> [--push-drive]
 set -euo pipefail
