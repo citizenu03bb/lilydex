@@ -117,6 +117,7 @@ function options(select, albums, current = "", all = false) {
 }
 function showAccess() {
   if (typeof Workflows !== "undefined") Workflows.attach(null);
+  if (typeof Assistant !== "undefined") Assistant.attach(null);
   state.user = null;
   state.selected.clear();
   state.lotMode = false;
@@ -175,6 +176,7 @@ async function showWorkspace(user) {
   refreshPhotoRequests().catch((e) => toast(e.message));
   refreshFloorRequests().catch((e) => toast(e.message));
   if (typeof refreshTodo === "function") refreshTodo().catch((e) => toast(e.message));
+  if (typeof Assistant !== "undefined") Assistant.attach(user);
   restoreLocation();
   if (requestLink) changeView("sales", false);
   await loadCards();

@@ -219,6 +219,7 @@ Git ignore :
 | `reference_documents/` | Les pièces justificatives du référentiel, rangées par empreinte |
 | `references/` | Le cache du contrôle par l'image (images TCGdex, vecteurs) ; il se recalcule |
 | `thumbnails/` | Les vignettes de la grille ; elles se recalculent |
+| `assistant.sqlite3` | Les conversations et le journal du chat, 30 jours au plus, hors des sauvegardes |
 
 Pour utiliser un autre dossier, placez `--data` avant la commande :
 `pokeprice-manage --data <dossier> <commande>`. Déplacez toujours le dossier
@@ -269,6 +270,66 @@ client) sur les canaux d'alerte de la vitrine, Web Push compris
 `pokeprice-brief.timer` l'envoie chaque matin vers 7 h 30
 ([déploiement](DEPLOYMENT.md#envoyer-le-brief-du-jour)). Le code est dans
 `src/pokeprice/todo.py`.
+
+## L'assistant
+
+Le bouton **Assistant**, en haut de la gestion, ouvre un chat : un panneau à
+droite sur un ordinateur, tout l'écran sur un téléphone. Il **explique et
+cherche ; il n'écrit rien** ([fiche 0029](decisions/0029-assistant-de-gestion.md),
+V1). Il répond à des questions comme « Qu'est-ce qui m'attend ? », « Combien
+j'ai vendu cette semaine ? » ou « Pourquoi le ronflex n'est pas en vente ? »,
+dans la langue de la question, en deux ou trois phrases.
+
+- **Ce qu'il lit.** Il passe seulement par les huit outils en lecture de la
+  [fiche 0032](decisions/0032-outils-assistant-lecture.md) : la collection,
+  les prix et planchers, les annonces, les ventes agrégées, l'activité des
+  agents et la file « À toi ». Aucun outil ne lui donne le nom, l'adresse ou
+  le message d'un client.
+- **Ce qu'il ne fait pas.** Quand on lui demande une action (publier, changer
+  un prix, rembourser…), il dit qu'il ne fait que lire et montre où agir : la
+  file « À toi », la fiche de la carte dans Collection ou l'écran Ventes.
+- **Pendant qu'il cherche**, une ligne dit ce qu'il regarde (« Je regarde les
+  annonces… »). Une carte qu'il cite devient un lien vers sa fiche, si un
+  outil l'a renvoyée pour cette question ; un identifiant inventé reste du
+  texte.
+- **Qui y a accès.** Les comptes de gestion qui peuvent modifier
+  (gestionnaire, administrateur). Un compte en lecture seule n'a pas le
+  bouton, comme il ne peut pas déléguer `assistant:read`.
+- **Sans sa clé**, le chat est désactivé et le panneau le dit ; le brief et la
+  file « À toi » marchent sans lui. Le modèle est Gemini 3.8 Flash, avec une
+  clé à lui, jamais celle de la lecture des photos
+  ([fiche 0031](decisions/0031-modele-du-chat.md),
+  [variables](DEPLOYMENT.md#où-vivent-les-secrets)).
+
+*Garde-fous.* Le serveur appelle les outils lui-même, au nom d'un principal
+qui n'a que la portée `assistant:read`, avec la même vérification qu'une
+délégation d'agent, refaite à chaque appel. Les résultats retournent au modèle
+comme des données (réponse d'outil), jamais comme des consignes. Une question
+compte quatre tours d'outils au plus, puis une réponse. Le serveur refuse un
+outil inconnu sans rien exécuter.
+
+*Limites.* 100 questions par jour pour toute la gestion
+(`POKEPRICE_ASSISTANT_DAILY_LIMIT`) et 6 par minute et par compte
+(`POKEPRICE_ASSISTANT_PER_MINUTE`). Le bas du panneau affiche les questions du
+jour et les jetons consommés sur 30 jours, lus dans les métadonnées d'usage du
+modèle.
+
+*Conservation* ([fiche 0034](decisions/0034-conversations-du-chat.md)). Les
+conversations, le journal des questions et des appels d'outils (outil,
+arguments, durée, jetons, jamais le texte d'un résultat) vivent dans
+`assistant.sqlite3`, à côté de la base, hors des sauvegardes. Ils sont gardés
+30 jours au plus : `pokeprice-manage purge` efface le reste. **Effacer** retire
+toutes vos conversations ; le décompte du jour reste, sans texte.
+
+*Pour un développeur.* `POST /api/assistant` (`{question, conversation_id?}`)
+répond en flux `text/event-stream`, avec les événements `text`, `tool` (nom de
+l'outil), `card` (`copy_id`, nom, numéro), `done` (conversation, jetons,
+usage) et `error`. `GET /api/assistant` donne l'état, l'usage et la dernière
+conversation ; `DELETE /api/assistant/conversations[/{id}]` efface. Le code
+est dans `src/pokeprice/assistant.py` (boucle, journal),
+`assistant_model.py` (adaptateurs : Gemini, factice pour les tests) et
+`web/assistant.js` ; la consigne système, `assistant_prompt.md`, est la même
+que celle du [banc](../bench/assistant/README.md).
 
 ## Saisir des cartes
 

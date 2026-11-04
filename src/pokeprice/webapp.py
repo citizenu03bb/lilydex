@@ -82,6 +82,7 @@ APP_SHELL = (
     "/assets/themes.css", "/assets/style.css", "/assets/photo-zoom.css",
     "/assets/components.js", "/assets/photo-zoom.js", "/assets/media.js",
     "/assets/app.js", "/assets/workflows.js", "/assets/gallery.js", "/assets/pwa.js",
+    "/assets/assistant.js",
     "/assets/logo.png", "/assets/icon-192.png", "/assets/icon-512.png",
     "/assets/icon-maskable-512.png", "/assets/apple-touch-icon.png", "/favicon.ico",
 )
@@ -625,6 +626,7 @@ def create_app(
     market_fetch=None,
     agent_enabled=True,
     indexing=None,
+    assistant_model=None,
 ):
     # Preview URLs come from explicit deployment configuration, never Host or forwarding headers.
     public_origin = os.environ.get("POKEPRICE_PUBLIC_ORIGIN", "") if public_origin is None else public_origin
@@ -1212,7 +1214,7 @@ def create_app(
         name: Literal[
             "app.js", "media.js", "workflows.js", "gallery.js", "style.css",
             "storefront.js", "storefront.css", "themes.css", "components.js",
-            "photo-zoom.js", "photo-zoom.css", "pwa.js",
+            "photo-zoom.js", "photo-zoom.css", "pwa.js", "assistant.js",
             "logo.png", "apple-touch-icon.png", "mascotte.png",
             "icon-192.png", "icon-512.png", "icon-maskable-512.png",
         ],
@@ -2838,6 +2840,72 @@ def create_app(
         except ValueError:
             raise ValueError("Date invalide : utilisez AAAA-MM-JJ.") from None
         return todo.brief(moment)
+
+    # The management chat, V1 (assistant.py, decisions 0029 and 0034): it reads
+    # through the closed tools and writes nothing. Off without its own key.
+    from fastapi.responses import StreamingResponse
+
+    from .agent import AgentError
+    from .assistant import DEFAULT_DAILY_LIMIT, DEFAULT_PER_MINUTE, MAX_QUESTION, Assistant, Refused
+    from .assistant_model import from_env
+
+    def positive(name, default):
+        try:
+            return max(1, int(os.environ.get(name, "") or default))
+        except ValueError:
+            raise ValueError(f"{name} : nombre entier attendu.") from None
+
+    assistant = Assistant(
+        store, todo, assistant_model if assistant_model is not None else from_env(),
+        daily_limit=positive("POKEPRICE_ASSISTANT_DAILY_LIMIT", DEFAULT_DAILY_LIMIT),
+        per_minute=positive("POKEPRICE_ASSISTANT_PER_MINUTE", DEFAULT_PER_MINUTE),
+    )
+    app.state.assistant = assistant
+
+    class AssistantQuestion(BaseModel):
+        model_config = ConfigDict(extra="forbid")
+        question: str = Field(min_length=1, max_length=MAX_QUESTION)
+        conversation_id: str | None = Field(default=None, max_length=40, pattern=r"^[a-f0-9-]{36}$")
+
+    def assistant_refused(error):
+        if isinstance(error, AgentError):
+            raise HTTPException(error.status, str(error))
+        headers = {"Retry-After": str(error.retry_after)} if error.retry_after else None
+        raise HTTPException(error.status, str(error), headers=headers)
+
+    @app.get("/api/assistant")
+    def assistant_state(user=Depends(staff)):
+        try:
+            from .assistant import principal
+
+            principal(store, user["id"])
+        except AgentError as error:
+            assistant_refused(error)
+        return assistant.state(user["id"])
+
+    @app.post("/api/assistant")
+    def assistant_ask(values: AssistantQuestion, user=Depends(staff)):
+        try:
+            question = assistant.prepare(user["id"], values.question, values.conversation_id)
+        except (Refused, AgentError) as error:
+            assistant_refused(error)
+
+        def events():
+            for kind, data in assistant.run(question):
+                yield f"event: {kind}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+        return StreamingResponse(
+            events(), media_type="text/event-stream",
+            headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"},
+        )
+
+    @app.delete("/api/assistant/conversations")
+    def assistant_forget_all(user=Depends(staff)):
+        return assistant.journal.delete(user["id"])
+
+    @app.delete("/api/assistant/conversations/{conversation_id}")
+    def assistant_forget(conversation_id: str, user=Depends(staff)):
+        return assistant.journal.delete(user["id"], conversation_id)
 
     if agent_enabled:
         from .agent_api import install

@@ -9,6 +9,15 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-04
 
+- Chat de gestion, V1 en lecture : bouton **Assistant** dans la gestion,
+  réponse en flux continu par `POST /api/assistant`, huit outils en lecture
+  appelés par le serveur sous `assistant:read`, quatre tours d'outils au plus,
+  plafond quotidien et débit par compte, jetons affichés, conversations
+  gardées 30 jours hors des sauvegardes ; sans `POKEPRICE_ASSISTANT_GEMINI_KEY`,
+  le chat est éteint. La consigne système est partagée avec le banc
+  ([guide](APP.md#lassistant), [fiche 0034](decisions/0034-conversations-du-chat.md),
+  `tests/test_assistant.py`). Le banc n'a pas été rejoué avec la consigne
+  finale : aucune clé Gemini sur le poste.
 - Notifications Web Push de la gestion installée : interrupteur « Notifications
   sur ce téléphone » dans les Réglages, abonnements par compte de gestion
   (schéma 25, table `push_subscriptions`), canal `webpush` à côté de ntfy et de

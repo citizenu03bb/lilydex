@@ -176,7 +176,11 @@ def _days_since(since: str | None) -> float:
     return (datetime.fromisoformat(BENCH_DATE) - start).days
 
 
-def load_system(path: Path = HERE / "system_prompt.md") -> str:
+# La consigne système est celle du chat de gestion : un seul fichier, dans le paquet.
+SYSTEM_PROMPT = HERE.parents[1] / "src" / "pokeprice" / "assistant_prompt.md"
+
+
+def load_system(path: Path = SYSTEM_PROMPT) -> str:
     return path.read_text(encoding="utf-8").replace("{date_du_jour}", BENCH_DATE_TEXT)
 
 
@@ -594,15 +598,8 @@ class AnthropicAdapter(Adapter):
         return turn
 
 
-def _gemini_schema(schema: Any) -> Any:
-    """Retire les mots-clés que l'API Gemini refuse dans un schéma de paramètres."""
-    if isinstance(schema, dict):
-        return {k: _gemini_schema(v) for k, v in schema.items() if k != "exclusiveMinimum"}
-    return schema
-
-
 class GeminiAdapter(Adapter):
-    """API Gemini, par google-genai, en flux."""
+    """API Gemini : l'adaptateur du chat de gestion (pokeprice.assistant_model), chronométré."""
 
     provider = "gemini"
 
@@ -616,62 +613,27 @@ class GeminiAdapter(Adapter):
         if not key:
             return False, "clé GEMINI_API_KEY absente de l'environnement"
         try:
-            from google import genai
+            from google import genai  # noqa: F401
+
+            from pokeprice.assistant_model import GeminiModel
         except ImportError:
-            return False, "paquet google-genai absent"
-        self.client = genai.Client(api_key=key)
+            return False, "paquet google-genai ou pokeprice absent"
+        self.client = GeminiModel(key, self.model, thinking_level=self.thinking_level, timeout=120)
         return True, ""
 
     def describe(self) -> dict:
         return {**super().describe(), "thinking_level": self.thinking_level}
 
     def chat(self, system: str, messages: list[dict], tools: list[dict]) -> Turn:
-        from google.genai import types
-
-        contents = []
-        for m in messages:
-            if m["role"] == "user":
-                contents.append(types.Content(role="user", parts=[types.Part(text=m["text"])]))
-            elif m["role"] == "assistant":
-                contents.append(types.Content(role="model", parts=m["turn"].raw))
-            else:
-                contents.append(types.Content(role="user", parts=[
-                    types.Part.from_function_response(name=r["name"], response={"result": r["content"]})
-                    for r in m["results"]]))
-        config = types.GenerateContentConfig(
-            system_instruction=system,
-            temperature=0,
-            tools=[types.Tool(function_declarations=[
-                types.FunctionDeclaration(name=s["name"], description=s["description"],
-                                          parameters_json_schema=_gemini_schema(s["parameters"]))
-                for s in _tool_specs(tools)])],
-            automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
-            thinking_config=(types.ThinkingConfig(thinking_level=self.thinking_level)
-                             if self.thinking_level else None),
-        )
         turn = Turn()
-        parts, usage = [], None
         start = time.perf_counter()
-        for chunk in self.client.models.generate_content_stream(
-                model=self.model, contents=contents, config=config):
-            usage = chunk.usage_metadata or usage
-            for cand in chunk.candidates or []:
-                for part in (cand.content.parts if cand.content else None) or []:
-                    parts.append(part)
-                    if turn.ttft_s is None and (part.text or part.function_call) and not part.thought:
-                        turn.ttft_s = time.perf_counter() - start
+        for kind, value in self.client.stream(system, messages, _tool_specs(tools)):
+            if kind in ("text", "call") and turn.ttft_s is None:
+                turn.ttft_s = time.perf_counter() - start
+            elif kind == "turn":
+                turn.text, turn.calls, turn.raw = value.text, value.calls, value.raw
+                turn.input_tokens, turn.output_tokens = value.input_tokens, value.output_tokens
         turn.total_s = time.perf_counter() - start
-        turn.raw = parts
-        for i, part in enumerate(parts):
-            if part.function_call:
-                turn.calls.append({"id": part.function_call.id or f"g{i}",
-                                   "name": part.function_call.name,
-                                   "args": dict(part.function_call.args or {})})
-            elif part.text and not part.thought:
-                turn.text += part.text
-        if usage:
-            turn.input_tokens = usage.prompt_token_count or 0
-            turn.output_tokens = (usage.candidates_token_count or 0) + (usage.thoughts_token_count or 0)
         return turn
 
 

@@ -362,7 +362,7 @@ Effacer un client de la vitrine (e-mail ou identifiant)
 
 ### `pokeprice-manage purge`
 
-Appliquer les durées de conservation des données clients
+Appliquer les durées de conservation des données clients et du chat
 
 ### `pokeprice-manage brief`
 

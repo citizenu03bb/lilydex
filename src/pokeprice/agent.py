@@ -97,6 +97,20 @@ def disable_tokens(db):
         )
 
 
+def permitted(permissions, role):
+    """What a delegation may still do: a reader's account loses the staff-only scopes."""
+    permissions = set(permissions)
+    if role == "reader":
+        permissions.difference_update(STAFF_ONLY)
+    return permissions
+
+
+def require(grant, permission):
+    """The check every agent call goes through, the management chat's included."""
+    if permission not in grant["permissions"]:
+        raise AgentError(403, "forbidden", "Opération non déléguée à cet agent.")
+
+
 class AgentService:
     def __init__(self, store):
         self.store = store
@@ -201,11 +215,8 @@ class AgentService:
                 401, "unauthenticated", "Accès agent absent, expiré ou révoqué."
             )
         grant = dict(row)
-        grant["permissions"] = set(json.loads(grant["permissions_json"]))
-        if grant["role"] == "reader":
-            grant["permissions"].difference_update(STAFF_ONLY)
-        if permission not in grant["permissions"]:
-            raise AgentError(403, "forbidden", "Opération non déléguée à cet agent.")
+        grant["permissions"] = permitted(json.loads(grant["permissions_json"]), grant["role"])
+        require(grant, permission)
         return grant
 
     @staticmethod
