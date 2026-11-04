@@ -149,8 +149,12 @@ def test_the_sitemap_lists_home_about_and_listings_on_sale_in_both_languages(ind
     root = ElementTree.fromstring(response.content)
     urls = {u.find("s:loc", ns).text: u for u in root.findall("s:url", ns)}
     card = f"carte/{single['id']}"
-    assert set(urls) == {f"{ORIGIN}/", f"{ORIGIN}/en/", f"{ORIGIN}/a-propos", f"{ORIGIN}/en/a-propos",
-                         f"{ORIGIN}/{card}", f"{ORIGIN}/en/{card}"}
+    assert set(urls) == {
+        f"{ORIGIN}/", f"{ORIGIN}/en/",
+        f"{ORIGIN}/a-propos", f"{ORIGIN}/en/a-propos",
+        f"{ORIGIN}/conditions", f"{ORIGIN}/en/conditions",
+        f"{ORIGIN}/{card}", f"{ORIGIN}/en/{card}",
+    }
     alternates = {l.get("hreflang"): l.get("href") for l in urls[f"{ORIGIN}/en/{card}"].findall("x:link", ns)}
     assert alternates == {"fr": f"{ORIGIN}/{card}", "en": f"{ORIGIN}/en/{card}", "x-default": f"{ORIGIN}/{card}"}
     assert re.fullmatch(r"\d{4}-\d{2}-\d{2}", urls[f"{ORIGIN}/{card}"].find("s:lastmod", ns).text)

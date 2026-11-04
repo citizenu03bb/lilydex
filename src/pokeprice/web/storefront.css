@@ -356,6 +356,58 @@ fieldset.stack legend {
 .about section {
   display: flow-root;
 }
+.conditions-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0 16px;
+  font-size: 14px;
+}
+.conditions-table th,
+.conditions-table td {
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+}
+.conditions-table th {
+  background: var(--card);
+  font-weight: 600;
+}
+.basket-delivery-mode {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin: 10px 0;
+}
+.basket-delivery-mode legend {
+  font-weight: 600;
+  padding: 0 4px;
+}
+.basket-delivery-mode label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+  cursor: pointer;
+}
+.basket-summary {
+  margin: 10px 0 6px;
+  padding: 8px 12px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.basket-summary p {
+  margin: 4px 0;
+}
+.basket-subtotal,
+.basket-shipping {
+  font-size: 14px;
+}
+.basket-registered-notice {
+  font-size: 13px;
+  color: var(--accent, #b45309);
+  margin-top: 4px;
+}
 .detail-action {
   /* Actions follow the facts, so wrapped buttons never cover price or condition. */
   display: flex;

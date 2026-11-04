@@ -9,6 +9,13 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-04
 
+- Vitrine : calcul des frais de port avant réservation selon les tarifs La Poste
+  2026 (lettre suivie, recommandé R2 obligatoire dès 50 € de cartes, remise en
+  main propre gratuite) ; réponse préremplie en un clic pour l'opératrice dans
+  la gestion ; pages statiques bilingues de conditions de vente `/conditions` et
+  `/en/conditions` référencées dans le sitemap
+  ([fiche 0027](decisions/0027-frais-de-port-et-conditions-de-vente.md),
+  `tests/test_shipping_and_conditions.py`).
 - Sauvegardes : avant un lot de photos, une page de classeur ou un
   déplacement, l'application copie la base seule (environ 36 Mo) au lieu
   d'une archive avec les photos (800 Mo), qui remplissait le disque du

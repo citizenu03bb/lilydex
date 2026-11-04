@@ -1538,6 +1538,7 @@ class Store:
             "asking_cents": values.get("asking_cents"),
             "target_cents": values.get("target_cents"),
             "minimum_cents": values.get("minimum_cents"),
+            "shipping_charged_cents": values.get("shipping_charged_cents", 0),
             "status": "draft",
             "created_at": now(),
             "updated_at": now(),

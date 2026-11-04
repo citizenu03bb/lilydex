@@ -12,12 +12,229 @@ import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
 
+import os
 from .inventory import Conflict, now
 
 EXPIRY = timedelta(days=7)
 OPEN_LIMIT = 10  # Open requests per client, against abuse.
 GUEST_LIMIT = 3  # Open requests per address, when sent without signing in.
 LINK_EXPIRY = timedelta(days=7)
+
+# La Poste 2026-01-01 (France métropolitaine)
+TARIFF_DATE = "2026-01-01"
+CARD_WEIGHT_GRAMS = 2
+DEFAULT_PACKING_GRAMS = 10
+DEFAULT_REGISTERED_THRESHOLD_CENTS = 5000  # 50.00 € : envoi sécurisé recommandé avec signature dès ce seuil
+
+# Grilles tarifaires publiques au 2026-01-01
+# Lettre verte suivie jusqu'à 100 g, puis Colissimo domicile standard
+TRACKED_TARIFFS = (
+    (20, 202, "lettre_suivie"),
+    (100, 360, "lettre_suivie"),
+    (250, 549, "colissimo"),
+    (500, 759, "colissimo"),
+    (750, 929, "colissimo"),
+    (1000, 959, "colissimo"),
+    (2000, 1119, "colissimo"),
+    (5000, 1739, "colissimo"),
+)
+
+# Lettre recommandée R2 (remise contre signature, indemnisation forfaitaire 153 €)
+# jusqu'à 250 g, puis Colissimo avec recommandation R2 (tarif Colissimo base + 5,00 €)
+REGISTERED_TARIFFS = (
+    (20, 729, "lettre_recommandee_r2"),
+    (50, 807, "lettre_recommandee_r2"),
+    (100, 897, "lettre_recommandee_r2"),
+    (250, 1073, "lettre_recommandee_r2"),
+    (500, 1259, "colissimo_recommande_r2"),
+    (750, 1429, "colissimo_recommande_r2"),
+    (1000, 1459, "colissimo_recommande_r2"),
+    (2000, 1619, "colissimo_recommande_r2"),
+    (5000, 2239, "colissimo_recommande_r2"),
+)
+
+
+def packing_grams(env=None):
+    source = os.environ if env is None else env
+    try:
+        value = int(source.get("POKEPRICE_PACKING_GRAMS", ""))
+        if value >= 0:
+            return value
+    except (TypeError, ValueError):
+        pass
+    return DEFAULT_PACKING_GRAMS
+
+
+def registered_threshold_cents(env=None):
+    source = os.environ if env is None else env
+    try:
+        value = float(source.get("POKEPRICE_REGISTERED_THRESHOLD_EUR", ""))
+        if value >= 0:
+            return int(round(value * 100))
+    except (TypeError, ValueError):
+        pass
+    return DEFAULT_REGISTERED_THRESHOLD_CENTS
+
+
+def response_delay_hours(notifier=None, env=None):
+    source = os.environ if env is None else env
+    try:
+        value = int(source.get("POKEPRICE_RESPONSE_DELAY_HOURS", ""))
+        if value > 0:
+            return value
+    except (TypeError, ValueError):
+        pass
+    if notifier and getattr(notifier, "enabled", False):
+        return 48
+    return 120
+
+
+def shipping_quote(card_count, total_cents=0, delivery="shipping", registered=None, packing=None, threshold_cents=None):
+    """Calcule le tarif postal selon le nombre de cartes et la valeur du panier."""
+    if delivery == "hand":
+        return {
+            "delivery": "hand",
+            "registered": False,
+            "cards": card_count,
+            "weight_grams": 0,
+            "shipping_cents": 0,
+            "service": "hand",
+            "tariff_date": TARIFF_DATE,
+        }
+    p_grams = packing if packing is not None else packing_grams()
+    thresh = threshold_cents if threshold_cents is not None else registered_threshold_cents()
+    weight = p_grams + max(0, card_count) * CARD_WEIGHT_GRAMS
+    # Recommandé obligatoire dès que le montant atteint le seuil (Option B), ou si demandé
+    is_registered = bool(registered or (total_cents >= thresh))
+    table = REGISTERED_TARIFFS if is_registered else TRACKED_TARIFFS
+    cost, service = table[-1][1], table[-1][2]
+    for max_w, price, srv in table:
+        if weight <= max_w:
+            cost, service = price, srv
+            break
+    return {
+        "delivery": "shipping",
+        "registered": is_registered,
+        "cards": card_count,
+        "weight_grams": weight,
+        "shipping_cents": cost,
+        "service": service,
+        "tariff_date": TARIFF_DATE,
+    }
+
+
+def shipping_cents(card_count, total_cents=0, delivery="shipping", registered=None, packing=None):
+    return shipping_quote(card_count, total_cents, delivery, registered, packing)["shipping_cents"]
+
+
+def extract_delivery_mode(message):
+    """Extrait le mode de livraison et le choix recommandé du message de réservation."""
+    lines = (message or "").split("\n")
+    delivery = "shipping"
+    registered = False
+    clean_lines = []
+    for line in lines:
+        stripped = line.strip()
+        if stripped == "[delivery:hand]":
+            delivery = "hand"
+        elif stripped == "[delivery:registered]":
+            delivery = "shipping"
+            registered = True
+        elif stripped == "[delivery:shipping]":
+            delivery = "shipping"
+        else:
+            clean_lines.append(line)
+    return delivery, registered, "\n".join(clean_lines).strip()
+
+
+def format_delivery_message(message, delivery, registered):
+    prefix = ""
+    if delivery == "hand":
+        prefix = "[delivery:hand]\n"
+    elif registered:
+        prefix = "[delivery:registered]\n"
+    return (prefix + (message or "").strip()).strip()
+
+
+def reply_message(request, payment, client_name=""):
+    """Message de réponse complet prérempli pour Lily, prêt à être copié vers l'acheteur."""
+    greeting = f"Bonjour {client_name}," if client_name else "Bonjour,"
+    lines = [greeting, "", "Votre demande de réservation a bien été acceptée :"]
+    accepted_items = [i for i in request.get("items", []) if i.get("outcome") == "accepted"]
+    if not accepted_items:
+        accepted_items = request.get("items", [])
+    def fmt_eur(cents):
+        return f"{cents / 100:.2f}".replace(".", ",") + " €"
+
+    for item in accepted_items:
+        lines.append(f"- {item['label']} ({fmt_eur(item['price_cents'])})")
+    lines.append("")
+    total_cards = sum(i["price_cents"] for i in accepted_items) or request.get("total_cents", 0)
+    shipping_amt = payment.get("shipping_cents", 0)
+    total_cents = payment.get("total_cents", total_cards + shipping_amt)
+    delivery = request.get("delivery", "shipping")
+    registered = request.get("registered", False)
+
+    if delivery == "hand":
+        lines.append(f"Montant des cartes : {fmt_eur(total_cards)}")
+        lines.append("Livraison : remise en main propre (sans frais de port).")
+        lines.append(f"Total à régler : {fmt_eur(total_cents)}")
+    elif registered:
+        lines.append(f"Montant des cartes : {fmt_eur(total_cards)}")
+        lines.append(f"Frais d’envoi : {fmt_eur(shipping_amt)} (envoi recommandé avec remise contre signature R2).")
+        lines.append(f"Total à régler : {fmt_eur(total_cents)}")
+    else:
+        lines.append(f"Montant des cartes : {fmt_eur(total_cards)}")
+        lines.append(f"Frais d’envoi : {fmt_eur(shipping_amt)} (lettre verte suivie / colissimo).")
+        lines.append(f"Total à régler : {fmt_eur(total_cents)}")
+
+    lines.append(f"Référence à indiquer dans le libellé : {payment.get('reference', '')}.")
+    lines.append("")
+    lines.append("Moyens de paiement disponibles :")
+    has_method = False
+    if payment.get("wero"):
+        lines.append(f"- Wero : {payment['wero']}")
+        has_method = True
+    if payment.get("iban"):
+        iban_spaced = re.sub(r"(.{4})", r"\1 ", payment["iban"]).strip()
+        lines.append(f"- Virement bancaire : IBAN {iban_spaced} (titulaire {payment.get('holder', '')})")
+        has_method = True
+    if payment.get("paypal"):
+        lines.append(f"- PayPal (biens et services) : {payment['paypal']}")
+        has_method = True
+    if not has_method:
+        lines.append("- À convenir ensemble par retour d’e-mail.")
+
+    lines.append("")
+    lines.append("Les cartes vous sont réservées pendant 7 jours en attente du règlement.")
+    if delivery == "hand":
+        lines.append("Nous pouvons convenir d'un rendez-vous pour la remise en main propre.")
+    else:
+        lines.append("Votre commande sera soigneusement protégée et expédiée dès réception du paiement.")
+    lines.append("")
+    lines.append("Bien cordialement,")
+    lines.append("Lily — Les cartes de Lily")
+    return "\n".join(lines)
+
+
+def shipping_config(notifier=None, env=None):
+    """Configuration tarifaire complète pour le client web et les pages publiques."""
+    p_grams = packing_grams(env)
+    thresh = registered_threshold_cents(env)
+    delay_h = response_delay_hours(notifier, env)
+    return {
+        "tariff_date": TARIFF_DATE,
+        "card_weight_grams": CARD_WEIGHT_GRAMS,
+        "packing_grams": p_grams,
+        "registered_threshold_cents": thresh,
+        "response_delay_hours": delay_h,
+        "tracked_tariffs": [
+            {"max_grams": w, "shipping_cents": c, "service": s} for w, c, s in TRACKED_TARIFFS
+        ],
+        "registered_tariffs": [
+            {"max_grams": w, "shipping_cents": c, "service": s} for w, c, s in REGISTERED_TARIFFS
+        ],
+    }
 # Schema 20: one-time links the seller sends from their own mailbox, so that a
 # client chooses a password; only the token's hash is kept.
 SCHEMA = """
@@ -249,6 +466,7 @@ class Reservations:
                     else f"Lot de {len(cards)} cartes"
                 ),
                 "available": bool(self.storefront.rows(db, item["listing_id"])),
+                "card_count": max(1, len(cards)),
             }
             if staff:
                 entry["copies"] = [
@@ -259,6 +477,22 @@ class Reservations:
             items.append(entry)
         request["items"] = items
         request["total_cents"] = sum(i["price_cents"] for i in items)
+        delivery, registered, clean_message = extract_delivery_mode(request.get("message"))
+        request["message"] = clean_message
+        request["delivery"] = delivery
+        request["registered"] = registered
+        total_card_count = sum(i.get("card_count", 1) for i in items)
+        if sale:
+            request["shipping_cents"] = sale["shipping_charged_cents"]
+            card_subtotal = sale["amount_cents"] if sale["status"] in ("reserved", "sold", "completed") else request["total_cents"]
+            request["total_with_shipping_cents"] = card_subtotal + sale["shipping_charged_cents"]
+            quote = shipping_quote(total_card_count, card_subtotal, delivery=delivery, registered=registered)
+            request["registered"] = quote["registered"]
+        else:
+            quote = shipping_quote(total_card_count, request["total_cents"], delivery=delivery, registered=registered)
+            request["shipping_cents"] = quote["shipping_cents"]
+            request["total_with_shipping_cents"] = request["total_cents"] + quote["shipping_cents"]
+            request["registered"] = quote["registered"]
         if sale:
             request["reference"] = sale_reference(request["sale_id"])
         if not staff:
@@ -272,6 +506,10 @@ class Reservations:
                 "reference": request["reference"],
                 **self.payment(db),
             }
+            if staff:
+                client_row = db.execute("SELECT email,display_name FROM users WHERE id=?", (row["client_id"],)).fetchone()
+                client_name = (client_row["display_name"] or client_row["email"]) if client_row else ""
+                request["reply_text"] = reply_message(request, request["payment"], client_name)
         return request
 
     def payment(self, db=None):
@@ -311,14 +549,15 @@ class Reservations:
                 ).fetchall()
             ]
 
-    def create(self, client_id, listing_ids, message):
+    def create(self, client_id, listing_ids, message, delivery="shipping", registered=None):
+        formatted_message = format_delivery_message(message, delivery, registered)
         prices = self.prices(listing_ids)
         with self.store.connect(write=True) as db:
-            request = self.insert(db, client_id, prices(db), message, OPEN_LIMIT)
+            request = self.insert(db, client_id, prices(db), formatted_message, OPEN_LIMIT)
         self.notified()
         return request
 
-    def guest(self, email, display_name, listing_ids, message, unusable_hash):
+    def guest(self, email, display_name, listing_ids, message, unusable_hash, delivery="shipping", registered=None):
         """A request without signing in: the address is checked when the seller replies.
 
         An unknown address gets a pending account without a usable password; a
@@ -326,6 +565,7 @@ class Reservations:
         Either way the answer is the same: it never tells who has an account.
         """
         email = valid_email(email)
+        formatted_message = format_delivery_message(message, delivery, registered)
         prices = self.prices(listing_ids)
         with self.store.connect(write=True) as db:
             if not db.execute("SELECT 1 FROM users WHERE role='admin' LIMIT 1").fetchone():
@@ -346,7 +586,7 @@ class Reservations:
                     (client_id, email, unusable_hash, "client", timestamp, email,
                      display_name.strip(), "pending", timestamp),
                 )
-            self.insert(db, client_id, chosen, message, GUEST_LIMIT)
+            self.insert(db, client_id, chosen, formatted_message, GUEST_LIMIT)
         self.notified()
 
     def notified(self):
@@ -487,15 +727,20 @@ class Reservations:
             if unavailable:
                 raise Conflict("Une carte choisie n’est plus disponible : retirez-la de l’acceptation.")
             copy_ids = [c["id"] for l in chosen for c in self.storefront.cards(db, l)]
+            delivery, registered, clean_msg = extract_delivery_mode(row["message"])
+            accepted_amount = sum(items[l] for l in chosen)
+            accepted_card_count = len(copy_ids)
+            ship_cents = shipping_cents(accepted_card_count, accepted_amount, delivery=delivery, registered=registered)
             title = f"Vitrine · {client['display_name'] or client['email']}"
             sale_id = self.store.create_sale(
                 {
                     "title": title[:256],
                     "channel": "Vitrine",
                     "notes": f"Demande {request_id} de {client['email']}."
-                    + (f"\nMessage : {row['message']}" if row["message"] else ""),
-                    "amount_cents": sum(items[l] for l in chosen),
-                    "asking_cents": sum(items[l] for l in chosen),
+                    + (f"\nMessage : {clean_msg}" if clean_msg else ""),
+                    "amount_cents": accepted_amount,
+                    "asking_cents": accepted_amount,
+                    "shipping_charged_cents": ship_cents,
                 },
                 copy_ids,
                 actor,
@@ -504,7 +749,7 @@ class Reservations:
             sale_version = db.execute("SELECT version FROM sales WHERE id=?", (sale_id,)).fetchone()[0]
             try:
                 self.store.update_sale(
-                    sale_id, {"status": "reserved"}, sale_version, actor,
+                    sale_id, {"status": "reserved", "shipping_charged_cents": ship_cents}, sale_version, actor,
                     "Demande de la vitrine acceptée", _db=db,
                 )
             except Conflict:

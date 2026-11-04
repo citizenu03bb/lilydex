@@ -149,7 +149,7 @@
     <footer class="foot">
       <p>{{t:footer.reserve}}</p>
       <p>{{t:footer.unofficial}}</p>
-      <p class="seller"><a href="{{home}}a-propos">{{t:footer.about}}</a> · <a href="/gestion">{{t:footer.seller}}</a></p>
+      <p class="seller"><a href="{{home}}a-propos">{{t:footer.about}}</a> · <a href="{{home}}conditions">{{t:footer.conditions}}</a> · <a href="/gestion">{{t:footer.seller}}</a></p>
     </footer>
     <dialog id="how" aria-labelledby="how-title">
       <form method="dialog"><button class="close" aria-label="{{t:common.close}}">×</button></form>
@@ -159,7 +159,7 @@
         <li>{{t:how.step2}}</li>
         <li>{{t:how.step3}}</li>
       </ol>
-      <p class="help">{{t:how.help}} <a href="{{home}}a-propos">{{t:footer.about}}</a></p>
+      <p class="help">{{t:how.help}} <a href="{{home}}a-propos">{{t:footer.about}}</a> · <a href="{{home}}conditions">{{t:footer.conditions}}</a></p>
     </dialog>
     <dialog id="detail" aria-labelledby="detail-title">
       <div class="viewer-bar">
@@ -217,10 +217,21 @@
       <form method="dialog"><button class="close" aria-label="{{t:common.close}}">×</button></form>
       <h2 id="basket-title">{{t:basket.title}}</h2>
       <ul id="basket-items" class="lines"></ul>
-      <p id="basket-total" class="basket-total" role="status"></p>
+      <div id="basket-summary" class="basket-summary">
+        <p id="basket-subtotal" class="basket-subtotal"></p>
+        <p id="basket-shipping" class="basket-shipping"></p>
+        <p id="basket-registered-notice" class="basket-registered-notice help" hidden>{{t:basket.registered_notice}}</p>
+        <p id="basket-total" class="basket-total" role="status"></p>
+      </div>
       <button id="basket-browse" type="button" class="text-button" hidden>{{t:results.reset}}</button>
       <p class="help">{{t:footer.shipping}}</p>
+      <p id="basket-conditions-note" class="help"><a href="{{home}}conditions">{{t:basket.conditions_link}}</a></p>
       <form id="basket-form" class="stack">
+        <fieldset id="basket-delivery" class="basket-delivery-mode">
+          <legend>{{t:basket.delivery_choice}}</legend>
+          <label><input type="radio" name="delivery" value="shipping" checked /> {{t:basket.delivery_shipping}}</label>
+          <label><input type="radio" name="delivery" value="hand" /> {{t:basket.delivery_hand}}</label>
+        </fieldset>
         <fieldset id="basket-guest" class="stack">
           <legend>{{t:basket.guest}}</legend>
           <label>{{t:basket.your_name}}<input name="display_name" autocomplete="name" required maxlength="80" /></label>
