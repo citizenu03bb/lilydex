@@ -1,4 +1,4 @@
-# 0023 — Un déplacement en lot refuse les cartes engagées dans un lot ou une vente et s'applique tout ou rien
+# 0024 — Un déplacement en lot refuse les cartes engagées dans un lot ou une vente et s'applique tout ou rien
 
 > **Statut :** en vigueur · **Date :** 2026-11-04
 

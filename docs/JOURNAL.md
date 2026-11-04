@@ -15,7 +15,7 @@ daté la quitte, il est versé ici dans le même commit.
   cases libres ou à partir d'une page et case données, refus des cartes
   réservées, vendues ou en lot actif, application transactionnelle tout ou rien
   avec sauvegarde et historique par carte, et annulation complète
-  ([décision 0023](decisions/0023-deplacements-en-lot.md),
+  ([décision 0024](decisions/0024-deplacements-en-lot.md),
   `tests/test_move_batches.py`, `tests/test_web_client.py`).
 
 ## 2026-11-03

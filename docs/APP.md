@@ -339,7 +339,7 @@ présente) et mentionne les cartes publiées à l'unité en vitrine.
 Les cartes réservées, vendues, supprimées ou engagées dans un lot actif
 (brouillon de vente, réservation ou lot publié en vitrine) sont refusées :
 annulez ou dépubliez d'abord le lot avant de déplacer physiquement la carte
-([décision 0023](decisions/0023-deplacements-en-lot.md)).
+([décision 0024](decisions/0024-deplacements-en-lot.md)).
 
 **Déplacer ces cartes** crée une sauvegarde puis déplace toute la sélection en
 une seule transaction, en inscrivant une entrée d'historique par carte avec le
