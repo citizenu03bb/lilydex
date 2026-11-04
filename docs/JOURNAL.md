@@ -9,6 +9,14 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-04
 
+- Notifications Web Push de la gestion installée : interrupteur « Notifications
+  sur ce téléphone » dans les Réglages, abonnements par compte de gestion
+  (schéma 25, table `push_subscriptions`), canal `webpush` à côté de ntfy et de
+  l'e-mail pour le brief et les alertes, clés générées par
+  `pokeprice-manage vapid-keys` ; ntfy reste en secours
+  ([fiche 0033](decisions/0033-notifications-web-push.md),
+  [activation](DEPLOYMENT.md#activer-les-notifications-web-push),
+  `tests/test_web_push.py`).
 - Assistant de gestion, V1 en lecture : huit outils fermés (`search_copies`,
   `get_copy`, `explain_price`, `why_not_for_sale`, `list_listings`,
   `sales_summary`, `agent_activity`, `todo_queue`) avec schémas JSON stricts,

@@ -371,7 +371,16 @@ Brief du jour : ce que l'agent a fait, ce qui attend une décision
 | Argument | Effet |
 |---|---|
 | `--since` `SINCE` | Depuis cette date (AAAA-MM-JJ) ; 24 heures par défaut |
-| `--notify` | Envoyer une notification courte (ntfy, e-mail) |
+| `--notify` | Envoyer une notification courte (ntfy, e-mail, Web Push) |
+
+### `pokeprice-manage vapid-keys`
+
+Générer la paire de clés VAPID des notifications Web Push
+
+| Argument | Effet |
+|---|---|
+| `--output` `OUTPUT` | Écrire les variables dans ce fichier (0600, jamais écrasé) |
+| `--subject` `SUBJECT` | Contact du serveur : mailto:… ou https://… |
 
 ### `pokeprice-manage export`
 

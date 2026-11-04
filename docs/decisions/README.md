@@ -39,6 +39,7 @@ l'ancienne passe au statut « remplacée ».
 | [0029](0029-assistant-de-gestion.md) | Un assistant de gestion : un brief du jour, une file « À toi », puis un chat qui ne passe que par des outils fermés (proposée) | 2026-11-04 |
 | [0030](0030-derogations-plancher.md) | Un prix sous le plancher devient une demande de dérogation qu'une personne tranche | 2026-11-04 |
 | [0032](0032-outils-assistant-lecture.md) | Le chat de gestion lit par huit outils fermés, sous une portée de délégation en lecture seule (proposée) | 2026-11-04 |
+| [0033](0033-notifications-web-push.md) | La gestion installée reçoit ses alertes par Web Push ; ntfy reste en secours (proposée) | 2026-11-04 |
 
 ## Écrire une fiche
 

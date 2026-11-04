@@ -420,5 +420,15 @@
   "install.privacy": "Les prix et les données des clients ne sont jamais gardés sur le téléphone : sans réseau, l’application affiche seulement une page d’attente.",
   "offline.title": "Hors ligne",
   "offline.help": "Le téléphone n’a pas de réseau. La collection, les prix et les demandes restent sur le serveur : reconnectez-vous puis réessayez.",
-  "offline.retry": "Réessayer"
+  "offline.retry": "Réessayer",
+  "push.title": "Notifications",
+  "push.label": "Notifications sur ce téléphone",
+  "push.help": "Le brief du matin et les nouvelles demandes, en nombres seulement : jamais le nom ni l’adresse d’un client.",
+  "push.install_first": "Sur iPhone, installez d’abord l’application (bouton « Installer sur le téléphone »), puis ouvrez-la depuis l’écran d’accueil pour activer les notifications.",
+  "push.unsupported": "Ce navigateur ne reçoit pas les notifications de la gestion.",
+  "push.server_off": "Les notifications ne sont pas encore configurées sur le serveur.",
+  "push.denied": "Les notifications sont bloquées pour cette application : autorisez-les dans les réglages du téléphone.",
+  "push.on": "Notifications activées sur ce téléphone.",
+  "push.off": "Notifications désactivées sur ce téléphone.",
+  "push.error": "Impossible de changer les notifications. Réessayez."
 }

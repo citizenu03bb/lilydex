@@ -1,4 +1,4 @@
-"""Seller alerts for storefront requests: a push (ntfy) and an e-mail (SMTP).
+"""Seller alerts for storefront requests: ntfy, an e-mail (SMTP) and Web Push.
 
 Each channel is off unless its environment variables are set. An alert says
 how many cards, the total and the link to the request in /gestion: never the
@@ -7,14 +7,18 @@ client's name, address or message. Alerts wait in the database (table
 them with retries and never holds an HTTP response.
 """
 
+import base64
+import json
 import logging
 import os
+import re
 import smtplib
 import threading
 import urllib.request
 import uuid
 from datetime import datetime, timedelta, timezone
 from email.message import EmailMessage
+from urllib.parse import urlsplit
 
 log = logging.getLogger("pokeprice.notifications")
 
@@ -97,8 +101,192 @@ class Mail:
             server.send_message(message)
 
 
-def channels_from_env(env=None):
-    """The configured channels; a missing variable switches its channel off."""
+# Schema 25: Web Push subscriptions of management accounts, decision 0033.
+# The push service's endpoint, the browser's two keys and the account: nothing else.
+PUSH_SCHEMA = """
+BEGIN IMMEDIATE;
+CREATE TABLE IF NOT EXISTS push_subscriptions(endpoint TEXT PRIMARY KEY,
+ p256dh TEXT NOT NULL, auth TEXT NOT NULL, user_id TEXT NOT NULL REFERENCES users(id));
+CREATE INDEX IF NOT EXISTS push_subscriptions_user ON push_subscriptions(user_id);
+PRAGMA user_version=25;
+COMMIT;
+"""
+# The browsers' push services. The server only ever posts to these hosts, so a
+# subscription can never turn it into a client for an arbitrary address.
+PUSH_HOSTS = ("push.apple.com", "fcm.googleapis.com", "push.services.mozilla.com",
+              "notify.windows.com")
+PUSH_TIMEOUT = 10
+PUSH_TTL = 12 * 3600  # A phone that is off still gets the morning brief at noon.
+PUSH_BODY = 180
+STAFF = ("admin", "editor", "reader")
+B64URL = re.compile(r"^[A-Za-z0-9_-]+={0,2}$")
+
+
+def b64url(raw):
+    return base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
+
+
+def b64url_bytes(text):
+    return base64.urlsafe_b64decode(text + "=" * (-len(text) % 4))
+
+
+def vapid_keys():
+    """A new VAPID pair (P-256), base64url: the public point and the private scalar."""
+    from cryptography.hazmat.primitives.asymmetric import ec
+    from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
+
+    key = ec.generate_private_key(ec.SECP256R1())
+    public = key.public_key().public_bytes(Encoding.X962, PublicFormat.UncompressedPoint)
+    return b64url(public), b64url(key.private_numbers().private_value.to_bytes(32, "big"))
+
+
+def push_host_allowed(host):
+    host = (host or "").lower()
+    return any(host == allowed or host.endswith("." + allowed) for allowed in PUSH_HOSTS)
+
+
+def check_subscription(endpoint, p256dh, auth):
+    """A browser subscription, or ValueError: HTTPS on a known push service, sane keys."""
+    parts = urlsplit(endpoint or "")
+    if (parts.scheme != "https" or len(endpoint) > 1024 or parts.username or parts.password
+            or not push_host_allowed(parts.hostname)):
+        raise ValueError("Service de notification inconnu.")
+    try:
+        point, secret = b64url_bytes(p256dh), b64url_bytes(auth)
+    except (ValueError, TypeError):
+        point = secret = b""
+    if not (B64URL.match(p256dh or "") and B64URL.match(auth or "")
+            and len(point) == 65 and point[0] == 4 and len(secret) == 16):
+        raise ValueError("Clés de notification invalides.")
+
+
+def subscribe(store, user_id, endpoint, p256dh, auth):
+    check_subscription(endpoint, p256dh, auth)
+    with store.connect(write=True) as db:
+        db.execute(
+            "INSERT INTO push_subscriptions(endpoint,p256dh,auth,user_id) VALUES(?,?,?,?) "
+            "ON CONFLICT(endpoint) DO UPDATE SET p256dh=excluded.p256dh,auth=excluded.auth,"
+            "user_id=excluded.user_id",
+            (endpoint, p256dh, auth, user_id),
+        )
+
+
+def unsubscribe(store, user_id, endpoint):
+    """Only the account's own subscription; True when one was removed."""
+    with store.connect(write=True) as db:
+        return db.execute(
+            "DELETE FROM push_subscriptions WHERE endpoint=? AND user_id=?", (endpoint, user_id)
+        ).rowcount > 0
+
+
+def subscribed(store, user_id, endpoint):
+    with store.connect() as db:
+        return bool(db.execute(
+            "SELECT 1 FROM push_subscriptions WHERE endpoint=? AND user_id=?", (endpoint, user_id)
+        ).fetchone())
+
+
+def push_payload(title, body, link):
+    """What the phone shows: the short title and text already sent, and a /gestion path.
+
+    Links are taken out of the text (the tap opens the page); the path keeps
+    only /gestion and its query, so the push service never sees the origin.
+    """
+    text = re.sub(r"\s*:?\s*https?://\S+", "", body or "")
+    lines = [line.strip() for line in text.splitlines()]
+    lines = [line for line in lines if line and line.rstrip(".") != title.rstrip(".")]
+    text = "\n".join(lines)
+    if len(text) > PUSH_BODY:
+        text = text[: PUSH_BODY - 1].rstrip() + "…"
+    parts = urlsplit(link or "")
+    path = parts.path or "/gestion"
+    url = path + (f"?{parts.query}" if parts.query else "")
+    if path != "/gestion" and not path.startswith("/gestion/"):
+        url = "/gestion"
+    return json.dumps({"title": title, "body": text, "url": url}, ensure_ascii=False)
+
+
+class WebPush:
+    """Web Push to the management accounts' phones, signed with the VAPID key.
+
+    A subscription the push service calls gone (404, 410) is deleted. The send
+    counts as done when at least one phone, or none at all, was reached; it
+    only fails, and is retried, when every subscription failed.
+    """
+
+    name = "webpush"
+
+    def __init__(self, store, public_key, private_key, subject, sender=None, timeout=PUSH_TIMEOUT):
+        self.store, self.public_key, self.subject = store, public_key, subject
+        self.private_key, self.sender, self.timeout = private_key, sender, timeout
+        self.vapid = None
+
+    def subscriptions(self):
+        with self.store.connect() as db:
+            return [dict(r) for r in db.execute(
+                "SELECT p.endpoint,p.p256dh,p.auth FROM push_subscriptions p "
+                "JOIN users u ON u.id=p.user_id WHERE u.role IN (?,?,?) AND u.disabled=0 "
+                "AND u.status='active'", STAFF,
+            ).fetchall()]
+
+    def send(self, title, body, link):
+        rows = self.subscriptions()
+        if not rows:
+            return 0
+        sender = self.sender
+        if sender is None:
+            from pywebpush import webpush as sender
+        if self.vapid is None:
+            from py_vapid import Vapid
+
+            self.vapid = Vapid.from_string(self.private_key)
+        data = push_payload(title, body, link)
+        sent, failures, gone = 0, [], []
+        for row in rows:
+            try:
+                sender(
+                    subscription_info={"endpoint": row["endpoint"],
+                                       "keys": {"p256dh": row["p256dh"], "auth": row["auth"]}},
+                    data=data, vapid_private_key=self.vapid,
+                    # A fresh dict: pywebpush writes "aud" and "exp" into it.
+                    vapid_claims={"sub": self.subject},
+                    timeout=self.timeout, ttl=PUSH_TTL,
+                )
+                sent += 1
+            except Exception as exc:  # noqa: BLE001 - one phone never stops the others.
+                status = getattr(getattr(exc, "response", None), "status_code", None)
+                if status in (404, 410):
+                    gone.append(row["endpoint"])
+                else:
+                    # Never the endpoint: it is the phone's address at the push service.
+                    failures.append(f"{type(exc).__name__}{f' {status}' if status else ''}")
+        if gone:
+            with self.store.connect(write=True) as db:
+                db.executemany("DELETE FROM push_subscriptions WHERE endpoint=?",
+                               [(endpoint,) for endpoint in gone])
+            log.info("%s abonnement(s) Web Push expiré(s) supprimé(s).", len(gone))
+        if failures and not sent:
+            raise OSError("Web Push : " + ", ".join(sorted(set(failures))))
+        if failures:
+            log.warning("Web Push : %s téléphone(s) non joint(s) sur %s.", len(failures), len(rows))
+        return sent
+
+
+def webpush_from_env(env, store):
+    public = env.get("POKEPRICE_VAPID_PUBLIC_KEY", "").strip()
+    private = env.get("POKEPRICE_VAPID_PRIVATE_KEY", "").strip()
+    subject = env.get("POKEPRICE_VAPID_SUBJECT", "").strip()
+    if not (store is not None and public and private
+            and (subject.startswith("mailto:") or subject.startswith("https://"))):
+        return None
+    return WebPush(store, public, private, subject)
+
+
+def channels_from_env(env=None, store=None):
+    """The configured channels; a missing variable switches its channel off.
+
+    Web Push also needs the store, where the subscriptions are.
+    """
     env = os.environ if env is None else env
     channels = []
     url = env.get("POKEPRICE_NTFY_URL", "").strip()
@@ -117,6 +305,8 @@ def channels_from_env(env=None):
             env.get("POKEPRICE_SMTP_USER", "").strip(), env.get("POKEPRICE_SMTP_PASSWORD", ""),
             security,
         ))
+    if push := webpush_from_env(env, store):
+        channels.append(push)
     return channels
 
 

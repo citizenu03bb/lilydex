@@ -50,7 +50,11 @@ Autres hébergeurs possibles, sur un petit serveur privé payant : Scaleway
       (facultatifs : sans identifiant, pas d'authentification) ;
     - `POKEPRICE_SMTP_SECURITY`, `starttls` (défaut), `ssl` ou `none` ; toute
       autre valeur retombe sur `starttls`. `none` envoie en clair, mot de
-      passe compris : à réserver à un relais local de confiance.
+      passe compris : à réserver à un relais local de confiance ;
+    - `POKEPRICE_VAPID_PUBLIC_KEY`, `POKEPRICE_VAPID_PRIVATE_KEY` et
+      `POKEPRICE_VAPID_SUBJECT` (`mailto:…` ou `https://…`), les trois requis
+      pour les notifications Web Push de la gestion installée
+      ([activation](#activer-les-notifications-web-push)).
 - **Sur le portable seulement** : le jeton Google Drive (configuration
   rclone, `rclone.conf`), l'identifiant du dossier Drive et la clé de chiffrement des
   sauvegardes. Aucun n'est copié sur le serveur.
@@ -238,6 +242,44 @@ sudo cp /opt/pokeprice/deploy/pokeprice-brief.service /opt/pokeprice/deploy/poke
 ```
 
 Le texte envoyé se lit avec `journalctl -u pokeprice-brief.service`.
+
+## Activer les notifications Web Push
+
+Web Push envoie le brief et les alertes de la vitrine directement sur les
+téléphones où la gestion est installée ([fiche 0033](decisions/0033-notifications-web-push.md)).
+Il demande une paire de clés VAPID, générée une fois. Comme
+`oci-sync-secrets.sh` réécrit le fichier du serveur à partir du `~/.env` du
+portable, la paire s'ajoute à ce `~/.env`, sur le portable :
+
+```bash
+uv run --extra web pokeprice-manage vapid-keys --subject mailto:<adresse-de-contact> >> ~/.env
+```
+
+La commande n'a pas besoin de `--data` : elle ne lit ni n'écrit la base. Sans
+redirection, elle affiche les trois lignes une seule fois ; avec `--output
+<fichier>`, elle les écrit dans un fichier créé en `0600`, qu'elle refuse
+d'écraser. Le sujet est l'adresse de contact transmise aux services de push
+d'Apple, de Google et de Mozilla : une adresse dédiée plutôt que personnelle.
+
+Ensuite, synchronisez les secrets, puis redéployez : `oci-deploy.sh` installe
+`pywebpush` (extra `web`) et redémarre le service, qui migre la base au
+schéma 25 après l'avoir copiée dans `/srv/pokeprice/backups/`.
+
+```bash
+./deploy/oci-sync-secrets.sh <utilisateur>@<ip-serveur> <domaine>
+```
+
+Sur chaque téléphone, ouvrez la gestion installée, **Réglages →
+Notifications sur ce téléphone**. Le brief du lendemain matin le vérifie ;
+pour essayer tout de suite, lancez une fois le brief à la main :
+
+```bash
+sudo -u pokeprice env HOME=/srv/pokeprice /opt/pokeprice/.venv/bin/python -m pokeprice.manage --data /srv/pokeprice/inventory brief --notify
+```
+
+Sa sortie liste les canaux joints dans `notified` et les échecs dans
+`errors`. Une nouvelle paire coupe tous les abonnements : chaque téléphone
+doit alors retoucher l'interrupteur. Ne la régénérez qu'en cas de fuite.
 
 ## L'option vision
 
