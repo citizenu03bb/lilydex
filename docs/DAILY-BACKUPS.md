@@ -20,7 +20,7 @@ Les mots [serveur, portable et gestion](GLOSSAIRE.md#le-produit) et
 
 | Où | Ce qui est gardé | Combien |
 |---|---|---|
-| Serveur, `/srv/pokeprice/backups` | L'archive légère de chaque nuit (base et manifeste), et la réserve où chaque photo est gardée une fois ; l'archive est restaurée pour contrôle | Les 3 dernières |
+| Serveur, `/srv/pokeprice/backups` | L'archive légère de chaque nuit (base et manifeste), et la réserve où chaque photo est gardée une fois ; l'archive est restaurée pour contrôle | Les 7 dernières |
 | Portable, `data/oci-backups` | L'archive légère rapatriée, les seules photos nouvelles, et l'archive complète reconstituée puis contrôlée | 3 légères, 1 complète |
 | Google Drive, dossier privé | La même archive, chiffrée, puis retéléchargée et restaurée | 7 jours, puis 1 par semaine sur 8 semaines, puis 1 par mois sur 12 mois ; 30 jours de corbeille |
 
@@ -69,13 +69,13 @@ serveur), avec un délai aléatoire de 10 minutes au plus. Si le serveur était
    écrite année-mois-jour ; ce gabarit est repris dans toute la page ;
 3. restaure cette archive dans un dossier temporaire pour la contrôler (voir
    [Ce que vérifie une restauration](#ce-que-vérifie-une-restauration)) ;
-4. garde les 3 dernières archives quotidiennes et supprime les plus anciennes,
+4. garde les 7 dernières archives quotidiennes et supprime les plus anciennes,
    puis retire de la réserve les photos qu'aucune archive gardée ne cite et
    qui ne sont plus dans la collection. Une archive légère pèse une dizaine
    de mégaoctets ; les archives écrites avant la réserve, qui contiennent
    toutes les photos, pèsent environ 800 Mo.
 
-Avant d'écrire l'archive, le service fait déjà la rotation (deux archives
+Avant d'écrire l'archive, le service fait déjà la rotation (six archives
 quotidiennes gardées, plus celle du jour à venir) : sur un disque presque
 plein, le contrôle d'espace refuserait sinon la nouvelle archive et la
 rotation ne passerait jamais.
@@ -397,13 +397,13 @@ Une archive ne contient pas :
 
 | Où | Règle |
 |---|---|
-| Serveur | Les 3 dernières archives quotidiennes. Les archives ponctuelles (faites à la main ou par une commande) : les 2 plus récentes sont toujours gardées, les autres 3 jours. Les copies d'avant migration, d'avant déplacement et d'avant lot de photos : les 5 plus récentes de chaque sorte. Cette rotation passe avant et après chaque archive quotidienne. |
+| Serveur | Les 7 dernières archives quotidiennes. Les archives ponctuelles (faites à la main ou par une commande) : les 3 plus récentes sont toujours gardées, les autres 14 jours. Les copies d'avant migration, d'avant déplacement et d'avant lot de photos : les 5 plus récentes de chaque sorte. Cette rotation passe avant et après chaque archive quotidienne. |
 | Portable | Les 3 dernières archives légères rapatriées et la seule dernière archive complète, faute de place sur le disque. Cette limite ne touche pas Drive. |
-| Réserves de photos | Une photo est retirée quand aucune archive gardée ne la cite et que la collection ne l'a plus (serveur). Une archive illisible suspend ce nettoyage : la réserve n'est jamais réduite à l'aveugle. |
+| Réserves de photos | Une photo est retirée quand aucune archive gardée ne la cite et que la collection ne l'a plus (serveur). Une archive illisible suspend ce nettoyage : la réserve n'est jamais réduite à l'aveugle. La suspension est écrite dans le journal et dans `backup-status.json` (`reserve_error`), affichée dans la gestion du serveur, puis effacée au premier nettoyage réussi. |
 | Drive | Toutes les archives des 7 jours les plus récents qui en ont une, puis la plus récente de chacune des 8 dernières semaines et de chacun des 12 derniers mois. Seules comptent les semaines et les mois qui ont une archive. Les autres archives vont à la corbeille Drive, d'où elles restent récupérables 30 jours. |
 
 Les archives ponctuelles ne sont ni rapatriées ni copiées sur Drive : rapatriez
-celles qui doivent durer au-delà de 3 jours. Une sauvegarde est refusée avant
+celles qui doivent durer au-delà de 14 jours. Une sauvegarde est refusée avant
 d'écrire si le disque n'a pas la place de l'archive plus une marge de 512 Mo :
 un disque plein bloquerait aussi l'application.
 

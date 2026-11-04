@@ -10,17 +10,15 @@ import re
 import subprocess
 import tarfile
 import tempfile
-import zipfile
 from pathlib import Path
 
-from .daily_backup import RESERVE, record_local, serialized, status, verify
+from .daily_backup import RESERVE, record_local, serialized, status, tidy_reserve, verify
 from .drive_backup import transfer_timeout
 from .inventory_backup import (
     PHOTO,
     assemble,
     light_photos,
     private_file,
-    prune_reserve,
 )
 
 BACKUPS = "/srv/pokeprice/backups"
@@ -221,13 +219,11 @@ def pull(mirror, server, *, keep=KEEP):
     ):
         for old in sorted(mirror.root.glob(pattern), reverse=True)[count:]:
             old.unlink()
-    try:
-        prune_reserve(
-            mirror.root / RESERVE,
-            [*mirror.root.glob("oci-light-*.zip"), *mirror.root.glob("oci-daily-*.zip")],
-        )
-    except (OSError, ValueError, KeyError, zipfile.BadZipFile):
-        pass  # An unreadable archive leaves the reserve as it is, never short.
+    tidy_reserve(
+        mirror,
+        mirror.root / RESERVE,
+        [*mirror.root.glob("oci-light-*.zip"), *mirror.root.glob("oci-daily-*.zip")],
+    )
     return verified
 
 

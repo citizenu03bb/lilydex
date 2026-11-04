@@ -1,6 +1,7 @@
 """Verified daily backups and an explicit record of external copies."""
 
 import fcntl
+import logging
 import hashlib
 import json
 import os
@@ -15,14 +16,14 @@ from zoneinfo import ZoneInfo
 from .inventory import now
 from .inventory_backup import backup, prune_reserve, restore_backup
 
+log = logging.getLogger("pokeprice.backup")
+
 # Archives of the backups folder keep their photos once, in this reserve.
 RESERVE = "photos"
-# Archives written before the reserve hold every photo (~800 MB): the server
-# keeps few, while the laptop mirror and Drive keep the history.
-DAILY_KEEP = 3
+DAILY_KEEP = 7
 # Occasional backups (before a batch, a migration…) are not mirrored off the server.
-OCCASIONAL_KEEP = 2
-OCCASIONAL_DAYS = 3
+OCCASIONAL_KEEP = 3
+OCCASIONAL_DAYS = 14
 SCHEMA_COPIES_KEEP = 5
 # Database copies before a move or a photo batch, without photos.
 BATCH_COPIES_KEEP = 5
@@ -127,15 +128,35 @@ def daily(store, *, force=False):
     prune_daily(folder, DAILY_KEEP)
     prune_occasional(folder)
     # The live photos stay reserved even when no archive lists them yet.
-    try:
-        prune_reserve(
-            folder / RESERVE,
-            folder.glob("*.zip"),
-            keep=(p.name for p in store.photos.glob("*.jpg")),
-        )
-    except (OSError, ValueError, KeyError, zipfile.BadZipFile):
-        pass  # An unreadable archive leaves the reserve as it is, never short.
+    tidy_reserve(
+        store,
+        folder / RESERVE,
+        folder.glob("*.zip"),
+        keep=[p.name for p in store.photos.glob("*.jpg")],
+    )
     return verified
+
+
+def tidy_reserve(store, reserve, archives, keep=()):
+    """Prune the reserve; a failure is logged and recorded, never raised.
+
+    An unreadable archive leaves the reserve as it is, never short: the
+    verified backup stays valid, and backup-status.json says what blocked.
+    """
+    data = status(store)
+    try:
+        prune_reserve(reserve, archives, keep)
+    except (OSError, ValueError, KeyError, zipfile.BadZipFile) as error:
+        message = (
+            "Nettoyage de la réserve de photos suspendu : une archive est illisible "
+            f"({type(error).__name__}). La réserve est gardée entière."
+        )
+        # The journal gets the detail; the status, shown in the gestion, does not.
+        log.warning("%s Détail : %s", message, error)
+        data["reserve_error"] = {"message": message, "at": now()}
+    else:
+        data.pop("reserve_error", None)
+    _write(store, data)
 
 
 def prune_daily(folder, keep, spare=None):
@@ -151,7 +172,7 @@ def prune_daily(folder, keep, spare=None):
 
 
 def prune_occasional(folder, now_=None):
-    """Occasional backups: the 2 latest always stay, others for 3 days.
+    """Occasional backups: the 3 latest always stay, others for 14 days.
 
     Before-schema, before-move and before-photo copies keep their 5 latest each.
     Daily archives are pruned above.

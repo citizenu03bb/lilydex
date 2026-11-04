@@ -406,3 +406,27 @@ def status_format(sealed):
     plain = sealed.with_suffix(".plain")
     pyrage.decrypt_file(str(sealed), str(plain), [drive_backup.load_key()])
     return manifest(plain)[0]["format"]
+
+
+def test_a_blocked_reserve_pruning_is_recorded_then_cleared(tmp_path, caplog):
+    store = collection(tmp_path / "inventory")
+    folder = tmp_path / "backups"
+    folder.mkdir()
+    (folder / "broken.zip").write_bytes(b"not a zip")
+    daily_backup.daily(store)
+    blocked = daily_backup.status(store)["reserve_error"]
+    assert "illisible" in blocked["message"] and "BadZipFile" in blocked["message"]
+    assert "Nettoyage de la réserve" in caplog.text
+    # The verified backup still counts, and the gestion sees the warning.
+    assert daily_backup.status(store)["last_error"] is None
+    assert daily_backup.public_status(store)["reserve_error"] == blocked
+    (folder / "broken.zip").unlink()
+    daily_backup.daily(store)
+    assert "reserve_error" not in daily_backup.status(store)
+
+
+def test_a_blocked_pruning_on_the_laptop_is_recorded(tmp_path, light_server):
+    mirror = server_backup.Mirror(tmp_path / "laptop")
+    (mirror.root / "oci-light-2026-11-01.zip").write_bytes(b"not a zip")
+    server_backup.pull(mirror, light_server("opc@203.0.113.7"))
+    assert "illisible" in daily_backup.status(mirror)["reserve_error"]["message"]

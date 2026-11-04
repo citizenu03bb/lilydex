@@ -1,15 +1,15 @@
 # 0028 — Le serveur garde ses photos une seule fois, dans une réserve par empreinte, et le portable reconstitue l'archive autonome
 
-> **Statut :** en vigueur · **Date :** 2026-11-04
+> **Statut :** proposée · **Date :** 2026-11-04
 
 **Contexte.** Chaque archive `pokeprice-inventory-v1` recopie toutes les
 photos : 758 Mo de JPEG (3 104 fichiers) pour 35 Mo de base et 6 Mo de
 documents de référence. Une archive pèse donc environ 800 Mo, et 95 % de ses
-octets sont identiques d'une nuit à l'autre. Le disque du serveur (30 Go) a
-atteint 89 %. La rétention resserrée (3 quotidiennes, ponctuelles gardées
-3 jours) borne le problème sans le résoudre : 3 quotidiennes et 2 ponctuelles
-occupent encore jusqu'à 4 Go. Le portable rapatrie aussi 800 Mo chaque nuit,
-sur un disque rempli à 96 %.
+octets sont identiques d'une nuit à l'autre. Le serveur garde 7
+quotidiennes et au moins 3 ponctuelles, soit 5,6 à 8 Go d'archives. Son
+disque, agrandi à 200 Go, les absorbe, mais ce volume grandit avec chaque
+photo. La contrainte principale est ailleurs : le portable rapatrie 800 Mo
+chaque nuit et garde ses archives sur un disque rempli à 96 %.
 
 Deux faits rendent la déduplication sûre :
 - une photo est nommée par le SHA-256 de son contenu (`Store.save_photo`) ;
@@ -19,9 +19,9 @@ Deux faits rendent la déduplication sûre :
   chaque photo citée par la base est présente.
 
 **Options.**
-1. **Statu quo**, avec la rétention resserrée. Rien à écrire. Le serveur
-   occupe 2,4 à 4 Go en archives ; le transfert vers le portable reste de
-   800 Mo par nuit. À chaque nouvelle photo, le plafond grandit.
+1. **Statu quo.** Rien à écrire. Le serveur occupe 5,6 à 8 Go en archives ;
+   le transfert vers le portable reste de 800 Mo par nuit, et le portable
+   garde 2,4 Go d'archives. À chaque nouvelle photo, ces volumes grandissent.
 2. **Réserve par empreinte sur le serveur, et archive autonome reconstituée
    sur le portable.**
    - Le serveur garde les photos une seule fois dans
@@ -53,7 +53,7 @@ Deux faits rendent la déduplication sûre :
 
 | | 1. Statu quo | 2. Réserve + reconstitution | 3. Et Drive incrémental | 4. restic/borg |
 |---|---|---|---|---|
-| Archives sur le serveur | 2,4 à 4 Go | ≈ 0,1 Go (+0,76 Go si copie) | ≈ 0,1 Go | ≈ 0,8 Go |
+| Archives sur le serveur | 5,6 à 8 Go | ≈ 0,1 Go (+0,76 Go si copie) | ≈ 0,1 Go | ≈ 0,8 Go |
 | Transfert nocturne vers le portable | 800 Mo | ≈ 10 Mo + photos nouvelles | idem | idem |
 | Portable | 2,4 Go | ≈ 1,6 Go | ≈ 0,8 Go | ≈ 0,8 Go |
 | Envoi Drive par nuit | 800 Mo | 800 Mo | ≈ 10 Mo | ≈ 10 Mo |
@@ -84,7 +84,7 @@ ce que décrit cette fiche.
 
 **Conséquences.**
 - La place des archives du serveur ne dépend plus du nombre de photos, et la
-  rétention de 3 quotidiennes pourra être rallongée sans risque pour le disque.
+  rétention peut grandir sans que le disque suive le nombre de photos.
 - Le rapatriement devient court ; le premier, qui remplit la réserve du
   portable, transfère encore 758 Mo.
 - Le portable fabrique une archive, mais seulement à partir de celle du
