@@ -14,12 +14,10 @@ from zoneinfo import ZoneInfo
 from .inventory import now
 from .inventory_backup import backup, restore_backup
 
-# Each archive holds every photo (~800 MB): the server keeps few, while the
-# laptop mirror and Drive keep the history.
-DAILY_KEEP = 3
+DAILY_KEEP = 7
 # Occasional backups (before a batch, a migration…) are not mirrored off the server.
-OCCASIONAL_KEEP = 2
-OCCASIONAL_DAYS = 3
+OCCASIONAL_KEEP = 3
+OCCASIONAL_DAYS = 14
 SCHEMA_COPIES_KEEP = 5
 # Database copies before a move or a photo batch, without photos.
 BATCH_COPIES_KEEP = 5
@@ -139,7 +137,7 @@ def prune_daily(folder, keep, spare=None):
 
 
 def prune_occasional(folder, now_=None):
-    """Occasional backups: the 2 latest always stay, others for 3 days.
+    """Occasional backups: the 3 latest always stay, others for 14 days.
 
     Before-schema, before-move and before-photo copies keep their 5 latest each.
     Daily archives are pruned above.

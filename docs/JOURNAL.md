@@ -10,10 +10,11 @@ daté la quitte, il est versé ici dans le même commit.
 ## 2026-11-04
 
 - Exploitation : le disque du serveur, rempli à 89 % (27 Go sur 30) surtout
-  par des archives de 800 Mo, est ramené à 67 % en supprimant des archives
-  ponctuelles périmées et des dossiers d'essai. Le serveur garde désormais 3
-  archives quotidiennes au lieu de 7 et ses archives ponctuelles 3 jours au
-  lieu de 14 ; la rotation passe aussi avant d'écrire l'archive de la nuit
+  par des archives de 800 Mo, est vidé de ses archives ponctuelles périmées
+  et de ses dossiers d'essai, puis agrandi à 200 Go (183 Go pour `/`, 12 %
+  occupés). La rotation des sauvegardes passe aussi avant d'écrire l'archive
+  de la nuit : sur un disque presque plein, le contrôle d'espace la refusait
+  et la rotation ne libérait jamais de place
   ([Sauvegardes](DAILY-BACKUPS.md#rétention), `tests/test_backup_retention.py`).
 - Vitrine : le mode de livraison d'une demande (`delivery`, `registered`) a
   ses propres colonnes au lieu d'un préfixe `[delivery:…]` dans le message ;

@@ -20,11 +20,11 @@ def touch(folder, name, age_days, now):
     return path
 
 
-def test_occasional_backups_keep_the_latest_two_and_three_days(tmp_path):
+def test_occasional_backups_keep_the_latest_three_and_two_weeks(tmp_path):
     now = 1_800_000_000
-    for i, age in enumerate((1, 2.5, 30, 40, 50)):
+    for i, age in enumerate((1, 20, 30, 40, 50)):
         touch(tmp_path, f"before-lot-{i}.zip", age, now)
-    touch(tmp_path, "recent-extra.zip", 0.5, now)
+    touch(tmp_path, "recent-extra.zip", 2, now)
     touch(tmp_path, "daily-2026-01-01.zip", 300, now)
     for i in range(7):
         touch(tmp_path, f"before-schema{i}.sqlite3", i, now)
@@ -32,7 +32,7 @@ def test_occasional_backups_keep_the_latest_two_and_three_days(tmp_path):
         touch(tmp_path, f"before-photo-batch-{i}.sqlite3", i, now)
     removed = prune_occasional(tmp_path, now)
     left = sorted(p.name for p in tmp_path.iterdir())
-    # Latest two (half a day, 1 day) stay; beyond them, 2.5 days stays and older goes.
+    # Latest three (1, 2 and 20 days) stay; older than 14 days beyond them go.
     assert {"before-lot-0.zip", "recent-extra.zip", "before-lot-1.zip"} <= set(left)
     assert "before-lot-2.zip" not in left and "before-lot-4.zip" not in left
     assert "daily-2026-01-01.zip" in left  # Daily archives have their own rule.
@@ -59,12 +59,11 @@ def test_old_archives_make_room_before_the_daily_archive_is_written(tmp_path, mo
     store = Store(tmp_path / "inventory")
     folder = tmp_path / "backups"
     folder.mkdir()
-    for day in range(1, 6):
+    for day in range(1, 10):
         (folder / f"daily-2000-01-{day:02d}.zip").touch()
     now = time.time()
-    touch(folder, "before-lot.zip", 30, now)
-    touch(folder, "before-lot-2.zip", 20, now)
-    touch(folder, "before-lot-3.zip", 10, now)
+    for name, age in (("before-lot", 30), ("before-lot-2", 20), ("before-lot-3", 10), ("before-lot-4", 5)):
+        touch(folder, f"{name}.zip", age, now)
     seen = {}
 
     def write(_store, destination):
@@ -78,6 +77,6 @@ def test_old_archives_make_room_before_the_daily_archive_is_written(tmp_path, mo
     assert seen["left"] == [
         "before-lot-2.zip",
         "before-lot-3.zip",
-        "daily-2000-01-04.zip",
-        "daily-2000-01-05.zip",
+        "before-lot-4.zip",
+        *(f"daily-2000-01-{day:02d}.zip" for day in range(4, 10)),
     ]
