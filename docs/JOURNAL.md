@@ -9,6 +9,11 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-03
 
+- Cotation en lot : une cote qu'un marché instable déplacerait d'au moins
+  20 % reste en place ; le relevé est gardé et la carte passe « À vérifier »
+  ([fiche 0023](decisions/0023-cote-retenue-marche-instable.md),
+  `tests/test_prices_bulk.py`). Vu à l'essai de la cotation matinale sur une
+  copie : −11 % de cote totale, communes portées à 7 € par une vente isolée.
 - Vente sur les plateformes : `scripts/export_annonces.py` prépare, en lecture
   seule, une annonce par dossier pour Vinted et Leboncoin et le fichier d'import
   de stock Cardmarket ; prix jamais sous la cote moins une marge réglable

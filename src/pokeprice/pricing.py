@@ -154,13 +154,7 @@ def summarize(data, foil):
             f"L’autre variante cote {f'{other:.2f}'.replace('.', ',')} € : "
             "une erreur de variante changerait fortement la valeur."
         )
-    spread = [v for v in (metrics["avg1"], metrics["avg7"], metrics["avg30"]) if v]
-    if (
-        reference
-        and reference >= MATERIAL_EUR
-        and spread
-        and max(spread + [reference]) >= 2 * min(spread + [reference])
-    ):
+    if unstable(metrics, reference):
         warnings.append(
             "Marché instable : les moyennes sur 1, 7 et 30 jours divergent fortement."
         )
@@ -197,6 +191,17 @@ def summarize(data, foil):
         "rarity": data.get("rarity") or "",
         "raw": data.get("pricing"),
     }
+
+
+def unstable(metrics, reference):
+    """The 1, 7 and 30-day averages and the reference differ twofold, from 2 € up."""
+    spread = [v for v in (metrics.get("avg1"), metrics.get("avg7"), metrics.get("avg30")) if v]
+    return bool(
+        reference
+        and reference >= MATERIAL_EUR
+        and spread
+        and max(spread + [reference]) >= 2 * min(spread + [reference])
+    )
 
 
 def binding_market_url(binding):
@@ -495,6 +500,17 @@ def remember_product(db, catalog_id, snapshot, data):
     )
 
 
+def held_pending(db, copy_id):
+    """The copy's last held quote is newer than its last snapshot."""
+    held, snapshot = db.execute(
+        "SELECT max(CASE WHEN kind='price-held' THEN id END),"
+        " max(CASE WHEN kind='price-snapshot' THEN id END)"
+        " FROM events WHERE copy_id=? AND kind IN ('price-held','price-snapshot')",
+        (copy_id,),
+    ).fetchone()
+    return held is not None and held > (snapshot or 0)
+
+
 def new_summary(selected):
     return {
         "selected": selected,
@@ -507,6 +523,7 @@ def new_summary(selected):
         "shared_product": [],
         "failed": [],
         "notable": [],
+        "held": [],
         "reference_before_cents": 0,
         "reference_after_cents": 0,
     }
@@ -528,6 +545,17 @@ def tally(summary, row, card, error, threshold=NOTABLE_CHANGE):
     summary["warned"] += bool(snapshot["warnings"])
     summary["variant_check"] += bool(snapshot.get("variant_check"))
     summary["reference_after_cents"] += after or 0
+    if card.get("held"):
+        summary["held"].append(
+            {
+                "id": row["id"],
+                "name": row.get("name") or card.get("name") or "",
+                "catalog_id": row["catalog_id"],
+                "before_cents": before,
+                "proposed_cents": snapshot["held"]["proposed_cents"],
+                "source": f"{snapshot['source']} {snapshot['reference_field']}",
+            }
+        )
     if snapshot.get("shared_product_with"):
         summary["shared_product"].append(row["id"])
     if notable(before, after, threshold):
@@ -635,7 +663,12 @@ class PriceService:
                 return row, None, error
             try:
                 card = self.refresh(
-                    row["id"], row["version"], actor, data=copy.deepcopy(data), batch=True
+                    row["id"],
+                    row["version"],
+                    actor,
+                    data=copy.deepcopy(data),
+                    batch=True,
+                    threshold=threshold,
                 )
                 return row, card, None
             except Exception as error:  # noqa: BLE001 - Reported per card.
@@ -751,7 +784,14 @@ class PriceService:
                     ]
                     snapshot["observed_at"] = now()
                     result = self._record(
-                        db, row["id"], row["version"], card, snapshot, actor, batch=True
+                        db,
+                        row["id"],
+                        row["version"],
+                        card,
+                        snapshot,
+                        actor,
+                        batch=True,
+                        threshold=threshold,
                     )
                     db.execute("RELEASE copy")
                 except Exception as error:  # noqa: BLE001 - Reported per card.
@@ -818,7 +858,9 @@ class PriceService:
             )
         return result
 
-    def refresh(self, copy_id, version, actor, *, data=None, batch=False):
+    def refresh(
+        self, copy_id, version, actor, *, data=None, batch=False, threshold=NOTABLE_CHANGE
+    ):
         """Quote one copy; ``data`` is the edition's answer when a batch has it.
 
         A batch leaves the copy untouched when only the quote date moves, so
@@ -849,7 +891,7 @@ class PriceService:
         snapshot["observed_at"] = now()
         with self.store.connect(write=True) as db:
             result = self._record(
-                db, copy_id, version, card, snapshot, actor, batch=batch
+                db, copy_id, version, card, snapshot, actor, batch=batch, threshold=threshold
             )
             # The edition name in the copy's language comes free with the relevé.
             from .names import NameCatalog
@@ -899,11 +941,16 @@ class PriceService:
             )
         return card, data, snapshot
 
-    def _record(self, db, copy_id, version, card, snapshot, actor, *, batch=False):
+    def _record(
+        self, db, copy_id, version, card, snapshot, actor, *, batch=False, threshold=NOTABLE_CHANGE
+    ):
         """Apply a snapshot inside the caller's write transaction.
 
         The price-snapshot event is written only when the price, the source or
         the Cardmarket product changes, or when the copy itself changes.
+        A batch keeps the reference that an unstable market would move by the
+        threshold (decision 0023): the quote goes to a price-held event, for
+        review, and the copy and its valuation stay as they were.
         """
         current = self.store.get(db, copy_id)
         if current["version"] != version:
@@ -914,6 +961,31 @@ class PriceService:
             "price_source": f"{snapshot['source']} {snapshot['reference_field']}",
             "price_date": snapshot["updated"] or snapshot["observed_at"],
         }
+        if (
+            batch
+            and bool(current["foil"]) == changes["foil"]
+            and current["reference_cents"] is not None
+            and notable(current["reference_cents"], changes["reference_cents"], threshold)
+            and unstable(snapshot["metrics"], snapshot["reference_eur"])
+        ):
+            snapshot = {
+                **snapshot,
+                "held": {
+                    "reference_cents": current["reference_cents"],
+                    "proposed_cents": changes["reference_cents"],
+                },
+            }
+            recorded = snapshot_changed(self.latest(db, copy_id, "price-held"), snapshot)
+            if recorded:
+                self.store.event(
+                    db, copy_id, actor, "price-held", "Cote retenue : marché instable", {}, snapshot
+                )
+            return {
+                **current,
+                "price_snapshot": snapshot,
+                "snapshot_recorded": recorded,
+                "held": True,
+            }
         compared = (
             ("foil", "reference_cents", "price_source")
             if batch and current["price_date"]
@@ -930,7 +1002,12 @@ class PriceService:
                 _db=db,
                 _category_snapshot=snapshot,
             )
-        recorded = patched or snapshot_changed(self.latest(db, copy_id), snapshot)
+        recorded = (
+            patched
+            or snapshot_changed(self.latest(db, copy_id), snapshot)
+            # A quote that clears a held one is written, so the review ends.
+            or held_pending(db, copy_id)
+        )
         if recorded:
             self.store.event(
                 db, copy_id, actor, "price-snapshot", "Relevé TCGdex", {}, snapshot
