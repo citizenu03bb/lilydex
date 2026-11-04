@@ -106,7 +106,7 @@ Elles sont appliquées chaque nuit, avant la sauvegarde, par
 | Journal technique (journald) | 3 mois |
 | Empreintes de visite et leur sel | effacés à la fin du jour |
 | Totaux de la mesure d'audience | 25 mois |
-| Archives sur le serveur | les 7 dernières nuits |
+| Archives sur le serveur | les 3 dernières nuits |
 | Archives rapatriées sur le portable | les 3 dernières |
 | Copies sur Google Drive | 7 jours, puis une par semaine sur 8 semaines, puis une par mois sur 12 mois ; 30 jours de corbeille |
 | Comptes de l'équipe | le temps de la participation |

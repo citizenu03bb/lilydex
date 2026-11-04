@@ -95,8 +95,8 @@ Procédure et outils : `docs/AUDIT-PHOTOS.md` (`scripts/audit_photo_crops.py`,
   `sudo -u pokeprice` depuis un dossier qu'il ne peut pas lire échoue, parfois
   sans message (`docs/DEPLOYMENT.md`).
 - Vérifier l'espace disque (`df -h /`) avant une sauvegarde ou un lot : une
-  archive pèse environ 800 Mo. Les archives ponctuelles sont gardées 14 jours
-  (les 3 dernières toujours) et ne quittent pas le serveur : rapatrier celles
+  archive pèse environ 800 Mo. Les archives ponctuelles sont gardées 3 jours
+  (les 2 dernières toujours) et ne quittent pas le serveur : rapatrier celles
   qui doivent durer (`docs/DAILY-BACKUPS.md`).
 - `prices --unpriced` relève les cartes sans prix de référence ;
   `--only-missing`, seulement celles jamais relevées.

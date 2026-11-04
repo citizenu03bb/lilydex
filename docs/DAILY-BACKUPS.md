@@ -20,7 +20,7 @@ Les mots [serveur, portable et gestion](GLOSSAIRE.md#le-produit) et
 
 | Où | Ce qui est gardé | Combien |
 |---|---|---|
-| Serveur, `/srv/pokeprice/backups` | L'archive de chaque nuit, restaurée pour contrôle | Les 7 dernières |
+| Serveur, `/srv/pokeprice/backups` | L'archive de chaque nuit, restaurée pour contrôle | Les 3 dernières |
 | Portable, `data/oci-backups` | La même archive, rapatriée et contrôlée de nouveau | Les 3 dernières |
 | Google Drive, dossier privé | La même archive, chiffrée, puis retéléchargée et restaurée | 7 jours, puis 1 par semaine sur 8 semaines, puis 1 par mois sur 12 mois ; 30 jours de corbeille |
 
@@ -66,7 +66,14 @@ serveur), avec un délai aléatoire de 10 minutes au plus. Si le serveur était
    écrite année-mois-jour ; ce gabarit est repris dans toute la page ;
 3. restaure cette archive dans un dossier temporaire pour la contrôler (voir
    [Ce que vérifie une restauration](#ce-que-vérifie-une-restauration)) ;
-4. garde les 7 dernières archives quotidiennes et supprime les plus anciennes.
+4. garde les 3 dernières archives quotidiennes et supprime les plus anciennes.
+   Chaque archive contient toutes les photos et pèse environ 800 Mo : le
+   serveur en garde peu, l'historique est sur le portable et sur Drive.
+
+Avant d'écrire l'archive, le service fait déjà la rotation (deux archives
+quotidiennes gardées, plus celle du jour à venir) : sur un disque presque
+plein, le contrôle d'espace refuserait sinon la nouvelle archive et la
+rotation ne passerait jamais.
 
 Si l'archive du jour existe déjà, le service la contrôle de nouveau au lieu de
 la refaire : relancer le service ne crée pas de doublon.
@@ -348,12 +355,12 @@ Une archive ne contient pas :
 
 | Où | Règle |
 |---|---|
-| Serveur | Les 7 dernières archives quotidiennes. Les archives ponctuelles (faites à la main ou par une commande) : les 3 plus récentes sont toujours gardées, les autres 14 jours. Les copies d'avant migration, d'avant déplacement et d'avant lot de photos : les 5 plus récentes de chaque sorte. Cette rotation passe après chaque archive quotidienne réussie. |
+| Serveur | Les 3 dernières archives quotidiennes. Les archives ponctuelles (faites à la main ou par une commande) : les 2 plus récentes sont toujours gardées, les autres 3 jours. Les copies d'avant migration, d'avant déplacement et d'avant lot de photos : les 5 plus récentes de chaque sorte. Cette rotation passe avant et après chaque archive quotidienne. |
 | Portable | Les 3 dernières archives rapatriées, faute de place sur le disque. Cette limite ne touche pas Drive. |
 | Drive | Toutes les archives des 7 jours les plus récents qui en ont une, puis la plus récente de chacune des 8 dernières semaines et de chacun des 12 derniers mois. Seules comptent les semaines et les mois qui ont une archive. Les autres archives vont à la corbeille Drive, d'où elles restent récupérables 30 jours. |
 
 Les archives ponctuelles ne sont ni rapatriées ni copiées sur Drive : rapatriez
-celles qui doivent durer au-delà de 14 jours. Une sauvegarde est refusée avant
+celles qui doivent durer au-delà de 3 jours. Une sauvegarde est refusée avant
 d'écrire si le disque n'a pas la place de l'archive plus une marge de 512 Mo :
 un disque plein bloquerait aussi l'application.
 

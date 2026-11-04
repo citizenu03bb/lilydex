@@ -408,7 +408,7 @@ def test_daily_verified_backup_retention_and_external_record(client):
     backup(store, manual)
     result = daily(store)
     assert verify(result["path"])["sha256"] == result["sha256"]
-    assert len(list(folder.glob("daily-*.zip"))) == 7 and manual.exists()
+    assert len(list(folder.glob("daily-*.zip"))) == 3 and manual.exists()
     external = record_external(
         store, result["path"], "drive-test-file", result["bytes"]
     )
