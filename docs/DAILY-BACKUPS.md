@@ -20,8 +20,8 @@ Les mots [serveur, portable et gestion](GLOSSAIRE.md#le-produit) et
 
 | Où | Ce qui est gardé | Combien |
 |---|---|---|
-| Serveur, `/srv/pokeprice/backups` | L'archive de chaque nuit, restaurée pour contrôle | Les 7 dernières |
-| Portable, `data/oci-backups` | La même archive, rapatriée et contrôlée de nouveau | Les 3 dernières |
+| Serveur, `/srv/pokeprice/backups` | L'archive légère de chaque nuit (base et manifeste), et la réserve où chaque photo est gardée une fois ; l'archive est restaurée pour contrôle | Les 7 dernières |
+| Portable, `data/oci-backups` | L'archive légère rapatriée, les seules photos nouvelles, et l'archive complète reconstituée puis contrôlée | 3 légères, 1 complète |
 | Google Drive, dossier privé | La même archive, chiffrée, puis retéléchargée et restaurée | 7 jours, puis 1 par semaine sur 8 semaines, puis 1 par mois sur 12 mois ; 30 jours de corbeille |
 
 La collection de référence est sur le serveur ([Héberger le site](DEPLOYMENT.md)).
@@ -58,15 +58,22 @@ serveur), avec un délai aléatoire de 10 minutes au plus. Si le serveur était
 1. applique les durées de conservation des données clients (commande `purge`,
    voir [Données personnelles](RGPD.md)), pour que l'archive de la nuit ne
    garde aucune donnée expirée ;
-2. écrit une archive cohérente de la base, plus toutes les photos et les
-   preuves du référentiel. La base est un fichier SQLite, un moteur de base de
+2. écrit une archive cohérente de la base et des preuves du référentiel. Les
+   photos n'y sont pas recopiées : chacune, nommée par son empreinte SHA-256,
+   est gardée une seule fois dans la réserve `backups/photos/`, et l'archive
+   n'en porte que la liste (format v2, voir
+   [Contenu d'une archive](#contenu-dune-archive)). La base est un fichier SQLite, un moteur de base de
    données qui tient dans un seul fichier ; elle est copiée avec le mécanisme
    de sauvegarde propre à SQLite, et non comme un fichier en cours d'usage.
    L'archive s'appelle `daily-<date>.zip`, où `<date>` est la date de Paris
    écrite année-mois-jour ; ce gabarit est repris dans toute la page ;
 3. restaure cette archive dans un dossier temporaire pour la contrôler (voir
    [Ce que vérifie une restauration](#ce-que-vérifie-une-restauration)) ;
-4. garde les 7 dernières archives quotidiennes et supprime les plus anciennes.
+4. garde les 7 dernières archives quotidiennes et supprime les plus anciennes,
+   puis retire de la réserve les photos qu'aucune archive gardée ne cite et
+   qui ne sont plus dans la collection. Une archive légère pèse une dizaine
+   de mégaoctets ; les archives écrites avant la réserve, qui contiennent
+   toutes les photos, pèsent environ 800 Mo.
 
 Avant d'écrire l'archive, le service fait déjà la rotation (six archives
 quotidiennes gardées, plus celle du jour à venir) : sur un disque presque
@@ -88,11 +95,17 @@ Un timer utilisateur, `pokeprice-drive-backup.timer`, lance la commande
 2. choisit la dernière archive `daily-*.zip` du serveur, et relève sa taille et
    son empreinte SHA-256, une somme de contrôle qui change si un seul octet
    change ;
-3. la rapatrie en `data/oci-backups/oci-daily-<date>.zip`. Si la taille ou
-   l'empreinte diffèrent de celles du serveur, rien n'est gardé. Une
-   restauration temporaire contrôle ensuite l'archive. Une archive déjà
-   rapatriée avec la même empreinte n'est pas téléchargée une seconde fois ;
-4. la chiffre avec [age](https://age-encryption.org), l'envoie sur Drive, la
+3. la rapatrie en `data/oci-backups/oci-light-<date>.zip`. Si la taille ou
+   l'empreinte diffèrent de celles du serveur, rien n'est gardé. Une archive
+   déjà rapatriée avec la même empreinte n'est pas téléchargée une seconde
+   fois ;
+4. rapatrie dans `data/oci-backups/photos/` les seules photos qui manquent au
+   portable, en un flux, et contrôle chacune par son empreinte ;
+5. reconstitue l'archive complète et autonome `oci-daily-<date>.zip` (base,
+   preuves et toutes les photos), puis la contrôle par une restauration
+   temporaire. La reconstitution est déterministe : les mêmes entrées donnent
+   les mêmes octets, et un nouvel essai ne renvoie rien sur Drive ;
+6. chiffre l'archive complète avec [age](https://age-encryption.org), l'envoie sur Drive, la
    retélécharge, la déchiffre et la restaure. La copie n'est marquée réussie
    qu'après ce dernier contrôle.
 
@@ -186,7 +199,9 @@ Avant d'accepter une archive, `restore` contrôle :
 - l'intégrité de la base SQLite et ses clés étrangères (les liens entre
   tables) ;
 - une version de base que le code sait lire ;
-- la présence de chaque photo citée par la base.
+- la présence de chaque photo citée par la base ;
+- pour une archive légère, l'empreinte et la taille de chaque photo lue dans
+  la réserve.
 
 Les comptes de l'équipe et des clients sont restaurés avec leurs mots de passe
 hachés. Aucune session ne se rouvre et aucune délégation d'agent ne reste
@@ -200,6 +215,21 @@ Sur le portable, à la racine du dépôt :
 # Restaurer dans un dossier neuf et afficher le bilan de la collection
 uv run --extra web pokeprice-manage --data /tmp/collection-restauree restore data/oci-backups/oci-daily-<date>.zip
 ```
+
+### Restaurer une archive du serveur
+
+Une archive légère du serveur ne contient pas ses photos : `restore` les lit
+dans la réserve `photos/` à côté de l'archive, ou dans le dossier donné par
+`--photos`. Sans réserve, ou si une photo y manque ou y est altérée, la
+restauration est refusée. Sur le serveur :
+
+```bash
+# Restaurer l'archive légère du jour avec la réserve du dossier des sauvegardes
+sudo -u pokeprice env HOME=/srv/pokeprice /opt/pokeprice/.venv/bin/python -m pokeprice.manage --data /srv/pokeprice/restauree restore /srv/pokeprice/backups/daily-<date>.zip
+```
+
+Copier `backups/` ailleurs sans `backups/photos/` ne suffit donc pas. Une
+archive écrite avant la réserve, qui contient ses photos, se restaure seule.
 
 ### Restaurer une copie Drive
 
@@ -282,10 +312,10 @@ avec `--data /srv/pokeprice/inventory`. Sans `--data`, une commande vise
 | `backup-key` | Crée une fois la clé de chiffrement ; n'affiche que la clé publique | Portable |
 | `backup-server-pull --host <utilisateur>@<ip-serveur>` | Rapatrie et contrôle la dernière archive du serveur, sans rien envoyer sur Drive | Portable |
 | `backup-server-drive --host <utilisateur>@<ip-serveur> --rclone <chemin> --remote gdrive` | Rapatrie et contrôle, puis chiffre, envoie sur Drive, retélécharge et restaure | Portable (timer) |
-| `--data <dossier-neuf> restore <archive.zip>` | Restaure dans un dossier inexistant | Portable ou serveur |
-| `backup-daily [--force]` | Archive quotidienne contrôlée d'une base, rotation à 7 ; `--force` refait l'archive du jour | Serveur (timer) |
+| `--data <dossier-neuf> restore <archive.zip> [--photos <réserve>]` | Restaure dans un dossier inexistant ; une archive légère lit ses photos dans `--photos`, par défaut `photos/` à côté de l'archive | Portable ou serveur |
+| `backup-daily [--force]` | Archive quotidienne légère et contrôlée d'une base, rotation à 3 ; `--force` refait l'archive du jour | Serveur (timer) |
 | `purge` | Applique les durées de conservation des données clients, juste avant l'archive | Serveur (timer) |
-| `backup [<fichier.zip>]` | Archive manuelle ; par défaut `backups/collection-<horodatage>.zip` à côté du dossier de la base | Là où est la base |
+| `backup [<fichier.zip>]` | Archive manuelle. Par défaut, archive légère `backups/collection-<horodatage>.zip` à côté du dossier de la base, avec la réserve ; vers un fichier choisi, archive complète et autonome | Là où est la base |
 | `backup-status` | Affiche le suivi des sauvegardes d'une base | Serveur |
 | `backup-drive` | Fait l'archive quotidienne d'une base locale, puis l'envoie sur Drive avec les mêmes contrôles | Instance sur une seule machine ; jamais sur le portable |
 | `backup-record-upload <archive> <id-fichier> <taille> --expected-sha256 <sha256-avant-transfert>` | Enregistre une copie Drive faite par un outil de copie externe, après lecture de ses métadonnées Drive. Réservé à cet outil : ne la lancez pas à la main | Jamais à la main |
@@ -304,12 +334,15 @@ Python du projet (`.venv/bin/python -m pokeprice.manage`). Le script
 
 | Fichier | Machine | Rôle |
 |---|---|---|
-| `/srv/pokeprice/backups/daily-<date>.zip` | Serveur | Archives quotidiennes (7) |
+| `/srv/pokeprice/backups/daily-<date>.zip` | Serveur | Archives quotidiennes légères (3) |
+| `/srv/pokeprice/backups/photos/<sha256>.jpg` | Serveur | Réserve des photos : liens physiques vers celles de la collection, qui ne coûtent aucune place sur le même disque |
 | `/srv/pokeprice/backups/before-schema…sqlite3` | Serveur | Copie de la base avant une migration de schéma ; les 5 plus récentes sont gardées |
 | `/srv/pokeprice/backups/before-move-batch…sqlite3` | Serveur | Copie de la base seule avant un déplacement en lot ; les 5 plus récentes sont gardées |
 | `/srv/pokeprice/backups/before-photo-batch…sqlite3` | Serveur | Copie de la base seule avant un lot de photos ou une page de classeur ; les 5 plus récentes sont gardées |
 | `/srv/pokeprice/inventory/backup-status.json` | Serveur | Suivi lu par la gestion |
-| `data/oci-backups/oci-daily-<date>.zip` | Portable | Archives rapatriées (3). Le dossier est privé (mode 0700 : vous seul pouvez l'ouvrir) et refuse d'être un dossier de collection |
+| `data/oci-backups/oci-light-<date>.zip` | Portable | Archives légères rapatriées (3). Le dossier est privé (mode 0700 : vous seul pouvez l'ouvrir) et refuse d'être un dossier de collection |
+| `data/oci-backups/photos/<sha256>.jpg` | Portable | Réserve des photos rapatriées |
+| `data/oci-backups/oci-daily-<date>.zip` | Portable | Dernière archive complète reconstituée, celle qui part sur Drive (1) |
 | `data/oci-backups/backup-status.json` | Portable | Suivi de l'archive rapatriée et de la copie Drive (mode 0600) |
 | `data/backups/daily-<date>.zip` | Portable | Archives faites à partir de la base du portable ; le préfixe `oci-` distingue celles du serveur |
 | `~/.config/pokeprice/backup-key.txt` | Portable | Clé de chiffrement (mode 0600) |
@@ -325,7 +358,18 @@ versions d'un même jour peuvent ainsi coexister.
 
 ### Contenu d'une archive
 
-Une archive contient :
+Il existe deux formats, que `restore` lit tous deux :
+
+- **v1, complète** (`pokeprice-inventory-v1`) : tout ce qui suit, photos
+  comprises. C'est le format du portable, de Drive, des archives téléchargées
+  depuis la gestion et de celles écrites vers un fichier choisi ;
+- **v2, légère** (`pokeprice-inventory-v2`) : la même chose sans les photos,
+  dont le manifeste donne le nom (leur empreinte) et la taille. C'est le
+  format du dossier `backups/` du serveur ; les photos sont dans sa réserve.
+  Le raisonnement est dans la
+  [fiche de décision 0028](decisions/0028-reserve-de-photos-par-empreinte.md).
+
+Une archive complète contient :
 
 - toute la base SQLite, écrite avec le mécanisme de sauvegarde de SQLite. Elle
   comprend les comptes de l'équipe et des clients avec leurs mots de passe
@@ -354,7 +398,8 @@ Une archive ne contient pas :
 | Où | Règle |
 |---|---|
 | Serveur | Les 7 dernières archives quotidiennes. Les archives ponctuelles (faites à la main ou par une commande) : les 3 plus récentes sont toujours gardées, les autres 14 jours. Les copies d'avant migration, d'avant déplacement et d'avant lot de photos : les 5 plus récentes de chaque sorte. Cette rotation passe avant et après chaque archive quotidienne. |
-| Portable | Les 3 dernières archives rapatriées, faute de place sur le disque. Cette limite ne touche pas Drive. |
+| Portable | Les 3 dernières archives légères rapatriées et la seule dernière archive complète, faute de place sur le disque. Cette limite ne touche pas Drive. |
+| Réserves de photos | Une photo est retirée quand aucune archive gardée ne la cite et que la collection ne l'a plus (serveur). Une archive illisible suspend ce nettoyage : la réserve n'est jamais réduite à l'aveugle. La suspension est écrite dans le journal et dans `backup-status.json` (`reserve_error`), affichée dans la gestion du serveur, puis effacée au premier nettoyage réussi. |
 | Drive | Toutes les archives des 7 jours les plus récents qui en ont une, puis la plus récente de chacune des 8 dernières semaines et de chacun des 12 derniers mois. Seules comptent les semaines et les mois qui ont une archive. Les autres archives vont à la corbeille Drive, d'où elles restent récupérables 30 jours. |
 
 Les archives ponctuelles ne sont ni rapatriées ni copiées sur Drive : rapatriez
@@ -412,7 +457,7 @@ Chaque appel SSH, rclone ou HTTP a un délai maximal :
 | Commandes SSH courtes (liste des archives) | 2 min |
 | Attente de la sauvegarde du serveur, calcul de son empreinte | 30 min |
 | Appel à l'API Google Drive | 30 s |
-| Rapatriement, envoi ou retéléchargement d'une archive | Taille divisée par 250 ko/s (environ 2 Mbit/s, un accès domestique lent), entre 4 min et 3 h. Exemple : environ 53 min pour une archive de 790 Mo |
+| Rapatriement des photos nouvelles, envoi ou retéléchargement d'une archive | Taille divisée par 250 ko/s (environ 2 Mbit/s, un accès domestique lent), entre 4 min et 3 h. Exemple : environ 53 min pour une archive de 790 Mo |
 | Service de sauvegarde du serveur | 10 min |
 | Service de copie du portable, en entier | 7 h |
 

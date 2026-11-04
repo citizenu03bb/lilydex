@@ -1,19 +1,25 @@
 """Verified daily backups and an explicit record of external copies."""
 
 import fcntl
+import logging
 import hashlib
 import json
 import os
 import tempfile
 import time
+import zipfile
 from datetime import datetime
 from functools import wraps
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from .inventory import now
-from .inventory_backup import backup, restore_backup
+from .inventory_backup import backup, prune_reserve, restore_backup
 
+log = logging.getLogger("pokeprice.backup")
+
+# Archives of the backups folder keep their photos once, in this reserve.
+RESERVE = "photos"
 DAILY_KEEP = 7
 # Occasional backups (before a batch, a migration…) are not mirrored off the server.
 OCCASIONAL_KEEP = 3
@@ -78,10 +84,10 @@ def _write(store, data):
     os.replace(pending, target)
 
 
-def verify(path):
+def verify(path, photos=None):
     path = Path(path)
     with tempfile.TemporaryDirectory(prefix="pokeprice-restore-check-") as tmp:
-        summary = restore_backup(path, Path(tmp) / "collection")
+        summary = restore_backup(path, Path(tmp) / "collection", photos)
     return {
         "path": str(path.resolve()),
         "name": path.name,
@@ -112,8 +118,8 @@ def daily(store, *, force=False):
         prune_occasional(folder)
         with tempfile.TemporaryDirectory(dir=folder) as tmp:
             pending = Path(tmp) / "collection.zip"
-            backup(store, pending)
-            verified = verify(pending)
+            backup(store, pending, reserve=folder / RESERVE)
+            verified = verify(pending, folder / RESERVE)
             os.replace(pending, target)
         verified.update(path=str(target.resolve()), name=target.name)
     else:
@@ -121,7 +127,36 @@ def daily(store, *, force=False):
     record_local(store, verified)
     prune_daily(folder, DAILY_KEEP)
     prune_occasional(folder)
+    # The live photos stay reserved even when no archive lists them yet.
+    tidy_reserve(
+        store,
+        folder / RESERVE,
+        folder.glob("*.zip"),
+        keep=[p.name for p in store.photos.glob("*.jpg")],
+    )
     return verified
+
+
+def tidy_reserve(store, reserve, archives, keep=()):
+    """Prune the reserve; a failure is logged and recorded, never raised.
+
+    An unreadable archive leaves the reserve as it is, never short: the
+    verified backup stays valid, and backup-status.json says what blocked.
+    """
+    data = status(store)
+    try:
+        prune_reserve(reserve, archives, keep)
+    except (OSError, ValueError, KeyError, zipfile.BadZipFile) as error:
+        message = (
+            "Nettoyage de la réserve de photos suspendu : une archive est illisible "
+            f"({type(error).__name__}). La réserve est gardée entière."
+        )
+        # The journal gets the detail; the status, shown in the gestion, does not.
+        log.warning("%s Détail : %s", message, error)
+        data["reserve_error"] = {"message": message, "at": now()}
+    else:
+        data.pop("reserve_error", None)
+    _write(store, data)
 
 
 def prune_daily(folder, keep, spare=None):

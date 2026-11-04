@@ -143,15 +143,18 @@ def test_corrupt_pull_leaves_no_archive_and_no_success(tmp_path, server, drive):
     assert status(mirror)["last_error"]
 
 
-def test_local_retention_keeps_only_recent_server_archives(tmp_path, server, drive):
+def test_local_retention_keeps_only_the_latest_full_archive(tmp_path, server, drive):
     mirror = server_backup.Mirror(tmp_path / "oci-backups")
     for day in range(10, 15):
         (mirror.root / f"oci-daily-2026-10-{day}.zip").write_bytes(b"old")
+        (mirror.root / f"oci-light-2026-10-{day}.zip").write_bytes(b"old")
     server_backup.pull(mirror, server("opc@203.0.113.7"), keep=3)
-    assert sorted(path.name for path in mirror.root.glob("oci-daily-*.zip")) == [
-        "oci-daily-2026-10-13.zip",
-        "oci-daily-2026-10-14.zip",
+    # The history lives in light archives; one rebuilt archive goes to Drive.
+    assert sorted(path.name for path in mirror.root.glob("oci-*.zip")) == [
         "oci-daily-2026-10-17.zip",
+        "oci-light-2026-10-12.zip",
+        "oci-light-2026-10-13.zip",
+        "oci-light-2026-10-14.zip",
     ]
 
 

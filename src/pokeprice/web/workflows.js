@@ -343,6 +343,7 @@ const Workflows = (() => {
     link.rel = "noopener";
     target.append(link);
     if (data.last_error) target.append(el("p", data.last_error, "error"));
+    if (data.reserve_error) target.append(el("p", data.reserve_error.message, "error"));
     for (const [key, label] of [
       ["local", "locale"],
       ["external", "Drive"],

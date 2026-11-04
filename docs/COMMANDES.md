@@ -276,6 +276,7 @@ Restaurer dans un nouveau dossier --data
 | Argument | Effet |
 |---|---|
 | `archive` |  |
+| `--photos` `PHOTOS` | Réserve de photos d'une archive v2 ; par défaut, photos/ à côté de l'archive |
 
 ### `pokeprice-manage prices`
 

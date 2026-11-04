@@ -9,6 +9,15 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-04
 
+- Sauvegardes : les archives du serveur ne recopient plus les 758 Mo de
+  photos. Chaque photo est gardée une fois, par lien physique, dans la réserve
+  `backups/photos/`, et l'archive de la nuit (format v2) ne porte que la base,
+  les preuves et la liste des photos. Le portable ne rapatrie que les photos
+  nouvelles (environ 10 Mo par nuit au lieu de 800 Mo) et reconstitue
+  l'archive complète v1 envoyée sur Drive ; les archives v1 existantes se
+  restaurent comme avant
+  ([fiche 0028](decisions/0028-reserve-de-photos-par-empreinte.md),
+  `tests/test_photo_reserve.py`).
 - Exploitation : le disque du serveur, rempli à 89 % (27 Go sur 30) surtout
   par des archives de 800 Mo, est vidé de ses archives ponctuelles périmées
   et de ses dossiers d'essai, puis agrandi à 200 Go (183 Go pour `/`, 12 %
