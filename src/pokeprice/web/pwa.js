@@ -79,6 +79,47 @@ function pushView(doc, { checked = false, disabled = true, message = "" } = {}) 
   doc.getElementById("push-status").textContent = message;
 }
 
+// The « À toi » queue offers notifications to a device that does not get them:
+// "install" on an iPhone outside the installed app, "enable" when the server
+// pushes and this device is not subscribed, null otherwise or while paused.
+const OFFER_PAUSE = "lilydex-push-offer-paused";
+const OFFER_PAUSE_DAYS = 14;
+
+function offerPaused(win) {
+  try {
+    return Number(win.localStorage.getItem(OFFER_PAUSE) || 0) > Date.now();
+  } catch {
+    return false;
+  }
+}
+
+function pauseOffer(win) {
+  try {
+    win.localStorage.setItem(OFFER_PAUSE, String(Date.now() + OFFER_PAUSE_DAYS * 86400000));
+  } catch {
+    // Without storage the card comes back at the next load: harmless.
+  }
+}
+
+async function subscribedHere(win) {
+  const registration = await win.navigator.serviceWorker.ready;
+  const subscription = await registration.pushManager.getSubscription();
+  if (!subscription || win.Notification.permission !== "granted" || !sameKey(subscription, push.key)) return false;
+  const state = await pushRequest(win, "/subscriptions/check", "POST", { endpoint: subscription.endpoint }).catch(() => null);
+  return Boolean(state?.subscribed);
+}
+
+async function pushOffer(win) {
+  if (offerPaused(win)) return null;
+  const settings = await pushRequest(win, "", "GET").catch(() => null);
+  push.enabled = Boolean(settings?.enabled && settings.public_key);
+  push.key = settings?.public_key || null;
+  if (!push.enabled) return null;
+  if (appleDevice(win.navigator) && !standaloneDisplay(win)) return "install";
+  if (!pushSupported(win) || win.Notification.permission === "denied") return null;
+  return (await subscribedHere(win)) ? null : "enable";
+}
+
 async function refreshPush(doc, win) {
   if (!doc.getElementById("push-toggle")) return;
   if (appleDevice(win.navigator) && !standaloneDisplay(win)) return pushView(doc, { message: t("push.install_first") });
@@ -88,14 +129,7 @@ async function refreshPush(doc, win) {
   push.key = settings?.public_key || null;
   if (!push.enabled) return pushView(doc, { message: t("push.server_off") });
   if (win.Notification.permission === "denied") return pushView(doc, { message: t("push.denied") });
-  const registration = await win.navigator.serviceWorker.ready;
-  const subscription = await registration.pushManager.getSubscription();
-  let checked = false;
-  if (subscription && win.Notification.permission === "granted" && sameKey(subscription, push.key)) {
-    const state = await pushRequest(win, "/subscriptions/check", "POST", { endpoint: subscription.endpoint }).catch(() => null);
-    checked = Boolean(state?.subscribed);
-  }
-  pushView(doc, { checked, disabled: false });
+  pushView(doc, { checked: await subscribedHere(win), disabled: false });
 }
 
 async function turnPushOn(doc, win) {
@@ -147,8 +181,15 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
   document.getElementById("install-open")?.addEventListener("click", () => showInstallHelp(document, window));
   document.getElementById("install-native")?.addEventListener("click", () => runNativeInstall(document));
   document.getElementById("push-toggle")?.addEventListener("change", () => changePush(document, window));
-  // app.js calls it each time the settings open.
-  window.lilydexPush = { refresh: () => refreshPush(document, window).catch(() => pushView(document, { message: t("push.error") })) };
+  // app.js calls refresh each time the settings open, and the others from the queue.
+  window.lilydexPush = {
+    refresh: () => refreshPush(document, window).catch(() => pushView(document, { message: t("push.error") })),
+    offer: () => pushOffer(window),
+    // From the card's click, with no await before: iOS asks permission only so.
+    enable: () => turnPushOn(document, window),
+    install: () => showInstallHelp(document, window),
+    pause: () => pauseOffer(window),
+  };
   if ("serviceWorker" in navigator && window.isSecureContext) {
     window.addEventListener("load", () => {
       navigator.serviceWorker.register("/gestion/sw.js", { scope: "/gestion" }).catch(() => {});

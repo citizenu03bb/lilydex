@@ -11,7 +11,7 @@ const t = (key) => messages[key] ?? key;
 const KEY_BYTES = Uint8Array.from([4, ...Array.from({ length: 64 }, (_, i) => (i * 7 + 3) % 256)]);
 const KEY = Buffer.from(KEY_BYTES).toString("base64url");
 
-function boot({ apple = false, standalone = false, permission = "default", answer = "granted", enabled = true } = {}) {
+function boot({ apple = false, standalone = false, permission = "default", answer = "granted", enabled = true, storage = {} } = {}) {
   const elements = {};
   const element = (id) =>
     (elements[id] ||= {
@@ -66,6 +66,10 @@ function boot({ apple = false, standalone = false, permission = "default", answe
     fetch,
     matchMedia: (query) => ({ matches: !apple && standalone && query.includes("standalone") }),
     addEventListener() {},
+    localStorage: {
+      getItem: (key) => storage[key] ?? null,
+      setItem: (key, value) => { storage[key] = String(value); },
+    },
   };
   const context = vm.createContext({ window, document, navigator, t, atob, Uint8Array, URL, Promise, JSON });
   vm.runInContext(source, context);
@@ -73,6 +77,10 @@ function boot({ apple = false, standalone = false, permission = "default", answe
   return {
     toggle, status: elements["push-status"], calls, server,
     refresh: () => window.lilydexPush.refresh(),
+    offer: () => window.lilydexPush.offer(),
+    enable: () => window.lilydexPush.enable(),
+    pause: () => window.lilydexPush.pause(),
+    storage,
     async flip(checked) {
       toggle.checked = checked;
       await toggle.listeners.change();
@@ -139,6 +147,25 @@ function boot({ apple = false, standalone = false, permission = "default", answe
   await off.refresh();
   assert.equal(off.toggle.disabled, true);
   assert.equal(off.status.textContent, messages["push.server_off"]);
+
+  // The queue's card: offered to a device that does not get the notifications.
+  const fresh = boot();
+  assert.equal(await fresh.offer(), "enable");
+  assert.equal(fresh.calls.permission, 0, "offering never asks for permission");
+  await fresh.enable();
+  assert.equal(fresh.calls.permission, 1);
+  assert.equal(fresh.server.size, 1);
+  assert.equal(await fresh.offer(), null, "a subscribed device is not offered again");
+  // iPhone in Safari: install first. Server off or permission blocked: nothing.
+  assert.equal(await boot({ apple: true }).offer(), "install");
+  assert.equal(await boot({ enabled: false }).offer(), null);
+  assert.equal(await boot({ apple: true, enabled: false }).offer(), null);
+  assert.equal(await boot({ permission: "denied" }).offer(), null);
+  // « Plus tard » pauses the card on this device.
+  const later = boot();
+  later.pause();
+  assert.equal(await later.offer(), null);
+  assert.ok(Number(Object.values(later.storage)[0]) > Date.now());
 })().catch((error) => {
   console.error(error);
   process.exit(1);

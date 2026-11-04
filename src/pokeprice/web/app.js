@@ -4471,6 +4471,36 @@ async function followTodo(action) {
   } else if (action.copy_id) await openDetail(action.copy_id);
   else toast(t("todo.gone"));
 }
+// Not a decision of the server's queue: this device does not get the notifications.
+async function pushOfferCard() {
+  const offer = await window.lilydexPush?.offer?.().catch(() => null);
+  if (!offer) return null;
+  const card = el("div", undefined, "todo-item todo-notify");
+  const body = el("div", undefined, "todo-body");
+  body.append(
+    el("span", t("todo.kind.notify"), "badge"),
+    el("strong", t(`todo.notify.${offer}.title`)),
+    el("span", t(`todo.notify.${offer}.reason`), "todo-reason"),
+  );
+  const go = el("button", t(`todo.notify.${offer}.action`), "primary");
+  go.type = "button";
+  go.onclick = () => {
+    const done = offer === "install" ? window.lilydexPush.install() : window.lilydexPush.enable();
+    Promise.resolve(done)
+      .then(() => refreshTodo())
+      .catch((e) => toast(e.message));
+  };
+  const later = el("button", t("todo.notify.later"), "quiet");
+  later.type = "button";
+  later.onclick = () => {
+    window.lilydexPush.pause();
+    card.remove();
+  };
+  const actions = el("div", undefined, "todo-notify-actions");
+  actions.append(go, later);
+  card.append(body, actions);
+  return card;
+}
 async function refreshTodo() {
   const box = $("assistant");
   if (!box) return;
@@ -4493,6 +4523,10 @@ async function refreshTodo() {
   );
   banner.append(heading, summary, el("p", done.length ? done.join(" · ") : t("todo.done.none"), "help"));
   box.replaceChildren(banner);
+  // Never awaited: a service worker not ready yet must not hold the queue back.
+  pushOfferCard()
+    .then((card) => card && banner.isConnected && banner.after(card))
+    .catch(() => {});
   if (!brief.waiting.length) return;
   const queueTitle = el("h3", t("todo.queue.title"));
   const list = el("ol", undefined, "todo-queue");

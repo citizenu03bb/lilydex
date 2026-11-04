@@ -402,3 +402,5 @@ def test_the_switch_is_in_the_settings(tmp_path):
         page = client.get("/gestion").text
     assert 'id="push-toggle" type="checkbox" role="switch" disabled' in page
     assert "Notifications sur ce téléphone" in page
+    # First in the settings, above the backups: it was missed below them.
+    assert page.index('id="push-panel"') < page.index('id="backup-status-panel"')
