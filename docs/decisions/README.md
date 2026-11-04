@@ -36,6 +36,7 @@ l'ancienne passe au statut « remplacée ».
 | [0026](0026-plancher-anti-bradage-gestion.md) | Le plancher anti-bradage s'applique aussi aux prix fixés depuis la gestion | 2026-11-04 |
 | [0027](0027-frais-de-port-et-conditions-de-vente.md) | Les frais de port s'affichent avant la réservation avec recommandé obligatoire dès 50 € et remise en main propre gratuite | 2026-11-04 |
 | [0028](0028-reserve-de-photos-par-empreinte.md) | Le serveur garde ses photos une seule fois, dans une réserve par empreinte, et le portable reconstitue l'archive autonome | 2026-11-04 |
+| [0029](0029-assistant-de-gestion.md) | Un assistant de gestion : un brief du jour, une file « À toi », puis un chat qui ne passe que par des outils fermés (proposée) | 2026-11-04 |
 
 ## Écrire une fiche
 
