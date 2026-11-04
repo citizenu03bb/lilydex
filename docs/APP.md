@@ -171,8 +171,8 @@ le serveur ou une commande ouvre une base plus ancienne que le code :
 Si la copie échoue, la base n'est pas migrée et l'application ne démarre pas.
 Une base plus récente que le code est refusée. Toute commande qui ouvre la
 base, y compris `backup`, déclenche la migration. La copie ne contient pas les
-photos (aucune migration ne les modifie) et n'est jamais supprimée par la
-rotation des sauvegardes. Faites une [sauvegarde complète](#sauvegarder) avant
+photos (aucune migration ne les modifie) ; la rotation des sauvegardes garde
+les 5 plus récentes. Faites une [sauvegarde complète](#sauvegarder) avant
 de lancer une nouvelle version.
 
 ## Saisir des cartes
@@ -341,7 +341,8 @@ Les cartes réservées, vendues, supprimées ou engagées dans un lot actif
 annulez ou dépubliez d'abord le lot avant de déplacer physiquement la carte
 ([décision 0024](decisions/0024-deplacements-en-lot.md)).
 
-**Déplacer ces cartes** crée une sauvegarde puis déplace toute la sélection en
+**Déplacer ces cartes** copie d'abord la base, sans les photos, dans
+`backups/before-move-batch-<date>.sqlite3`, puis déplace toute la sélection en
 une seule transaction, en inscrivant une entrée d'historique par carte avec le
 motif indiqué. Si une carte a changé entre-temps ou si une case d'arrivée est
 occupée, rien n'est écrit. Après l'application, **Annuler ce déplacement** (dans

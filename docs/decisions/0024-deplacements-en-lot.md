@@ -37,8 +37,10 @@ de vitrine.
   cartes) sont refusées avec `409 Conflict` dès l'aperçu et revérifiées sous
   verrou d'écriture à l'application. Une annonce unitaire en ligne reste
   autorisée et signalée (`published`).
-- L'application (`POST /api/move-batches/{id}/apply`) crée une sauvegarde
-  préalable puis appelle `Store.patch` pour chaque carte dans une seule
+- L'application (`POST /api/move-batches/{id}/apply`) copie d'abord la base
+  seule, vérifiée, dans `backups/before-move-batch-<date>.sqlite3` : un
+  déplacement ne change que des lignes, et une archive avec les photos
+  pèserait 800 Mo à chaque fois. Elle appelle ensuite `Store.patch` pour chaque carte dans une seule
   transaction `BEGIN IMMEDIATE`. Un conflit de version ou d'occupation au
   milieu du lot annule toute la transaction : rien n'est écrit.
 - L'annulation (`POST /api/move-batches/{id}/undo`) remet toutes les cartes à

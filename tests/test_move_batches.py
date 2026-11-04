@@ -114,7 +114,7 @@ def test_from_slot_preview_flags_collisions_and_apply_refuses_occupied_slots(env
     assert "Évoli" in applied.json()["detail"]
     assert client.get(f"/api/copies/{c1['id']}").json()["album_id"] == origin["id"]
     assert client.get(f"/api/copies/{c2['id']}").json()["album_id"] == origin["id"]
-    assert not list((store.root.parent / "backups").glob("before-move-batch-*.zip"))
+    assert not list((store.root.parent / "backups").glob("before-move-batch-*.sqlite3"))
 
 
 def test_live_collision_created_after_preview_is_refused_on_apply(env):
@@ -159,7 +159,15 @@ def test_apply_and_undo_record_per_card_history_and_preserve_confirmations(env):
     applied = client.post(f"/api/move-batches/{job['id']}/apply")
     assert applied.status_code == 200, applied.text
     assert applied.json()["status"] == "applied"
-    assert list((store.root.parent / "backups").glob("before-move-batch-*.zip"))
+    # The database alone, as it was before the move: no photo archive.
+    (copy,) = (store.root.parent / "backups").glob("before-move-batch-*.sqlite3")
+    assert not list((store.root.parent / "backups").glob("*.zip"))
+    assert copy.stat().st_mode & 0o777 == 0o600
+    with closing(sqlite3.connect(copy)) as db:
+        assert db.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+        assert db.execute("SELECT album_id FROM copies WHERE id=?", (c1["id"],)).fetchone() == (
+            origin["id"],
+        )
 
     after1 = client.get(f"/api/copies/{c1['id']}").json()
     after2 = client.get(f"/api/copies/{c2['id']}").json()
@@ -212,7 +220,7 @@ def test_version_conflict_in_middle_of_batch_writes_nothing(env, monkeypatch):
     store.patch(c2["id"], {"notes": "Modifiée ailleurs"}, 1, "pat", "Concurrence")
     res = client.post(f"/api/move-batches/{job['id']}/apply")
     assert res.status_code == 409
-    assert not list((store.root.parent / "backups").glob("before-move-batch-*.zip"))
+    assert not list((store.root.parent / "backups").glob("before-move-batch-*.sqlite3"))
     for original, expected_ver in ((c1, 1), (c2, 2), (c3, 1)):
         current = client.get(f"/api/copies/{original['id']}").json()
         assert current["version"] == expected_ver

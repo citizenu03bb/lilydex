@@ -2,11 +2,7 @@
 
 import json
 import uuid
-from datetime import datetime, timezone
-from pathlib import Path
-
 from .inventory import Conflict, now
-from .inventory_backup import backup
 
 # Schema 23: persistent move previews and applied batches for atomic undo.
 SCHEMA = """
@@ -21,11 +17,8 @@ COMMIT;
 
 
 class MoveBatches:
-    def __init__(self, store, backup_root=None):
+    def __init__(self, store):
         self.store = store
-        self.backup_root = (
-            Path(backup_root) if backup_root else store.root.parent / "backups"
-        )
 
     def preview(
         self,
@@ -209,11 +202,8 @@ class MoveBatches:
 
         with self.store.connect() as db:
             checked(db)
-        stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
-        backup(
-            self.store,
-            self.backup_root / f"before-move-batch-{stamp}.zip",
-        )
+            # A move only changes rows: the database alone, not the photos (800 MB).
+            self.store.copy_database(db, "before-move-batch")
         with self.store.connect(write=True) as db:
             job = checked(db)
             data = job["data"]
