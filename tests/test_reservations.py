@@ -269,13 +269,30 @@ def test_clients_stay_out_of_the_staff_accounts_screen(shop):
         assert db.execute("SELECT role FROM users WHERE id=?", (client["id"],)).fetchone()[0] == "client"
 
 
-def guest(store, email, listing_ids, name="Ondine", message=""):
+def guest(store, email, listing_ids, name="Ondine", message="", **delivery):
     with TestClient(create_app(store.root)) as visitor:
         return visitor.post(
             "/api/public/requests",
             json={"email": email, "display_name": name, "listing_ids": listing_ids,
-                  "message": message, "consent": True},
+                  "message": message, "consent": True, **delivery},
         )
+
+
+def test_a_guest_delivery_choice_has_its_own_columns(shop):
+    admin, store, listings = shop
+    guest(store, "ondine@example.org", [listings[0]["id"]], message="Je passe", delivery="hand").raise_for_status()
+    guest(store, "pierre@example.org", [listings[1]["id"]], delivery="shipping", registered=True).raise_for_status()
+    with store.connect() as db:
+        rows = {r["message"]: (r["delivery"], r["registered"])
+                for r in db.execute("SELECT message,delivery,registered FROM requests")}
+    assert rows == {"Je passe": ("hand", 0), "": ("shipping", 1)}
+    hand = next(r for r in admin.get("/api/requests").json() if r["email"] == "ondine@example.org")
+    admin.post(
+        f"/api/requests/{hand['id']}/accept",
+        json={"expected_version": hand["version"], "listing_ids": [listings[0]["id"]]},
+    ).raise_for_status()
+    accepted = next(r for r in admin.get("/api/requests").json() if r["id"] == hand["id"])
+    assert accepted["shipping_cents"] == 0 and accepted["message"] == "Je passe"
 
 
 def test_a_visitor_reserves_without_an_account_and_acceptance_validates_it(shop):

@@ -136,35 +136,6 @@ def shipping_cents(card_count, total_cents=0, delivery="shipping", registered=No
     return shipping_quote(card_count, total_cents, delivery, registered, packing)["shipping_cents"]
 
 
-def extract_delivery_mode(message):
-    """Extrait le mode de livraison et le choix recommandé du message de réservation."""
-    lines = (message or "").split("\n")
-    delivery = "shipping"
-    registered = False
-    clean_lines = []
-    for line in lines:
-        stripped = line.strip()
-        if stripped == "[delivery:hand]":
-            delivery = "hand"
-        elif stripped == "[delivery:registered]":
-            delivery = "shipping"
-            registered = True
-        elif stripped == "[delivery:shipping]":
-            delivery = "shipping"
-        else:
-            clean_lines.append(line)
-    return delivery, registered, "\n".join(clean_lines).strip()
-
-
-def format_delivery_message(message, delivery, registered):
-    prefix = ""
-    if delivery == "hand":
-        prefix = "[delivery:hand]\n"
-    elif registered:
-        prefix = "[delivery:registered]\n"
-    return (prefix + (message or "").strip()).strip()
-
-
 def reply_message(request, payment, client_name=""):
     """Message de réponse complet prérempli pour Lily, prêt à être copié vers l'acheteur."""
     greeting = f"Bonjour {client_name}," if client_name else "Bonjour,"
@@ -259,6 +230,46 @@ CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value_json TEXT NOT NU
 PRAGMA user_version=21;
 COMMIT;
 """
+# Schema 22 and 23 live in notifications.py and move_batches.py.
+# Schema 24: the buyer's delivery choice gets its own columns. Before, it was a
+# first line of the message, such as "[delivery:hand]"; the migration moves it.
+DELIVERY_TAGS = {
+    "[delivery:hand]": ("hand", 0),
+    "[delivery:registered]": ("shipping", 1),
+    "[delivery:shipping]": ("shipping", 0),
+}
+
+
+def migrate_delivery(db):
+    """Schema 24: delivery and registered columns, taken out of the old messages."""
+    db.execute("BEGIN IMMEDIATE")
+    try:
+        columns = {r[1] for r in db.execute("PRAGMA table_info(requests)")}
+        if "delivery" not in columns:
+            db.execute(
+                "ALTER TABLE requests ADD COLUMN delivery TEXT NOT NULL DEFAULT 'shipping' "
+                "CHECK(delivery IN ('shipping','hand'))"
+            )
+        if "registered" not in columns:
+            db.execute("ALTER TABLE requests ADD COLUMN registered INTEGER NOT NULL DEFAULT 0")
+        for row in db.execute(
+            "SELECT id,message FROM requests WHERE message LIKE '%[delivery:%'"
+        ).fetchall():
+            delivery, registered, lines = "shipping", 0, []
+            for line in row["message"].split("\n"):
+                if line.strip() in DELIVERY_TAGS:
+                    delivery, registered = DELIVERY_TAGS[line.strip()]
+                else:
+                    lines.append(line)
+            db.execute(
+                "UPDATE requests SET delivery=?,registered=?,message=? WHERE id=?",
+                (delivery, registered, "\n".join(lines).strip(), row["id"]),
+            )
+        db.execute("PRAGMA user_version=24")
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
 PAYMENT_FIELDS = ("wero", "iban", "holder", "paypal")
 EMAIL = re.compile(r"^[^@\s]{1,64}@[^@\s]{1,189}\.[^@\s.]{2,}$")
 SALE_STATUS = {
@@ -483,10 +494,8 @@ class Reservations:
             items.append(entry)
         request["items"] = items
         request["total_cents"] = sum(i["price_cents"] for i in items)
-        delivery, registered, clean_message = extract_delivery_mode(request.get("message"))
-        request["message"] = clean_message
-        request["delivery"] = delivery
-        request["registered"] = registered
+        delivery = request["delivery"]
+        registered = request["registered"] = bool(request["registered"])
         total_card_count = sum(i.get("card_count", 1) for i in items)
         if sale:
             request["shipping_cents"] = sale["shipping_charged_cents"]
@@ -556,10 +565,9 @@ class Reservations:
             ]
 
     def create(self, client_id, listing_ids, message, delivery="shipping", registered=None):
-        formatted_message = format_delivery_message(message, delivery, registered)
         prices = self.prices(listing_ids)
         with self.store.connect(write=True) as db:
-            request = self.insert(db, client_id, prices(db), formatted_message, OPEN_LIMIT)
+            request = self.insert(db, client_id, prices(db), message, OPEN_LIMIT, delivery, registered)
         self.notified()
         return request
 
@@ -571,7 +579,6 @@ class Reservations:
         Either way the answer is the same: it never tells who has an account.
         """
         email = valid_email(email)
-        formatted_message = format_delivery_message(message, delivery, registered)
         prices = self.prices(listing_ids)
         with self.store.connect(write=True) as db:
             if not db.execute("SELECT 1 FROM users WHERE role='admin' LIMIT 1").fetchone():
@@ -592,7 +599,7 @@ class Reservations:
                     (client_id, email, unusable_hash, "client", timestamp, email,
                      display_name.strip(), "pending", timestamp),
                 )
-            self.insert(db, client_id, chosen, formatted_message, GUEST_LIMIT)
+            self.insert(db, client_id, chosen, message, GUEST_LIMIT, delivery, registered)
         self.notified()
 
     def notified(self):
@@ -617,7 +624,7 @@ class Reservations:
 
         return read
 
-    def insert(self, db, client_id, prices, message, limit):
+    def insert(self, db, client_id, prices, message, limit, delivery="shipping", registered=None):
         open_count = db.execute(
             "SELECT COUNT(*) FROM requests WHERE client_id=? AND status='sent'",
             (client_id,),
@@ -630,6 +637,9 @@ class Reservations:
             "client_id": client_id,
             "status": "sent",
             "message": message.strip(),
+            # A hand delivery is never registered; None leaves the threshold to decide.
+            "delivery": delivery,
+            "registered": int(delivery == "shipping" and bool(registered)),
             "created_at": timestamp.isoformat(),
             "updated_at": timestamp.isoformat(),
             "expires_at": (timestamp + EXPIRY).isoformat(),
@@ -733,7 +743,7 @@ class Reservations:
             if unavailable:
                 raise Conflict("Une carte choisie n’est plus disponible : retirez-la de l’acceptation.")
             copy_ids = [c["id"] for l in chosen for c in self.storefront.cards(db, l)]
-            delivery, registered, clean_msg = extract_delivery_mode(row["message"])
+            delivery, registered = row["delivery"], bool(row["registered"])
             accepted_amount = sum(items[l] for l in chosen)
             accepted_card_count = len(copy_ids)
             ship_cents = shipping_cents(accepted_card_count, accepted_amount, delivery=delivery, registered=registered)
@@ -743,7 +753,7 @@ class Reservations:
                     "title": title[:256],
                     "channel": "Vitrine",
                     "notes": f"Demande {request_id} de {client['email']}."
-                    + (f"\nMessage : {clean_msg}" if clean_msg else ""),
+                    + (f"\nMessage : {row['message']}" if row["message"] else ""),
                     "amount_cents": accepted_amount,
                     "asking_cents": accepted_amount,
                     "shipping_charged_cents": ship_cents,
