@@ -21,7 +21,7 @@ from .valuation import (
 )
 from .variant_pricing import category, compatible_quote, pricing_issue
 
-SCHEMA_VERSION = 22
+SCHEMA_VERSION = 23
 
 
 def now():
@@ -314,6 +314,10 @@ class Store:
                 from .notifications import SCHEMA as NOTIFICATIONS_SCHEMA
 
                 db.executescript(NOTIFICATIONS_SCHEMA)
+            if db.execute("PRAGMA user_version").fetchone()[0] == 22:
+                from .move_batches import SCHEMA as MOVE_BATCHES_SCHEMA
+
+                db.executescript(MOVE_BATCHES_SCHEMA)
             db.execute("PRAGMA journal_mode=WAL")
         from .reference_service import ReferenceService
 
@@ -362,10 +366,20 @@ class Store:
 
     def snapshot_before_migration(self, db, version):
         """Keep the database as it was; a failed copy stops the migration."""
+        return self.copy_database(db, f"before-schema{SCHEMA_VERSION}-from{version}", version)
+
+    def copy_database(self, db, name, version=None):
+        """A checked, private copy of the database alone in backups/, without photos.
+
+        Enough before an operation that only changes rows; a failed copy raises.
+        """
+        version = (
+            db.execute("PRAGMA user_version").fetchone()[0] if version is None else version
+        )
         folder = self.root.parent / "backups"
         folder.mkdir(mode=0o700, parents=True, exist_ok=True)
         stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
-        target = folder / f"before-schema{SCHEMA_VERSION}-from{version}-{stamp}.sqlite3"
+        target = folder / f"{name}-{stamp}.sqlite3"
         temporary = target.with_name(target.name + ".tmp")
         # Created private before SQLite writes into it; its journal inherits the mode.
         os.close(os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600))
@@ -378,7 +392,7 @@ class Store:
                     copy.execute("PRAGMA integrity_check").fetchone()[0] != "ok"
                     or copy.execute("PRAGMA user_version").fetchone()[0] != version
                 ):
-                    raise ValueError("Copie avant migration incohérente.")
+                    raise ValueError("Copie de la base incohérente.")
             temporary.replace(target)
         finally:
             temporary.unlink(missing_ok=True)

@@ -7,6 +7,17 @@
 Une page qui décrit le fonctionnement ne porte pas de date : quand un passage
 daté la quitte, il est versé ici dans le même commit.
 
+## 2026-11-04
+
+- Gestion : déplacement en lot d'une sélection de cartes vers un autre album ou
+  une autre page (`/api/move-batches`, action « Déplacer vers… »), avec aperçu
+  des emplacements et des collisions de cases, placement dans les premières
+  cases libres ou à partir d'une page et case données, refus des cartes
+  réservées, vendues ou en lot actif, application transactionnelle tout ou rien
+  avec sauvegarde et historique par carte, et annulation complète
+  ([décision 0024](decisions/0024-deplacements-en-lot.md),
+  `tests/test_move_batches.py`, `tests/test_web_client.py`).
+
 ## 2026-11-03
 
 - Cotation en lot : une cote qu'un marché instable déplacerait d'au moins

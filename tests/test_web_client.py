@@ -266,3 +266,22 @@ def test_storefront_submissions_ignore_repeated_activation_and_allow_retry():
     subprocess.run([node, str(root / 'tests/storefront_submission_runtime.cjs'),
                     str(root / 'src/pokeprice/web/storefront.js')], check=True,
                    capture_output=True, text=True)
+
+
+def test_move_selection_dialog_previews_collisions_applies_and_undoes():
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("Node.js is required")
+    root = Path(__file__).resolve().parents[1]
+    subprocess.run(
+        [
+            node,
+            str(root / "tests/web_move_runtime.cjs"),
+            str(root / "src/pokeprice/web/app.js"),
+            str(root / "src/pokeprice/web/messages/fr.json"),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
