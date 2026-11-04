@@ -403,5 +403,22 @@
   "todo.action.payment": "Voir le lot",
   "todo.action.photo": "Prendre la photo",
   "todo.minutes": {"one": "≈ {count} min", "other": "≈ {count} min"},
-  "todo.gone": "Ce point n’est plus en attente : la liste a changé."
+  "todo.gone": "Ce point n’est plus en attente : la liste a changé.",
+
+  "install.description": "La gestion de la collection : cartes, ventes et demandes.",
+  "install.link": "Installer sur le téléphone",
+  "install.title": "Installer la gestion",
+  "install.close": "Fermer l’aide à l’installation",
+  "install.intro": "Ajoutée à l’écran d’accueil, la gestion s’ouvre comme une application, en plein écran.",
+  "install.button": "Installer l’application",
+  "install.done": "Installation lancée. L’icône apparaît sur l’écran d’accueil.",
+  "install.installed": "La gestion est déjà ouverte comme une application.",
+  "install.iphone_title": "iPhone ou iPad",
+  "install.iphone_help": "Ouvrez cette page dans Safari, touchez Partager (le carré avec une flèche vers le haut), puis « Sur l’écran d’accueil ».",
+  "install.android_title": "Android",
+  "install.android_help": "Dans Chrome, ouvrez le menu ⋮, puis « Ajouter à l’écran d’accueil » ou « Installer l’application ».",
+  "install.privacy": "Les prix et les données des clients ne sont jamais gardés sur le téléphone : sans réseau, l’application affiche seulement une page d’attente.",
+  "offline.title": "Hors ligne",
+  "offline.help": "Le téléphone n’a pas de réseau. La collection, les prix et les demandes restent sur le serveur : reconnectez-vous puis réessayez.",
+  "offline.retry": "Réessayer"
 }

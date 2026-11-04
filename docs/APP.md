@@ -129,6 +129,43 @@ et le navigateur refuse alors l'aperçu de la caméra (voir
 depuis n'importe où, hébergez l'application sur un serveur : voir
 [Héberger le site](DEPLOYMENT.md).
 
+### Installer la gestion sur le téléphone
+
+Servie en HTTPS, la gestion s'installe comme une application : une icône sur
+l'écran d'accueil, qui ouvre `/gestion` en plein écran, sans barre d'adresse.
+Dans **Réglages**, le bouton « Installer sur le téléphone » explique la marche
+à suivre :
+
+- **iPhone ou iPad** : dans Safari, touchez Partager, puis « Sur l'écran
+  d'accueil » ;
+- **Android** : le bouton « Installer l'application » ouvre l'invite de Chrome
+  quand le navigateur la propose ; sinon, menu ⋮, puis « Ajouter à l'écran
+  d'accueil ».
+
+Ce qui rend l'installation possible, et ce qui reste sur le téléphone :
+
+| Adresse | Rôle | En-têtes |
+|---|---|---|
+| `/gestion/manifest.webmanifest` | Nom, icônes, couleurs ; `start_url` et `scope` sur `/gestion`, affichage `standalone` | `Cache-Control: no-cache` |
+| `/gestion/sw.js` | Service worker, de portée `/gestion` | `Cache-Control: no-cache`, `Service-Worker-Allowed: /gestion` |
+| `/gestion/hors-ligne` | Page affichée quand le réseau manque | `no-store` |
+
+Le service worker garde dans un cache l'interface seule : la page hors ligne,
+les scripts, les styles, le manifeste et les icônes (liste `APP_SHELL` de
+`webapp.py`). Le nom du cache porte une empreinte de tous les fichiers de
+`src/pokeprice/web/` : un déploiement qui change l'interface crée un nouveau
+cache, et l'ancien est supprimé à l'activation. Le réseau passe toujours
+d'abord ; le cache ne sert que sans réseau. Les requêtes `/api`, dont les
+photos, ne passent jamais par le cache : aucun prix ni aucune donnée de client
+n'est gardé sur le téléphone. Sans réseau, toute page de la gestion affiche
+« Hors ligne » et un bouton pour réessayer.
+
+La vitrine publique n'a ni manifeste ni service worker. Les icônes
+`icon-192.png`, `icon-512.png` et `icon-maskable-512.png` viennent de la
+mascotte ; `scripts/make_app_icons.py` les régénère. En HTTP sur le Wi-Fi
+(section précédente), le navigateur refuse le service worker : l'installation
+demande l'adresse HTTPS du serveur hébergé.
+
 ### Clé Gemini (facultative)
 
 La lecture des photos passe par Gemini, un modèle vision-langage de Google

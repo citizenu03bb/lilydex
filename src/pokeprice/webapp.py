@@ -73,6 +73,33 @@ from .verification import (
 
 # A page's text, as written in the HTML: {{t:filters.title}}.
 TEXT_KEY = re.compile(r"\{\{t:([\w.]+)\}\}")
+# The management app's offline shell (docs/APP.md, « Application installable »):
+# the only addresses its service worker ever writes to its cache. Never /api.
+APP_SHELL = (
+    "/gestion/hors-ligne", "/gestion/manifest.webmanifest",
+    "/assets/themes.css", "/assets/style.css", "/assets/photo-zoom.css",
+    "/assets/components.js", "/assets/photo-zoom.js", "/assets/media.js",
+    "/assets/app.js", "/assets/workflows.js", "/assets/gallery.js", "/assets/pwa.js",
+    "/assets/logo.png", "/assets/icon-192.png", "/assets/icon-512.png",
+    "/assets/icon-maskable-512.png", "/assets/apple-touch-icon.png", "/favicon.ico",
+)
+
+
+def interface_version(folder: Path) -> str:
+    """A digest of the interface files as deployed: it names the service worker's cache.
+
+    Any deployment that changes a page, a script, a style, a text or an icon
+    changes it, so the phone drops the old cache; no date to bump by hand.
+    """
+    digest = hashlib.sha256(SITE_NAME.encode())
+    for path in sorted(p for p in folder.rglob("*") if p.is_file()):
+        digest.update(path.relative_to(folder).as_posix().encode() + b"\0")
+        digest.update(path.read_bytes())
+    return digest.hexdigest()[:16]
+
+
+# Served with no-cache so a deployment reaches the phone at the next visit.
+APP_NO_CACHE = ("/gestion/sw.js", "/gestion/manifest.webmanifest")
 # The storefront's languages: dictionary, <html lang> and home address. French is the
 # reference; another language lives under its prefix (docs/decisions/0020).
 LANGUAGES = {"fr": ("fr", "/"), "en": ("en-GB", "/en/")}
@@ -860,6 +887,8 @@ def create_app(
                 cache_policy = "public, max-age=86400"
             elif request.url.path.startswith("/assets/"):
                 cache_policy = "public, no-cache"
+            elif request.url.path in APP_NO_CACHE:
+                cache_policy = "no-cache"
         response.headers["Cache-Control"] = cache_policy
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://assets.tcgdex.net; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
@@ -1114,14 +1143,63 @@ def create_app(
     def index():
         return page("index.html")
 
+    # The management app is installable (docs/APP.md): manifest, service
+    # worker and offline page, all public and free of any collection data.
+    @app.get("/gestion/manifest.webmanifest", include_in_schema=False)
+    def app_manifest():
+        words = dictionaries["fr"]
+        icons = [
+            {"src": "/assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+            {"src": "/assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+            {"src": "/assets/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
+        ]
+        manifest = {
+            "id": "/gestion",
+            "name": SITE_NAME,
+            "short_name": "Cartes Lily",
+            "description": words["install.description"],
+            "lang": "fr",
+            "dir": "ltr",
+            "start_url": "/gestion",
+            "scope": "/gestion",
+            "display": "standalone",
+            # Herbier theme (themes.css): --surface-1 for the bar, --surface-0 behind.
+            "theme_color": "#ffffff",
+            "background_color": "#f6f5f0",
+            "icons": icons,
+        }
+        return Response(
+            json.dumps(manifest, ensure_ascii=False),
+            media_type="application/manifest+json",
+        )
+
+    @app.get("/gestion/sw.js", include_in_schema=False)
+    def service_worker():
+        script = (
+            static.joinpath("sw.js").read_text()
+            .replace("{{version}}", interface_version(static))
+            .replace("{{precache}}", json.dumps(list(APP_SHELL)))
+        )
+        # Its own folder would cap its reach at /gestion/; the page is /gestion.
+        return Response(
+            script,
+            media_type="text/javascript",
+            headers={"Service-Worker-Allowed": "/gestion"},
+        )
+
+    @app.get("/gestion/hors-ligne", response_class=HTMLResponse, include_in_schema=False)
+    def offline_page():
+        return page("offline.html")
+
     @app.get("/assets/{name}")
     def assets(
         request: Request,
         name: Literal[
             "app.js", "media.js", "workflows.js", "gallery.js", "style.css",
             "storefront.js", "storefront.css", "themes.css", "components.js",
-            "photo-zoom.js", "photo-zoom.css",
+            "photo-zoom.js", "photo-zoom.css", "pwa.js",
             "logo.png", "apple-touch-icon.png", "mascotte.png",
+            "icon-192.png", "icon-512.png", "icon-maskable-512.png",
         ],
     ):
         path = static / name

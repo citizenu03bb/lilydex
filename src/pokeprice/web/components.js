@@ -45,6 +45,13 @@ function applyLilydexTheme(doc, choice, prefersDark) {
   if (meta) {
     meta.content = resolved === "vault" ? "dark" : "light";
   }
+  // The installed app's status bar takes the colour of the top bar.
+  const bar = doc.querySelector?.('meta[name="theme-color"]');
+  const view = doc.defaultView;
+  if (bar && view?.getComputedStyle) {
+    const surface = view.getComputedStyle(doc.documentElement).getPropertyValue("--surface-1").trim();
+    if (surface) bar.content = surface;
+  }
   return resolved;
 }
 
