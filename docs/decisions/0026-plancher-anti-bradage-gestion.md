@@ -1,4 +1,4 @@
-# 0023 — Le plancher anti-bradage s'applique aussi aux prix fixés depuis la gestion
+# 0026 — Le plancher anti-bradage s'applique aussi aux prix fixés depuis la gestion
 
 > **Statut :** en vigueur, complète la [décision 0021](0021-autonomie-maximale.md) · **Date :** 2026-11-04
 

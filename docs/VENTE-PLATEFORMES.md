@@ -110,7 +110,7 @@ référence diminuée de la marge, et jamais moins de 0,50 €. La règle
 `src/pokeprice/pricing.py` et partagée avec la vitrine (`listings.py`) et
 l'outil de lots (`scripts/pokeprice_lots.py`) : `POKEPRICE_LOT_MAX_MARGIN`,
 15 % par défaut, entier borné de 0 à 50, arrondi au centime supérieur
-([décision 0023](decisions/0023-plancher-anti-bradage-gestion.md)). `--marge` y
+([décision 0026](decisions/0026-plancher-anti-bradage-gestion.md)). `--marge` y
 déroge pour un export, dans les mêmes bornes. Pour un lot, la cote est la somme
 des cotes de ses cartes. Un prix trop bas est relevé au plancher, puis arrondi
 vers le haut au format de la plateforme.

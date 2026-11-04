@@ -243,7 +243,7 @@ Un prix fixé à la main depuis la gestion (`Listings.publish`, `src/pokeprice/l
 ne descend jamais sous le **plancher anti-bradage** (`lot_floor_cents` dans
 `src/pokeprice/pricing.py`) : la valeur de référence diminuée de la marge
 `POKEPRICE_LOT_MAX_MARGIN` (15 % par défaut, entier borné de 0 à 50, arrondi au
-centime supérieur), ni sous 0,50 € ([décision 0023](decisions/0023-plancher-anti-bradage-gestion.md)).
+centime supérieur), ni sous 0,50 € ([décision 0026](decisions/0026-plancher-anti-bradage-gestion.md)).
 Pour un lot, ce plancher s'applique à la somme des valeurs de référence de ses
 exemplaires. Une carte sans référence (ou à 0) garde le seul plancher de 0,50 €,
 et le message de refus le précise. Le prix figé dans une publication ne change

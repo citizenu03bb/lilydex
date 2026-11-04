@@ -30,7 +30,7 @@ l'ancienne passe au statut « remplacée ».
 | [0020](0020-textes-dans-des-dictionnaires.md) | Les textes de la vitrine vivent dans des dictionnaires JSON | 2026-10-27 |
 | [0021](0021-autonomie-maximale.md) | Les agents agissent seuls, sauf l'argent, l'irréversible et le bradage | 2026-11-03 |
 | [0022](0022-agent-confirme-ou-demande-photo.md) | L'agent confirme sur preuves concordantes, sinon il demande une photo | 2026-11-03 |
-| [0023](0023-plancher-anti-bradage-gestion.md) | Le plancher anti-bradage s'applique aussi aux prix fixés depuis la gestion | 2026-11-04 |
+| [0026](0026-plancher-anti-bradage-gestion.md) | Le plancher anti-bradage s'applique aussi aux prix fixés depuis la gestion | 2026-11-04 |
 
 ## Écrire une fiche
 

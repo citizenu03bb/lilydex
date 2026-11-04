@@ -64,7 +64,7 @@ marge vaut 15 % par défaut.
 `lot_floor_cents`, `POKEPRICE_LOT_MAX_MARGIN` à 15 % par défaut, borné de 0 à
 50), partagée par `scripts/pokeprice_lots.py`, `src/pokeprice/marketplace_export.py`
 et `src/pokeprice/listings.py`
-([décision 0023](../../docs/decisions/0023-plancher-anti-bradage-gestion.md)).
+([décision 0026](../../docs/decisions/0026-plancher-anti-bradage-gestion.md)).
 La publication unitaire ou en lot (`Listings.publish`) et l'interface de
 gestion (« Mode lot », création de brouillon, publication directe et prix de
 vitrine fixé à la main) affichent le minimum autorisé avant validation et
