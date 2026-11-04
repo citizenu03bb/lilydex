@@ -117,6 +117,7 @@
                 + Ajouter une carte
               </button>
               <button id="capture-series" hidden>Saisie en série</button>
+              <button id="capture-page" hidden>{{t:page_batch.open}}</button>
             </div>
           </div>
           <div class="stats" id="stats"></div>
@@ -797,6 +798,66 @@
         <button class="primary">Commencer</button>
         <p id="series-error" class="error" role="alert"></p>
       </form>
+    </dialog>
+    <dialog id="page-dialog" aria-labelledby="page-dialog-title">
+      <div class="dialog-header">
+        <h2 id="page-dialog-title">{{t:page_batch.title}}</h2>
+        <button
+          data-close="page-dialog"
+          class="close"
+          aria-label="{{t:page_batch.close}}"
+        >
+          ×
+        </button>
+      </div>
+      <form id="page-form" class="dialog-form">
+        <p class="help">{{t:page_batch.help}}</p>
+        <label
+          >{{t:page_batch.album}}<select name="album_id" required></select
+        ></label>
+        <div class="form-row">
+          <label
+            >{{t:page_batch.page}}<input
+              name="page"
+              type="number"
+              min="1"
+              max="1000"
+              value="1"
+              required
+          /></label>
+          <label
+            >{{t:page_batch.rotation}}<select name="rotation">
+              <option value="auto">{{t:page_batch.rotation.auto}}</option>
+              <option value="0">{{t:page_batch.rotation.0}}</option>
+              <option value="90">{{t:page_batch.rotation.90}}</option>
+              <option value="180">{{t:page_batch.rotation.180}}</option>
+              <option value="270">{{t:page_batch.rotation.270}}</option>
+            </select></label
+          >
+        </div>
+        <div class="intake-actions">
+          <button type="button" id="page-camera">
+            {{t:page_batch.camera}}
+          </button>
+          <label class="button"
+            >{{t:page_batch.upload}}<input
+              id="page-file"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+          /></label>
+        </div>
+        <p id="page-status" class="help" role="status" aria-live="polite"></p>
+      </form>
+      <div id="page-results" class="dialog-form"></div>
+      <div id="page-history" class="dialog-form"></div>
+      <div class="dialog-form">
+        <button id="page-apply" class="primary" type="button" hidden>
+          {{t:page_batch.apply}}</button
+        ><button id="page-undo" type="button" hidden>
+          {{t:page_batch.undo}}
+        </button>
+        <p id="page-error" class="error" role="alert"></p>
+      </div>
     </dialog>
     <dialog id="batch-dialog">
       <div class="dialog-header">

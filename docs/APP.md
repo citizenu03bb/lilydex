@@ -319,7 +319,8 @@ vers Gemini sans action explicite.
 
 Cochez jusqu'à 20 exemplaires puis **Préparer les photos sélectionnées** :
 simulez les réglages du recto ou du verso, agrandissez les comparaisons et
-cochez les résultats voulus. L'application crée une sauvegarde avant de
+cochez les résultats voulus. L'application copie d'abord la base, sans les
+photos (nommées par leur empreinte, elles ne sont jamais effacées), avant de
 remplacer les photos. **Annuler ce traitement**, et les vingt derniers
 traitements, se retrouvent dans **Photos par lot**, même sans carte
 sélectionnée ; une fiche modifiée depuis le traitement bloque son annulation.
@@ -349,6 +350,28 @@ occupée, rien n'est écrit. Après l'application, **Annuler ce déplacement** (
 la fenêtre ou dans le bandeau affiché au-dessus de la grille) remet l'ensemble
 des cartes à leur place d'origine en une transaction, tant qu'aucune fiche n'a
 été modifiée depuis et que les cases d'origine sont restées libres.
+
+### Déposer une page de classeur (3×3)
+
+**Collection → Page de classeur (3×3)** prend ou téléverse la photo d'une page
+entière (9 pochettes, grille 3×3) pour un album existant et un numéro de page,
+sur ordinateur comme sur téléphone. Le serveur redresse l'image en portrait (ou
+selon l'angle choisi) et la découpe en 9 pochettes :
+
+- si un exemplaire unique occupe déjà `(album, page, pochette)`, l'aperçu
+  compare sa photo actuelle avec la nouvelle découpe du recto ;
+- si la pochette est vide, l'aperçu propose de créer une fiche « À identifier »
+  (`unresolved`) rangée à cet emplacement avec la photo découpée ;
+- si plusieurs fiches occupent déjà la même pochette, la case signale le
+  conflit et reste décochée.
+
+**Appliquer les pochettes cochées** copie d'abord la base, sans les photos,
+dans `backups/before-photo-batch-<date>.sqlite3`, puis met à
+jour les fiches existantes (en réinitialisant la confirmation d'état) et crée
+les fiches « À identifier » dans une seule transaction. **Annuler ce dépôt de
+page** restaure les photos antérieures et place en corbeille les fiches créées
+par le lot, tant qu'aucune fiche concernée n'a été modifiée ou engagée dans un
+lot depuis l'application ([décision 0025](decisions/0025-photo-page-classeur-gestion.md)).
 
 ## Vérifier une carte
 

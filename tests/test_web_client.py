@@ -285,3 +285,20 @@ def test_move_selection_dialog_previews_collisions_applies_and_undoes():
         text=True,
     )
 
+
+def test_page_batch_workflow_uploads_previews_applies_and_undoes():
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("Node.js is required")
+    root = Path(__file__).resolve().parents[1]
+    subprocess.run(
+        [
+            node,
+            str(root / "tests/web_page_batch_runtime.cjs"),
+            str(root / "src/pokeprice/web/workflows.js"),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+

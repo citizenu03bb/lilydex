@@ -9,6 +9,11 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-04
 
+- Sauvegardes : avant un lot de photos, une page de classeur ou un
+  déplacement, l'application copie la base seule (environ 36 Mo) au lieu
+  d'une archive avec les photos (800 Mo), qui remplissait le disque du
+  serveur en quelques lots ; les 5 dernières copies de chaque sorte sont
+  gardées (`tests/test_backup_retention.py`).
 - Gestion : déplacement en lot d'une sélection de cartes vers un autre album ou
   une autre page (`/api/move-batches`, action « Déplacer vers… »), avec aperçu
   des emplacements et des collisions de cases, placement dans les premières
@@ -25,6 +30,13 @@ daté la quitte, il est versé ici dans le même commit.
   ([fiche 0023](decisions/0023-cote-retenue-marche-instable.md),
   `tests/test_prices_bulk.py`). Vu à l'essai de la cotation matinale sur une
   copie : −11 % de cote totale, communes portées à 7 € par une vente isolée.
+- Gestion : **Page de classeur (3×3)** dépose ou photographie une page entière
+  pour un album et un numéro de page, la découpe en 9 pochettes avec `slicer.py`
+  et affiche l'aperçu case par case (remplacement du recto sur une pochette
+  occupée, nouvelle fiche « À identifier » sur une case vide), avec application
+  atomique précédée d'une sauvegarde et annulation gardée par version
+  ([décision 0025](decisions/0025-photo-page-classeur-gestion.md),
+  `tests/test_workflows.py`, `tests/test_web_client.py`).
 - Vente sur les plateformes : `scripts/export_annonces.py` prépare, en lecture
   seule, une annonce par dossier pour Vinted et Leboncoin et le fichier d'import
   de stock Cardmarket ; prix jamais sous la cote moins une marge réglable

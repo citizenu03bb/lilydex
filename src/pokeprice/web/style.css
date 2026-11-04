@@ -1343,11 +1343,13 @@ dialog::backdrop {
   max-height: 180px;
   object-fit: contain;
 }
-#batch-results img {
+#batch-results img,
+#page-results img {
   max-height: 260px;
   object-fit: contain;
 }
-#batch-history {
+#batch-history,
+#page-history {
   gap: 8px;
 }
 #backup-status-panel .help {
@@ -1372,7 +1374,8 @@ dialog::backdrop {
   #series-progress {
     font-size: 16px;
   }
-  #batch-results .intake-comparison {
+  #batch-results .intake-comparison,
+  #page-results .intake-comparison {
     grid-template-columns: 1fr 1fr;
   }
 }

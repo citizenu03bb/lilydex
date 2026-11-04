@@ -293,7 +293,7 @@ def test_photo_batch_preview_selected_apply_and_undo_retains_originals(client):
     )
     assert list(
         client.app.state.store.root.parent.joinpath("backups").glob(
-            "before-photo-batch-*.zip"
+            "before-photo-batch-*.sqlite3"
         )
     )
 
@@ -358,7 +358,7 @@ def test_refused_photo_batch_requests_create_no_backup(client):
         ),
     ]
     assert [r.status_code for r in refused] == [404, 404, 409, 422]
-    assert not list(backups.glob("before-photo-batch-*.zip"))
+    assert not list(backups.glob("before-photo-batch-*.sqlite3"))
     client.app.state.store.patch(first["id"], {"notes": "Concurrent"}, 1, "pat", "Test")
     assert (
         client.post(
@@ -366,7 +366,7 @@ def test_refused_photo_batch_requests_create_no_backup(client):
         ).status_code
         == 409
     )
-    assert not list(backups.glob("before-photo-batch-*.zip"))
+    assert not list(backups.glob("before-photo-batch-*.sqlite3"))
 
 
 def test_listing_package_excludes_notes_payments_and_does_not_reserve(client):
@@ -425,3 +425,251 @@ def test_daily_verified_backup_retention_and_external_record(client):
         database.write_bytes(archive.read("collection.sqlite3"))
     with sqlite3.connect(database) as db:
         assert db.execute("SELECT COUNT(*) FROM sessions").fetchone()[0] == 0
+
+
+POCKET_COLORS = [
+    (220, 40, 40),
+    (40, 180, 40),
+    (40, 80, 220),
+    (220, 180, 30),
+    (180, 40, 200),
+    (30, 190, 190),
+    (230, 110, 30),
+    (110, 70, 40),
+    (90, 110, 140),
+]
+
+
+def synthetic_page_photo(landscape=False):
+    from PIL import Image, ImageDraw
+
+    width, height = 300, 420
+    image = Image.new("RGB", (width, height), (245, 245, 245))
+    draw = ImageDraw.Draw(image)
+    cell_w, cell_h = width // 3, height // 3
+    for idx, color in enumerate(POCKET_COLORS):
+        row, col = divmod(idx, 3)
+        x0, y0 = col * cell_w, row * cell_h
+        draw.rectangle([x0, y0, x0 + cell_w - 1, y0 + cell_h - 1], fill=color)
+    if landscape:
+        image = image.rotate(90, expand=True)
+    buf = io.BytesIO()
+    image.save(buf, format="PNG")
+    return buf.getvalue()
+
+
+def center_rgb(jpeg_bytes):
+    from PIL import Image
+
+    with Image.open(io.BytesIO(jpeg_bytes)) as img:
+        rgb = img.convert("RGB")
+        return rgb.getpixel((rgb.width // 2, rgb.height // 2))
+
+
+def test_page_photo_batch_slices_3x3_updates_existing_creates_unresolved_and_undoes(
+    client,
+):
+    store = client.app.state.store
+    album_id = client.get("/api/summary").json()["albums"][0]["id"]
+    first = client.post(
+        "/api/intake/" + draft(client) + "/save",
+        json=values(client, page=2, position=1),
+    ).json()
+    first = store.patch(
+        first["id"],
+        {"condition": "NM", "condition_confirmed": True},
+        first["version"],
+        "pat",
+        "État initial confirmé",
+    )
+    fifth = client.post(
+        "/api/copies",
+        json=values(client, name="Pikachu", page=2, position=5),
+    ).json()
+
+    preview = client.post(
+        f"/api/photo-batches/page?album_id={album_id}&page=2",
+        content=synthetic_page_photo(),
+        headers={"Content-Type": "image/png"},
+    )
+    assert preview.status_code == 201, preview.text
+    job = preview.json()
+    assert job["status"] == "preview"
+    assert job["data"]["kind"] == "page"
+    assert job["data"]["page"] == 2
+    items = {i["position"]: i for i in job["data"]["items"]}
+    assert set(items) == set(range(1, 10))
+    assert items[1]["action"] == "update" and items[1]["id"] == first["id"]
+    assert items[1]["before"] == first["photo"]
+    assert items[5]["action"] == "update" and items[5]["id"] == fifth["id"]
+    assert items[5]["before"] is None
+    for empty_pos in (2, 3, 4, 6, 7, 8, 9):
+        assert items[empty_pos]["action"] == "create"
+        assert items[empty_pos]["name"] == "À identifier"
+        assert items[empty_pos]["identification_status"] == "unresolved"
+        assert items[empty_pos]["id"] is None
+
+    # Each sliced pocket preview matches its cell colour in the 3x3 grid.
+    for pos in (1, 2, 5, 9):
+        resp = client.get(f"/api/photo-batches/{job['id']}/photo/pos-{pos}/result")
+        assert resp.status_code == 200
+        actual = center_rgb(resp.content)
+        expected = POCKET_COLORS[pos - 1]
+        assert all(abs(a - b) < 15 for a, b in zip(actual, expected)), (
+            pos,
+            actual,
+            expected,
+        )
+
+    assert client.get("/api/summary").json()["copies"] == 2
+    applied = client.post(
+        f"/api/photo-batches/{job['id']}/apply",
+        json={"positions": [1, 2, 5, 9]},
+    )
+    assert applied.status_code == 200, applied.text
+    applied_items = {i["position"]: i for i in applied.json()["data"]["items"]}
+
+    updated_first = client.get("/api/copies/" + first["id"]).json()
+    assert updated_first["photo"] == items[1]["result"]
+    assert updated_first["photo"] != first["photo"]
+    assert not updated_first["condition_confirmed"]
+
+    updated_fifth = client.get("/api/copies/" + fifth["id"]).json()
+    assert updated_fifth["photo"] == items[5]["result"]
+
+    created_second = client.get("/api/copies/" + applied_items[2]["id"]).json()
+    assert created_second["name"] == "À identifier"
+    assert created_second["identification_status"] == "unresolved"
+    assert created_second["language"] == "unknown"
+    assert (
+        created_second["album_id"] == album_id
+        and created_second["page"] == 2
+        and created_second["position"] == 2
+    )
+    assert created_second["photo"] == items[2]["result"]
+    assert created_second["source"]["data"]["type"] == "page-photo-batch"
+
+    created_ninth = client.get("/api/copies/" + applied_items[9]["id"]).json()
+    assert created_ninth["position"] == 9 and created_ninth["name"] == "À identifier"
+    assert client.get("/api/summary").json()["copies"] == 4
+    # The database alone: photos are named by their hash and never deleted.
+    backups = store.root.parent.joinpath("backups")
+    assert list(backups.glob("before-photo-batch-*.sqlite3"))
+    assert not list(backups.glob("*.zip"))
+
+    undone = client.post(f"/api/photo-batches/{job['id']}/undo")
+    assert undone.status_code == 200, undone.text
+    assert undone.json()["status"] == "undone"
+
+    restored_first = client.get("/api/copies/" + first["id"]).json()
+    assert (
+        restored_first["photo"] == first["photo"]
+        and restored_first["photo_original"] == first["photo_original"]
+    )
+    restored_fifth = client.get("/api/copies/" + fifth["id"]).json()
+    assert restored_fifth["photo"] is None
+    assert client.get("/api/summary").json()["copies"] == 2
+    trashed = client.get("/api/copies?stock=deleted").json()["items"]
+    assert {c["id"] for c in trashed} == {
+        applied_items[2]["id"],
+        applied_items[9]["id"],
+    }
+
+
+def test_page_photo_batch_conflict_rolls_back_atomically_and_blocks_unsafe_undo(
+    client,
+):
+    store = client.app.state.store
+    backups = store.root.parent / "backups"
+    album_id = client.get("/api/summary").json()["albums"][0]["id"]
+    first = client.post(
+        "/api/intake/" + draft(client) + "/save",
+        json=values(client, page=1, position=1),
+    ).json()
+
+    job = client.post(
+        f"/api/photo-batches/page?album_id={album_id}&page=1",
+        content=synthetic_page_photo(),
+    ).json()
+    store.patch(first["id"], {"notes": "Modification concurrente"}, 1, "pat", "Test")
+    assert (
+        client.post(
+            f"/api/photo-batches/{job['id']}/apply",
+            json={"positions": [1, 2]},
+        ).status_code
+        == 409
+    )
+    assert client.get("/api/summary").json()["copies"] == 1
+    assert not list(backups.glob("before-photo-batch-*.sqlite3"))
+
+    # If an empty pocket is filled after preview, applying that pocket is refused atomically.
+    fresh = client.post(
+        f"/api/photo-batches/page?album_id={album_id}&page=1",
+        content=synthetic_page_photo(),
+    ).json()
+    occupied = values(client, page=1, position=3)
+    occupied.pop("reason")
+    store.create_copy(occupied, "pat", "Ajout concurrent")
+    assert (
+        client.post(
+            f"/api/photo-batches/{fresh['id']}/apply",
+            json={"positions": [1, 3]},
+        ).status_code
+        == 409
+    )
+    assert client.get("/api/copies/" + first["id"]).json()["version"] == 2
+    assert not list(backups.glob("before-photo-batch-*.sqlite3"))
+
+    # Applying non-conflicting pockets [1, 2] succeeds; editing created pocket 2 blocks undo.
+    applied = client.post(
+        f"/api/photo-batches/{fresh['id']}/apply",
+        json={"positions": [1, 2]},
+    )
+    assert applied.status_code == 200, applied.text
+    created_id = next(
+        i["id"] for i in applied.json()["data"]["items"] if i["position"] == 2
+    )
+    store.patch(created_id, {"name": "Bulbizarre"}, 1, "pat", "Identification")
+    assert client.post(f"/api/photo-batches/{fresh['id']}/undo").status_code == 409
+    assert client.get("/api/copies/" + created_id).json()["deleted_at"] == ""
+
+
+def test_page_photo_batch_handles_landscape_duplicate_slot_and_permissions(client):
+    store = client.app.state.store
+    album_id = client.get("/api/summary").json()["albums"][0]["id"]
+    base = values(client, page=4, position=1)
+    base.pop("reason")
+    store.create_copy(base, "pat", "Premier")
+    store.create_copy(base, "pat", "Doublon même pochette")
+
+    preview = client.post(
+        f"/api/photo-batches/page?album_id={album_id}&page=4&rotation=auto",
+        content=synthetic_page_photo(landscape=True),
+    )
+    assert preview.status_code == 201, preview.text
+    job = preview.json()
+    items = {i["position"]: i for i in job["data"]["items"]}
+    assert items[1]["action"] == "conflict"
+    assert len(items[1]["conflict_ids"]) == 2
+    assert (
+        client.post(
+            f"/api/photo-batches/{job['id']}/apply",
+            json={"positions": [1]},
+        ).status_code
+        == 409
+    )
+    assert (
+        client.post(
+            "/api/photo-batches/page?album_id=unknown-album&page=1",
+            content=synthetic_page_photo(),
+        ).status_code
+        == 404
+    )
+    assert (
+        client.post(
+            f"/api/photo-batches/page?album_id={album_id}&page=1",
+            content=b"not-an-image",
+        ).status_code
+        == 422
+    )
+
