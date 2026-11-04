@@ -9,6 +9,8 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-04
 
+- Modèle du chat retenu : Gemini 3.8 Flash, avec une clé à lui sur une offre
+  payante ([fiche 0031](decisions/0031-modele-du-chat.md), passée en vigueur).
 - Banc du modèle du chat de gestion : 46 commandes types en français
   familier, rejouées en deux tours au plus sur des données synthétiques, avec
   les outils en lecture de la fiche 0032 et quatre outils d'écriture fictifs.

@@ -1,6 +1,6 @@
 # 0031 — Le chat de gestion passe par Gemini Flash, avec une clé à lui, tant qu'aucun modèle local ne tient sur le serveur
 
-> **Statut :** proposée, complète la [décision 0029](0029-assistant-de-gestion.md) · **Date :** 2026-11-04
+> **Statut :** en vigueur, complète la [décision 0029](0029-assistant-de-gestion.md) · **Date :** 2026-11-04
 
 **Contexte.** La [décision 0029](0029-assistant-de-gestion.md) laisse ouvert le
 choix du modèle du chat. Ses critères, dans l'ordre : la fiabilité des appels
@@ -73,8 +73,8 @@ une passe par candidat, température 0. Rapport complet :
 - La mesure qui tranche se fait sur une instance A1 de même forme : la
   procédure est dans le [guide du banc](../../bench/assistant/README.md#mesurer-sur-le-serveur-arm).
 
-**Décision proposée.** Option 2 : Gemini 3.8 Flash pour la V1, à trancher par
-la propriétaire.
+**Décision.** Option 2 : Gemini 3.8 Flash pour la V1, retenue par la
+propriétaire après lecture du banc.
 - C'est le seul candidat qui réussit toutes les commandes. Il répond en 3,9 s
   au médian, ce qui reste acceptable au téléphone, pour quelques dollars par
   mois.
@@ -86,8 +86,11 @@ la propriétaire.
 - Gemini 3.5 Flash-Lite reste le repli moins cher et plus rapide. Il rate un
   tiers des commandes d'écriture : il conviendrait à la V1 en lecture, pas à
   la V2.
-- Avant de figer le choix, rejouer le banc sur Claude Haiku 5.5. Son coût
-  estimé est le plus bas, mais il n'a pas été mesuré.
+- Claude Haiku 5.5 est rejoué sur le banc dès qu'une clé Anthropic est
+  disponible : son coût estimé est le plus bas, mais il n'a pas été mesuré.
+- Avant la V2, le banc tourne trois passes par candidat, et une dizaine de
+  cas nouveaux, écrits sans avoir vu les réponses d'aucun modèle, s'ajoutent
+  au jeu : le jeu actuel a été mis au point en mesurant Gemini.
 - Le modèle local se réévalue quand le serveur change de forme (4 cœurs et
   24 Go) ou quand un modèle de moins de 8 Go réussit le banc en moins de 10 s
   sur une instance A1.
