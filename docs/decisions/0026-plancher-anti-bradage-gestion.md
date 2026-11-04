@@ -37,6 +37,10 @@ absolu de 0,50 €.
 - Une carte sans référence (ou à 0) garde le comportement actuel (`FLOOR_CENTS`
   = 0,50 €) à l'unité comme en lot sans référence, et le message de refus le
   précise explicitement.
+- Une carte dont la variante est à vérifier prend pour référence la plus basse
+  des cotes connues de ses variantes possibles et de sa référence enregistrée,
+  jamais 0 : une carte à 100 € en holo et 30 € en standard ne descend pas sous
+  le plancher calculé sur 30 €.
 - L'interface de gestion (`src/pokeprice/web/app.js`) affiche le minimum
   autorisé avant validation dans le « Mode lot », le dialogue de création de
   lot, la publication directe de lot et le détail d'une fiche, et affiche un

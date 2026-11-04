@@ -127,4 +127,18 @@ for (const lotMode of [false, true]) {
   context.selectionBar();
   assert.equal(context.selectionFloor().floorCents, 323);
   assert.match(controls["lot-summary"].textContent, /3,23 €.*0 %/);
+
+  // A variant to check counts for its cheapest possible variant, never 0.
+  state.selected.clear();
+  state.selected.set("c3", {
+    id: "c3",
+    stock_state: "available",
+    reference_cents: 10000,
+    valuation: {
+      price_variant_issue: "Catégorie incohérente",
+      hypotheses: [{ trend_cents: 10000 }, { trend_cents: 3000 }],
+    },
+  });
+  context.selectionBar();
+  assert.equal(context.selectionFloor().floorCents, 3000);
 }

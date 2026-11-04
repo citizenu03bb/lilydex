@@ -518,8 +518,19 @@ function formatEuros(cents) {
   if (typeof money === "function") return money(cents);
   return `${(cents / 100).toFixed(2).replace(".", ",")} €`;
 }
+// Same rule as listings.reference_cents (decision 0026).
 function cardReferenceCents(card) {
-  if (!card || card.valuation?.price_variant_issue) return 0;
+  if (!card) return 0;
+  const positive = (v) =>
+    typeof v === "number" && Number.isFinite(v) && v > 0 ? Math.round(v) : 0;
+  if (card.valuation?.price_variant_issue) {
+    // A variant to check: the lowest quote among the possible variants.
+    const quotes = [
+      positive(card.reference_cents),
+      ...(card.valuation.hypotheses || []).map((h) => positive(h.trend_cents)),
+    ].filter(Boolean);
+    return quotes.length ? Math.min(...quotes) : 0;
+  }
   for (const v of [
     card.reference_cents,
     card.valuation?.trend_cents,

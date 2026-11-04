@@ -7,6 +7,7 @@ from test_library import inputs
 
 from pokeprice.inventory import SCHEMA_VERSION, Store
 from pokeprice.inventory_import import import_collection
+from pokeprice.listings import reference_cents
 from pokeprice.pricing import FLOOR_CENTS, display_price
 from pokeprice.webapp import create_app, password_hash
 
@@ -267,3 +268,21 @@ def test_manual_unit_and_lot_prices_enforce_reference_floor_and_margin_bounds(sh
     assert unrated_low.status_code == 422 and "aucune carte du lot n’a de référence" in unrated_low.json()["detail"]
     unrated_ok = client.post("/api/listings", json={"copy_ids": [first, second], "lot": True, "price_eur": "0.50"})
     assert unrated_ok.status_code == 201 and unrated_ok.json()[0]["price_cents"] == FLOOR_CENTS
+
+
+def test_a_variant_to_check_takes_the_lowest_possible_quote_as_reference():
+    issue = {"price_variant_issue": "Catégorie incohérente"}
+    # Holo at 100 €, standard at 30 €: the floor follows the cheaper print.
+    card = {
+        "reference_cents": 10000,
+        "valuation": {
+            **issue,
+            "hypotheses": [{"trend_cents": 10000}, {"trend_cents": 3000}, {"trend_cents": None}],
+        },
+    }
+    assert reference_cents(card) == 3000
+    # Variant confirmed but its quote rejected: the stored reference still counts.
+    assert reference_cents({"reference_cents": 10000, "valuation": {**issue, "hypotheses": []}}) == 10000
+    # Nothing known at all: only the absolute floor applies.
+    assert reference_cents({"reference_cents": None, "valuation": {**issue, "hypotheses": []}}) == 0
+    assert reference_cents({"reference_cents": 10000, "valuation": {"trend_cents": 20}}) == 10000

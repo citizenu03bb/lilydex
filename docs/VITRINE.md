@@ -245,7 +245,8 @@ ne descend jamais sous le **plancher anti-bradage** (`lot_floor_cents` dans
 `POKEPRICE_LOT_MAX_MARGIN` (15 % par défaut, entier borné de 0 à 50, arrondi au
 centime supérieur), ni sous 0,50 € ([décision 0026](decisions/0026-plancher-anti-bradage-gestion.md)).
 Pour un lot, ce plancher s'applique à la somme des valeurs de référence de ses
-exemplaires. Une carte sans référence (ou à 0) garde le seul plancher de 0,50 €,
+exemplaires. Une carte dont la variante est à vérifier compte pour la plus basse des cotes
+de ses variantes possibles. Une carte sans référence (ou à 0) garde le seul plancher de 0,50 €,
 et le message de refus le précise. Le prix figé dans une publication ne change
 que si le vendeur le change ; un relevé plus récent est seulement signalé.
 

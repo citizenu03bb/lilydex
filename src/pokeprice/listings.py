@@ -32,17 +32,29 @@ ITEM_FIELDS = (
 )
 
 
+def positive_cents(value):
+    return value if isinstance(value, int) and not isinstance(value, bool) and value > 0 else 0
+
+
 def reference_cents(card):
-    """Positive reference price of a copy, or 0 when absent or invalidated."""
+    """Positive reference price of a copy for its floor, or 0 when none is known.
+
+    With a variant to check, the lowest quote among the possible variants and
+    the stored reference sets the floor, never none: a card worth 100 € in
+    any variant is not sold for 0,50 € (decision 0026).
+    """
     valuation = card.get("valuation") or {}
     if valuation.get("price_variant_issue"):
-        return 0
+        quotes = [positive_cents(card.get("reference_cents"))] + [
+            positive_cents(h.get("trend_cents")) for h in valuation.get("hypotheses") or []
+        ]
+        return min((q for q in quotes if q), default=0)
     for value in (
         card.get("reference_cents"),
         valuation.get("trend_cents"),
         valuation.get("prudent_cents"),
     ):
-        if isinstance(value, int) and not isinstance(value, bool) and value > 0:
+        if positive_cents(value):
             return value
     return 0
 
