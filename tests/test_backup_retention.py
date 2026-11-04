@@ -1,11 +1,12 @@
 """Occasional backups are kept a while, and a backup never fills the disk."""
 
 import os
+import time
 from collections import namedtuple
 
 import pytest
 
-from pokeprice import inventory_backup
+from pokeprice import daily_backup, inventory_backup
 from pokeprice.daily_backup import prune_occasional
 from pokeprice.inventory import Store
 
@@ -52,3 +53,30 @@ def test_a_backup_is_refused_before_writing_when_the_disk_is_short(tmp_path, mon
     with pytest.raises(OSError, match="Espace disque insuffisant"):
         inventory_backup.backup(store, target)
     assert not target.exists()
+
+
+def test_old_archives_make_room_before_the_daily_archive_is_written(tmp_path, monkeypatch):
+    store = Store(tmp_path / "inventory")
+    folder = tmp_path / "backups"
+    folder.mkdir()
+    for day in range(1, 10):
+        (folder / f"daily-2000-01-{day:02d}.zip").touch()
+    now = time.time()
+    for name, age in (("before-lot", 30), ("before-lot-2", 20), ("before-lot-3", 10), ("before-lot-4", 5)):
+        touch(folder, f"{name}.zip", age, now)
+    seen = {}
+
+    def write(_store, destination):
+        seen["left"] = sorted(p.name for p in folder.iterdir() if p.is_file())
+        raise OSError("Espace disque insuffisant")
+
+    monkeypatch.setattr(daily_backup, "backup", write)
+    with pytest.raises(OSError):
+        daily_backup.daily(store)
+    # One slot stays free for the new archive; the oldest occasional one is gone.
+    assert seen["left"] == [
+        "before-lot-2.zip",
+        "before-lot-3.zip",
+        "before-lot-4.zip",
+        *(f"daily-2000-01-{day:02d}.zip" for day in range(4, 10)),
+    ]

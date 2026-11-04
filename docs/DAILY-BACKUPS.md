@@ -68,6 +68,11 @@ serveur), avec un délai aléatoire de 10 minutes au plus. Si le serveur était
    [Ce que vérifie une restauration](#ce-que-vérifie-une-restauration)) ;
 4. garde les 7 dernières archives quotidiennes et supprime les plus anciennes.
 
+Avant d'écrire l'archive, le service fait déjà la rotation (six archives
+quotidiennes gardées, plus celle du jour à venir) : sur un disque presque
+plein, le contrôle d'espace refuserait sinon la nouvelle archive et la
+rotation ne passerait jamais.
+
 Si l'archive du jour existe déjà, le service la contrôle de nouveau au lieu de
 la refaire : relancer le service ne crée pas de doublon.
 
@@ -348,7 +353,7 @@ Une archive ne contient pas :
 
 | Où | Règle |
 |---|---|
-| Serveur | Les 7 dernières archives quotidiennes. Les archives ponctuelles (faites à la main ou par une commande) : les 3 plus récentes sont toujours gardées, les autres 14 jours. Les copies d'avant migration, d'avant déplacement et d'avant lot de photos : les 5 plus récentes de chaque sorte. Cette rotation passe après chaque archive quotidienne réussie. |
+| Serveur | Les 7 dernières archives quotidiennes. Les archives ponctuelles (faites à la main ou par une commande) : les 3 plus récentes sont toujours gardées, les autres 14 jours. Les copies d'avant migration, d'avant déplacement et d'avant lot de photos : les 5 plus récentes de chaque sorte. Cette rotation passe avant et après chaque archive quotidienne. |
 | Portable | Les 3 dernières archives rapatriées, faute de place sur le disque. Cette limite ne touche pas Drive. |
 | Drive | Toutes les archives des 7 jours les plus récents qui en ont une, puis la plus récente de chacune des 8 dernières semaines et de chacun des 12 derniers mois. Seules comptent les semaines et les mois qui ont une archive. Les autres archives vont à la corbeille Drive, d'où elles restent récupérables 30 jours. |
 

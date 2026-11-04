@@ -14,6 +14,7 @@ from zoneinfo import ZoneInfo
 from .inventory import now
 from .inventory_backup import backup, restore_backup
 
+DAILY_KEEP = 7
 # Occasional backups (before a batch, a migration…) are not mirrored off the server.
 OCCASIONAL_KEEP = 3
 OCCASIONAL_DAYS = 14
@@ -105,6 +106,10 @@ def daily(store, *, force=False):
     # Reusing a completed daily archive makes scheduler retries idempotent.
     if force or not target.exists():
         folder.mkdir(parents=True, exist_ok=True)
+        # Free room first: on a nearly full disk the space check would refuse
+        # the new archive, and the rotation below would never run.
+        prune_daily(folder, DAILY_KEEP - 1, spare=target)
+        prune_occasional(folder)
         with tempfile.TemporaryDirectory(dir=folder) as tmp:
             pending = Path(tmp) / "collection.zip"
             backup(store, pending)
@@ -114,10 +119,21 @@ def daily(store, *, force=False):
     else:
         verified = verify(target)
     record_local(store, verified)
-    for old in sorted(folder.glob("daily-????-??-??.zip"), reverse=True)[7:]:
-        old.unlink()
+    prune_daily(folder, DAILY_KEEP)
     prune_occasional(folder)
     return verified
+
+
+def prune_daily(folder, keep, spare=None):
+    """Keep the latest `keep` daily archives, besides `spare`. Returns the names removed."""
+    removed = []
+    archives = sorted(
+        (p for p in folder.glob("daily-????-??-??.zip") if p != spare), reverse=True
+    )
+    for old in archives[keep:]:
+        old.unlink()
+        removed.append(old.name)
+    return removed
 
 
 def prune_occasional(folder, now_=None):
