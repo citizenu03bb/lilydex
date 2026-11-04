@@ -225,6 +225,15 @@ def main():
     review_undo.add_argument("run_id")
     review_undo.add_argument("--actor", required=True, help="Compte qui annule")
     actions.add_parser("agent-review-runs", help="Lister les passages de l'agent de revue")
+    floor_audit = actions.add_parser(
+        "floor-audit",
+        help="Annonces en ligne sous le plancher anti-bradage du jour, sans rien republier",
+    )
+    floor_audit.add_argument(
+        "--record",
+        action="store_true",
+        help="Inscrire une demande de dérogation ou de relèvement par annonce, en gestion",
+    )
     names = actions.add_parser(
         "names",
         help="Noms des éditions en plusieurs langues (TCGdex, une fois par édition)",
@@ -354,6 +363,11 @@ def main():
                     raise
         elif args.action == "status":
             result = store.summary()
+        elif args.action == "floor-audit":
+            from .floor_requests import FloorRequests
+
+            # Read only by default; --record only adds requests, never a price.
+            result = FloorRequests(store).audit(record_requests=args.record)
         elif args.action == "reference-recheck":
             from .quote_ledger import recheck_all
 

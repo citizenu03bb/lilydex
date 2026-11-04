@@ -59,9 +59,55 @@ def reference_cents(card):
     return 0
 
 
+# Accounts that publish without a person behind each click (decision 0030).
+LOTS_ACTOR = "pokeprice-lots"
+NO_REFERENCE_FOR_AGENT = (
+    "Sans prix de référence, un agent ne la publie pas seule : mettez-la dans un "
+    "lot avec des cartes cotées, ou relevez d’abord son prix."
+)
+
+
+def is_agent(actor):
+    return actor.startswith("agent:") or actor == LOTS_ACTOR
+
+
+class FloorRefusal(ValueError):
+    """A price under the anti-undercut floor, with what a waiver request needs.
+
+    ``request_id`` is the waiver request recorded for an agent, or None.
+    """
+
+    def __init__(self, message, details):
+        super().__init__(message)
+        self.details = details
+        self.request_id = None
+
+
 class Listings:
     def __init__(self, store):
         self.store = store
+
+    def refuse(self, message, copy_ids, refs, price_cents, floor, actor, *, lot=False, title="", reason=""):
+        error = FloorRefusal(
+            message,
+            {
+                "copy_ids": list(copy_ids),
+                "lot": lot,
+                "title": title.strip(),
+                "price_cents": price_cents,
+                "floor_cents": floor,
+                "references": [{"copy_id": c, "reference_cents": refs[c]} for c in copy_ids],
+                "total_reference_cents": sum(refs.values()),
+                "margin": lot_max_margin(),
+                "refusal": message,
+                "reason": reason.strip() or message,
+            },
+        )
+        if is_agent(actor):
+            from .floor_requests import record
+
+            error.request_id = record(self.store, error.details, actor)
+        raise error
 
     def cards(self, copy_ids=None):
         """Copies with their valuation, as the collection listing computes it."""
@@ -109,11 +155,17 @@ class Listings:
     def publish(
         self, copy_ids, actor, *, price_cents=None, title="", lot=False,
         price_mode="manual", price_source="Prix fixé à la main",
+        waiver_by="", reason="",
     ):
         """Publish one copy, or several copies as one lot at a single price.
 
         A copy alone takes its computed price unless a manual price is given; a lot
         always needs an explicit price, and the floor applies to the lot as a whole.
+
+        Below the anti-undercut floor the refusal is a ``FloorRefusal``; from an
+        agent it also records a waiver request for a human (decision 0030).
+        ``waiver_by`` names the account that granted one: only the absolute
+        floor of 0,50 € still applies.
         """
         if not copy_ids or len(copy_ids) != len(set(copy_ids)):
             raise ValueError("Sélectionnez des exemplaires distincts.")
@@ -147,37 +199,64 @@ class Listings:
                 raise ValueError(
                     f"{card['name']} : " + " ".join(proposals[copy_id]["reasons"])
                 )
+        agent = is_agent(actor)
+        refs = {c: reference_cents(cards[c]) for c in copy_ids}
+        total_ref = sum(refs.values())
+        if agent and not total_ref:
+            # Decision 0030: with no reference, nothing tells an agent the price is fair.
+            raise ValueError(
+                (f"{cards[copy_ids[0]]['name']} : " if not lot else "")
+                + NO_REFERENCE_FOR_AGENT
+            )
+        asked = price_cents
+        if asked is None and agent:
+            # A computed price is checked too when an agent publishes.
+            asked = proposals[copy_ids[0]]["price_cents"]
         if lot:
-            refs = [reference_cents(cards[c]) for c in copy_ids]
-            total_ref = sum(refs)
-            unrated = sum(r == 0 for r in refs)
-            ref_floor = lot_floor_cents(total_ref)
-            floor = max(FLOOR_CENTS, ref_floor)
-            if price_cents < floor:
+            unrated = sum(r == 0 for r in refs.values())
+            floor = max(FLOOR_CENTS, lot_floor_cents(total_ref))
+            if price_cents < FLOOR_CENTS or (price_cents < floor and not waiver_by):
                 if not total_ref:
                     raise ValueError(
                         f"Un lot se vend au moins {euros(FLOOR_CENTS / 100)} (aucune carte du lot n’a de référence)."
                     )
+                if price_cents < FLOOR_CENTS:  # No waiver under the absolute floor.
+                    raise ValueError(
+                        f"Prix du lot {euros(price_cents / 100)} sous le plancher absolu de "
+                        f"{euros(FLOOR_CENTS / 100)} (plancher anti-bradage : {euros(floor / 100)})."
+                    )
                 note = f", dont {unrated} sans référence" if unrated else ""
-                raise ValueError(
+                self.refuse(
                     f"Prix du lot {euros(price_cents / 100)} sous le plancher anti-bradage de "
-                    f"{euros(floor / 100)} (somme des références {euros(total_ref / 100)} moins {lot_max_margin()} %{note})."
+                    f"{euros(floor / 100)} (somme des références {euros(total_ref / 100)} moins {lot_max_margin()} %{note}).",
+                    copy_ids, refs, price_cents, floor, actor, lot=True, title=title, reason=reason,
                 )
-        elif price_cents is not None:
+        elif asked is not None:
             card = cards[copy_ids[0]]
-            ref = reference_cents(card)
+            ref = refs[copy_ids[0]]
             floor = max(FLOOR_CENTS, lot_floor_cents(ref)) if ref else FLOOR_CENTS
-            if price_cents < floor:
+            if asked < FLOOR_CENTS or (asked < floor and not waiver_by):
                 if not ref:
                     raise ValueError(
                         f"{card['name']} : Sous le plancher de {euros(FLOOR_CENTS / 100)} "
-                        f"({euros(price_cents / 100)}, carte sans référence) : à mettre dans un lot ou à offrir."
+                        f"({euros(asked / 100)}, carte sans référence) : à mettre dans un lot ou à offrir."
                     )
-                raise ValueError(
-                    f"{card['name']} : Prix {euros(price_cents / 100)} sous le plancher anti-bradage de "
-                    f"{euros(floor / 100)} (référence {euros(ref / 100)} moins {lot_max_margin()} %)."
+                if asked < FLOOR_CENTS:
+                    raise ValueError(
+                        f"{card['name']} : Prix {euros(asked / 100)} sous le plancher absolu de "
+                        f"{euros(FLOOR_CENTS / 100)} (plancher anti-bradage : {euros(floor / 100)})."
+                    )
+                self.refuse(
+                    f"{card['name']} : Prix {euros(asked / 100)} sous le plancher anti-bradage de "
+                    f"{euros(floor / 100)} (référence {euros(ref / 100)} moins {lot_max_margin()} %).",
+                    copy_ids, refs, asked, floor, actor, title=title, reason=reason,
                 )
-            proposals[copy_ids[0]]["price_cents"] = price_cents
+            if price_cents is not None:
+                proposals[copy_ids[0]]["price_cents"] = price_cents
+        if waiver_by:
+            price_source = f"Dérogation accordée par {waiver_by}"
+            if not lot:
+                proposals[copy_ids[0]]["source"] = price_source
         chosen = proposals[copy_ids[0]] if not lot else {
             "price_cents": price_cents,
             "mode": price_mode,
@@ -185,6 +264,7 @@ class Listings:
             "date": now(),
         }
         timestamp = now()
+        trace = f" (dérogation accordée par {waiver_by})" if waiver_by else ""
         with self.store.connect(write=True) as db:
             for copy_id in copy_ids:
                 card = self.store.get(db, copy_id)
@@ -207,7 +287,7 @@ class Listings:
                     "updated_at=?,version=version+1 WHERE id=?",
                     (*changes.values(), timestamp, current["id"]),
                 )
-                self.event(db, copy_ids[0], actor, "listing", "Prix de vitrine mis à jour", current, changes)
+                self.event(db, copy_ids[0], actor, "listing", "Prix de vitrine mis à jour" + trace, current, changes)
                 return self.get(db, current["id"])
             listing = {
                 "id": str(uuid.uuid4()),
@@ -236,10 +316,39 @@ class Listings:
             for copy_id in copy_ids:
                 self.event(
                     db, copy_id, actor, "listing",
-                    "Publication en lot dans la vitrine" if lot else "Publication dans la vitrine",
+                    ("Publication en lot dans la vitrine" if lot else "Publication dans la vitrine") + trace,
                     {}, listing,
                 )
             return self.get(db, listing["id"])
+
+    def reprice(self, listing_id, version, price_cents, actor, reason, source="Prix fixé à la main"):
+        """Change the price of an online publication, a lot included, without republishing it."""
+        if price_cents < FLOOR_CENTS:
+            raise ValueError(f"Une publication se vend au moins {euros(FLOOR_CENTS / 100)}.")
+        with self.store.connect(write=True) as db:
+            before = db.execute("SELECT * FROM listings WHERE id=?", (listing_id,)).fetchone()
+            if not before:
+                raise KeyError("Publication introuvable.")
+            if before["version"] != version:
+                raise Conflict("La publication a changé. Rechargez-la avant de changer son prix.")
+            if before["state"] != "online":
+                raise Conflict("Cette publication est retirée.")
+            changes = {
+                "price_cents": price_cents,
+                "price_mode": "manual",
+                "price_source": source,
+                "price_date": now(),
+            }
+            db.execute(
+                "UPDATE listings SET price_cents=?,price_mode=?,price_source=?,price_date=?,"
+                "updated_at=?,version=version+1 WHERE id=?",
+                (*changes.values(), now(), listing_id),
+            )
+            for (copy_id,) in db.execute(
+                "SELECT copy_id FROM listing_items WHERE listing_id=? AND active=1", (listing_id,)
+            ).fetchall():
+                self.event(db, copy_id, actor, "listing", reason, dict(before), changes)
+            return self.get(db, listing_id)
 
     def unpublish(self, listing_id, version, actor, reason):
         if not reason.strip():
