@@ -55,6 +55,7 @@ from .pricing import (
     fetch_catalogue_card,
 )
 from .cardmarket_guide import CardmarketGuide
+from .floor_requests import FloorRequests, HumanOnly
 from .listings import Listings, Storefront
 from .privacy import Privacy
 from .notifications import Notifier, channels_from_env, euros
@@ -429,6 +430,10 @@ class ClientPatch(Model):
 class ListingPrice(Model):
     # Without a price, the copy takes its computed storefront price.
     price_eur: Decimal | None = Field(default=None, ge=0, le=10000000, decimal_places=2)
+
+
+class FloorDecision(Model):
+    reason: str = Field(default="", max_length=1000)
 
 
 class ListingCreate(ListingPrice):
@@ -878,6 +883,10 @@ def create_app(
     @app.exception_handler(ValueError)
     async def invalid(request, exc):
         return error_response(str(exc), 422)
+
+    @app.exception_handler(HumanOnly)
+    async def human_only(request, exc):
+        return error_response(str(exc), 403)
 
     def current_user(request: Request):
         token = request.cookies.get("pokeprice_session", "")
@@ -2560,6 +2569,25 @@ def create_app(
         return listings.unpublish(
             listing_id, values.expected_version, user["username"], values.reason
         )
+
+    # Waivers under the anti-undercut floor: asked by agents, decided by a person (0030).
+    floor_requests = FloorRequests(store)
+
+    @app.get("/api/floor-requests")
+    def floor_request_index(user=Depends(staff)):
+        return floor_requests.open()
+
+    @app.post("/api/floor-requests/{request_id}/accept")
+    def floor_request_accept(request_id: str, values: FloorDecision, user=Depends(editor)):
+        return floor_requests.accept(request_id, user["username"], values.reason)
+
+    @app.post("/api/floor-requests/{request_id}/raise")
+    def floor_request_raise(request_id: str, values: FloorDecision, user=Depends(editor)):
+        return floor_requests.raise_to_floor(request_id, user["username"], values.reason)
+
+    @app.post("/api/floor-requests/{request_id}/refuse")
+    def floor_request_refuse(request_id: str, values: FloorDecision, user=Depends(editor)):
+        return floor_requests.refuse(request_id, user["username"], values.reason)
 
     @app.get("/api/sales")
     def sales(user=Depends(staff)):

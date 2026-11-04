@@ -334,6 +334,14 @@ Annuler un passage entier de l'agent de revue
 
 Lister les passages de l'agent de revue
 
+### `pokeprice-manage floor-audit`
+
+Annonces en ligne sous le plancher anti-bradage du jour, sans rien republier
+
+| Argument | Effet |
+|---|---|
+| `--record` | Inscrire une demande de dérogation ou de relèvement par annonce, en gestion |
+
 ### `pokeprice-manage names`
 
 Noms des éditions en plusieurs langues (TCGdex, une fois par édition)

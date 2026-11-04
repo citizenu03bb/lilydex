@@ -69,9 +69,12 @@ La publication unitaire ou en lot (`Listings.publish`) et l'interface de
 gestion (« Mode lot », création de brouillon, publication directe et prix de
 vitrine fixé à la main) affichent le minimum autorisé avant validation et
 refusent tout prix sous ce plancher. Un exemplaire sans référence (ou à 0)
-garde le plancher de 0,50 € en gestion, avec un message qui le précise. Un prix
-sous le plancher anti-bradage se présente à l'humain. Ne publiez jamais en
-espérant une correction ultérieure.
+garde le plancher de 0,50 € quand une personne le publie ; un agent, lui, ne le
+publie pas seul. Un prix d'agent sous le plancher anti-bradage devient une
+demande de dérogation que la gestion accorde, relève au plancher ou refuse
+([décision 0030](../../docs/decisions/0030-derogations-plancher.md)) : donnez
+une raison en une phrase (`reason`), puis passez à autre chose. Ne publiez
+jamais en espérant une correction ultérieure.
 
 ## Quand vous ne tranchez pas : demander une photo
 
