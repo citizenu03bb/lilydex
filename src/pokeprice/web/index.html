@@ -264,6 +264,12 @@
           <button id="select-page" type="button" hidden>
             Sélectionner les cartes affichées
           </button>
+          <div id="move-undo-bar" class="workflow-actions" hidden>
+            <span id="move-undo-summary"></span>
+            <button id="move-undo-last" type="button">
+              {{t:move.undo_button}}
+            </button>
+          </div>
           <div id="cards" class="card-grid" aria-busy="true">
             <p class="empty loading" role="status">Chargement de la collection…</p>
           </div>
@@ -469,6 +475,7 @@
       <div class="selection-bar" id="selection-bar" hidden>
         <span id="selection-count"></span
         ><button id="clear-selection" type="button">Désélectionner tout</button
+        ><button id="move-selection" type="button">{{t:move.open_button}}</button
         ><button id="refresh-prices" type="button">Relever les prix</button
         ><button id="change-variant" type="button">Changer la variante</button
         ><button id="publish-selection" type="button">Publier en vitrine</button
@@ -891,6 +898,77 @@
           Appliquer les photos cochées</button
         ><button id="batch-undo" hidden>Annuler ce traitement</button>
         <p id="batch-error" class="error" role="alert"></p>
+      </div>
+    </dialog>
+    <dialog id="move-dialog">
+      <div class="dialog-header">
+        <h2>{{t:move.title}}</h2>
+        <button data-close="move-dialog" class="close" aria-label="Fermer">
+          ×
+        </button>
+      </div>
+      <form id="move-form" class="dialog-form">
+        <p class="help">{{t:move.intro}}</p>
+        <label
+          >{{t:move.destination_album}}<select name="album_id" id="move-album" required></select
+        ></label>
+        <label
+          >{{t:move.placement_mode}}<select name="mode" id="move-mode">
+            <option value="auto">{{t:move.mode_auto}}</option>
+            <option value="from_slot">{{t:move.mode_from_slot}}</option>
+          </select></label
+        >
+        <div id="move-slot-fields" class="form-grid" hidden>
+          <label
+            >{{t:move.start_page}}<input
+              name="start_page"
+              id="move-start-page"
+              type="number"
+              min="1"
+              max="1000"
+              value="1"
+              required
+          /></label>
+          <label
+            >{{t:move.start_position}}<input
+              name="start_position"
+              id="move-start-position"
+              type="number"
+              min="1"
+              max="100"
+              value="1"
+              required
+          /></label>
+        </div>
+        <label
+          >{{t:move.slots_per_page}}<input
+            name="slots"
+            id="move-slots"
+            type="number"
+            min="1"
+            max="100"
+            value="9"
+            required
+        /></label>
+        <label
+          >{{t:move.reason}}<input
+            name="reason"
+            id="move-reason"
+            required
+        /></label>
+        <button id="move-preview-button" type="submit">
+          {{t:move.preview_button}}
+        </button>
+      </form>
+      <div id="move-results" class="dialog-form"></div>
+      <div id="move-history" class="dialog-form"></div>
+      <div class="dialog-form">
+        <button id="move-apply" type="button" class="primary" hidden>
+          {{t:move.apply_button}}</button
+        ><button id="move-undo" type="button" hidden>
+          {{t:move.undo_button}}
+        </button>
+        <p id="move-error" class="error" role="alert"></p>
       </div>
     </dialog>
     <dialog id="sale-dialog">

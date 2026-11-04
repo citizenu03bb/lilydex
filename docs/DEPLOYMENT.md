@@ -57,7 +57,9 @@ Autres hébergeurs possibles, sur un petit serveur privé payant : Scaleway
 
 `deploy/oci-sync-secrets.sh` réécrit le fichier du serveur en entier à partir
 du `~/.env` du portable, par un flux SSH chiffré, sans jamais afficher un
-secret.
+secret. Il recopie les variables listées ci-dessus, alertes comprises ; une
+variable ajoutée à la main sur le serveur disparaît à la synchronisation
+suivante.
 
 ## Installer un serveur
 

@@ -300,7 +300,8 @@ Python du projet (`.venv/bin/python -m pokeprice.manage`). Le script
 | Fichier | Machine | Rôle |
 |---|---|---|
 | `/srv/pokeprice/backups/daily-<date>.zip` | Serveur | Archives quotidiennes (7) |
-| `/srv/pokeprice/backups/before-schema…sqlite3` | Serveur | Copie de la base avant une migration de schéma ; jamais supprimée par la rotation |
+| `/srv/pokeprice/backups/before-schema…sqlite3` | Serveur | Copie de la base avant une migration de schéma ; les 5 plus récentes sont gardées |
+| `/srv/pokeprice/backups/before-move-batch…sqlite3` | Serveur | Copie de la base seule avant un déplacement en lot ; les 5 plus récentes sont gardées |
 | `/srv/pokeprice/inventory/backup-status.json` | Serveur | Suivi lu par la gestion |
 | `data/oci-backups/oci-daily-<date>.zip` | Portable | Archives rapatriées (3). Le dossier est privé (mode 0700 : vous seul pouvez l'ouvrir) et refuse d'être un dossier de collection |
 | `data/oci-backups/backup-status.json` | Portable | Suivi de l'archive rapatriée et de la copie Drive (mode 0600) |
@@ -346,7 +347,7 @@ Une archive ne contient pas :
 
 | Où | Règle |
 |---|---|
-| Serveur | Les 7 dernières archives quotidiennes. Les archives ponctuelles (faites avant un lot ou à la main) : les 3 plus récentes sont toujours gardées, les autres 14 jours. Les copies d'avant migration : les 5 plus récentes. Cette rotation passe après chaque archive quotidienne réussie. |
+| Serveur | Les 7 dernières archives quotidiennes. Les archives ponctuelles (faites avant un lot ou à la main) : les 3 plus récentes sont toujours gardées, les autres 14 jours. Les copies d'avant migration et d'avant déplacement : les 5 plus récentes de chaque sorte. Cette rotation passe après chaque archive quotidienne réussie. |
 | Portable | Les 3 dernières archives rapatriées, faute de place sur le disque. Cette limite ne touche pas Drive. |
 | Drive | Toutes les archives des 7 jours les plus récents qui en ont une, puis la plus récente de chacune des 8 dernières semaines et de chacun des 12 derniers mois. Seules comptent les semaines et les mois qui ont une archive. Les autres archives vont à la corbeille Drive, d'où elles restent récupérables 30 jours. |
 
