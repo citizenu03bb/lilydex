@@ -198,7 +198,9 @@ La même synthèse est servie par `GET /api/todo` (paramètre `since` facultatif
 `pokeprice-manage --data <base> brief` l'affiche dans le terminal ; avec
 `--notify`, elle envoie aussi un résumé court (des nombres, aucune donnée de
 client) sur les canaux d'alerte de la vitrine
-([variables](DEPLOYMENT.md#où-vivent-les-secrets)). Le code est dans
+([variables](DEPLOYMENT.md#où-vivent-les-secrets)). Sur le serveur,
+`pokeprice-brief.timer` l'envoie chaque matin vers 7 h 30
+([déploiement](DEPLOYMENT.md#envoyer-le-brief-du-jour)). Le code est dans
 `src/pokeprice/todo.py`.
 
 ## Saisir des cartes

@@ -157,6 +157,7 @@ Donnez aussi des chemins absolus aux fichiers.
 | `pokeprice-backup.service` et `.timer` | Chaque nuit vers 3 h : durées de conservation des données clients (`purge`), puis archive vérifiée (`backup-daily`), 7 archives gardées. |
 | `pokeprice-media-cache.service` et `.timer` | Entretien indépendant des dérivés publics, vers 4 h 30, limité au cache. |
 | `pokeprice-prices.service` et `.timer` | Cotation matinale de la collection vers 6 h 20 (`prices --from-guide`). Non activés par `oci-deploy.sh`. |
+| `pokeprice-brief.service` et `.timer` | Brief du jour de la gestion vers 7 h 30 (`brief --notify`). Non activés par `oci-deploy.sh`. |
 | `Caddyfile.example` | HTTPS, compression, corps de requête limité à 9 Mo, relais vers `127.0.0.1:3820`. |
 | `pokeprice-drive-backup.service` et `.timer` | Unités utilisateur **du portable** : rapatriement, chiffrement et copie Drive à 3 h 15. |
 | `oci-pull-backup.sh` | Raccourci de `backup-server-pull` (ou de `backup-server-drive` avec `--push-drive`) : rapatrie et contrôle la dernière archive du serveur. |
@@ -218,6 +219,25 @@ sudo cp /opt/pokeprice/deploy/pokeprice-prices.service /opt/pokeprice/deploy/pok
 ```
 
 Le rapport du passage se lit avec `journalctl -u pokeprice-prices.service`.
+
+## Envoyer le brief du jour
+
+`pokeprice-brief.timer` lance vers 7 h 30, heure de Paris, le
+[brief du jour](APP.md#le-brief-et-la-file--à-toi-) : `brief --notify`, avec
+`--data /srv/pokeprice/inventory`. Il passe après la cotation matinale, dont
+il compte les effets. La notification part sur les canaux d'alerte de la
+vitrine, lus dans `/etc/pokeprice/pokeprice.env` ; elle ne porte que des
+nombres, aucune donnée de client. Un passage manqué est rattrapé au
+démarrage. Le service lit la collection et n'y écrit rien.
+
+`oci-deploy.sh` copie le dépôt mais n'installe ni n'active ce timer.
+L'opérateur l'active à la main :
+
+```bash
+sudo cp /opt/pokeprice/deploy/pokeprice-brief.service /opt/pokeprice/deploy/pokeprice-brief.timer /etc/systemd/system/ && sudo systemctl daemon-reload && sudo systemctl enable --now pokeprice-brief.timer
+```
+
+Le texte envoyé se lit avec `journalctl -u pokeprice-brief.service`.
 
 ## L'option vision
 
