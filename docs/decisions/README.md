@@ -30,6 +30,7 @@ l'ancienne passe au statut « remplacée ».
 | [0020](0020-textes-dans-des-dictionnaires.md) | Les textes de la vitrine vivent dans des dictionnaires JSON | 2026-10-27 |
 | [0021](0021-autonomie-maximale.md) | Les agents agissent seuls, sauf l'argent, l'irréversible et le bradage | 2026-11-03 |
 | [0022](0022-agent-confirme-ou-demande-photo.md) | L'agent confirme sur preuves concordantes, sinon il demande une photo | 2026-11-03 |
+| [0023](0023-deplacements-en-lot.md) | Un déplacement en lot refuse les cartes engagées dans un lot ou une vente et s'applique tout ou rien | 2026-11-04 |
 
 ## Écrire une fiche
 

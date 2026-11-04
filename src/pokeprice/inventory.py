@@ -21,7 +21,7 @@ from .valuation import (
 )
 from .variant_pricing import category, compatible_quote, pricing_issue
 
-SCHEMA_VERSION = 22
+SCHEMA_VERSION = 23
 
 
 def now():
@@ -314,6 +314,10 @@ class Store:
                 from .notifications import SCHEMA as NOTIFICATIONS_SCHEMA
 
                 db.executescript(NOTIFICATIONS_SCHEMA)
+            if db.execute("PRAGMA user_version").fetchone()[0] == 22:
+                from .move_batches import SCHEMA as MOVE_BATCHES_SCHEMA
+
+                db.executescript(MOVE_BATCHES_SCHEMA)
             db.execute("PRAGMA journal_mode=WAL")
         from .reference_service import ReferenceService
 
