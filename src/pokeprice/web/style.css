@@ -2155,3 +2155,40 @@ lilydex-filter-bar {
     grid-column: auto;
   }
 }
+
+/* Install help (settings) and offline page of the installed app. */
+.install-dialog {
+  max-width: 520px;
+  padding: 0 20px 20px;
+}
+.install-dialog .dialog-header {
+  margin: 0 -20px 8px;
+  padding: 16px 20px;
+}
+.install-dialog h3 {
+  margin: 16px 0 4px;
+  font-size: 1rem;
+}
+.install-dialog .primary {
+  width: 100%;
+  margin-top: 8px;
+}
+.offline-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: var(--surface-0);
+}
+.offline-card {
+  max-width: 420px;
+  text-align: center;
+  background: var(--surface-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg, 16px);
+  padding: 28px 20px;
+  box-shadow: var(--shadow-md);
+}
+.offline-card img {
+  border-radius: 22%;
+}

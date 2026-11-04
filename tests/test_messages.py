@@ -13,8 +13,8 @@ from pokeprice.webapp import ERROR_CODES, TEXT_KEY, create_app
 
 SOURCE = Path(__file__).resolve().parents[1] / "src/pokeprice"
 WEB = SOURCE / "web"
-PAGES = ("storefront.html", "index.html", "about.html", "about.en.html", "conditions.html", "conditions.en.html")
-SCRIPTS = ("storefront.js", "components.js", "app.js", "workflows.js")
+PAGES = ("storefront.html", "index.html", "about.html", "about.en.html", "conditions.html", "conditions.en.html", "offline.html")
+SCRIPTS = ("storefront.js", "components.js", "app.js", "workflows.js", "pwa.js")
 LITERAL = re.compile(r"""\bt\(\s*["']([\w.]+)["']""")
 # A key built at run time, such as t(`language.${code}`): every key under it counts as used.
 FAMILY = re.compile(r"\bt\(\s*`([\w.]*)\$\{")
