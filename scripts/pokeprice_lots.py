@@ -29,6 +29,17 @@ from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
+_SRC = str(Path(__file__).resolve().parents[1] / "src")
+if _SRC not in sys.path:
+    sys.path.insert(0, _SRC)
+
+from pokeprice.pricing import (  # noqa: E402
+    DEFAULT_LOT_MAX_MARGIN,
+    LOT_MAX_MARGIN_ENV,
+    lot_floor_cents,
+    lot_max_margin,
+)
+
 MAX_ROTATION_DRAFTS = 5
 DEFAULT_ACTOR = "pokeprice-lots"
 # Seuil de valeur d'une carte au-delà duquel elle ne part pas en lot (centimes),
@@ -45,28 +56,6 @@ GEMINI_MODEL_ENV = "POKEPRICE_LOTS_GEMINI_MODEL"
 
 def gemini_model():
     return os.environ.get(GEMINI_MODEL_ENV) or DEFAULT_GEMINI_MODEL
-
-
-# Plancher anti-bradage (décision 0021) : un lot ne se vend jamais sous la somme
-# des cotes de ses cartes diminuée de cette marge, en pourcentage. Une variable
-# d'environnement la resserre ou l'élargit, sans dépasser 50 %.
-DEFAULT_LOT_MAX_MARGIN = 15
-LOT_MAX_MARGIN_ENV = "POKEPRICE_LOT_MAX_MARGIN"
-
-
-def lot_max_margin():
-    raw = os.environ.get(LOT_MAX_MARGIN_ENV, "")
-    try:
-        margin = int(raw) if raw.strip() else DEFAULT_LOT_MAX_MARGIN
-    except ValueError:
-        raise ValueError(f"{LOT_MAX_MARGIN_ENV} attend un pourcentage entier, pas « {raw} ».")
-    return max(0, min(50, margin))
-
-
-def lot_floor_cents(total_reference_cents):
-    """Le prix minimal d'un lot : la somme des cotes moins la marge, arrondie au centime supérieur."""
-    keep = 100 - lot_max_margin()
-    return -(-total_reference_cents * keep // 100)
 
 
 # Classification thématique des extensions Pokémon

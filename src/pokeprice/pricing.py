@@ -2,6 +2,7 @@
 
 import copy
 import json
+import os
 import re
 import statistics
 from urllib.parse import urlencode
@@ -365,6 +366,23 @@ def estimate_sale(offers, condition, *, stamp=""):
 FLOOR_CENTS = 50  # Below this, a card goes into a lot or is given away.
 HIGH_VALUE_CENTS = 1000  # From here, a trend alone is not a selling price.
 TREND_CONDITIONS = {"MT", "NM", "EX", "NM/EX"}
+DEFAULT_LOT_MAX_MARGIN = 15
+LOT_MAX_MARGIN_ENV = "POKEPRICE_LOT_MAX_MARGIN"
+
+
+def lot_max_margin():
+    raw = os.environ.get(LOT_MAX_MARGIN_ENV, "")
+    try:
+        margin = int(raw) if raw.strip() else DEFAULT_LOT_MAX_MARGIN
+    except ValueError:
+        raise ValueError(f"{LOT_MAX_MARGIN_ENV} attend un pourcentage entier, pas « {raw} ».")
+    return max(0, min(50, margin))
+
+
+def lot_floor_cents(total_reference_cents):
+    """Lowest price of a card or lot: the reference less the margin, rounded up to the cent."""
+    keep = 100 - lot_max_margin()
+    return -(-total_reference_cents * keep // 100)
 
 
 def round_up_tenth(amount_cents):

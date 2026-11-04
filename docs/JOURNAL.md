@@ -22,6 +22,14 @@ daté la quitte, il est versé ici dans le même commit.
   avec sauvegarde et historique par carte, et annulation complète
   ([décision 0024](decisions/0024-deplacements-en-lot.md),
   `tests/test_move_batches.py`, `tests/test_web_client.py`).
+- Plancher anti-bradage en gestion : la règle (`POKEPRICE_LOT_MAX_MARGIN`, 15 %
+  par défaut, bornée de 0 à 50, `lot_max_margin` et `lot_floor_cents`) est
+  définie une seule fois dans `src/pokeprice/pricing.py` et partagée par
+  `listings.py`, `marketplace_export.py` et `scripts/pokeprice_lots.py`. La
+  gestion affiche le minimum autorisé avant validation et refuse tout prix de
+  lot ou prix unitaire manuel sous ce plancher ; une carte à variante à
+  vérifier compte pour la plus basse cote de ses variantes, jamais 0 ([décision 0026](decisions/0026-plancher-anti-bradage-gestion.md),
+  `tests/test_listings.py`, `tests/test_web_client.py`).
 
 ## 2026-11-03
 

@@ -7,7 +7,14 @@ import uuid
 from urllib.parse import quote, urlencode
 
 from .inventory import Conflict, now
-from .pricing import FLOOR_CENTS, display_price, euros, round_up_tenth
+from .pricing import (
+    FLOOR_CENTS,
+    display_price,
+    euros,
+    lot_floor_cents,
+    lot_max_margin,
+    round_up_tenth,
+)
 
 # What the management screens show of each published copy.
 ITEM_FIELDS = (
@@ -25,6 +32,33 @@ ITEM_FIELDS = (
 )
 
 
+def positive_cents(value):
+    return value if isinstance(value, int) and not isinstance(value, bool) and value > 0 else 0
+
+
+def reference_cents(card):
+    """Positive reference price of a copy for its floor, or 0 when none is known.
+
+    With a variant to check, the lowest quote among the possible variants and
+    the stored reference sets the floor, never none: a card worth 100 € in
+    any variant is not sold for 0,50 € (decision 0026).
+    """
+    valuation = card.get("valuation") or {}
+    if valuation.get("price_variant_issue"):
+        quotes = [positive_cents(card.get("reference_cents"))] + [
+            positive_cents(h.get("trend_cents")) for h in valuation.get("hypotheses") or []
+        ]
+        return min((q for q in quotes if q), default=0)
+    for value in (
+        card.get("reference_cents"),
+        valuation.get("trend_cents"),
+        valuation.get("prudent_cents"),
+    ):
+        if positive_cents(value):
+            return value
+    return 0
+
+
 class Listings:
     def __init__(self, store):
         self.store = store
@@ -40,8 +74,13 @@ class Listings:
         if card is None:
             with self.store.connect() as db:
                 card = self.store.get(db, copy_id)  # deleted: no valuation needed
-            return display_price(card, {})
-        return display_price(card, card["valuation"])
+            result = display_price(card, {})
+            result["floor_cents"] = FLOOR_CENTS
+            return result
+        result = display_price(card, card["valuation"])
+        ref = reference_cents(card)
+        result["floor_cents"] = max(FLOOR_CENTS, lot_floor_cents(ref)) if ref else FLOOR_CENTS
+        return result
 
     @staticmethod
     def active(db, copy_id):
@@ -99,15 +138,46 @@ class Listings:
             proposals[copy_id] = display_price(
                 card,
                 card["valuation"],
-                # The floor of a lot is checked on its total, not on each card.
-                {**override, "amount_cents": FLOOR_CENTS} if lot else override,
+                # The floor of a lot or manual price is checked below with its reference.
+                {**override, "amount_cents": max(price_cents, FLOOR_CENTS)}
+                if override
+                else None,
             )
             if not proposals[copy_id]["publishable"]:
                 raise ValueError(
                     f"{card['name']} : " + " ".join(proposals[copy_id]["reasons"])
                 )
-        if lot and price_cents < FLOOR_CENTS:
-            raise ValueError(f"Un lot se vend au moins {euros(FLOOR_CENTS / 100)}.")
+        if lot:
+            refs = [reference_cents(cards[c]) for c in copy_ids]
+            total_ref = sum(refs)
+            unrated = sum(r == 0 for r in refs)
+            ref_floor = lot_floor_cents(total_ref)
+            floor = max(FLOOR_CENTS, ref_floor)
+            if price_cents < floor:
+                if not total_ref:
+                    raise ValueError(
+                        f"Un lot se vend au moins {euros(FLOOR_CENTS / 100)} (aucune carte du lot n’a de référence)."
+                    )
+                note = f", dont {unrated} sans référence" if unrated else ""
+                raise ValueError(
+                    f"Prix du lot {euros(price_cents / 100)} sous le plancher anti-bradage de "
+                    f"{euros(floor / 100)} (somme des références {euros(total_ref / 100)} moins {lot_max_margin()} %{note})."
+                )
+        elif price_cents is not None:
+            card = cards[copy_ids[0]]
+            ref = reference_cents(card)
+            floor = max(FLOOR_CENTS, lot_floor_cents(ref)) if ref else FLOOR_CENTS
+            if price_cents < floor:
+                if not ref:
+                    raise ValueError(
+                        f"{card['name']} : Sous le plancher de {euros(FLOOR_CENTS / 100)} "
+                        f"({euros(price_cents / 100)}, carte sans référence) : à mettre dans un lot ou à offrir."
+                    )
+                raise ValueError(
+                    f"{card['name']} : Prix {euros(price_cents / 100)} sous le plancher anti-bradage de "
+                    f"{euros(floor / 100)} (référence {euros(ref / 100)} moins {lot_max_margin()} %)."
+                )
+            proposals[copy_ids[0]]["price_cents"] = price_cents
         chosen = proposals[copy_ids[0]] if not lot else {
             "price_cents": price_cents,
             "mode": price_mode,

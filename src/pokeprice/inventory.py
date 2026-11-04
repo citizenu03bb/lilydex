@@ -1004,7 +1004,17 @@ class Store:
                 "available": sum(r["stock_state"] == "available" for r in rows),
                 "albums": albums,
                 "valuation_totals": data["valuation_totals"],
+                "lot_max_margin": self._lot_max_margin(),
             }
+
+    @staticmethod
+    def _lot_max_margin():
+        from .pricing import DEFAULT_LOT_MAX_MARGIN, lot_max_margin
+
+        try:
+            return lot_max_margin()
+        except ValueError:
+            return DEFAULT_LOT_MAX_MARGIN
 
     def set_deleted(self, copy_id, deleted, version, actor, reason, *, _db=None):
         """Move an available copy to/from trash, retaining all sources and history."""

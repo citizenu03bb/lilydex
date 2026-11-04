@@ -31,11 +31,13 @@ Principes :
 - La rotation n'annule jamais un brouillon dont le lot est en ligne.
 - Un lot n'est jamais bradé : son prix ne descend pas sous la somme des cotes de
   ses cartes moins 15 % (variable d'environnement `POKEPRICE_LOT_MAX_MARGIN`,
-  entre 0 et 50). `compose` plafonne sa décote à cette marge, sans décote par
-  défaut, et `publish-to-storefront` refuse un lot sous ce plancher ou dont une
-  carte n'a pas de cote (une cote nulle compte comme absente), en recalculant
-  les cotes du jour. Avec `--remote`, la marge réglée sur le poste est transmise
-  au serveur.
+  entre 0 et 50, règle `lot_max_margin` / `lot_floor_cents` définie dans
+  `src/pokeprice/pricing.py` et partagée avec `listings.py` et
+  `marketplace_export.py`). `compose` plafonne sa décote à cette marge, sans
+  décote par défaut, et `publish-to-storefront` refuse un lot sous ce plancher
+  ou dont une carte n'a pas de cote (une cote nulle compte comme absente), en
+  recalculant les cotes du jour. Avec `--remote`, la marge réglée sur le poste
+  est transmise au serveur.
 
 ## Dependencies
 
