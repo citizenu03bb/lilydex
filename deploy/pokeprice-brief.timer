@@ -1,0 +1,12 @@
+[Unit]
+Description=Brief du jour de la gestion, chaque matin
+
+[Timer]
+# After the morning prices (06:20), so the brief counts what they changed.
+OnCalendar=*-*-* 07:30:00 Europe/Paris
+Persistent=true
+RandomizedDelaySec=5min
+Unit=pokeprice-brief.service
+
+[Install]
+WantedBy=timers.target
