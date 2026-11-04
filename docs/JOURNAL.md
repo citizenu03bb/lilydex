@@ -17,6 +17,17 @@ daté la quitte, il est versé ici dans le même commit.
   ([fiche 0033](decisions/0033-notifications-web-push.md),
   [activation](DEPLOYMENT.md#activer-les-notifications-web-push),
   `tests/test_web_push.py`).
+- Modèle du chat retenu : Gemini 3.8 Flash, avec une clé à lui sur une offre
+  payante ([fiche 0031](decisions/0031-modele-du-chat.md), passée en vigueur).
+- Banc du modèle du chat de gestion : 46 commandes types en français
+  familier, rejouées en deux tours au plus sur des données synthétiques, avec
+  les outils en lecture de la fiche 0032 et quatre outils d'écriture fictifs.
+  Mesurés : Gemini 3.8 Flash (46/46, 3,9 s au médian), Gemini 3.5 Flash-Lite
+  (40/46) et quatre gemma4 locaux sur le processeur (19 à 41/46, jusqu'à
+  38 s) ; aucun n'a fait d'action dangereuse. Claude n'est pas mesuré, faute de
+  clé. Proposition : Gemini Flash avec une clé à lui
+  ([fiche 0031](decisions/0031-modele-du-chat.md),
+  [banc](../bench/assistant/README.md), `tests/test_assistant_bench.py`).
 - Assistant de gestion, V1 en lecture : huit outils fermés (`search_copies`,
   `get_copy`, `explain_price`, `why_not_for_sale`, `list_listings`,
   `sales_summary`, `agent_activity`, `todo_queue`) avec schémas JSON stricts,
