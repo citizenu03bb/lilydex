@@ -9,6 +9,8 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-04
 
+- `oci-sync-secrets.sh` transmet aussi `POKEPRICE_PACKING_GRAMS` : le fichier du
+  serveur est réécrit en entier, et cette variable s'y perdait.
 - Chat de gestion, V1 en lecture : bouton **Assistant** dans la gestion,
   réponse en flux continu par `POST /api/assistant`, huit outils en lecture
   appelés par le serveur sous `assistant:read`, quatre tours d'outils au plus,
