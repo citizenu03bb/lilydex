@@ -1310,6 +1310,69 @@ dialog::backdrop {
   padding: 16px;
   margin: 14px 0;
 }
+.push-switch {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+}
+.push-switch input {
+  appearance: none;
+  flex: none;
+  position: relative;
+  width: 48px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 14px;
+  background: var(--border-strong);
+  transition: background 0.15s;
+  cursor: inherit;
+}
+.push-switch input::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 25%);
+  transition: transform 0.15s;
+}
+.push-switch input:checked {
+  background: var(--accent);
+}
+.push-switch input:checked::after {
+  transform: translateX(20px);
+}
+.push-switch input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.push-switch input:disabled {
+  opacity: 0.5;
+}
+@media (prefers-reduced-motion: reduce) {
+  .push-switch input,
+  .push-switch input::after {
+    transition: none;
+  }
+}
+.push-panel #push-status {
+  font-size: 0.85rem;
+  margin: 8px 0 0;
+}
+.push-panel #push-status:empty {
+  display: none;
+}
 .workflow-actions {
   display: flex;
   gap: 10px;

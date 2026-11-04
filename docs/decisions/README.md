@@ -40,6 +40,7 @@ l'ancienne passe au statut « remplacée ».
 | [0030](0030-derogations-plancher.md) | Un prix sous le plancher devient une demande de dérogation qu'une personne tranche | 2026-11-04 |
 | [0031](0031-modele-du-chat.md) | Le chat de gestion passe par Gemini Flash, avec une clé à lui, tant qu'aucun modèle local ne tient sur le serveur | 2026-11-04 |
 | [0032](0032-outils-assistant-lecture.md) | Le chat de gestion lit par huit outils fermés, sous une portée de délégation en lecture seule (proposée) | 2026-11-04 |
+| [0033](0033-notifications-web-push.md) | La gestion installée reçoit ses alertes par Web Push ; ntfy reste en secours (proposée) | 2026-11-04 |
 
 ## Écrire une fiche
 
