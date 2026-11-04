@@ -9,6 +9,13 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-04
 
+- Assistant de gestion, V1 en lecture : huit outils fermés (`search_copies`,
+  `get_copy`, `explain_price`, `why_not_for_sale`, `list_listings`,
+  `sales_summary`, `agent_activity`, `todo_queue`) avec schémas JSON stricts,
+  servis sous la portée de délégation `assistant:read`
+  (`/api/agent/v1/assistant-tools`) ; aucune sortie ne porte de donnée de client
+  ([fiche 0032](decisions/0032-outils-assistant-lecture.md),
+  [schémas](assistant-tools.json), `tests/test_assistant_tools.py`).
 - Brief du jour programmé sur le serveur : `pokeprice-brief.timer` envoie
   chaque matin vers 7 h 30 `brief --notify`, après la cotation matinale
   ([déploiement](DEPLOYMENT.md#envoyer-le-brief-du-jour)). Son texte compte aussi les photos
