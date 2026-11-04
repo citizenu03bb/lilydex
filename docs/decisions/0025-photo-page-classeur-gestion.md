@@ -1,4 +1,4 @@
-# 0023 — Une photo de page de classeur 3×3 se dépose dans la gestion comme un lot de photos annulable
+# 0025 — Une photo de page de classeur 3×3 se dépose dans la gestion comme un lot de photos annulable
 
 > **Statut :** en vigueur · **Date :** 2026-11-03
 

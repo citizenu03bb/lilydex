@@ -345,7 +345,7 @@ jour les fiches existantes (en réinitialisant la confirmation d'état) et crée
 les fiches « À identifier » dans une seule transaction. **Annuler ce dépôt de
 page** restaure les photos antérieures et place en corbeille les fiches créées
 par le lot, tant qu'aucune fiche concernée n'a été modifiée ou engagée dans un
-lot depuis l'application ([décision 0023](decisions/0023-photo-page-classeur-gestion.md)).
+lot depuis l'application ([décision 0025](decisions/0025-photo-page-classeur-gestion.md)).
 
 ## Vérifier une carte
 
