@@ -2,7 +2,7 @@
 
 The agents act alone (decisions 0021 and 0022); what is left to a person is
 a short list: photos the review agent asked for, storefront requests to
-answer, lots to ship, and later the floor exceptions (decision 0030). Each
+answer, lots to ship, and the floor waivers (decision 0030). Each
 source is a small function that returns ``Item`` values; ``Todo`` sorts
 them into one queue and adds up the minutes.
 
@@ -139,29 +139,32 @@ def reservation_items(store):
 
 
 def floor_items(floor_requests):
-    """Floor exceptions (decision 0030), once that service exists.
+    """Floor waivers waiting for a person (decision 0030).
 
-    ``floor_requests()`` returns the open requests as dicts: ``id``, and
-    preferably ``title`` (or ``name``/``number``), ``price_cents``,
-    ``floor_cents`` and ``reason``. Unknown keys are ignored.
+    ``floor_requests()`` returns the open requests as ``FloorRequests.open``
+    does: ``id``, ``title``, ``items``, ``copy_ids``, ``price_cents``,
+    ``floor_cents`` (or ``current_floor_cents``, preferred) and ``reason``.
     """
 
     def source():
         items = []
         for rank, request in enumerate(floor_requests()):
-            price, floor = request.get("price_cents"), request.get("floor_cents")
+            price = request.get("price_cents")
+            floor = request.get("current_floor_cents", request.get("floor_cents"))
             reason = request.get("reason") or "Prix demandé sous le plancher anti-bradage."
             if price is not None and floor is not None:
                 reason = f"{euros(price)} demandé, plancher {euros(floor)}. {reason}"
             items.append(Item(
                 kind="floor", id=f"floor-{request['id']}",
-                title=request.get("title") or card_label(request),
+                title=request.get("title")
+                or ", ".join(card_label(i) for i in request.get("items", []))
+                or card_label(request),
                 reason=reason,
-                action={"view": "sales", "target": f"plancher-{request['id']}",
+                action={"view": "collection", "target": f"floor-request-{request['id']}",
                         "floor_request_id": request["id"]},
                 key=(rank,),
                 data={"price_cents": price, "floor_cents": floor,
-                      "copy_id": request.get("copy_id")},
+                      "copy_ids": request.get("copy_ids", [])},
             ))
         return items
 

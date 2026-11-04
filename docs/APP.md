@@ -186,7 +186,7 @@ n'écrit rien.
 
 Dessous, la file **À toi** ne garde que ce que les agents ne tranchent pas,
 dans cet ordre : les demandes de la vitrine à accepter ou refuser avant leur
-expiration, les dérogations de plancher quand ce service est en place, les
+expiration, les prix sous le plancher anti-bradage à trancher ([fiche 0030](decisions/0030-derogations-plancher.md)), les
 lots vendus à expédier, les lots réservés dont le paiement est à vérifier,
 puis les photos à reprendre, dans l'ordre du classeur comme le panneau
 « Photos à reprendre ». Trois éléments s'affichent ; « Voir les autres »

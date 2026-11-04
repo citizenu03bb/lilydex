@@ -2704,15 +2704,14 @@ def create_app(
             background=BackgroundTask(shutil.rmtree, folder),
         )
 
-    # The management assistant, V0 (todo.py): the brief and the « À toi » queue.
-    # The floor service (decision 0030), once there, sets app.state.floor_requests
-    # to a function listing the open requests; the queue then shows them too.
+    # The management assistant, V0 (todo.py): the brief and the « À toi » queue,
+    # floor waivers (decision 0030) included.
     from .todo import Todo, default_since, parse_since
 
     todo = Todo(
         store,
         photo_requests=review.photo_requests,
-        floor_requests=getattr(app.state, "floor_requests", None),
+        floor_requests=floor_requests.open,
     )
     app.state.todo = todo
 

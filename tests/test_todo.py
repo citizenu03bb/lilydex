@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 from test_reservations import activate, client_of, shop, signup  # noqa: F401 - fixture
 
 from pokeprice.manage import main, send_brief
-from pokeprice.todo import Todo, brief_text, floor_items, parse_since
+from pokeprice.todo import Todo, brief_text, parse_since
 from pokeprice.webapp import create_app
 
 assert shop  # The fixture is used by name below.
@@ -100,15 +100,13 @@ def test_photos_follow_the_binder_and_come_after_money(shop):
     assert [r["copy_id"] for r in panel] == [i["data"]["copy_id"] for i in waiting[1:]]
 
 
-def test_the_floor_service_plugs_in_as_one_more_source(shop):
-    """How the floor branch (decision 0030) joins the queue.
-
-    Either it gives create_app's Todo a function through
-    ``app.state.floor_requests``, or it registers the source afterwards.
-    """
+def test_floor_waivers_join_the_queue_after_the_requests(shop):
+    """The floor service (decision 0030) is one more source of the queue."""
     admin, store, listings = shop
-    open_requests = [{"id": "f1", "name": "Dracaufeu", "number": "4/102",
-                      "price_cents": 900, "floor_cents": 1500, "reason": "Offre Vinted."}]
+    open_requests = [{"id": "f1", "title": "", "copy_ids": ["c1"],
+                      "items": [{"name": "Dracaufeu", "number": "4/102"}],
+                      "price_cents": 900, "floor_cents": 1200, "current_floor_cents": 1500,
+                      "reason": "Offre Vinted."}]
     todo = Todo(store, floor_requests=lambda: open_requests)
     request_cards(admin, store, listings)
     waiting = todo.waiting()
@@ -116,13 +114,10 @@ def test_the_floor_service_plugs_in_as_one_more_source(shop):
     floor = waiting[1]
     assert floor["title"] == "Dracaufeu 4/102" and floor["minutes"] == 2
     assert floor["reason"] == "9,00 € demandé, plancher 15,00 €. Offre Vinted."
-    assert floor["action"]["target"] == "plancher-f1"
-    # Without the service, no floor source at all.
+    assert floor["action"]["target"] == "floor-request-f1"
     assert "floor" not in Todo(store).sources
-
-    app = create_app(store.root)
-    app.state.todo.register("floor", floor_items(lambda: open_requests))
-    assert "floor" in app.state.todo.sources
+    # The application plugs the real service in.
+    assert "floor" in create_app(store.root).state.todo.sources
 
 
 def test_done_since_counts_agent_runs_and_lots_but_not_undone_ones(shop):

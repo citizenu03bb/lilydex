@@ -240,3 +240,16 @@ def test_floor_audit_lists_online_prices_a_rising_quote_left_under_the_floor(tes
     assert waived["price_cents"] == 100 and waived["price_source"] == "Dérogation accordée par pat"
     assert human.get("/api/floor-requests").json() == []
     assert audit()["count"] == 0  # a kept price is not asked again
+
+
+def test_an_open_waiver_waits_in_the_queue_until_decided(test_db, human):  # noqa: F811
+    db_path, store = test_db
+    sale_id, cards, units = undercut_lot(store, 40)
+    with pytest.raises(FloorRefusal) as refused:
+        LotsEngine(db_path).publish_to_storefront(sale_id)
+    request_id = refused.value.request_id
+    waiting = human.get("/api/todo").json()["waiting"]
+    floor = [i for i in waiting if i["kind"] == "floor"]
+    assert [i["action"]["target"] for i in floor] == [f"floor-request-{request_id}"]
+    assert human.post(f"/api/floor-requests/{request_id}/refuse", json={"reason": "Non."}).status_code == 200
+    assert not [i for i in human.get("/api/todo").json()["waiting"] if i["kind"] == "floor"]

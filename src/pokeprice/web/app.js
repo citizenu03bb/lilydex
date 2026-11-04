@@ -4101,6 +4101,7 @@ async function refreshFloorRequests() {
   const list = el("ol", undefined, "floor-requests");
   for (const request of requests) {
     const item = el("li", undefined, "workflow-actions");
+    item.id = `floor-request-${request.id}`;
     const names = request.items.map((i) => `${i.name} ${i.number}`).join(", ");
     const text = el("span");
     text.append(
