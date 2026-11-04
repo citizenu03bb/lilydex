@@ -278,3 +278,115 @@ def test_manage_prices_from_guide_reports_changes_and_stale_storefront_prices(
     stale = report["stale_storefront"]
     assert stale[0]["listing_id"] == listing["id"]
     assert stale[0]["price_cents"] == 630 and stale[0]["current_cents"] == 950
+
+
+def quote(**metrics):
+    """CARD with other Cardmarket metrics for the same product."""
+    card = copy.deepcopy(CARD)
+    card["pricing"]["cardmarket"].update(metrics, updated="2026-10-08T09:50:00.000Z")
+    return card
+
+
+def reasons(client, copy_id):
+    detail = client.get(f"/api/copies/{copy_id}").json()
+    return detail, [r["code"] for r in detail["valuation"]["reasons"]]
+
+
+# One sale at 20 € on a card that trades around 6 €: the averages diverge.
+SPIKE = {"trend": 20.0, "avg1": 20.0, "avg7": 14.0, "avg30": 6.4}
+
+
+def test_batch_keeps_the_reference_an_unstable_market_would_move(client):
+    store = client.app.state.store
+    card = confirmed(client, 1)
+    service = PriceService(store, client.fetch)
+    service.refresh_many("manage")
+    before = client.get(f"/api/copies/{card['id']}").json()
+    client.answers["swsh7-077"] = quote(**SPIKE)
+    summary = service.refresh_many("manage")
+    detail, codes = reasons(client, card["id"])
+    assert detail["reference_cents"] == 625 and detail["version"] == before["version"]
+    assert detail["valuation"]["trend_cents"] == before["valuation"]["trend_cents"]
+    assert summary["held"] == [
+        {
+            "id": card["id"],
+            "name": card["name"],
+            "catalog_id": "swsh7-077",
+            "before_cents": 625,
+            "proposed_cents": 2000,
+            "source": "TCGdex · Cardmarket trend",
+        }
+    ]
+    assert summary["notable"] == [] and summary["changed"] == 0
+    assert "price_held" in codes and detail["valuation"]["needs_review"]
+    assert snapshots(store, card["id"]) == 1
+    with store.connect() as db:
+        held = db.execute(
+            "SELECT COUNT(*) FROM events WHERE kind='price-held' AND copy_id=?",
+            (card["id"],),
+        ).fetchone()[0]
+    assert held == 1
+    # The same spike the next morning: nothing new to journal.
+    again = service.refresh_many("manage")
+    assert again["recorded"] == 0 and len(again["held"]) == 1
+
+
+def test_batch_applies_a_large_move_on_a_steady_market(client):
+    store = client.app.state.store
+    card = confirmed(client, 1)
+    service = PriceService(store, client.fetch)
+    service.refresh_many("manage")
+    client.answers["swsh7-077"] = quote(trend=9.5, avg1=9.4, avg7=9.2, avg30=9.1)
+    summary = service.refresh_many("manage")
+    assert summary["held"] == [] and len(summary["notable"]) == 1
+    assert client.get(f"/api/copies/{card['id']}").json()["reference_cents"] == 950
+
+
+def test_a_relevé_by_hand_applies_the_quote_and_ends_the_review(client):
+    store = client.app.state.store
+    card = confirmed(client, 1)
+    service = PriceService(store, client.fetch)
+    service.refresh_many("manage")
+    client.answers["swsh7-077"] = quote(**SPIKE)
+    service.refresh_many("manage")
+    detail, _ = reasons(client, card["id"])
+    response = client.post(
+        f"/api/copies/{card['id']}/price-refresh",
+        json={"expected_version": detail["version"]},
+    )
+    assert response.status_code == 200, response.text
+    detail, codes = reasons(client, card["id"])
+    assert detail["reference_cents"] == 2000 and "price_held" not in codes
+
+
+def test_a_steadier_morning_ends_the_review_even_at_the_same_price(client):
+    store = client.app.state.store
+    card = confirmed(client, 1)
+    service = PriceService(store, client.fetch)
+    service.refresh_many("manage")
+    client.answers["swsh7-077"] = quote(**SPIKE)
+    service.refresh_many("manage")
+    # The market settles back on the kept reference.
+    client.answers["swsh7-077"] = copy.deepcopy(CARD)
+    summary = service.refresh_many("manage")
+    detail, codes = reasons(client, card["id"])
+    assert summary["held"] == [] and summary["recorded"] == 1
+    assert detail["reference_cents"] == 625 and "price_held" not in codes
+
+
+def test_from_guide_keeps_the_reference_an_unstable_guide_would_move(
+    client, tmp_path, monkeypatch
+):
+    store = client.app.state.store
+    card = confirmed(client, 1)
+    service = PriceService(store, client.fetch)
+    service.refresh_many("manage")
+    spiked = copy.deepcopy(GUIDE)
+    spiked["priceGuides"][0].update(trend=21.0, avg1=21.0, avg7=12.0, avg30=6.5, low=4.0)
+    monkeypatch.setitem(globals(), "GUIDE", spiked)
+    guide = CardmarketGuide(tmp_path / "cm", store, fetch=files, get_json={}.get)
+    summary = service.refresh_from_guide("manage", guide)
+    assert summary["guide"]["priced"] == 1
+    assert [h["proposed_cents"] for h in summary["held"]] == [2100]
+    detail, codes = reasons(client, card["id"])
+    assert detail["reference_cents"] == 625 and "price_held" in codes

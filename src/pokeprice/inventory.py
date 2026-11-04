@@ -755,11 +755,12 @@ class Store:
         latest = list(
             db.execute(
                 "SELECT id,copy_id,kind,after_json FROM events WHERE id IN "
-                "(SELECT max(id) FROM events WHERE kind IN ('price-snapshot','sale-estimate','identification') GROUP BY copy_id,kind)"
+                "(SELECT max(id) FROM events WHERE kind IN ('price-snapshot','price-held','sale-estimate','identification') GROUP BY copy_id,kind)"
             )
         )
         context = {
-            kind: {} for kind in ("price-snapshot", "sale-estimate", "identification")
+            kind: {}
+            for kind in ("price-snapshot", "price-held", "sale-estimate", "identification")
         }
         context["bound-quotes"] = {}
         for row in db.execute(
@@ -846,6 +847,23 @@ class Store:
                 {
                     "code": "edition_reading",
                     "label": "Contrôle de l’édition en désaccord : " + conflicts[0],
+                }
+            ]
+            result["needs_review"] = True
+        held = context.get("price-held", {}).get(card["id"])
+        if (
+            held
+            and held[0] > context["price-snapshot"].get(card["id"], (0, None))[0]
+            and not result.get("manual_price")
+        ):
+            proposed = held[1]["held"]["proposed_cents"]
+            result["reasons"] = result["reasons"] + [
+                {
+                    "code": "price_held",
+                    "label": "Cote retenue, marché instable : la tendance du jour la "
+                    "porterait à "
+                    + (f"{proposed / 100:.2f} €".replace(".", ",") if proposed else "aucune")
+                    + ". Vérifiez sur Cardmarket puis relevez ou fixez le prix.",
                 }
             ]
             result["needs_review"] = True

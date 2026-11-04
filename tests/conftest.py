@@ -4,6 +4,7 @@ import os
 os.environ["POKEPRICE_DRIVE_FOLDER"] = "test-drive-folder"
 import urllib.parse
 
+import dotenv
 import pytest
 
 from pokeprice import webapp
@@ -17,11 +18,34 @@ def cheap_scrypt(request, monkeypatch):
         monkeypatch.setattr(webapp, "SCRYPT", {"n": 2**10, "r": 8, "p": 1})
 
 
+# Read from ~/.env by the application: a test never sees a real key or channel.
+PRIVATE_VARIABLES = (
+    "GEMINI_API_KEY",
+    "GOOGLE_API_KEY",
+    "POKEPRICE_CONTACT_EMAIL",
+    "POKEPRICE_NTFY_URL",
+    "POKEPRICE_NTFY_TOKEN",
+    "POKEPRICE_SMTP_HOST",
+    "POKEPRICE_SMTP_PORT",
+    "POKEPRICE_SMTP_SECURITY",
+    "POKEPRICE_SMTP_USER",
+    "POKEPRICE_SMTP_PASSWORD",
+    "POKEPRICE_SMTP_FROM",
+    "POKEPRICE_NOTIFY_EMAIL",
+)
+
+
 @pytest.fixture(autouse=True)
 def private_config(tmp_path, monkeypatch):
     # Backup keys and other per-user configuration never come from the real home.
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
-    monkeypatch.delenv("POKEPRICE_CONTACT_EMAIL", raising=False)
+    # ~/.env is loaded into os.environ on demand, and load_dotenv() without a
+    # path walks up to the developer's home: a storefront request in a test
+    # would alert the real seller. No .env is read during the tests.
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    monkeypatch.setattr(dotenv, "load_dotenv", lambda *args, **kwargs: False)
+    for name in PRIVATE_VARIABLES:
+        monkeypatch.delenv(name, raising=False)
 
 
 @pytest.fixture
