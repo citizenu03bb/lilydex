@@ -297,6 +297,8 @@ def brief_text(brief):
     made = []
     if agent["confirmed"]:
         made.append(f"{agent['confirmed']} carte(s) confirmée(s) par l’agent")
+    if agent.get("photos_asked"):
+        made.append(f"{agent['photos_asked']} photo(s) demandée(s) par l’agent")
     if listings["published"]:
         made.append(f"{listings['published']} annonce(s) publiée(s)")
     if listings["unpublished"]:
@@ -305,6 +307,11 @@ def brief_text(brief):
         made.append(f"{sales['sold']} vente(s), {euros(done['sales']['sold_cents'])}")
     if done["requests"]["received"]:
         made.append(f"{done['requests']['received']} demande(s) reçue(s)")
+    answered = sum(done["requests"].get("answered", {}).values())
+    if answered:
+        made.append(f"{answered} demande(s) traitée(s)")
+    if not made and agent.get("passes"):
+        made.append(f"{agent['passes']} passage(s) de l’agent, sans changement")
     lines.append("Fait : " + (", ".join(made) if made else "rien de nouveau") + ".")
     labels = {"request": "demande(s) à répondre", "floor": "dérogation(s) de plancher",
               "ship": "lot(s) à expédier", "payment": "paiement(s) à vérifier",
