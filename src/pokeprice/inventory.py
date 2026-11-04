@@ -1016,11 +1016,11 @@ class Store:
         except ValueError:
             return DEFAULT_LOT_MAX_MARGIN
 
-    def set_deleted(self, copy_id, deleted, version, actor, reason):
+    def set_deleted(self, copy_id, deleted, version, actor, reason, *, _db=None):
         """Move an available copy to/from trash, retaining all sources and history."""
         if not reason.strip():
             raise ValueError("Précisez le motif.")
-        with self.connect(write=True) as db:
+        with self.connect(write=True) if _db is None else nullcontext(_db) as db:
             before = self.get(db, copy_id)
             if before["version"] != version:
                 raise Conflict("La fiche a changé. Rechargez-la avant de modifier.")
