@@ -1,0 +1,240 @@
+{
+  "contract_version": "1",
+  "permission": "assistant:read",
+  "tools": [
+    {
+      "name": "search_copies",
+      "description": "Cherche des exemplaires de la collection par nom, numéro, extension, album, statut d'identification, état du stock ou mise en vente. Renvoie au plus 50 résumés par appel, dans l'ordre du classeur, et le nombre total trouvé.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "maxLength": 120,
+            "description": "Mots cherchés dans le nom, l'extension, le numéro, la langue ou l'album."
+          },
+          "number": {
+            "type": "string",
+            "maxLength": 20,
+            "description": "Numéro de la carte, par exemple 4 ou 4/102."
+          },
+          "set": {
+            "type": "string",
+            "maxLength": 120,
+            "description": "Nom (ou partie) de l'extension."
+          },
+          "album": {
+            "type": "string",
+            "maxLength": 120,
+            "description": "Nom ou identifiant de l'album."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "confirmed",
+              "review",
+              "unresolved",
+              "failed"
+            ],
+            "maxLength": 20,
+            "description": "Statut d'identification."
+          },
+          "stock": {
+            "type": "string",
+            "enum": [
+              "available",
+              "reserved",
+              "sold"
+            ],
+            "maxLength": 20,
+            "description": "État du stock."
+          },
+          "for_sale": {
+            "type": "boolean",
+            "description": "Vrai : seulement les exemplaires en vente ; faux : seulement les autres."
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50,
+            "default": 20
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2000,
+            "default": 0
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_copy",
+      "description": "Fiche d'un exemplaire : identité, état, finition, emplacement dans le classeur, prix de référence et valorisation, annonce en ligne et lot éventuels.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "copy_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "description": "Identifiant de l'exemplaire."
+          }
+        },
+        "required": [
+          "copy_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "explain_price",
+      "description": "Explique le prix d'un exemplaire : prix de référence et sa source, prix proposé pour la vitrine et son mode, plancher anti-bradage actuel et sa règle, prix de l'annonce en ligne, et la cote retenue (marché instable) s'il y en a une.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "copy_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "description": "Identifiant de l'exemplaire."
+          }
+        },
+        "required": [
+          "copy_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "why_not_for_sale",
+      "description": "Dit pourquoi un exemplaire n'est pas en vente : identité, état ou variante à confirmer, photo demandée, sans référence, cote retenue, réservé ou vendu, dérogation de plancher en attente. Chaque raison a un code stable et un libellé.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "copy_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "description": "Identifiant de l'exemplaire."
+          }
+        },
+        "required": [
+          "copy_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "list_listings",
+      "description": "Liste les annonces en ligne de la vitrine (carte seule ou lot), avec leur prix, leur âge en jours et leurs exemplaires ; filtrable par âge, par type et par exemplaire.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "min_age_days": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3650,
+            "description": "Annonces publiées depuis au moins ce nombre de jours."
+          },
+          "max_age_days": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3650,
+            "description": "Annonces publiées depuis au plus ce nombre de jours."
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "any",
+              "card",
+              "lot"
+            ],
+            "maxLength": 10,
+            "default": "any",
+            "description": "card : carte seule ; lot : plusieurs cartes."
+          },
+          "copy_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "description": "Seulement l'annonce qui contient cet exemplaire."
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50,
+            "default": 20
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2000,
+            "default": 0
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "sales_summary",
+      "description": "Résume les ventes depuis une date : réservations, ventes, expéditions et leurs montants, puis les lots réservés ou à expédier en ce moment (sans données de client).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "since": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 40,
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}([T ][0-9:.+Z-]{2,29})?$",
+            "description": "Date (AAAA-MM-JJ) ou instant ISO 8601, lu en UTC. Par défaut : les dernières 24 heures."
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "agent_activity",
+      "description": "Ce que les agents ont fait depuis une date, d'après le journal : passes de revue, cartes confirmées, photos demandées, annonces publiées ou retirées, ventes, demandes reçues et traitées.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "since": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 40,
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}([T ][0-9:.+Z-]{2,29})?$",
+            "description": "Date (AAAA-MM-JJ) ou instant ISO 8601, lu en UTC. Par défaut : les dernières 24 heures."
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "todo_queue",
+      "description": "La file « À toi » : les seules décisions et gestes qui attendent une personne (demandes à traiter, dérogations de plancher, lots à expédier ou à encaisser, photos à reprendre), du plus urgent au moins urgent, avec le temps estimé.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 50
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
+    }
+  ]
+}
