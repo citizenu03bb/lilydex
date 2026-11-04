@@ -9,6 +9,14 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-04
 
+- Gestion : assistant de gestion, V0 sans modèle de langage. En haut de la
+  gestion, un « Brief du jour » résume ce que les agents ont fait depuis
+  24 heures, d'après les événements journalisés, et la file « À toi » liste
+  les seules décisions de l’opératrice (demandes à traiter, lots à expédier ou à
+  encaisser, prix sous le plancher à trancher, photos à reprendre dans l'ordre
+  du classeur), chacune avec son
+  bouton. Route `GET /api/todo`, commande `pokeprice-manage brief [--notify]`
+  ([guide](APP.md#le-brief-et-la-file--à-toi-), `tests/test_todo.py`).
 - Plancher anti-bradage : un prix d'agent sous le plancher devient une demande
   de dérogation que la gestion accorde, relève au plancher ou refuse
   (`GET /api/floor-requests`, panneau « Prix sous le plancher à trancher ») ;

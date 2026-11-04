@@ -2078,3 +2078,80 @@ lilydex-filter-bar {
 .photo-requests li span {
   flex: 1 1 18rem;
 }
+
+/* The management assistant: the brief, then « À toi » (todo.py). Phone first. */
+.assistant {
+  border: 1px solid var(--border-strong);
+  background: var(--surface-1);
+  border-radius: var(--radius-lg, 16px);
+  padding: 14px 16px;
+  margin: 12px 0 18px;
+  box-shadow: var(--shadow-sm);
+}
+.assistant h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+.assistant h3 {
+  margin: 14px 0 6px;
+  font-size: 1rem;
+}
+.brief-waiting {
+  margin: 4px 0;
+  font-weight: 600;
+  color: var(--accent);
+}
+.assistant .help {
+  margin: 0;
+}
+.todo-queue {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.todo-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px 12px;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 12px);
+  padding: 10px 12px;
+  background: var(--surface-2);
+}
+.todo-request,
+.todo-floor {
+  border-left: 4px solid var(--gold);
+}
+.todo-body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.todo-body .badge {
+  justify-self: start;
+}
+.todo-detail,
+.todo-reason,
+.todo-minutes {
+  color: var(--ink-muted);
+  font-size: 0.9rem;
+}
+.todo-item button {
+  grid-column: 1 / -1;
+  min-height: 44px;
+}
+.todo-focus {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+@media (min-width: 700px) {
+  .todo-item {
+    grid-template-columns: 1fr auto auto;
+  }
+  .todo-item button {
+    grid-column: auto;
+  }
+}

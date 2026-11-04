@@ -2704,6 +2704,25 @@ def create_app(
             background=BackgroundTask(shutil.rmtree, folder),
         )
 
+    # The management assistant, V0 (todo.py): the brief and the « À toi » queue,
+    # floor waivers (decision 0030) included.
+    from .todo import Todo, default_since, parse_since
+
+    todo = Todo(
+        store,
+        photo_requests=review.photo_requests,
+        floor_requests=floor_requests.open,
+    )
+    app.state.todo = todo
+
+    @app.get("/api/todo")
+    def todo_index(since: str = "", user=Depends(editor)):
+        try:
+            moment = parse_since(since) if since else default_since()
+        except ValueError:
+            raise ValueError("Date invalide : utilisez AAAA-MM-JJ.") from None
+        return todo.brief(moment)
+
     if agent_enabled:
         from .agent_api import install
 
