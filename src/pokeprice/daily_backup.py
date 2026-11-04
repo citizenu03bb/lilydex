@@ -18,8 +18,9 @@ from .inventory_backup import backup, restore_backup
 OCCASIONAL_KEEP = 3
 OCCASIONAL_DAYS = 14
 SCHEMA_COPIES_KEEP = 5
-# Database copies before a move batch, without photos.
-MOVE_COPIES_KEEP = 5
+# Database copies before a move or a photo batch, without photos.
+BATCH_COPIES_KEEP = 5
+BATCH_COPIES = ("before-move-batch-", "before-photo-batch-")
 
 
 def configured_drive_folder():
@@ -122,7 +123,7 @@ def daily(store, *, force=False):
 def prune_occasional(folder, now_=None):
     """Occasional backups: the 3 latest always stay, others for 14 days.
 
-    Before-schema copies and before-move copies keep their 5 latest each.
+    Before-schema, before-move and before-photo copies keep their 5 latest each.
     Daily archives are pruned above.
     Returns the names removed.
     """
@@ -143,12 +144,13 @@ def prune_occasional(folder, now_=None):
     for path in schema[SCHEMA_COPIES_KEEP:]:
         path.unlink()
         removed.append(path.name)
-    moves = sorted(
-        folder.glob("before-move-batch-*.sqlite3"), key=lambda p: p.stat().st_mtime, reverse=True
-    )
-    for path in moves[MOVE_COPIES_KEEP:]:
-        path.unlink()
-        removed.append(path.name)
+    for prefix in BATCH_COPIES:
+        copies = sorted(
+            folder.glob(f"{prefix}*.sqlite3"), key=lambda p: p.stat().st_mtime, reverse=True
+        )
+        for path in copies[BATCH_COPIES_KEEP:]:
+            path.unlink()
+            removed.append(path.name)
     return removed
 
 

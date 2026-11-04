@@ -28,6 +28,7 @@ def test_occasional_backups_keep_the_latest_three_and_two_weeks(tmp_path):
     for i in range(7):
         touch(tmp_path, f"before-schema{i}.sqlite3", i, now)
         touch(tmp_path, f"before-move-batch-{i}.sqlite3", i, now)
+        touch(tmp_path, f"before-photo-batch-{i}.sqlite3", i, now)
     removed = prune_occasional(tmp_path, now)
     left = sorted(p.name for p in tmp_path.iterdir())
     # Latest three (1, 2 and 20 days) stay; older than 14 days beyond them go.
@@ -36,9 +37,11 @@ def test_occasional_backups_keep_the_latest_three_and_two_weeks(tmp_path):
     assert "daily-2026-01-01.zip" in left  # Daily archives have their own rule.
     assert sum(n.startswith("before-schema") for n in left) == 5
     assert sum(n.startswith("before-move-batch") for n in left) == 5
+    assert sum(n.startswith("before-photo-batch") for n in left) == 5
     assert set(removed) == {"before-lot-2.zip", "before-lot-3.zip", "before-lot-4.zip",
                             "before-schema5.sqlite3", "before-schema6.sqlite3",
-                            "before-move-batch-5.sqlite3", "before-move-batch-6.sqlite3"}
+                            "before-move-batch-5.sqlite3", "before-move-batch-6.sqlite3",
+                            "before-photo-batch-5.sqlite3", "before-photo-batch-6.sqlite3"}
 
 
 def test_a_backup_is_refused_before_writing_when_the_disk_is_short(tmp_path, monkeypatch):

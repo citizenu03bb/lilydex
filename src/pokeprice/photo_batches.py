@@ -9,7 +9,6 @@ from datetime import datetime, timezone
 from PIL import Image
 
 from .inventory import Conflict, now
-from .inventory_backup import backup
 from .photo_processing import prepare_photo
 from .slicer import normalize_orientation, slice_grid
 
@@ -349,12 +348,9 @@ class PhotoBatches:
         # Refused requests must not cost a full archive: check before backing up.
         with self.store.connect() as db:
             self.checked(db, jid, owner, selected, undo)
-        # Archive prior state before any bulk write. No cloud or model calls here.
-        stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
-        backup(
-            self.store,
-            self.store.root.parent / "backups" / f"before-photo-batch-{stamp}.zip",
-        )
+            # Prior state before any bulk write. Photos are named by their hash and
+            # never deleted, so the database alone keeps every former photo.
+            self.store.copy_database(db, "before-photo-batch")
         with self.store.connect(write=True) as db:
             # Checked again under the write lock: the state may have moved meanwhile.
             data, selected, items = self.checked(db, jid, owner, selected, undo)

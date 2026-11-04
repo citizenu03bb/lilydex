@@ -9,6 +9,11 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-04
 
+- Sauvegardes : avant un lot de photos, une page de classeur ou un
+  déplacement, l'application copie la base seule (environ 36 Mo) au lieu
+  d'une archive avec les photos (800 Mo), qui remplissait le disque du
+  serveur en quelques lots ; les 5 dernières copies de chaque sorte sont
+  gardées (`tests/test_backup_retention.py`).
 - Gestion : déplacement en lot d'une sélection de cartes vers un autre album ou
   une autre page (`/api/move-batches`, action « Déplacer vers… »), avec aperçu
   des emplacements et des collisions de cases, placement dans les premières

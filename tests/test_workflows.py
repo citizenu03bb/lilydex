@@ -293,7 +293,7 @@ def test_photo_batch_preview_selected_apply_and_undo_retains_originals(client):
     )
     assert list(
         client.app.state.store.root.parent.joinpath("backups").glob(
-            "before-photo-batch-*.zip"
+            "before-photo-batch-*.sqlite3"
         )
     )
 
@@ -358,7 +358,7 @@ def test_refused_photo_batch_requests_create_no_backup(client):
         ),
     ]
     assert [r.status_code for r in refused] == [404, 404, 409, 422]
-    assert not list(backups.glob("before-photo-batch-*.zip"))
+    assert not list(backups.glob("before-photo-batch-*.sqlite3"))
     client.app.state.store.patch(first["id"], {"notes": "Concurrent"}, 1, "pat", "Test")
     assert (
         client.post(
@@ -366,7 +366,7 @@ def test_refused_photo_batch_requests_create_no_backup(client):
         ).status_code
         == 409
     )
-    assert not list(backups.glob("before-photo-batch-*.zip"))
+    assert not list(backups.glob("before-photo-batch-*.sqlite3"))
 
 
 def test_listing_package_excludes_notes_payments_and_does_not_reserve(client):
@@ -552,9 +552,10 @@ def test_page_photo_batch_slices_3x3_updates_existing_creates_unresolved_and_und
     created_ninth = client.get("/api/copies/" + applied_items[9]["id"]).json()
     assert created_ninth["position"] == 9 and created_ninth["name"] == "À identifier"
     assert client.get("/api/summary").json()["copies"] == 4
-    assert list(
-        store.root.parent.joinpath("backups").glob("before-photo-batch-*.zip")
-    )
+    # The database alone: photos are named by their hash and never deleted.
+    backups = store.root.parent.joinpath("backups")
+    assert list(backups.glob("before-photo-batch-*.sqlite3"))
+    assert not list(backups.glob("*.zip"))
 
     undone = client.post(f"/api/photo-batches/{job['id']}/undo")
     assert undone.status_code == 200, undone.text
@@ -599,7 +600,7 @@ def test_page_photo_batch_conflict_rolls_back_atomically_and_blocks_unsafe_undo(
         == 409
     )
     assert client.get("/api/summary").json()["copies"] == 1
-    assert not list(backups.glob("before-photo-batch-*.zip"))
+    assert not list(backups.glob("before-photo-batch-*.sqlite3"))
 
     # If an empty pocket is filled after preview, applying that pocket is refused atomically.
     fresh = client.post(
@@ -617,7 +618,7 @@ def test_page_photo_batch_conflict_rolls_back_atomically_and_blocks_unsafe_undo(
         == 409
     )
     assert client.get("/api/copies/" + first["id"]).json()["version"] == 2
-    assert not list(backups.glob("before-photo-batch-*.zip"))
+    assert not list(backups.glob("before-photo-batch-*.sqlite3"))
 
     # Applying non-conflicting pockets [1, 2] succeeds; editing created pocket 2 blocks undo.
     applied = client.post(

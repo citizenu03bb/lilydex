@@ -32,6 +32,7 @@ from fastapi.exception_handlers import http_exception_handler
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from PIL import Image, ImageOps
 from pydantic import BaseModel, ConfigDict, Field, StrictBool
+from starlette.concurrency import run_in_threadpool
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from .audience import Audience, counted
@@ -1950,9 +1951,12 @@ def create_app(
         data = bytearray()
         async for chunk in request.stream():
             data.extend(chunk)
-            if len(data) > 16 * 1024 * 1024:
-                raise HTTPException(413, "Photo limitée à 16 Mo.")
-        return batches.preview_page(
+            # Caddy refuses bodies over 9 MB: the same limit as the other photos.
+            if len(data) > 8 * 1024 * 1024:
+                raise HTTPException(413, "Photo limitée à 8 Mo.")
+        # Slicing a 24-megapixel page takes seconds: off the event loop.
+        return await run_in_threadpool(
+            batches.preview_page,
             user["id"],
             album_id,
             page,

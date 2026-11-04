@@ -319,7 +319,8 @@ vers Gemini sans action explicite.
 
 Cochez jusqu'à 20 exemplaires puis **Préparer les photos sélectionnées** :
 simulez les réglages du recto ou du verso, agrandissez les comparaisons et
-cochez les résultats voulus. L'application crée une sauvegarde avant de
+cochez les résultats voulus. L'application copie d'abord la base, sans les
+photos (nommées par leur empreinte, elles ne sont jamais effacées), avant de
 remplacer les photos. **Annuler ce traitement**, et les vingt derniers
 traitements, se retrouvent dans **Photos par lot**, même sans carte
 sélectionnée ; une fiche modifiée depuis le traitement bloque son annulation.
@@ -364,7 +365,8 @@ selon l'angle choisi) et la découpe en 9 pochettes :
 - si plusieurs fiches occupent déjà la même pochette, la case signale le
   conflit et reste décochée.
 
-**Appliquer les pochettes cochées** crée une sauvegarde préalable puis met à
+**Appliquer les pochettes cochées** copie d'abord la base, sans les photos,
+dans `backups/before-photo-batch-<date>.sqlite3`, puis met à
 jour les fiches existantes (en réinitialisant la confirmation d'état) et crée
 les fiches « À identifier » dans une seule transaction. **Annuler ce dépôt de
 page** restaure les photos antérieures et place en corbeille les fiches créées

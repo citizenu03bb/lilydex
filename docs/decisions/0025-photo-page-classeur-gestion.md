@@ -47,7 +47,8 @@ existaient, tous deux lourds pour une page isolée prise au téléphone :
   - si plusieurs exemplaires actifs partagent déjà la même pochette, la case
     signale l'ambiguïté d'emplacement et ne s'applique pas automatiquement.
 - L'application vérifie les versions et la vacance des pochettes vides, crée
-  une sauvegarde `before-photo-batch-…zip`, puis met à jour les exemplaires
+  une copie de la base seule `before-photo-batch-…sqlite3` (les photos,
+  nommées par leur empreinte, ne sont jamais effacées), puis met à jour les exemplaires
   existants (`condition_confirmed=False`) et crée les fiches « À identifier »
   dans une même transaction SQLite.
 - L'annulation restaure la photo antérieure des exemplaires mis à jour et met
