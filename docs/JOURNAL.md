@@ -17,6 +17,11 @@ daté la quitte, il est versé ici dans le même commit.
   fait passer sous le plancher, sans rien republier
   ([fiche 0030](decisions/0030-derogations-plancher.md),
   `tests/test_floor_requests.py`).
+- Assistant de gestion proposé : un brief du jour poussé par la notification
+  et affiché en haut de la gestion, une file « À toi » limitée aux décisions
+  humaines et aux photos à reprendre, puis un chat qui n'agit que par des
+  outils fermés avec sa propre délégation ; le choix du modèle reste ouvert
+  ([fiche 0029](decisions/0029-assistant-de-gestion.md)).
 - Sauvegardes : les archives du serveur ne recopient plus les 758 Mo de
   photos. Chaque photo est gardée une fois, par lien physique, dans la réserve
   `backups/photos/`, et l'archive de la nuit (format v2) ne porte que la base,
