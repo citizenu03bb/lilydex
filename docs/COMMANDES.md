@@ -355,6 +355,15 @@ Effacer un client de la vitrine (e-mail ou identifiant)
 
 Appliquer les durées de conservation des données clients
 
+### `pokeprice-manage brief`
+
+Brief du jour : ce que l'agent a fait, ce qui attend une décision
+
+| Argument | Effet |
+|---|---|
+| `--since` `SINCE` | Depuis cette date (AAAA-MM-JJ) ; 24 heures par défaut |
+| `--notify` | Envoyer une notification courte (ntfy, e-mail) |
+
 ### `pokeprice-manage export`
 
 Export de la collection gérée

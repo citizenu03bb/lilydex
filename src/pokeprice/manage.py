@@ -238,10 +238,21 @@ def main():
     actions.add_parser(
         "purge", help="Appliquer les durées de conservation des données clients"
     )
+    brief = actions.add_parser(
+        "brief", help="Brief du jour : ce que l'agent a fait, ce qui attend une décision"
+    )
+    brief.add_argument("--since", help="Depuis cette date (AAAA-MM-JJ) ; 24 heures par défaut")
+    brief.add_argument(
+        "--notify", action="store_true", help="Envoyer une notification courte (ntfy, e-mail)"
+    )
     exporter = actions.add_parser("export", help="Export de la collection gérée")
     exporter.add_argument("format", choices=["csv", "json", "html"])
     exporter.add_argument("output")
     args = parser.parse_args()
+    if args.action == "brief" and not any(
+        arg == "--data" or arg.startswith("--data=") for arg in sys.argv[1:]
+    ):
+        parser.error("brief exige --data explicite")
     if args.action == "public-media-cache":
         if not any(arg == "--data" or arg.startswith("--data=") for arg in sys.argv[1:]):
             parser.error("public-media-cache exige --data explicite")
@@ -540,6 +551,8 @@ def main():
             from .names import NameCatalog
 
             result = NameCatalog(store).refresh(tuple(args.languages.split(",")))
+        elif args.action == "brief":
+            result = send_brief(store, args.since, args.notify)
         elif args.action == "export":
             from .inventory_backup import export_csv, export_data, export_html
 
@@ -558,6 +571,40 @@ def main():
             result = {"path": str(output)}
     # Output lands in the systemd journal: the private Drive folder stays out of it.
     print(json.dumps(without_drive_folder(result), ensure_ascii=False, indent=2))
+
+
+def send_brief(store, since=None, notify=False, channels=None, origin=None):
+    """The brief, printed; with ``notify``, also pushed on the alert channels."""
+    import os
+
+    from .agent_review import AgentReview
+    from .notifications import channels_from_env
+    from .todo import Todo, brief_text, default_since, parse_since
+
+    # Only the photo list is read: no review service is needed for it.
+    review = AgentReview(store, None, None)
+    brief = Todo(store, photo_requests=review.photo_requests).brief(
+        parse_since(since) if since else default_since()
+    )
+    title, body = brief_text(brief)
+    result = {"title": title, "text": body, "minutes": brief["minutes"],
+              "waiting": len(brief["waiting"]), "done_since": brief["done_since"]}
+    if notify:
+        origin = os.environ.get("POKEPRICE_PUBLIC_ORIGIN", "") if origin is None else origin
+        link = origin.rstrip("/") + "/gestion"
+        channels = channels_from_env() if channels is None else channels
+        if not channels:
+            raise ValueError("Aucun canal d'alerte configuré (POKEPRICE_NTFY_URL ou SMTP).")
+        result["notified"], result["errors"] = [], {}
+        for channel in channels:
+            try:
+                channel.send(title, f"{body}\n{link}", link)
+                result["notified"].append(channel.name)
+            except Exception as error:  # noqa: BLE001 - one channel down never hides the other.
+                result["errors"][channel.name] = type(error).__name__
+        if not result["notified"]:
+            raise RuntimeError("Brief non envoyé : " + ", ".join(result["errors"].values()))
+    return result
 
 
 def without_drive_folder(value):

@@ -9,6 +9,13 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-04
 
+- Gestion : assistant de gestion, V0 sans modèle de langage. En haut de la
+  gestion, un « Brief du jour » résume ce que les agents ont fait depuis
+  24 heures, d'après les événements journalisés, et la file « À toi » liste
+  les seules décisions de l’opératrice (demandes à traiter, lots à expédier ou à
+  encaisser, photos à reprendre dans l'ordre du classeur), chacune avec son
+  bouton. Route `GET /api/todo`, commande `pokeprice-manage brief [--notify]`
+  ([guide](APP.md#le-brief-et-la-file--à-toi-), `tests/test_todo.py`).
 - Sauvegardes : les archives du serveur ne recopient plus les 758 Mo de
   photos. Chaque photo est gardée une fois, par lien physique, dans la réserve
   `backups/photos/`, et l'archive de la nuit (format v2) ne porte que la base,

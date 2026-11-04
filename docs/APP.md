@@ -175,6 +175,32 @@ photos (aucune migration ne les modifie) ; la rotation des sauvegardes garde
 les 5 plus récentes. Faites une [sauvegarde complète](#sauvegarder) avant
 de lancer une nouvelle version.
 
+## Le brief et la file « À toi »
+
+En haut de la gestion, pour les comptes qui peuvent modifier, le **Brief du
+jour** dit en une ligne ce que les agents ont fait depuis 24 heures (cartes
+confirmées par l'agent, annonces publiées ou retirées, demandes reçues,
+ventes) et combien de choses attendent une personne, avec une estimation en
+minutes. Ces comptes viennent des événements déjà journalisés : le brief
+n'écrit rien.
+
+Dessous, la file **À toi** ne garde que ce que les agents ne tranchent pas,
+dans cet ordre : les demandes de la vitrine à accepter ou refuser avant leur
+expiration, les dérogations de plancher quand ce service est en place, les
+lots vendus à expédier, les lots réservés dont le paiement est à vérifier,
+puis les photos à reprendre, dans l'ordre du classeur comme le panneau
+« Photos à reprendre ». Trois éléments s'affichent ; « Voir les autres »
+déroule la suite. Chaque carte a un bouton qui ouvre l'écran existant : la
+demande dans Ventes, le lot, ou la ligne de photo à prendre.
+
+La même synthèse est servie par `GET /api/todo` (paramètre `since` facultatif,
+`AAAA-MM-JJ`), qui renvoie `done_since`, `waiting` et `minutes`. La commande
+`pokeprice-manage --data <base> brief` l'affiche dans le terminal ; avec
+`--notify`, elle envoie aussi un résumé court (des nombres, aucune donnée de
+client) sur les canaux d'alerte de la vitrine
+([variables](DEPLOYMENT.md#où-vivent-les-secrets)). Le code est dans
+`src/pokeprice/todo.py`.
+
 ## Saisir des cartes
 
 ### Ajouter une carte
