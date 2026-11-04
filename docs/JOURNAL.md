@@ -9,6 +9,14 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-04
 
+- Plancher anti-bradage : un prix d'agent sous le plancher devient une demande
+  de dérogation que la gestion accorde, relève au plancher ou refuse
+  (`GET /api/floor-requests`, panneau « Prix sous le plancher à trancher ») ;
+  un agent ne publie plus seule une carte sans référence ;
+  `pokeprice-manage floor-audit` liste les annonces en ligne que la cote a
+  fait passer sous le plancher, sans rien republier
+  ([fiche 0030](decisions/0030-derogations-plancher.md),
+  `tests/test_floor_requests.py`).
 - Sauvegardes : les archives du serveur ne recopient plus les 758 Mo de
   photos. Chaque photo est gardée une fois, par lien physique, dans la réserve
   `backups/photos/`, et l'archive de la nuit (format v2) ne porte que la base,

@@ -173,6 +173,7 @@ async function showWorkspace(user) {
   const requestLink = focusedRequest();
   await refreshSummary();
   refreshPhotoRequests().catch((e) => toast(e.message));
+  refreshFloorRequests().catch((e) => toast(e.message));
   restoreLocation();
   if (requestLink) changeView("sales", false);
   await loadCards();
@@ -4067,6 +4068,75 @@ async function refreshPhotoRequests() {
     open.type = "button";
     open.onclick = () => openDetail(request.copy_id).catch((e) => toast(e.message));
     item.append(text, take, open, input);
+    list.append(item);
+  }
+  panel.append(list);
+}
+
+// Prices under the anti-undercut floor that an agent may not apply: a person
+// keeps the asked price, raises it to the floor, or refuses (floor_requests.py).
+async function refreshFloorRequests() {
+  const panel = $("floor-requests");
+  if (!editAllowed()) {
+    panel.hidden = true;
+    return;
+  }
+  const requests = await api("/floor-requests");
+  panel.replaceChildren();
+  panel.hidden = !requests.length;
+  if (!requests.length) return;
+  const title = el("h2", t("floor_requests.title"));
+  title.id = "floor-requests-title";
+  panel.append(
+    title,
+    el("p", t("floor_requests.help", { count: requests.length }), "help"),
+  );
+  const list = el("ol", undefined, "floor-requests");
+  for (const request of requests) {
+    const item = el("li", undefined, "workflow-actions");
+    const names = request.items.map((i) => `${i.name} ${i.number}`).join(", ");
+    const text = el("span");
+    text.append(
+      el("strong", request.lot ? request.title || names : names),
+      document.createTextNode(
+        " · " +
+          t("floor_requests.prices", {
+            price: formatEuros(request.price_cents),
+            floor: formatEuros(request.current_floor_cents),
+            reference: formatEuros(request.total_reference_cents),
+          }),
+      ),
+      el("br"),
+      document.createTextNode(request.reason),
+    );
+    if (request.lot) text.append(el("br"), document.createTextNode(names));
+    const decide = (action, done) => async () => {
+      for (const button of item.querySelectorAll("button")) button.disabled = true;
+      try {
+        await api(`/floor-requests/${request.id}/${action}`, {
+          method: "POST",
+          body: JSON.stringify({}),
+        });
+        toast(done());
+        await refreshFloorRequests();
+      } catch (error) {
+        toast(error.message);
+        for (const button of item.querySelectorAll("button")) button.disabled = false;
+      }
+    };
+    const accept = el("button", t("floor_requests.accept"), "primary");
+    accept.type = "button";
+    accept.onclick = decide("accept", () => t("floor_requests.accepted"));
+    const raise = el(
+      "button",
+      t("floor_requests.raise", { floor: formatEuros(request.current_floor_cents) }),
+    );
+    raise.type = "button";
+    raise.onclick = decide("raise", () => t("floor_requests.raised"));
+    const refuse = el("button", t("floor_requests.refuse"));
+    refuse.type = "button";
+    refuse.onclick = decide("refuse", () => t("floor_requests.refused"));
+    item.append(text, accept, raise, refuse);
     list.append(item);
   }
   panel.append(list);

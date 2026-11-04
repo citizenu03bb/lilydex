@@ -937,13 +937,15 @@ class LotsEngine:
             refusals.append(
                 f"{len(unrated)} carte(s) sans cote : impossible de vérifier que le lot n'est pas bradé."
             )
-        else:
+        floor_refusal = None
+        if not unrated:
             floor = lot_floor_cents(sum(it["reference_cents"] for it in items))
             if price_cents < floor:
-                refusals.append(
+                floor_refusal = (
                     f"Prix du lot {euros(price_cents / 100)} sous le plancher anti-bradage de "
                     f"{euros(floor / 100)} (somme des cotes moins {lot_max_margin()} %)."
                 )
+                refusals.append(floor_refusal)
 
         copy_ids = [it["id"] for it in items]
         cards = listings.cards(copy_ids)
@@ -973,9 +975,28 @@ class LotsEngine:
                     continue
                 to_unpublish.append(active)
         if refusals:
-            raise ValueError(
-                "Lot non publiable, aucune annonce n'a été retirée : " + " ; ".join(refusals)
-            )
+            message = "Lot non publiable, aucune annonce n'a été retirée : " + " ; ".join(refusals)
+            if refusals == [floor_refusal]:
+                # Seul le plancher bloque : la décision revient à une personne (décision 0030).
+                from pokeprice.listings import FloorRefusal
+
+                refs = {it["id"]: it["reference_cents"] for it in items}
+                raise FloorRefusal(
+                    message,
+                    {
+                        "copy_ids": copy_ids,
+                        "lot": True,
+                        "title": sale["title"],
+                        "price_cents": price_cents,
+                        "floor_cents": floor,
+                        "references": [{"copy_id": c, "reference_cents": refs[c]} for c in copy_ids],
+                        "total_reference_cents": sum(refs.values()),
+                        "margin": lot_max_margin(),
+                        "refusal": floor_refusal,
+                        "reason": f"Lot « {sale['title']} » composé par l'outil de lots, prix demandé sous le plancher.",
+                    },
+                )
+            raise ValueError(message)
         return sale, copy_ids, to_unpublish, price_cents
 
     def publish_to_storefront(self, sale_id, actor=DEFAULT_ACTOR, dry_run=False):
@@ -985,9 +1006,20 @@ class LotsEngine:
         publication et mise à jour de la vente se font dans une seule transaction.
         En cas d'erreur, rien n'est écrit et les annonces unitaires restent en ligne.
         """
-        from pokeprice.listings import Listings
+        from pokeprice.listings import FloorRefusal, Listings, is_agent
 
         store = self.store()
+        try:
+            return self._publish_to_storefront(store, Listings, sale_id, actor, dry_run)
+        except FloorRefusal as refusal:
+            # La transaction est annulée : la demande s'écrit après, hors essai à blanc.
+            if not dry_run and is_agent(actor):
+                from pokeprice.floor_requests import record
+
+                refusal.request_id = record(store, refusal.details, actor, sale_id=sale_id)
+            raise
+
+    def _publish_to_storefront(self, store, Listings, sale_id, actor, dry_run):
         if dry_run:
             with store.connect() as db:
                 sale, copy_ids, to_unpublish, price_cents = self.publication_plan(
@@ -1059,9 +1091,10 @@ class LotsEngine:
                     self.publish_to_storefront(draft["id"], actor=actor, dry_run=dry_run)
                 )
             except (KeyError, ValueError) as exc:
-                report["refused"].append(
-                    {"sale_id": draft["id"], "title": draft["title"], "reason": str(exc)}
-                )
+                refused = {"sale_id": draft["id"], "title": draft["title"], "reason": str(exc)}
+                if getattr(exc, "request_id", None):
+                    refused["floor_request_id"] = exc.request_id
+                report["refused"].append(refused)
         return report
 
     def compose_from_recipe(
@@ -1670,6 +1703,10 @@ def main():
                     )
                 except (KeyError, ValueError) as exc:
                     sys.stderr.write(f"Publication refusée : {exc}\n")
+                    if getattr(exc, "request_id", None):
+                        sys.stderr.write(
+                            f"Dérogation demandée en gestion (demande {exc.request_id}).\n"
+                        )
                     sys.exit(1)
 
     out_p = Path(args.output)

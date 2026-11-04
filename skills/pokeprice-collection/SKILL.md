@@ -85,6 +85,11 @@ Procédure et outils : `docs/AUDIT-PHOTOS.md` (`scripts/audit_photo_crops.py`,
 - La photo appartient à l'exemplaire, pas seulement à l'édition. Vérifier les
   doublons et langues sans les fusionner. Les photos de gestion exigent la même
   authentification que les fiches.
+- Après un relevé de prix, `pokeprice-manage --data <base> floor-audit` liste
+  en lecture seule les annonces en ligne que la cote a fait passer sous le
+  plancher anti-bradage ; `--record` en fait des demandes à trancher en gestion
+  (garder le prix ou le relever), sans rien republier
+  ([décision 0030](../../docs/decisions/0030-derogations-plancher.md)).
 - Exporter l'état géré avec `pokeprice-manage export html|csv|json <nouveau fichier>`.
   La commande historique `library` relit les rapports d'origine et ne reprend pas
   les nouvelles corrections de la base.

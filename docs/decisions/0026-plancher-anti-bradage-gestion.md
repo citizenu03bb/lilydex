@@ -1,6 +1,6 @@
 # 0026 — Le plancher anti-bradage s'applique aussi aux prix fixés depuis la gestion
 
-> **Statut :** en vigueur, complète la [décision 0021](0021-autonomie-maximale.md) · **Date :** 2026-11-04
+> **Statut :** en vigueur, complète la [décision 0021](0021-autonomie-maximale.md), complétée par la [décision 0030](0030-derogations-plancher.md) (proposée) · **Date :** 2026-11-04
 
 **Contexte.** La [décision 0021](0021-autonomie-maximale.md) fixe qu'aucune vente
 ne descend sous la valeur de référence diminuée d'une marge réglable

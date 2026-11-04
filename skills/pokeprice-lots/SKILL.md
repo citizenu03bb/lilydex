@@ -171,6 +171,9 @@ de lot en vitrine :
    appliquée par `Listings.publish(lot=True)` : identité confirmée, carte
    disponible, absente de tout autre lot en ligne ;
 2. au moindre refus, s'arrête avec la liste des motifs, sans rien retirer ;
+   quand le plancher anti-bradage est le seul motif, inscrit aussi une demande
+   de dérogation que la gestion tranche (`floor_request_id` dans le rapport,
+   jamais en `--dry-run`, [décision 0030](../../docs/decisions/0030-derogations-plancher.md)) ;
 3. sinon, dans une seule transaction : dépublie les annonces unitaires, publie
    le lot et consigne l'annonce dans le dossier de vente (canal `Vitrine`).
 
