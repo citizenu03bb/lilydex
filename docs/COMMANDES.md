@@ -157,6 +157,7 @@ Déléguer un album à un agent
 | `--photos` |  |
 | `--drafts` |  |
 | `--corrections` | Appliquer seulement des corrections préautorisées |
+| `--assistant` | Outils en lecture de l’assistant de gestion, sur toute la collection |
 | `--value-ceiling-eur` `VALUE_CEILING_EUR` | Par défaut : `10`. |
 | `--token-file` `TOKEN_FILE` | Nouveau fichier privé ; aucun secret sur stdout |
 

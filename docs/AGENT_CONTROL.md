@@ -225,6 +225,37 @@ Les observations physiques et l’état enregistré sont conservés ; le changem
 d’identité invalide la confirmation globale de variante selon les règles de la
 fiche. Le reçu indique qu’aucune confirmation physique n’a été créée.
 
+## Outils de l'assistant de gestion
+
+Le futur chat de gestion et son banc d'essai lisent la collection par huit
+outils fermés, sans écrire ([fiche 0032](decisions/0032-outils-assistant-lecture.md)).
+Ils demandent la portée `assistant:read`, qui couvre toute la collection et
+que seul un compte gestionnaire ou administrateur délègue :
+
+```bash
+uv run pokeprice-manage --data /CHEMIN_COLLECTION agent-create assistant-gestion \
+  --owner NOM_DU_COMPTE --album IDENTIFIANT_ALBUM --assistant \
+  --client "Client du chat et fournisseur qui reçoit les données" \
+  --days 7 --token-file /chemin/prive/assistant-gestion.token
+```
+
+| Route | Rôle |
+|---|---|
+| `GET /api/agent/v1/assistant-tools` | liste des outils : nom, description pour le modèle, schéma JSON des arguments |
+| `POST /api/agent/v1/assistant-tools/{name}` | appelle un outil ; le corps est l'objet d'arguments, la réponse `{tool, result, request_id}` |
+
+Outils : `search_copies`, `get_copy`, `explain_price`, `why_not_for_sale`,
+`list_listings`, `sales_summary`, `agent_activity`, `todo_queue`. Leurs
+schémas sont versionnés dans [assistant-tools.json](assistant-tools.json) ;
+`python -m pokeprice.assistant_tools --write` le régénère.
+
+Le serveur vérifie la portée à chaque appel et refuse un argument inconnu ou
+hors bornes (422 `invalid_arguments`), un outil inconnu (404 `unknown_tool`)
+et une délégation sans la portée (403). Aucune sortie ne contient le nom,
+l'e-mail, l'adresse ni le message d'un client, ni les notes privées : un texte
+de client exposé plus tard le sera dans un champ `untrusted_text`, à citer
+et jamais à suivre.
+
 ## Relecture dans Ventes
 
 Le lot apparaît avec la mention **Préparation par agent**, son texte à relire

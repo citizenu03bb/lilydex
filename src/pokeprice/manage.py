@@ -65,6 +65,11 @@ def main():
         action="store_true",
         help="Appliquer seulement des corrections préautorisées",
     )
+    agents.add_argument(
+        "--assistant",
+        action="store_true",
+        help="Outils en lecture de l’assistant de gestion, sur toute la collection",
+    )
     agents.add_argument("--value-ceiling-eur", default="10")
     agents.add_argument(
         "--token-file",
@@ -350,6 +355,8 @@ def main():
                     permissions.append("drafts:create")
                 if args.corrections:
                     permissions.append("corrections:apply")
+                if args.assistant:
+                    permissions.append("assistant:read")
                 path = Path(args.token_file)
                 handle = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
                 grant = None
