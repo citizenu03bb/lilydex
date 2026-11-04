@@ -60,13 +60,18 @@ marge vaut 15 % par défaut.
 - Le plancher absolu de 0,50 € par carte et par lot s'applique aussi ; l'outil
   de lots compose ses lots à 2 € au moins.
 
-`scripts/pokeprice_lots.py` contrôle ce plancher : `compose` plafonne sa
-décote à la marge, et `publish-to-storefront` refuse un lot sous le plancher ou
-dont un exemplaire n'a pas de prix de référence. Hors de cet outil (« Mode
-lot » de la gestion, prix unitaire fixé à la main), seul le plancher absolu de
-0,50 € est contrôlé : le plancher relatif y est votre responsabilité. Un prix
-trop bas se présente à l'humain. Ne publiez jamais en espérant une correction
-ultérieure.
+`src/pokeprice/pricing.py` définit la règle (`lot_max_margin` et
+`lot_floor_cents`, `POKEPRICE_LOT_MAX_MARGIN` à 15 % par défaut, borné de 0 à
+50), partagée par `scripts/pokeprice_lots.py`, `src/pokeprice/marketplace_export.py`
+et `src/pokeprice/listings.py`
+([décision 0023](../../docs/decisions/0023-plancher-anti-bradage-gestion.md)).
+La publication unitaire ou en lot (`Listings.publish`) et l'interface de
+gestion (« Mode lot », création de brouillon, publication directe et prix de
+vitrine fixé à la main) affichent le minimum autorisé avant validation et
+refusent tout prix sous ce plancher. Un exemplaire sans référence (ou à 0)
+garde le plancher de 0,50 € en gestion, avec un message qui le précise. Un prix
+sous le plancher anti-bradage se présente à l'humain. Ne publiez jamais en
+espérant une correction ultérieure.
 
 ## Quand vous ne tranchez pas : demander une photo
 
@@ -108,9 +113,8 @@ Outils livrés :
 - [docs/RESOLUTION_CARTES.md](../../docs/RESOLUTION_CARTES.md) : cartes
   « À identifier », « À vérifier » et « À examiner ».
 
-Cibles, sans outil dédié : confirmation de l'identité, de la variante et de
-l'état par un agent, plancher anti-bradage hors de l'outil de lots, file des
-demandes de photo, publication sur Vinted, Leboncoin et Cardmarket. Quand
+Cibles, sans outil dédié : confirmation de l'identité par un agent, file des
+demandes de photo, publication directe sur Vinted, Leboncoin et Cardmarket. Quand
 l'outil manque, n'en inventez pas un et n'écrivez pas dans la base par un
 chemin détourné : préparez le résultat, et signalez l'outil manquant dans
 votre compte rendu.

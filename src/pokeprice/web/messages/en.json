@@ -290,5 +290,11 @@
   "photo_requests.take": "Take the photo",
   "photo_requests.sending": "Sending…",
   "photo_requests.sent": "Photo saved; new analysis under way.",
-  "photo_requests.open": "Open the card"
+  "photo_requests.open": "Open the card",
+  "lot.floor.reference": "Minimum allowed price: {floor} (reference {reference}, max margin {margin}%)",
+  "lot.floor.partial": "Minimum allowed price: {floor} (reference {reference} on priced cards, max margin {margin}%; {unpriced} without reference)",
+  "lot.floor.unrated": "Minimum allowed price: {floor} (no reference value; minimum {floor})",
+  "lot.floor.prompt": "Price for the lot of {count} cards, in euros (minimum allowed: {floor}):",
+  "lot.floor.refused": "Price refused ({price}): minimum allowed is {floor} (reference {reference}, max margin {margin}%).",
+  "lot.floor.refused_unrated": "Price refused ({price}): no reference value, minimum allowed is {floor}."
 }

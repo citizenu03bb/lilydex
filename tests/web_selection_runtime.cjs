@@ -111,4 +111,20 @@ for (const lotMode of [false, true]) {
   assert.equal(controls["publish-selection"].disabled, false, "publish-selection enabled when at least one available copy is selected");
   assert.equal(controls["prepare-sale"].disabled, true, "prepare-sale blocked when any copy is not available");
   assert.equal(controls["publish-lot"].disabled, true, "publish-lot blocked when any copy is not available");
+  assert.match(controls["lot-summary"].textContent, /0,50 €.*aucune valeur de référence/);
+
+  // Referenced selection displays the anti-underselling floor and clear refusal text.
+  state.selected.clear();
+  state.selected.set("c1", { id: "c1", stock_state: "available", reference_cents: 200 });
+  state.selected.set("c2", { id: "c2", stock_state: "available", reference_cents: 123 });
+  context.selectionBar();
+  assert.equal(context.selectionFloor().floorCents, 275);
+  assert.match(controls["lot-summary"].textContent, /2,75 €.*3,23 €.*15 %/);
+  assert.match(context.selectionFloorRefusal(274), /2,74 €.*2,75 €/);
+
+  // Margin 0 % from server summary enforces 100 % of reference.
+  state.summary = { lot_max_margin: 0 };
+  context.selectionBar();
+  assert.equal(context.selectionFloor().floorCents, 323);
+  assert.match(controls["lot-summary"].textContent, /3,23 €.*0 %/);
 }

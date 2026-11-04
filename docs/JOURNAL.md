@@ -7,6 +7,16 @@
 Une page qui décrit le fonctionnement ne porte pas de date : quand un passage
 daté la quitte, il est versé ici dans le même commit.
 
+## 2026-11-04
+
+- Plancher anti-bradage en gestion : la règle (`POKEPRICE_LOT_MAX_MARGIN`, 15 %
+  par défaut, bornée de 0 à 50, `lot_max_margin` et `lot_floor_cents`) est
+  définie une seule fois dans `src/pokeprice/pricing.py` et partagée par
+  `listings.py`, `marketplace_export.py` et `scripts/pokeprice_lots.py`. La
+  gestion affiche le minimum autorisé avant validation et refuse tout prix de
+  lot ou prix unitaire manuel sous ce plancher ([décision 0023](decisions/0023-plancher-anti-bradage-gestion.md),
+  `tests/test_listings.py`, `tests/test_web_client.py`).
+
 ## 2026-11-03
 
 - Vente sur les plateformes : `scripts/export_annonces.py` prépare, en lecture

@@ -34,7 +34,7 @@ sélection**, chaque ligne montre aussi le recto de la première carte.
 | Sujet | Règle |
 |---|---|
 | Visibilité | Vitrine ouverte, sans compte ; un compte sert seulement à suivre ses demandes |
-| Prix affiché | Voir [le prix affiché](#le-prix-affiché) ; plancher 0,50 € ; sous le plancher, lots ou cadeaux |
+| Prix affiché | Voir [le prix affiché](#le-prix-affiché) ; plancher absolu 0,50 € et plancher anti-bradage (référence moins `POKEPRICE_LOT_MAX_MARGIN`, 15 % par défaut) ; sous le plancher, lots ou cadeaux |
 | Comptes clients | Créés par une première demande (sans mot de passe) ou par l'inscription ; **en attente** jusqu'à l'acceptation d'une demande ou la validation par un administrateur |
 | Mot de passe | Choisi par un lien à usage unique que le vendeur colle dans son e-mail ; le même lien sert en cas d'oubli |
 | Réservation | Une demande ne bloque rien ; les cartes sont réservées à l'**acceptation** |
@@ -237,11 +237,17 @@ prix proposé est le premier disponible dans cet ordre :
 4. la tendance du dernier relevé, arrondie au dixième supérieur, si la variante
    est confirmée, l'état MT, NM ou EX et la tendance inférieure à 10 €.
 
-Aucune décote selon l'état n'est appliquée. Le plancher de 0,50 € se compare
-au montant avant l'arrondi : une carte à 0,41 € va dans un lot ou se donne. Un
-lot publié d'un bloc doit valoir au moins 0,50 €. Le prix figé dans une
-publication ne change que si le vendeur le change ; un relevé plus récent est
-seulement signalé.
+Aucune décote selon l'état n'est appliquée. Le plancher absolu de 0,50 € se compare
+au montant avant l'arrondi : une carte à 0,41 € va dans un lot ou se donne.
+Un prix fixé à la main depuis la gestion (`Listings.publish`, `src/pokeprice/listings.py`)
+ne descend jamais sous le **plancher anti-bradage** (`lot_floor_cents` dans
+`src/pokeprice/pricing.py`) : la valeur de référence diminuée de la marge
+`POKEPRICE_LOT_MAX_MARGIN` (15 % par défaut, entier borné de 0 à 50, arrondi au
+centime supérieur), ni sous 0,50 € ([décision 0023](decisions/0023-plancher-anti-bradage-gestion.md)).
+Pour un lot, ce plancher s'applique à la somme des valeurs de référence de ses
+exemplaires. Une carte sans référence (ou à 0) garde le seul plancher de 0,50 €,
+et le message de refus le précise. Le prix figé dans une publication ne change
+que si le vendeur le change ; un relevé plus récent est seulement signalé.
 
 ## Le modèle de données
 

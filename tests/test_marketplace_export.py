@@ -34,22 +34,24 @@ def base(tmp_path):
             ids.setdefault(row["name"], []).append(row["id"])
         db.execute(
             "UPDATE copies SET condition_confirmed=1, variant_confirmed=1, finish='non_holo', "
-            "price_source='Relevé Cardmarket', price_date='2026-10-20' "
+            "reference_cents=NULL, price_source='Relevé Cardmarket', price_date='2026-10-20' "
             "WHERE identification_status='confirmed' AND name!='Fossile Dôme'"
         )
-        db.execute("UPDATE copies SET reference_cents=200 WHERE name='Évoli'")
-        db.execute("UPDATE copies SET reference_cents=123 WHERE name='Unown L'")
         db.execute(
             "INSERT INTO catalog_lookups VALUES(?,?,?,?)",
             ("cardmarket-product:dp4-91", 1, json.dumps({"id_product": 12345}), "2026-10-20"),
         )
     zarbi = ids["Zarbi L"]
     listings = Listings(store)
-    # Published under its reference: the export must raise it to the floor.
+    # Published before the reference quote rises: the export must raise it to the floor.
     single = listings.publish(ids["Évoli"], "test", price_cents=60)
     lot = listings.publish(
         [ids["Unown L"][0], zarbi[2]], "test", price_cents=100, title="Lot Zarbi", lot=True
     )
+    with store.connect(write=True) as db:
+        db.execute("UPDATE copies SET reference_cents=100 WHERE name='Zarbi L'")
+        db.execute("UPDATE copies SET reference_cents=200 WHERE name='Évoli'")
+        db.execute("UPDATE copies SET reference_cents=123 WHERE name='Unown L'")
     return store, {"single": single["id"], "lot": lot["id"], "zarbi": zarbi[:2]}
 
 

@@ -492,9 +492,9 @@ function selectionBar() {
   );
   $("selection-count").textContent =
     `${state.selected.size} exemplaire${state.selected.size > 1 ? "s" : ""} sélectionné${state.selected.size > 1 ? "s" : ""}`;
+  const floor = selectionFloor();
   $("lot-summary").textContent = state.selected.size
-    ? $("selection-count").textContent +
-      " · Vous pouvez retirer chaque exemplaire ci-dessous."
+    ? `${$("selection-count").textContent} · ${selectionFloorLabel(floor)} · Vous pouvez retirer chaque exemplaire ci-dessous.`
     : "Aucune carte choisie. Cochez les cases en haut à gauche des photos.";
   $("lot-selected").replaceChildren();
   for (const card of state.selected.values()) {
@@ -510,6 +510,87 @@ function selectionBar() {
     const check = box.querySelector(".card-select input");
     if (check) check.checked = selected;
   }
+}
+function formatEuros(cents) {
+  if (typeof money === "function") return money(cents);
+  return `${(cents / 100).toFixed(2).replace(".", ",")} €`;
+}
+function cardReferenceCents(card) {
+  if (!card || card.valuation?.price_variant_issue) return 0;
+  for (const v of [
+    card.reference_cents,
+    card.valuation?.trend_cents,
+    card.valuation?.prudent_cents,
+  ]) {
+    if (typeof v === "number" && Number.isFinite(v) && v > 0)
+      return Math.round(v);
+  }
+  return 0;
+}
+function selectionFloor(cards = [...state.selected.values()]) {
+  const rawMargin = state.summary?.lot_max_margin;
+  const margin =
+    typeof rawMargin === "number" && Number.isFinite(rawMargin)
+      ? Math.max(0, Math.min(50, Math.trunc(rawMargin)))
+      : 15;
+  let referenceCents = 0;
+  let unpricedCount = 0;
+  for (const card of cards) {
+    const ref = cardReferenceCents(card);
+    if (ref > 0) referenceCents += ref;
+    else unpricedCount += 1;
+  }
+  const refFloor = Math.ceil((referenceCents * (100 - margin)) / 100);
+  const floorCents = Math.max(50, refFloor);
+  return {
+    margin,
+    referenceCents,
+    unpricedCount,
+    floorCents,
+    count: cards.length,
+  };
+}
+function selectionFloorLabel(floor = selectionFloor()) {
+  const vars = {
+    floor: formatEuros(floor.floorCents),
+    reference: formatEuros(floor.referenceCents),
+    margin: floor.margin,
+    unpriced: floor.unpricedCount,
+  };
+  if (!floor.referenceCents) {
+    const fallback = `Plancher autorisé : ${vars.floor} (aucune valeur de référence ; minimum ${vars.floor})`;
+    return typeof t === "function"
+      ? t("lot.floor.unrated", vars, fallback)
+      : fallback;
+  }
+  if (floor.unpricedCount > 0) {
+    const fallback = `Plancher autorisé : ${vars.floor} (référence ${vars.reference} sur les cartes cotées, marge max ${vars.margin} % ; ${vars.unpriced} sans référence)`;
+    return typeof t === "function"
+      ? t("lot.floor.partial", vars, fallback)
+      : fallback;
+  }
+  const fallback = `Plancher autorisé : ${vars.floor} (référence ${vars.reference}, marge max ${vars.margin} %)`;
+  return typeof t === "function"
+    ? t("lot.floor.reference", vars, fallback)
+    : fallback;
+}
+function selectionFloorRefusal(priceCents, floor = selectionFloor()) {
+  const vars = {
+    price: formatEuros(priceCents),
+    floor: formatEuros(floor.floorCents),
+    reference: formatEuros(floor.referenceCents),
+    margin: floor.margin,
+  };
+  if (!floor.referenceCents) {
+    const fallback = `Prix refusé (${vars.price}) : aucune valeur de référence, le minimum autorisé est ${vars.floor}.`;
+    return typeof t === "function"
+      ? t("lot.floor.refused_unrated", vars, fallback)
+      : fallback;
+  }
+  const fallback = `Prix refusé (${vars.price}) : le minimum autorisé est ${vars.floor} (référence ${vars.reference}, marge max ${vars.margin} %).`;
+  return typeof t === "function"
+    ? t("lot.floor.refused", vars, fallback)
+    : fallback;
 }
 function canRefreshPrice(card) {
   return (
@@ -598,8 +679,17 @@ async function startLot() {
 }
 function prepareLot() {
   if (!editAllowed() || !state.selected.size) return;
+  const floor = selectionFloor();
+  const minEur = (floor.floorCents / 100).toFixed(2);
+  const form = $("sale-form");
+  if (form?.elements) {
+    for (const name of ["amount_eur", "asking_eur", "target_eur", "minimum_eur"]) {
+      if (form.elements[name]) form.elements[name].min = minEur;
+    }
+  }
   $("sale-selection").replaceChildren(
     el("strong", $("selection-count").textContent),
+    el("p", selectionFloorLabel(floor), "help"),
     ...[...state.selected.values()].map((c) => el("p", cardLocation(c))),
   );
   $("sale-error").textContent = "";
@@ -1055,18 +1145,45 @@ function renderStorefront(parent, card) {
         box.append(list);
       }
       if (editAllowed() && !lot && card.stock_state === "available" && !card.deleted_at) {
+        const baseFloor = selectionFloor([card]);
+        const cardFloor = {
+          ...baseFloor,
+          floorCents: proposal.floor_cents ?? baseFloor.floorCents,
+        };
         const details = el("details");
-        details.append(el("summary", listing?.state === "online" ? "Changer le prix de vitrine" : "Publier à un prix fixé à la main"));
+        details.append(
+          el(
+            "summary",
+            listing?.state === "online"
+              ? "Changer le prix de vitrine"
+              : "Publier à un prix fixé à la main",
+          ),
+          el("p", selectionFloorLabel(cardFloor), "help"),
+        );
         const amount = el("input");
         amount.type = "number";
-        amount.min = "0.50";
-        amount.step = "0.10";
+        amount.min = (cardFloor.floorCents / 100).toFixed(2);
+        amount.step = "0.01";
         amount.setAttribute("aria-label", "Prix de vitrine en euros");
         const go = el("button", "Publier à ce prix");
         go.type = "button";
         go.addEventListener(
           "click",
-          guarded(() => (amount.value ? publish({ price_eur: amount.value }) : null)),
+          guarded(async () => {
+            if (!amount.value) return;
+            const cents = Math.round(
+              Number(String(amount.value).replace(",", ".")) * 100,
+            );
+            if (!Number.isFinite(cents) || cents < cardFloor.floorCents) {
+              throw new Error(
+                selectionFloorRefusal(
+                  Number.isFinite(cents) ? cents : 0,
+                  cardFloor,
+                ),
+              );
+            }
+            await publish({ price_eur: amount.value });
+          }),
         );
         details.append(amount, go);
         box.append(details);
@@ -3085,17 +3202,36 @@ $("publish-selection").addEventListener("click", async () => {
 });
 
 $("publish-lot").addEventListener("click", async () => {
+  const floor = selectionFloor();
+  const promptVars = {
+    count: state.selected.size,
+    floor: formatEuros(floor.floorCents),
+  };
+  const promptFallback = `Prix du lot de ${promptVars.count} cartes, en euros (minimum autorisé : ${promptVars.floor}) :`;
   const price = prompt(
-    `Prix du lot de ${state.selected.size} cartes, en euros (au moins 0,50 €) :`,
+    typeof t === "function"
+      ? t("lot.floor.prompt", promptVars, promptFallback)
+      : promptFallback,
   );
   if (!price) return;
+  const normalized = price.trim().replace(",", ".");
+  const priceCents = Math.round(Number(normalized) * 100);
+  if (!Number.isFinite(priceCents) || priceCents < floor.floorCents) {
+    toast(
+      selectionFloorRefusal(
+        Number.isFinite(priceCents) ? priceCents : 0,
+        floor,
+      ),
+    );
+    return;
+  }
   try {
     await api("/listings", {
       method: "POST",
       body: JSON.stringify({
         copy_ids: [...state.selected.keys()],
         lot: true,
-        price_eur: price.replace(",", "."),
+        price_eur: normalized,
       }),
     });
     toast(`Lot de ${state.selected.size} cartes publié en vitrine.`);
@@ -3116,6 +3252,18 @@ $("sale-form").addEventListener("submit", async (e) => {
     $("sale-error").textContent =
       "Choisissez au moins un exemplaire disponible.";
     return;
+  }
+  const floor = selectionFloor();
+  for (const key of ["amount_eur", "asking_eur", "target_eur", "minimum_eur"]) {
+    if (data[key] === null) continue;
+    const fieldCents = Math.round(Number(data[key]) * 100);
+    if (!Number.isFinite(fieldCents) || fieldCents < floor.floorCents) {
+      $("sale-error").textContent = selectionFloorRefusal(
+        Number.isFinite(fieldCents) ? fieldCents : 0,
+        floor,
+      );
+      return;
+    }
   }
   if ($("save-lot").disabled) return;
   $("save-lot").disabled = true;

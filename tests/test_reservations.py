@@ -23,7 +23,7 @@ def shop(tmp_path):
         cards = [c for c in admin.get("/api/copies", params={"limit": 100}).json()["items"] if c["identification_status"] == "confirmed"]
         listings = [
             admin.put(f"/api/copies/{cards[i]['id']}/listing", json={"price_eur": price}).json()
-            for i, price in ((0, "1.20"), (1, "3.50"), (2, "0.80"))
+            for i, price in ((0, "1.20"), (1, "3.50"), (2, "0.85"))
         ]
         yield admin, store, listings
 

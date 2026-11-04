@@ -290,5 +290,11 @@
   "photo_requests.take": "Prendre la photo",
   "photo_requests.sending": "Envoi…",
   "photo_requests.sent": "Photo enregistrée ; nouvelle analyse en cours.",
-  "photo_requests.open": "Ouvrir la fiche"
+  "photo_requests.open": "Ouvrir la fiche",
+  "lot.floor.reference": "Plancher autorisé : {floor} (référence {reference}, marge max {margin} %)",
+  "lot.floor.partial": "Plancher autorisé : {floor} (référence {reference} sur les cartes cotées, marge max {margin} % ; {unpriced} sans référence)",
+  "lot.floor.unrated": "Plancher autorisé : {floor} (aucune valeur de référence ; minimum {floor})",
+  "lot.floor.prompt": "Prix du lot de {count} cartes, en euros (minimum autorisé : {floor}) :",
+  "lot.floor.refused": "Prix refusé ({price}) : le minimum autorisé est {floor} (référence {reference}, marge max {margin} %).",
+  "lot.floor.refused_unrated": "Prix refusé ({price}) : aucune valeur de référence, le minimum autorisé est {floor}."
 }

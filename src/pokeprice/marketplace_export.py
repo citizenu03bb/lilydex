@@ -14,7 +14,6 @@ or that has no price, is left out and listed apart with the reason.
 import contextlib
 import csv
 import json
-import os
 import re
 import shutil
 import sqlite3
@@ -23,31 +22,18 @@ from pathlib import Path
 
 from .inventory import SCHEMA_VERSION, Store
 from .listings import Listings, public_condition
-from .pricing import CARDMARKET_LANGUAGES, FLOOR_CENTS, display_price, euros
+from .pricing import (
+    CARDMARKET_LANGUAGES,
+    DEFAULT_LOT_MAX_MARGIN,
+    FLOOR_CENTS,
+    LOT_MAX_MARGIN_ENV,
+    display_price,
+    euros,
+    lot_floor_cents,
+    lot_max_margin,
+)
 
 PLATFORMS = ("vinted", "leboncoin", "cardmarket")
-
-# Anti-bargain margin, in whole percent of the reference price. Faithful copy of
-# DEFAULT_LOT_MAX_MARGIN, LOT_MAX_MARGIN_ENV, lot_max_margin and lot_floor_cents
-# of scripts/pokeprice_lots.py (a script cannot be imported from the package);
-# tests/test_marketplace_export.py checks that the two stay equal.
-DEFAULT_LOT_MAX_MARGIN = 15
-LOT_MAX_MARGIN_ENV = "POKEPRICE_LOT_MAX_MARGIN"
-
-
-def lot_max_margin():
-    raw = os.environ.get(LOT_MAX_MARGIN_ENV, "")
-    try:
-        margin = int(raw) if raw.strip() else DEFAULT_LOT_MAX_MARGIN
-    except ValueError:
-        raise ValueError(f"{LOT_MAX_MARGIN_ENV} attend un pourcentage entier, pas « {raw} ».")
-    return max(0, min(50, margin))
-
-
-def lot_floor_cents(total_reference_cents):
-    """Lowest price of a lot: the sum of the references less the margin, rounded up to the cent."""
-    keep = 100 - lot_max_margin()
-    return -(-total_reference_cents * keep // 100)
 
 # Title limits. Neither platform documents them publicly; these are the
 # shortest values sellers report, so a title is never cut. Check the posting

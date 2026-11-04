@@ -105,11 +105,15 @@ l'application, selon les règles de la [vitrine](VITRINE.md) : prix manuel,
 estimation sur les offres, ou tendance Cardmarket arrondie.
 
 Ce prix ne descend **jamais sous le plancher anti-bradage** : la cote de
-référence diminuée de la marge, et jamais moins de 0,50 €. La marge est celle
-des lots : `POKEPRICE_LOT_MAX_MARGIN`, 15 % par défaut, entier borné de 0 à 50,
-arrondi au centime supérieur. `--marge` y déroge pour un export, dans les mêmes
-bornes. Pour un lot, la cote est la somme des cotes de ses cartes. Un prix trop bas est relevé au plancher,
-puis arrondi vers le haut au format de la plateforme.
+référence diminuée de la marge, et jamais moins de 0,50 €. La règle
+(`lot_max_margin` et `lot_floor_cents`) est définie une seule fois dans
+`src/pokeprice/pricing.py` et partagée avec la vitrine (`listings.py`) et
+l'outil de lots (`scripts/pokeprice_lots.py`) : `POKEPRICE_LOT_MAX_MARGIN`,
+15 % par défaut, entier borné de 0 à 50, arrondi au centime supérieur
+([décision 0023](decisions/0023-plancher-anti-bradage-gestion.md)). `--marge` y
+déroge pour un export, dans les mêmes bornes. Pour un lot, la cote est la somme
+des cotes de ses cartes. Un prix trop bas est relevé au plancher, puis arrondi
+vers le haut au format de la plateforme.
 
 Exemple avec la marge par défaut de 15 % : une carte cotée 2,00 € et publiée en
 vitrine à 0,60 € part à 1,70 € sur Vinted et à 2 € sur Leboncoin.
