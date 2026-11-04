@@ -13,6 +13,8 @@ from collections import Counter
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from .reservations import extract_delivery_mode
+
 REFUSED_ACCOUNTS = timedelta(days=30)
 PENDING_ACCOUNTS = timedelta(days=90)
 CLOSED_REQUESTS = timedelta(days=183)
@@ -61,7 +63,13 @@ class Privacy:
         secrets = [(user["email"], ERASED_CLIENT)]
         if user["display_name"].strip():
             secrets.append((user["display_name"].strip(), ERASED_CLIENT))
-        secrets += [(r["message"].strip(), ERASED_MESSAGE) for r in requests if r["message"].strip()]
+        for r in requests:
+            msg = r["message"].strip()
+            if msg:
+                secrets.append((msg, ERASED_MESSAGE))
+                _, _, clean = extract_delivery_mode(msg)
+                if clean and clean != msg:
+                    secrets.append((clean, ERASED_MESSAGE))
         request_ids = {r["id"] for r in requests}
         sale_ids = {r["sale_id"] for r in requests if r["sale_id"]}
         # Accepted requests copied the client into their lot and its history.

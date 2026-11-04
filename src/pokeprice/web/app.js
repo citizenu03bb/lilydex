@@ -2422,11 +2422,13 @@ async function loadRequests() {
     const card = el("article", undefined, "sale-card");
     card.id = `demande-${request.id}`;
     if (request.id === focusedRequest()) card.classList.add("focused");
+    const modeLabel = request.delivery === "hand" ? "Remise en main propre" : (request.registered ? "Recommandé R2" : "Envoi suivi");
     card.append(
-      el("h3", `${request.display_name || request.email} · ${money(request.total_cents)} · ${request.status_label}`),
+      el("h3", `${request.display_name || request.email} · ${money(request.total_with_shipping_cents || request.total_cents)} · ${request.status_label}`),
       el(
         "p",
-        `${request.email} · le ${new Date(request.created_at).toLocaleDateString("fr-FR")}` +
+        `${request.email} · le ${new Date(request.created_at).toLocaleDateString("fr-FR")} · ${modeLabel}` +
+          (request.shipping_cents ? ` (port ${money(request.shipping_cents)})` : "") +
           (request.reference ? ` · référence de paiement ${request.reference}` : ""),
         "sale-meta",
       ),
@@ -2473,7 +2475,7 @@ async function loadRequests() {
             method: "POST",
             body: JSON.stringify({ expected_version: request.version, listing_ids: chosen }),
           });
-          toast(`Demande acceptée : lot réservé. Indiquez le port dans le lot, puis copiez les instructions de paiement pour ${request.email}.`);
+          toast(`Demande acceptée : lot réservé. Copiez la réponse pour ${request.email}.`);
           await loadSales();
         } catch (e) {
           toast(e.message);
@@ -2497,6 +2499,17 @@ async function loadRequests() {
     }
     if (request.payment) {
       // A client without a password cannot open « Mes demandes »: the e-mail carries it.
+      const copyReply = el("button", "Copier la réponse complète pour l’acheteur", "primary");
+      copyReply.type = "button";
+      copyReply.addEventListener("click", async () => {
+        const text = request.reply_text || paymentText(request.payment);
+        try {
+          await navigator.clipboard.writeText(text);
+          toast(`Réponse complète copiée : collez-la dans votre e-mail à ${request.email}.`);
+        } catch {
+          prompt(`Réponse à envoyer à ${request.email} :`, text);
+        }
+      });
       const copy = el("button", "Copier les instructions de paiement");
       copy.type = "button";
       copy.addEventListener("click", async () => {
@@ -2508,7 +2521,7 @@ async function loadRequests() {
           prompt(`Instructions à envoyer à ${request.email} :`, text);
         }
       });
-      card.append(copy);
+      card.append(copyReply, copy);
     }
     box.append(card);
   }

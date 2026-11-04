@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="{{lang}}">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    {{robots}}
+    <title>{{site_name}} · Conditions de vente</title>
+    <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
+    <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
+    <link rel="stylesheet" href="/assets/themes.css" />
+    <link rel="stylesheet" href="/assets/storefront.css" />
+    {{messages}}
+    <script src="/assets/components.js"></script>
+  </head>
+  <body class="storefront about-page">
+    <header class="top">
+      <a class="brand" href="/"><img class="brand-mark" src="/assets/logo.png" alt="" width="40" height="40" /><span class="wordmark">{{site_wordmark}}</span></a>
+      <nav class="account" aria-label="Thème">
+        <lilydex-theme-picker></lilydex-theme-picker>
+      </nav>
+      <h1>Conditions de vente</h1>
+    </header>
+    <main class="about">
+      <nav class="about-shortcuts"><a href="/">← Retour à la vitrine</a> · <a href="/a-propos">À propos et contact</a></nav>
+      <p class="languages"><a href="/en/conditions" hreflang="en" lang="en">English version</a></p>
+
+      <section>
+        <h2>Cadre de la vente</h2>
+        <p>
+          {{site_name}} est le site personnel d’un particulier qui vend des cartes
+          Pokémon issues de sa collection personnelle. Il ne s’agit pas d’une activité
+          commerciale professionnelle. Les ventes sont régies par les dispositions du
+          Code civil applicables aux contrats de vente entre particuliers (articles 1582
+          et suivants).
+        </p>
+        <p>
+          Aucun paiement direct n’a lieu sur le site : vous effectuez une demande de
+          réservation, et le vendeur prend contact avec vous par e-mail pour confirmer
+          la disponibilité et finaliser la transaction.
+        </p>
+      </section>
+
+      <section>
+        <h2>Frais de port et modes d’expédition</h2>
+        <p>
+          Toutes les commandes sont soigneusement conditionnées sous protection adaptée
+          (pochette plastique / toploader et renfort rigide en enveloppe à bulles ou carton).
+          Le poids total pris en compte pour l’expédition correspond à <strong>{{packing_grams}}&nbsp;g d’emballage</strong>
+          auquel s’ajoutent <strong>{{card_grams}}&nbsp;g par carte</strong>.
+        </p>
+
+        <h3>1. Remise en main propre</h3>
+        <p>
+          La remise en main propre est <strong>gratuite (0&nbsp;€)</strong>. Le lieu et l’horaire
+          sont convenus par échange d’e-mails après acceptation de votre réservation.
+        </p>
+
+        <h3>2. Envoi suivi standard (commandes de cartes inférieures à {{threshold}})</h3>
+        <p>
+          Pour toute commande dont le montant des cartes est inférieur à {{threshold}}, l’envoi est
+          acheminé par La Poste en Lettre verte suivie ou Colissimo avec numéro de suivi :
+        </p>
+        <table class="conditions-table">
+          <thead>
+            <tr>
+              <th scope="col">Poids jusqu’à</th>
+              <th scope="col">Tarif</th>
+              <th scope="col">Service postal</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{tracked_rows}}
+          </tbody>
+        </table>
+
+        <h3>3. Envoi recommandé avec signature R2 (obligatoire dès {{threshold}} d’achat)</h3>
+        <p>
+          Pour garantir la sécurité des cartes de valeur et couvrir les risques de perte ou
+          d’avarie, <strong>tout envoi dont le sous-total des cartes atteint ou dépasse {{threshold}}
+          est obligatoirement expédié en recommandé avec remise contre signature (palier R2)</strong>.
+        </p>
+        <table class="conditions-table">
+          <thead>
+            <tr>
+              <th scope="col">Poids jusqu’à</th>
+              <th scope="col">Tarif</th>
+              <th scope="col">Service postal</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{registered_rows}}
+          </tbody>
+        </table>
+        <p>
+          Le tarif appliqué est celui en vigueur au barème postal La Poste du 1<sup>er</sup> janvier 2026.
+        </p>
+      </section>
+
+      <section>
+        <h2>Délais de réponse et conservation de la réservation</h2>
+        <ul>
+          <li>
+            <strong>Délai de réponse :</strong> le vendeur examine et répond à votre demande de
+            réservation dans un délai habituel de 48 heures (ou jusqu’à 120 heures en période d’absence
+            ou sans alerte instantanée).
+          </li>
+          <li>
+            <strong>Délai de conservation de la réservation :</strong> une fois votre demande acceptée,
+            les cartes vous sont réservées et bloquées pendant <strong>7 jours calendaires</strong>.
+            Si le paiement n’est pas reçu ou sans nouvelles de votre part à l’issue de ce délai, la
+            réservation est annulée et les cartes sont remises en vente sur la vitrine.
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Moyens de paiement</h2>
+        <p>
+          {{payment}}
+        </p>
+        <p>
+          Les modes de paiement couramment acceptés sont :
+        </p>
+        <ul>
+          <li><strong>Wero</strong> (paiement instantané par mobile ou e-mail) ;</li>
+          <li><strong>Virement bancaire</strong> (IBAN fourni lors de l’acceptation) ;</li>
+          <li><strong>PayPal</strong> (option biens et services pour votre protection) ;</li>
+          <li>Autre mode convenu directement par échange d’e-mails avec le vendeur.</li>
+        </ul>
+        <p>
+          Chaque réservation acceptée dispose d’une référence unique (ex. <code>LILY-XXXXXXXX</code>)
+          à reporter impérativement dans le libellé de votre paiement pour en faciliter l’identification.
+        </p>
+      </section>
+
+      <section>
+        <h2>Politique de retour et réclamations</h2>
+        <p>
+          Conformément au droit applicable aux ventes de particulier à particulier,
+          <strong>le droit de rétractation de 14 jours réservé aux achats auprès de professionnels
+          (Code de la consommation) ne s’applique pas</strong> aux transactions réalisées sur ce site.
+          Les ventes sont fermes et définitives une fois conclues.
+        </p>
+        <p>
+          Toutefois, dans un souci constant d’équité et de satisfaction, un retour est accepté dans
+          les conditions suivantes :
+        </p>
+        <ul>
+          <li>
+            <strong>Motif de retour admissible :</strong> non-conformité manifeste de la carte reçue
+            par rapport aux photographies et à la description de l’annonce, ou dommage avéré survenu
+            durant le transport.
+          </li>
+          <li>
+            <strong>Délai pour signaler :</strong> vous disposez d’un délai de <strong>14 jours
+            calendaires</strong> à compter de la réception de votre pli pour contacter le vendeur par e-mail
+            en joignant des photos claires de la carte et du colis.
+          </li>
+          <li>
+            <strong>Modalités de réexpédition :</strong> après accord écrit du vendeur, la ou les cartes
+            doivent être retournées dans leur protection d’origine (ou protection équivalente de même qualité),
+            en envoi suivi ou recommandé identique au mode d’expédition initial.
+          </li>
+          <li>
+            <strong>Frais de retour :</strong> les frais de retour sont remboursés par le vendeur si
+            la non-conformité ou le dommage de transport est confirmé.
+          </li>
+          <li>
+            <strong>Remboursement :</strong> le remboursement (prix de la carte et frais de port initiaux)
+            est effectué sous 7 jours suivant la réception effective et la vérification de l’état de
+            la carte retournée, par le même moyen que le règlement initial.
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Contact</h2>
+        <p>{{contact}}</p>
+        <p>
+          Pour toute question sur une annonce, un lot ou une expédition en cours, vous pouvez
+          écrire à l’adresse ci-dessus ou consulter la page <a href="/a-propos">À propos et contact</a>.
+        </p>
+      </section>
+
+      <p><a href="/">← Retour à la vitrine</a></p>
+    </main>
+  </body>
+</html>

@@ -39,6 +39,8 @@ sélection**, chaque ligne montre aussi le recto de la première carte.
 | Mot de passe | Choisi par un lien à usage unique que le vendeur colle dans son e-mail ; le même lien sert en cas d'oubli |
 | Réservation | Une demande ne bloque rien ; les cartes sont réservées à l'**acceptation** |
 | Paiement | Wero, virement ou PayPal, réglés par l'administrateur ; le client voit les coordonnées, le montant et la référence du lot seulement tant que le lot est réservé et non payé ; `/a-propos` nomme les moyens, sans coordonnées |
+| Expédition | Calculée au panier selon les tarifs postaux (lettre suivie ou recommandé obligatoire dès 50 € de cartes) ; remise en main propre gratuite |
+| Conditions de vente | Accessibles sur `/conditions` et `/en/conditions` : délais, retours, moyens de paiement et expédition |
 | E-mail | Aucun service d'envoi ; Brevo ou Mailjet, avec un domaine deSEC pour SPF et DKIM, quand le volume ou les mots de passe oubliés le justifieront |
 | Indexation | Vitrine ouverte aux moteurs de recherche ; `POKEPRICE_INDEXING=off` remet `noindex` ; voir [Partage et indexation](#partage-et-indexation) |
 
@@ -380,6 +382,30 @@ minute et par adresse :
   sauf les photos publiques ; `noindex` sur une fiche absente. Avec
   `POKEPRICE_INDEXING=off`, `noindex` sur toute la vitrine et les photos
   ([Partage et indexation](#partage-et-indexation)).
+
+## Frais de port et conditions de vente
+
+Le panier de réservation calcule le devis d'expédition en temps réel selon le mode
+choisi :
+- **Remise en main propre.** Gratuite (0 €), sélectionnée au panier par l'option
+  dédiée.
+- **Expédition postale.** Calculée à partir du nombre total de cartes (environ 2 g
+  par carte) et du conditionnement rigide protecteur (10 g par défaut, réglable
+  par `POKEPRICE_PACKING_GRAMS`).
+- **Lettre suivie et recommandé.** En dessous du seuil de confort (50,00 € de
+  cartes par défaut, réglable en euros par `POKEPRICE_REGISTERED_THRESHOLD_EUR`),
+  l'envoi se fait en lettre suivie. Dès que le sous-total atteint ce seuil,
+  l'envoi bascule automatiquement en recommandé R2 avec remise contre signature
+  pour sécuriser l'acheminement et l'indemnisation.
+- **Réponse à l'acheteur.** Dans l'espace de gestion (`/gestion`), chaque demande
+  réservée propose un bouton de copie en un clic d'un message prérempli à
+  destination de l'acheteur (liste des cartes avec montants, affranchissement,
+  total, coordonnées de paiement et rappel du délai de garde de 7 jours).
+- **Conditions de vente.** Les pages `/conditions` et `/en/conditions` détaillent
+  la grille tarifaire postale, tirée des mêmes tarifs que le panier, les
+  modalités de paiement, le délai de réponse (48 h quand les alertes au vendeur
+  sont actives, 120 h sinon, réglable par `POKEPRICE_RESPONSE_DELAY_HOURS`) et
+  les règles relatives aux retours.
 
 ## Les alertes au vendeur
 

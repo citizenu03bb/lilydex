@@ -57,8 +57,8 @@ from .pricing import (
 from .cardmarket_guide import CardmarketGuide
 from .listings import Listings, Storefront
 from .privacy import Privacy
-from .notifications import Notifier, channels_from_env
-from .reservations import Reservations, valid_email
+from .notifications import Notifier, channels_from_env, euros
+from .reservations import SHIPPING_SERVICES, Reservations, shipping_config, valid_email
 from .variant_catalogue import VariantCatalogue
 from .catalogue_image import CatalogueImages
 from .variant_pricing import category
@@ -379,6 +379,8 @@ class Signup(Model):
 class RequestCreate(Model):
     listing_ids: list[str] = Field(min_length=1, max_length=50)
     message: str = Field(default="", max_length=1000)
+    delivery: Literal["shipping", "hand"] = "shipping"
+    registered: bool | None = None
 
 
 class GuestRequest(RequestCreate):
@@ -1011,33 +1013,92 @@ def create_app(
                 f"Responsable du traitement : {who or 'le vendeur'}, à titre "
                 "personnel, joignable à l’adresse de contact ci-dessous."
             )
-        if en:
-            methods = reservations.payment_methods(
-                {"wero": "Wero", "iban": "bank transfer", "paypal": "PayPal (goods and services)"}
-            )
-            payment = (
-                "Payment by " + ", ".join(methods[:-1]) + (" or " if len(methods) > 1 else "")
-                + methods[-1] + ": the seller sends you the amount, the lot’s reference "
-                "and their payment details by email; with an account, you also find "
-                "them in “My requests” while the lot awaits payment."
-                if methods
-                else "The seller tells you in their reply how to pay."
-            )
-        else:
-            methods = reservations.payment_methods()
-            payment = (
-                "Paiement par " + ", ".join(methods[:-1]) + (" ou " if len(methods) > 1 else "")
-                + methods[-1] + " : le vendeur vous envoie le montant, la référence du lot "
-                "et ses coordonnées par e-mail ; avec un compte, vous les retrouvez aussi "
-                "dans « Mes demandes » tant que le lot attend son paiement."
-                if methods
-                else "Le vendeur vous indique dans sa réponse comment payer."
-            )
+        payment = payment_sentence(
+            en,
+            ": the seller sends you the amount, the lot’s reference "
+            "and their payment details by email; with an account, you also find "
+            "them in “My requests” while the lot awaits payment."
+            if en
+            else " : le vendeur vous envoie le montant, la référence du lot "
+            "et ses coordonnées par e-mail ; avec un compte, vous les retrouvez aussi "
+            "dans « Mes demandes » tant que le lot attend son paiement.",
+        )
         return (
             page("about.en.html" if en else "about.html", language, public="a-propos")
             .replace("{{contact}}", contact)
             .replace("{{controller}}", controller)
             .replace("{{payment}}", html.escape(payment))
+        )
+
+    @app.get("/conditions", response_class=HTMLResponse)
+    def conditions_fr(request: Request):
+        count_visit(request, "page", "conditions")
+        return conditions_page("fr")
+
+    @app.get("/en/conditions", response_class=HTMLResponse)
+    def conditions_en(request: Request):
+        count_visit(request, "page", "conditions")
+        return conditions_page("en")
+
+    def payment_sentence(en, detail):
+        """The accepted payment methods, followed by what the seller sends."""
+        if en:
+            methods = reservations.payment_methods(
+                {"wero": "Wero", "iban": "bank transfer", "paypal": "PayPal (goods and services)"}
+            )
+            start, last = "Payment by ", " or "
+        else:
+            methods = reservations.payment_methods()
+            start, last = "Paiement par ", " ou "
+        if not methods:
+            return (
+                "The seller tells you in their reply how to pay."
+                if en
+                else "Le vendeur vous indique dans sa réponse comment payer."
+            )
+        return (
+            start + ", ".join(methods[:-1]) + (last if len(methods) > 1 else "")
+            + methods[-1] + detail
+        )
+
+    def conditions_page(language):
+        en = language == "en"
+        contact = (
+            f'<a href="mailto:{html.escape(contact_email)}">{html.escape(contact_email)}</a>'
+            if contact_email
+            else "The contact address will be given here soon." if en
+            else "L’adresse de contact sera bientôt indiquée ici."
+        )
+        payment = payment_sentence(
+            en,
+            ": the seller sends you the total amount, the reservation reference "
+            "and payment details by email."
+            if en
+            else " : le vendeur vous envoie le montant total, la référence du lot "
+            "et ses coordonnées par e-mail.",
+        )
+        # The tables come from the rates the basket uses: one grid to update.
+        rates = shipping_config(notifier)
+
+        def price(cents):
+            return f"{cents / 100:.2f} €" if en else euros(cents)
+
+        def rows(tariffs):
+            return "\n".join(
+                f"<tr><td>{r['max_grams']:,} g</td>".replace(",", "," if en else "\u202f")
+                + f"<td>{price(r['shipping_cents'])}</td><td>{SHIPPING_SERVICES[r['service']]}</td></tr>"
+                for r in tariffs
+            )
+
+        return (
+            page("conditions.en.html" if en else "conditions.html", language, rest="conditions", public="conditions")
+            .replace("{{contact}}", contact)
+            .replace("{{payment}}", html.escape(payment))
+            .replace("{{threshold}}", price(rates["registered_threshold_cents"]).replace(" €", "\u00a0€"))
+            .replace("{{packing_grams}}", str(rates["packing_grams"]))
+            .replace("{{card_grams}}", str(rates["card_weight_grams"]))
+            .replace("{{tracked_rows}}", rows(rates["tracked_tariffs"]))
+            .replace("{{registered_rows}}", rows(rates["registered_tariffs"]))
         )
 
     @app.get("/gestion", response_class=HTMLResponse)
@@ -1134,7 +1195,7 @@ def create_app(
             if not public_origin:
                 # Absolute addresses come from configuration, never from Host.
                 raise HTTPException(404, "Plan du site indisponible sans origine publique.")
-            entries = [("", None), ("a-propos", None)] + [
+            entries = [("", None), ("a-propos", None), ("conditions", None)] + [
                 ("carte/" + quote(r["id"], safe=""), (r["price_date"] or r["published_at"])[:10])
                 for r in online_listings()
             ]
@@ -1209,12 +1270,22 @@ def create_app(
         # Hashed whether or not the address is known: the delay tells nothing either.
         unusable = password_hash(secrets.token_urlsafe(32))
         reservations.guest(
-            values.email, values.display_name, values.listing_ids, values.message, unusable
+            values.email,
+            values.display_name,
+            values.listing_ids,
+            values.message,
+            unusable,
+            delivery=values.delivery,
+            registered=values.registered,
         )
         return {
             "detail": "Demande envoyée. Rien n’est bloqué tant que le vendeur ne l’a pas "
             f"acceptée : il vous répond à {values.email.strip()} pour le paiement et l’envoi."
         }
+
+    @app.get("/api/public/shipping")
+    def public_shipping():
+        return shipping_config(notifier)
 
     @app.post("/api/public/password")
     def password_set(values: PasswordSet, response: Response, _=Depends(public_rate)):
@@ -1290,7 +1361,13 @@ def create_app(
 
     @app.post("/api/me/requests", status_code=201)
     def request_create(values: RequestCreate, user=Depends(client)):
-        return reservations.create(user["id"], values.listing_ids, values.message)
+        return reservations.create(
+            user["id"],
+            values.listing_ids,
+            values.message,
+            delivery=values.delivery,
+            registered=values.registered,
+        )
 
     @app.post("/api/me/requests/{request_id}/cancel")
     def request_cancel(request_id: str, values: RequestVersion, user=Depends(client)):

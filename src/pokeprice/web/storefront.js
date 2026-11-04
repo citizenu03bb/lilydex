@@ -26,6 +26,37 @@ function releaseForm(form) {
   if (status) status.textContent = "";
 }
 
+// Filled from /api/public/shipping: the server holds the only copy of the rates.
+let shippingRates = null;
+
+function shippingQuote(cardCount, totalCents, delivery) {
+  if (delivery === "hand") {
+    return { shipping_cents: 0, registered: false };
+  }
+  if (!shippingRates) return null;
+  const weight = shippingRates.packing_grams + Math.max(0, cardCount) * shippingRates.card_weight_grams;
+  const registered = totalCents >= shippingRates.registered_threshold_cents;
+  const table = registered ? shippingRates.registered_tariffs : shippingRates.tracked_tariffs;
+  let cost = table[table.length - 1].shipping_cents;
+  for (const row of table) {
+    if (weight <= row.max_grams) {
+      cost = row.shipping_cents;
+      break;
+    }
+  }
+  return { shipping_cents: cost, registered };
+}
+
+async function loadShippingRates() {
+  try {
+    const res = await fetch("/api/public/shipping");
+    if (res.ok) {
+      shippingRates = await res.json();
+      renderBasket();
+    }
+  } catch (_) {}
+}
+
 // The basket is a per-visitor convenience: it may vanish, the server decides.
 function saveBasket() {
   try {
@@ -352,7 +383,12 @@ function show(listing, replace = false, recordView = true) {
   const added = el("span", "", "notice");
   added.setAttribute("role", "status");
   add.addEventListener("click", () => {
-    state.basket.push({ id: listing.id, label: label(listing), price_cents: listing.price_cents });
+    state.basket.push({
+      id: listing.id,
+      label: label(listing),
+      price_cents: listing.price_cents,
+      card_count: listing.items ? listing.items.length : 1,
+    });
     saveBasket();
     add.textContent = t("detail.added");
     add.disabled = true;
@@ -629,10 +665,58 @@ function renderBasket() {
     line.append(remove);
     list.append(line);
   }
-  const total = state.basket.reduce((sum, x) => sum + x.price_cents, 0);
-  $("basket-total").textContent = state.basket.length
-    ? t("basket.total", { total: euros(total) })
-    : t("basket.empty");
+  const subtotal = state.basket.reduce((sum, x) => sum + x.price_cents, 0);
+  const cardCount = state.basket.reduce((sum, x) => sum + (x.card_count || 1), 0);
+  const deliveryInput = document.querySelector('input[name="delivery"]:checked');
+  const delivery = deliveryInput ? deliveryInput.value : "shipping";
+  const quote = shippingQuote(cardCount, subtotal, delivery);
+  const summary = $("basket-summary");
+  const conditionsNote = $("basket-conditions-note");
+
+  if (state.basket.length) {
+    if (summary) summary.hidden = false;
+    if (conditionsNote) conditionsNote.hidden = false;
+    const subEl = $("basket-subtotal");
+    if (subEl) {
+      subEl.hidden = false;
+      subEl.textContent = t("basket.subtotal", { subtotal: euros(subtotal) });
+    }
+    const shipEl = $("basket-shipping");
+    if (shipEl) {
+      shipEl.hidden = !quote;
+      if (!quote) {
+        shipEl.textContent = "";
+      } else if (delivery === "hand") {
+        shipEl.textContent = t("basket.shipping_hand");
+      } else if (quote.registered) {
+        shipEl.textContent = t("basket.shipping_cost_registered", { cost: euros(quote.shipping_cents) });
+      } else {
+        shipEl.textContent = t("basket.shipping_cost", { cost: euros(quote.shipping_cents) });
+      }
+    }
+    const regNotice = $("basket-registered-notice");
+    if (regNotice) {
+      regNotice.hidden = !quote || !quote.registered;
+      if (quote && quote.registered)
+        regNotice.textContent = t("basket.registered_notice", {
+          threshold: euros(shippingRates.registered_threshold_cents),
+        });
+    }
+    $("basket-total").textContent = quote
+      ? t("basket.total", { total: euros(subtotal + quote.shipping_cents) })
+      : t("basket.total_before_shipping", { total: euros(subtotal) });
+  } else {
+    if (summary) summary.hidden = false;
+    if (conditionsNote) conditionsNote.hidden = true;
+    const subEl = $("basket-subtotal");
+    if (subEl) subEl.hidden = true;
+    const shipEl = $("basket-shipping");
+    if (shipEl) shipEl.hidden = true;
+    const regNotice = $("basket-registered-notice");
+    if (regNotice) regNotice.hidden = true;
+    $("basket-total").textContent = t("basket.empty");
+  }
+
   $("basket-form").hidden = !state.basket.length;
   $("basket-browse").hidden = Boolean(state.basket.length);
   // A disabled fieldset is left out of the form's checks.
@@ -1070,9 +1154,12 @@ $("basket-form").addEventListener("submit", async (event) => {
   const form = event.target;
   try {
   formError(form, "");
+  const deliveryInput = form.querySelector('input[name="delivery"]:checked');
+  // The server sets the registered tier from the cards' total.
   const body = {
     listing_ids: state.basket.map((x) => x.id),
     message: form.message.value,
+    delivery: deliveryInput ? deliveryInput.value : "shipping",
   };
   // A guest's address is read before the form is reset: the answer names it.
   const guest = state.me ? "" : form.email.value.trim();
@@ -1160,3 +1247,7 @@ for (const id of ["login-open", "signup-open"]) {
 }
 
 $("basket-browse").addEventListener("click", () => { $("basket").close(); $("q").focus(); });
+$("basket-form").addEventListener("change", (event) => {
+  if (event.target.name === "delivery") renderBasket();
+});
+loadShippingRates();

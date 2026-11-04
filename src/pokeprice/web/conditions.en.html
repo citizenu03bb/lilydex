@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="{{lang}}">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    {{robots}}
+    <title>{{site_name}} · Terms of sale</title>
+    <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
+    <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
+    <link rel="stylesheet" href="/assets/themes.css" />
+    <link rel="stylesheet" href="/assets/storefront.css" />
+    {{messages}}
+    <script src="/assets/components.js"></script>
+  </head>
+  <!-- The French page, conditions.html, prevails: this one follows each of its changes. -->
+  <body class="storefront about-page">
+    <header class="top">
+      <a class="brand" href="/en/"><img class="brand-mark" src="/assets/logo.png" alt="" width="40" height="40" /><span class="wordmark">{{site_wordmark}}</span></a>
+      <nav class="account" aria-label="Theme">
+        <lilydex-theme-picker></lilydex-theme-picker>
+      </nav>
+      <h1>Terms of sale</h1>
+    </header>
+    <main class="about">
+      <nav class="about-shortcuts"><a href="/en/">← Back to the shop</a> · <a href="/en/a-propos">About and contact</a></nav>
+      <p class="notice">
+        This English version is provided for convenience. If it differs from the
+        French version, the French version prevails:
+        <a href="/conditions" hreflang="fr" lang="fr">lire en français</a>.
+      </p>
+
+      <section>
+        <h2>Sales framework</h2>
+        <p>
+          {{site_name}} is the personal website of a private individual selling Pokémon
+          cards from their own private collection. It is not a commercial enterprise.
+          Sales are governed by the French Civil Code provisions applicable to sales between
+          private individuals (articles 1582 and following).
+        </p>
+        <p>
+          No direct online payment takes place on this site: you submit a reservation request,
+          and the seller contacts you by email to confirm availability and finalize the transaction.
+        </p>
+      </section>
+
+      <section>
+        <h2>Shipping costs and delivery methods</h2>
+        <p>
+          All orders are carefully packed in protective sleeves (sleeves / toploaders with rigid
+          reinforcement in bubble mailers or boxes). The total shipping weight is calculated as
+          <strong>{{packing_grams}}&nbsp;g for packaging</strong> plus <strong>{{card_grams}}&nbsp;g per card</strong>.
+        </p>
+
+        <h3>1. Hand delivery</h3>
+        <p>
+          Hand delivery is <strong>free (0&nbsp;€)</strong>. The meeting place and time are agreed
+          by email once your reservation is accepted.
+        </p>
+
+        <h3>2. Standard tracked shipping (orders under {{threshold}})</h3>
+        <p>
+          For orders where cards total less than {{threshold}}, shipments are handled by La Poste via
+          Lettre verte suivie or Colissimo with tracking:
+        </p>
+        <table class="conditions-table">
+          <thead>
+            <tr>
+              <th scope="col">Weight up to</th>
+              <th scope="col">Rate</th>
+              <th scope="col">Postal service</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{tracked_rows}}
+          </tbody>
+        </table>
+
+        <h3>3. Registered shipping with signature R2 (mandatory for orders of {{threshold}} or more)</h3>
+        <p>
+          To protect valuable cards and cover loss or damage in transit, <strong>any order where cards
+          reach or exceed {{threshold}} is strictly shipped with registered mail and signature on delivery (tier R2)</strong>.
+        </p>
+        <table class="conditions-table">
+          <thead>
+            <tr>
+              <th scope="col">Weight up to</th>
+              <th scope="col">Rate</th>
+              <th scope="col">Postal service</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{registered_rows}}
+          </tbody>
+        </table>
+        <p>
+          Rates are based on official La Poste postal tariffs effective 1 January 2026.
+        </p>
+      </section>
+
+      <section>
+        <h2>Response time and reservation hold period</h2>
+        <ul>
+          <li>
+            <strong>Response time:</strong> the seller reviews and replies to your reservation request
+            typically within 48 hours (up to 120 hours during absences or without immediate alerts).
+          </li>
+          <li>
+            <strong>Hold period:</strong> once your reservation is accepted, the cards are held and
+            reserved for you for <strong>7 calendar days</strong>. If payment is not received or no update
+            is provided by the end of this period, the reservation is cancelled and cards are put back on sale.
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Payment methods</h2>
+        <p>
+          {{payment}}
+        </p>
+        <p>
+          Commonly accepted methods include:
+        </p>
+        <ul>
+          <li><strong>Wero</strong> (instant mobile/email transfer);</li>
+          <li><strong>Bank transfer</strong> (IBAN provided upon acceptance);</li>
+          <li><strong>PayPal</strong> (goods and services option for buyer protection);</li>
+          <li>Other methods agreed directly by email with the seller.</li>
+        </ul>
+        <p>
+          Each accepted reservation receives a unique reference (e.g. <code>LILY-XXXXXXXX</code>)
+          which must be quoted in your payment description to ensure quick matching.
+        </p>
+      </section>
+
+      <section>
+        <h2>Return policy and claims</h2>
+        <p>
+          Under French law applicable to private sales between individuals,
+          <strong>the statutory 14-day cooling-off / withdrawal period reserved for business purchases
+          (French Consumer Code) does not apply</strong>. Sales are final once concluded.
+        </p>
+        <p>
+          However, to ensure fair and satisfactory transactions, returns are accepted under the
+          following conditions:
+        </p>
+        <ul>
+          <li>
+            <strong>Eligible reason:</strong> clear non-conformity of the received card compared to the
+            listing photographs and description, or proven damage occurring during postal transit.
+          </li>
+          <li>
+            <strong>Reporting deadline:</strong> you have <strong>14 calendar days</strong> from delivery
+            of the package to contact the seller by email with clear photos of the card and packaging.
+          </li>
+          <li>
+            <strong>Return shipping:</strong> after written agreement with the seller, the card(s) must be
+            returned in their original protective sleeve and packaging (or equal quality protection),
+            using tracked or registered shipping matching the initial dispatch method.
+          </li>
+          <li>
+            <strong>Return shipping costs:</strong> return postage is reimbursed by the seller if non-conformity
+            or postal damage is confirmed.
+          </li>
+          <li>
+            <strong>Refund:</strong> refund of card price and initial shipping cost is processed within 7 days
+            after receipt and inspection of the returned card, using the original payment method.
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Contact</h2>
+        <p>{{contact}}</p>
+        <p>
+          For any question about a card, a lot, or an ongoing shipment, feel free to email the address
+          above or visit the <a href="/en/a-propos">About and contact</a> page.
+        </p>
+      </section>
+
+      <p><a href="/en/">← Back to the shop</a></p>
+    </main>
+  </body>
+</html>
