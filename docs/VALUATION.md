@@ -94,6 +94,15 @@ prix de vitrine en tendance que la nouvelle cote rend périmés
 (`stale_storefront`). Un prix de vitrine ne change jamais seul : il se republie
 à la main.
 
+Une cotation en lot garde la cote en place quand un marché instable la
+déplacerait d'au moins `--threshold` pour cent : moyennes sur 1, 7 et 30 jours
+et tendance du simple au double, variante inchangée, carte déjà cotée. Le
+relevé retenu entre dans l'historique sans changer la fiche ni sa valeur ; le
+rapport le liste (`held` : cote gardée, cote proposée, source) et la carte
+passe en « À vérifier ». Un relevé ou un prix fixé à la main, ou un relevé en
+lot que la règle laisse passer, termine la vérification
+([fiche 0023](decisions/0023-cote-retenue-marche-instable.md)).
+
 ### Une énergie de base
 
 Une énergie de base confirmée et sans cotation (Énergie Feu, Fighting

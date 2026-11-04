@@ -171,8 +171,8 @@ le serveur ou une commande ouvre une base plus ancienne que le code :
 Si la copie échoue, la base n'est pas migrée et l'application ne démarre pas.
 Une base plus récente que le code est refusée. Toute commande qui ouvre la
 base, y compris `backup`, déclenche la migration. La copie ne contient pas les
-photos (aucune migration ne les modifie) et n'est jamais supprimée par la
-rotation des sauvegardes. Faites une [sauvegarde complète](#sauvegarder) avant
+photos (aucune migration ne les modifie) ; la rotation des sauvegardes garde
+les 5 plus récentes. Faites une [sauvegarde complète](#sauvegarder) avant
 de lancer une nouvelle version.
 
 ## Saisir des cartes
@@ -325,6 +325,30 @@ traitements, se retrouvent dans **Photos par lot**, même sans carte
 sélectionnée ; une fiche modifiée depuis le traitement bloque son annulation.
 Sans photo originale conservée, la simulation signale qu'elle part de l'image
 actuelle. Aucun modèle ni service de prix n'est appelé.
+
+### Déplacer une sélection de cartes
+
+Cochez les exemplaires à ranger puis cliquez sur **Déplacer vers…** dans la
+barre de sélection : choisissez l'album d'arrivée (ou le même album pour
+changer de page), le mode de placement (**Premières cases libres** ou **À
+partir d'une page et d'une case**), le nombre de cases par page et le motif.
+L'aperçu indique pour chaque carte son emplacement de départ et sa case
+d'arrivée, signale toute case d'arrivée déjà occupée (avec le nom de la carte
+présente) et mentionne les cartes publiées à l'unité en vitrine.
+
+Les cartes réservées, vendues, supprimées ou engagées dans un lot actif
+(brouillon de vente, réservation ou lot publié en vitrine) sont refusées :
+annulez ou dépubliez d'abord le lot avant de déplacer physiquement la carte
+([décision 0024](decisions/0024-deplacements-en-lot.md)).
+
+**Déplacer ces cartes** copie d'abord la base, sans les photos, dans
+`backups/before-move-batch-<date>.sqlite3`, puis déplace toute la sélection en
+une seule transaction, en inscrivant une entrée d'historique par carte avec le
+motif indiqué. Si une carte a changé entre-temps ou si une case d'arrivée est
+occupée, rien n'est écrit. Après l'application, **Annuler ce déplacement** (dans
+la fenêtre ou dans le bandeau affiché au-dessus de la grille) remet l'ensemble
+des cartes à leur place d'origine en une transaction, tant qu'aucune fiche n'a
+été modifiée depuis et que les cases d'origine sont restées libres.
 
 ## Vérifier une carte
 

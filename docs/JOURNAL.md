@@ -9,6 +9,14 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-04
 
+- Gestion : déplacement en lot d'une sélection de cartes vers un autre album ou
+  une autre page (`/api/move-batches`, action « Déplacer vers… »), avec aperçu
+  des emplacements et des collisions de cases, placement dans les premières
+  cases libres ou à partir d'une page et case données, refus des cartes
+  réservées, vendues ou en lot actif, application transactionnelle tout ou rien
+  avec sauvegarde et historique par carte, et annulation complète
+  ([décision 0024](decisions/0024-deplacements-en-lot.md),
+  `tests/test_move_batches.py`, `tests/test_web_client.py`).
 - Plancher anti-bradage en gestion : la règle (`POKEPRICE_LOT_MAX_MARGIN`, 15 %
   par défaut, bornée de 0 à 50, `lot_max_margin` et `lot_floor_cents`) est
   définie une seule fois dans `src/pokeprice/pricing.py` et partagée par
@@ -19,6 +27,11 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-03
 
+- Cotation en lot : une cote qu'un marché instable déplacerait d'au moins
+  20 % reste en place ; le relevé est gardé et la carte passe « À vérifier »
+  ([fiche 0023](decisions/0023-cote-retenue-marche-instable.md),
+  `tests/test_prices_bulk.py`). Vu à l'essai de la cotation matinale sur une
+  copie : −11 % de cote totale, communes portées à 7 € par une vente isolée.
 - Vente sur les plateformes : `scripts/export_annonces.py` prépare, en lecture
   seule, une annonce par dossier pour Vinted et Leboncoin et le fichier d'import
   de stock Cardmarket ; prix jamais sous la cote moins une marge réglable
