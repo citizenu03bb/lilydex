@@ -4127,6 +4127,7 @@ async function refreshFloorRequests() {
         });
         toast(done());
         await refreshFloorRequests();
+        refreshTodo().catch(() => {});
       } catch (error) {
         toast(error.message);
         for (const button of item.querySelectorAll("button")) button.disabled = false;
