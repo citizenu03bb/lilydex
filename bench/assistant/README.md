@@ -15,9 +15,9 @@ répondent avec des données synthétiques.
 | `commands.json` | les commandes types, en français familier, avec l'appel attendu |
 | `tools.json` | les schémas : 8 outils en lecture (V1, copie de `docs/assistant-tools.json`, fiche 0032) et 4 outils d'écriture fictifs (V2) |
 | `fixtures.json` | les données synthétiques renvoyées par les outils |
-| `system_prompt.md` | la consigne système commune à tous les candidats |
+| `../../src/pokeprice/assistant_prompt.md` | la consigne système commune à tous les candidats : celle du chat de gestion, un seul fichier |
 | `pricing.json` | les tarifs publics, avec leur source et leur date de relevé |
-| `run.py` | le harnais et les adaptateurs (Ollama, Anthropic, Gemini, factice) |
+| `run.py` | le harnais et les adaptateurs (Ollama, Anthropic, factice ; Gemini reprend celui du chat, `pokeprice.assistant_model`) |
 | `results/` | les rapports JSON et Markdown |
 
 ## Lancer le banc

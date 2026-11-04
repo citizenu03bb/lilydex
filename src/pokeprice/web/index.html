@@ -21,6 +21,7 @@
     <script src="/assets/workflows.js" defer></script>
     <script src="/assets/gallery.js" defer></script>
     <script src="/assets/pwa.js" defer></script>
+    <script src="/assets/assistant.js" defer></script>
   </head>
   <body>
     <section id="access" class="access" hidden>
@@ -63,6 +64,9 @@
         <a class="brand" href="/gestion"
           ><img class="brand-mark" src="/assets/logo.png" alt="" width="32" height="32" /> {{site_name}}</a
         >
+        <!-- The management chat, V1 (assistant.js): it reads, it writes nothing. -->
+        <button id="chat-open" class="chat-open" type="button" hidden
+          aria-haspopup="dialog" aria-label="{{t:chat.open_label}}">{{t:chat.open}}</button>
         <nav aria-label="Navigation principale">
           <button class="nav-button active" data-view="collection">
             Collection
@@ -525,6 +529,30 @@
         <p>{{t:install.android_help}}</p>
       </section>
       <p class="help">{{t:install.privacy}}</p>
+    </dialog>
+    <!-- The management chat, V1 (assistant.js, docs/APP.md « Assistant »). -->
+    <dialog id="chat-dialog" class="chat-dialog" aria-labelledby="chat-title">
+      <div class="chat-shell">
+        <header class="chat-head">
+          <h2 id="chat-title">{{t:chat.title}}</h2>
+          <button id="chat-new" class="quiet" type="button" aria-label="{{t:chat.new_label}}">{{t:chat.new}}</button>
+          <button id="chat-erase" class="quiet" type="button" aria-label="{{t:chat.erase_label}}">{{t:chat.erase}}</button>
+          <button id="chat-close" class="quiet chat-close" type="button" aria-label="{{t:chat.close}}">✕</button>
+        </header>
+        <div class="chat-scroll" id="chat-scroll">
+          <p class="help chat-note">{{t:chat.note}}</p>
+          <p id="chat-off" class="chat-off" hidden>{{t:chat.disabled}}</p>
+          <ol id="chat-log" class="chat-log" aria-live="polite"></ol>
+          <div id="chat-suggestions" class="chat-suggestions" role="group" aria-label="{{t:chat.suggestions}}"></div>
+        </div>
+        <p id="chat-tool" class="chat-tool" role="status" hidden></p>
+        <form id="chat-form" class="chat-form">
+          <textarea id="chat-input" rows="1" maxlength="1000" required
+            aria-label="{{t:chat.input_label}}" placeholder="{{t:chat.placeholder}}"></textarea>
+          <button class="primary" id="chat-send">{{t:chat.send}}</button>
+        </form>
+        <p id="chat-usage" class="help chat-usage"></p>
+      </div>
     </dialog>
     <dialog id="detail-dialog">
       <div class="dialog-header">

@@ -250,7 +250,7 @@ def main():
     forget.add_argument("client")
     forget.add_argument("--reason", default="Demande de la personne")
     actions.add_parser(
-        "purge", help="Appliquer les durées de conservation des données clients"
+        "purge", help="Appliquer les durées de conservation des données clients et du chat"
     )
     brief = actions.add_parser(
         "brief", help="Brief du jour : ce que l'agent a fait, ce qui attend une décision"
@@ -479,6 +479,11 @@ def main():
                 if args.action == "forget"
                 else privacy.purge()
             )
+            if args.action == "purge":
+                # The management chat keeps its conversations 30 days at most (decision 0034).
+                from .assistant import Journal
+
+                result["assistant"] = Journal(store.root).purge()
         elif args.action == "repair-prices":
             from .price_recovery import apply, candidates
 
