@@ -319,7 +319,8 @@ class BatchPreview(Model):
 
 
 class BatchApply(Model):
-    copy_ids: list[str] = Field(min_length=1, max_length=20)
+    copy_ids: list[str] = Field(default_factory=list, max_length=20)
+    positions: list[int] = Field(default_factory=list, max_length=9)
 
 
 def intake_values(values):
@@ -1912,6 +1913,27 @@ def create_app(
             values.options.model_dump(),
         )
 
+    @app.post("/api/photo-batches/page", status_code=201)
+    async def batch_page_preview(
+        request: Request,
+        album_id: str = Query(min_length=1, max_length=100),
+        page: int = Query(ge=1, le=1000),
+        rotation: Literal["auto", "0", "90", "180", "270"] = "auto",
+        user=Depends(editor),
+    ):
+        data = bytearray()
+        async for chunk in request.stream():
+            data.extend(chunk)
+            if len(data) > 16 * 1024 * 1024:
+                raise HTTPException(413, "Photo limitée à 16 Mo.")
+        return batches.preview_page(
+            user["id"],
+            album_id,
+            page,
+            bytes(data),
+            rotation=rotation,
+        )
+
     @app.get("/api/photo-batches")
     def batch_list(user=Depends(editor)):
         with store.connect() as db:
@@ -1934,14 +1956,37 @@ def create_app(
     ):
         with store.connect() as db:
             job = batches.get(db, jid, user["id"])
-        item = next((i for i in job["data"]["items"] if i["id"] == copy_id), None)
+        item = next(
+            (
+                i
+                for i in job["data"]["items"]
+                if copy_id in (i.get("id"), i.get("key"), str(i.get("position")))
+            ),
+            None,
+        )
         if not item or not item.get(view):
             raise KeyError("Photo absente.")
         return FileResponse(store.photos / item[view], media_type="image/jpeg")
 
     @app.post("/api/photo-batches/{jid}/apply")
-    def batch_apply(jid: str, values: BatchApply, user=Depends(editor)):
-        return batches.apply(jid, user["id"], user["username"], values.copy_ids)
+    def batch_apply(
+        jid: str, values: BatchApply, tasks: BackgroundTasks, user=Depends(editor)
+    ):
+        selected = values.positions or values.copy_ids
+        result = batches.apply(jid, user["id"], user["username"], selected)
+        if result["data"].get("kind") == "page":
+            for item in result["data"]["items"]:
+                if not item.get("applied_version") or not item.get("id"):
+                    continue
+                if item.get("action") == "create":
+                    read_after_intake(
+                        tasks,
+                        {"id": item["id"], "photo": item.get("result")},
+                        user,
+                    )
+                elif item.get("action") == "update":
+                    review_after_photo(tasks, item["id"])
+        return result
 
     @app.post("/api/photo-batches/{jid}/undo")
     def batch_undo(jid: str, user=Depends(editor)):

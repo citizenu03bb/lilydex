@@ -326,6 +326,27 @@ sélectionnée ; une fiche modifiée depuis le traitement bloque son annulation.
 Sans photo originale conservée, la simulation signale qu'elle part de l'image
 actuelle. Aucun modèle ni service de prix n'est appelé.
 
+### Déposer une page de classeur (3×3)
+
+**Collection → Page de classeur (3×3)** prend ou téléverse la photo d'une page
+entière (9 pochettes, grille 3×3) pour un album existant et un numéro de page,
+sur ordinateur comme sur téléphone. Le serveur redresse l'image en portrait (ou
+selon l'angle choisi) et la découpe en 9 pochettes :
+
+- si un exemplaire unique occupe déjà `(album, page, pochette)`, l'aperçu
+  compare sa photo actuelle avec la nouvelle découpe du recto ;
+- si la pochette est vide, l'aperçu propose de créer une fiche « À identifier »
+  (`unresolved`) rangée à cet emplacement avec la photo découpée ;
+- si plusieurs fiches occupent déjà la même pochette, la case signale le
+  conflit et reste décochée.
+
+**Appliquer les pochettes cochées** crée une sauvegarde préalable puis met à
+jour les fiches existantes (en réinitialisant la confirmation d'état) et crée
+les fiches « À identifier » dans une seule transaction. **Annuler ce dépôt de
+page** restaure les photos antérieures et place en corbeille les fiches créées
+par le lot, tant qu'aucune fiche concernée n'a été modifiée ou engagée dans un
+lot depuis l'application ([décision 0023](decisions/0023-photo-page-classeur-gestion.md)).
+
 ## Vérifier une carte
 
 Chaque vérification est une décision humaine, enregistrée avec son auteur, sa

@@ -9,6 +9,13 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-03
 
+- Gestion : **Page de classeur (3×3)** dépose ou photographie une page entière
+  pour un album et un numéro de page, la découpe en 9 pochettes avec `slicer.py`
+  et affiche l'aperçu case par case (remplacement du recto sur une pochette
+  occupée, nouvelle fiche « À identifier » sur une case vide), avec application
+  atomique précédée d'une sauvegarde et annulation gardée par version
+  ([décision 0023](decisions/0023-photo-page-classeur-gestion.md),
+  `tests/test_workflows.py`, `tests/test_web_client.py`).
 - Vente sur les plateformes : `scripts/export_annonces.py` prépare, en lecture
   seule, une annonce par dossier pour Vinted et Leboncoin et le fichier d'import
   de stock Cardmarket ; prix jamais sous la cote moins une marge réglable

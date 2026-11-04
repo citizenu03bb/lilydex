@@ -64,3 +64,6 @@ existaient, tous deux lourds pour une page isolée prise au téléphone :
 - Comme la collection ne supprime jamais définitivement un exemplaire, annuler
   la création d'une pochette vide la place dans la corbeille avec son motif et
   son historique.
+
+**Preuve.** `tests/test_workflows.py`, `tests/test_web_client.py`.
+

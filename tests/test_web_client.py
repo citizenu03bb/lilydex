@@ -266,3 +266,21 @@ def test_storefront_submissions_ignore_repeated_activation_and_allow_retry():
     subprocess.run([node, str(root / 'tests/storefront_submission_runtime.cjs'),
                     str(root / 'src/pokeprice/web/storefront.js')], check=True,
                    capture_output=True, text=True)
+
+
+def test_page_batch_workflow_uploads_previews_applies_and_undoes():
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("Node.js is required")
+    root = Path(__file__).resolve().parents[1]
+    subprocess.run(
+        [
+            node,
+            str(root / "tests/web_page_batch_runtime.cjs"),
+            str(root / "src/pokeprice/web/workflows.js"),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+

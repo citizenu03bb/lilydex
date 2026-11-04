@@ -4,7 +4,9 @@ const Workflows = (() => {
     backToken = null,
     queue = Promise.resolve(),
     debounce,
-    batch = null;
+    batch = null,
+    pageBatch = null,
+    pageBusy = false;
   const post = (path, data) =>
     api(path, {
       method: "POST",
@@ -149,6 +151,7 @@ const Workflows = (() => {
   }
   async function refresh() {
     $("capture-series").hidden = !editAllowed();
+    $("capture-page").hidden = !editAllowed();
     selection();
     $("capture-resume").replaceChildren();
     if (!editAllowed()) {
@@ -357,9 +360,85 @@ const Workflows = (() => {
         );
     }
   }
+  function renderPageItems(job, container) {
+    const updates = job.data.items.filter((i) => i.action === "update").length;
+    const creates = job.data.items.filter((i) => i.action === "create").length;
+    container.append(
+      el(
+        "p",
+        t("page_batch.summary", {
+          album: job.data.album,
+          page: job.data.page,
+          updates,
+          creates,
+        }),
+        "help",
+      ),
+    );
+    for (const item of job.data.items) {
+      const row = el("section", undefined, "batch-card"),
+        label = el("label", undefined, "check-label"),
+        check = el("input");
+      check.type = "checkbox";
+      check.value = String(item.position);
+      const actionable = Boolean(item.result) && item.action !== "conflict";
+      check.checked = actionable;
+      check.disabled = !actionable || job.status !== "preview";
+      const caption =
+        item.action === "update"
+          ? t("page_batch.pocket_update", {
+              position: item.position,
+              name: item.name,
+            })
+          : item.action === "create"
+            ? t("page_batch.pocket_create", { position: item.position })
+            : t("page_batch.pocket_conflict", {
+                position: item.position,
+                name: item.name,
+              });
+      label.append(check, document.createTextNode(caption));
+      row.append(label);
+      if (item.result) {
+        const compare = el("div", undefined, "intake-comparison");
+        if (item.action === "update") {
+          if (item.before) {
+            compare.append(
+              image(
+                `/api/photo-batches/${job.id}/photo/pos-${item.position}/before`,
+                t("page_batch.before"),
+              ),
+            );
+          } else {
+            row.append(el("p", t("page_batch.no_before"), "help"));
+          }
+        }
+        compare.append(
+          image(
+            `/api/photo-batches/${job.id}/photo/pos-${item.position}/result`,
+            t("page_batch.after"),
+          ),
+        );
+        row.append(compare);
+      }
+      container.append(row);
+    }
+  }
+  function renderPageBatch(job) {
+    pageBatch = job;
+    $("page-results").replaceChildren();
+    renderPageItems(job, $("page-results"));
+    $("page-apply").hidden = job.status !== "preview";
+    $("page-undo").hidden = job.status !== "applied";
+  }
   function renderBatch(job) {
     batch = job;
     $("batch-results").replaceChildren();
+    if (job.data.kind === "page") {
+      renderPageItems(job, $("batch-results"));
+      $("batch-apply").hidden = job.status !== "preview";
+      $("batch-undo").hidden = job.status !== "applied";
+      return;
+    }
     for (const item of job.data.items) {
       const row = el("section", undefined, "batch-card"),
         label = el("label", undefined, "check-label"),
@@ -417,6 +496,122 @@ const Workflows = (() => {
     );
     $("series-dialog").showModal();
   };
+  async function loadPageHistory() {
+    $("page-history").replaceChildren();
+    try {
+      const jobs = await api("/photo-batches");
+      const statusLabels = {
+        preview: "simulation",
+        applied: "appliqué",
+        undone: "annulé",
+      };
+      for (const job of jobs.filter((j) => j.data.kind === "page")) {
+        const resume = el(
+          "button",
+          t("page_batch.history_item", {
+            date: new Date(job.created_at).toLocaleString("fr-FR"),
+            album: job.data.album,
+            page: job.data.page,
+            status: statusLabels[job.status] || job.status,
+          }),
+        );
+        resume.type = "button";
+        resume.onclick = async () => {
+          try {
+            renderPageBatch(await api(`/photo-batches/${job.id}`));
+          } catch (e) {
+            $("page-error").textContent = e.message;
+          }
+        };
+        $("page-history").append(resume);
+      }
+    } catch (e) {
+      $("page-error").textContent = e.message;
+    }
+  }
+  $("capture-page").onclick = async () => {
+    $("page-error").textContent = "";
+    $("page-status").textContent = "";
+    $("page-results").replaceChildren();
+    $("page-apply").hidden = true;
+    $("page-undo").hidden = true;
+    const preferred =
+      $("album-filter")?.value || state.summary.albums[0]?.id;
+    options(
+      $("page-form").elements.album_id,
+      state.summary.albums,
+      preferred,
+    );
+    $("page-dialog").showModal();
+    await loadPageHistory();
+  };
+  async function uploadPage(file) {
+    if (!file || pageBusy) return;
+    pageBusy = true;
+    $("page-error").textContent = "";
+    $("page-status").textContent = t("page_batch.slicing");
+    $("page-camera").disabled = true;
+    $("page-file").disabled = true;
+    try {
+      const pageForm = $("page-form");
+      const params = new URLSearchParams({
+        album_id: pageForm.elements.album_id.value,
+        page: String(Number(pageForm.elements.page.value) || 1),
+        rotation: pageForm.elements.rotation.value || "auto",
+      });
+      const job = await api(`/photo-batches/page?${params}`, {
+        method: "POST",
+        body: file,
+        headers: CardMedia.photoHeaders(file),
+      });
+      $("page-status").textContent = "";
+      renderPageBatch(job);
+      await loadPageHistory();
+    } catch (e) {
+      $("page-status").textContent = "";
+      $("page-error").textContent = e.message;
+    } finally {
+      pageBusy = false;
+      $("page-camera").disabled = false;
+      $("page-file").disabled = false;
+    }
+  }
+  $("page-camera").onclick = () => CardMedia.capture(uploadPage);
+  $("page-file").onchange = (event) => {
+    const file = event.target.files[0];
+    event.target.value = "";
+    uploadPage(file);
+  };
+  $("page-form").onsubmit = (event) => event.preventDefault();
+  for (const action of ["apply", "undo"])
+    $("page-" + action).onclick = async (event) => {
+      if (!pageBatch) return;
+      event.target.disabled = true;
+      $("page-error").textContent = "";
+      try {
+        const positions = Array.from(
+          $("page-results").querySelectorAll("input:checked"),
+        ).map((c) => Number(c.value));
+        renderPageBatch(
+          await post(
+            `/photo-batches/${pageBatch.id}/${action}`,
+            action === "apply" ? { positions } : null,
+          ),
+        );
+        await refreshSummary();
+        await loadCards();
+        await loadPageHistory();
+        toast(
+          action === "apply"
+            ? t("page_batch.applied_toast")
+            : t("page_batch.undone_toast"),
+        );
+      } catch (e) {
+        $("page-error").textContent = e.message;
+      } finally {
+        event.target.disabled = false;
+      }
+    };
   $("series-form").onsubmit = async (event) => {
     event.preventDefault();
     const submit = event.submitter;
@@ -603,6 +798,9 @@ const Workflows = (() => {
     get capture() {
       return capture;
     },
+    get pageBatch() {
+      return pageBatch;
+    },
     attach,
     persist,
     changed,
@@ -612,5 +810,7 @@ const Workflows = (() => {
     next,
     selection,
     backupStatus,
+    uploadPage,
+    renderPageBatch,
   };
 })();
