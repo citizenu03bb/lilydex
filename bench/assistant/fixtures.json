@@ -356,5 +356,33 @@
  "write_ok": {
   "status": "ok",
   "undo_token": "UNDO-SYNTH-1"
+ },
+ "knowledge": {
+  "vitrine": {
+   "topic": "vitrine",
+   "title": "Publier en vitrine",
+   "text": "La fiche d'un exemplaire affiche, sous le prix, un bloc Vitrine. Publier met la carte en ligne au prix de vitrine proposé, jamais sous le plancher anti-bradage ; Retirer la dépublie.",
+   "truncated": false
+  },
+  "plancher": {
+   "topic": "plancher",
+   "title": "Le plancher anti-bradage",
+   "text": "Aucune vente sous le prix de référence diminué de la marge, lots compris. La marge vaut 15 % par défaut. Lot : le prix demandé est au moins 85 % de la somme des prix de référence de ses exemplaires. Le plancher absolu de 0,50 € par carte et par lot s'applique aussi.",
+   "truncated": false
+  },
+  "topics": [
+   {
+    "topic": "vitrine",
+    "title": "Publier en vitrine"
+   },
+   {
+    "topic": "plancher",
+    "title": "Le plancher anti-bradage"
+   },
+   {
+    "topic": "suivre-lot",
+    "title": "Suivre un lot"
+   }
+  ]
  }
 }

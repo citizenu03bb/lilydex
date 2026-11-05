@@ -465,6 +465,7 @@
   "chat.tool.agent_activity": "Reading what the agents did…",
   "chat.tool.todo_queue": "Looking at the “Your turn” queue…",
   "chat.tool.unknown": "Checking what I can do…",
+  "chat.tool.knowledge": "Reading the app guide…",
   "push.title": "Notifications",
   "push.label": "Notifications on this phone",
   "push.help": "The morning brief and new requests, as numbers only: never a customer’s name or address.",
