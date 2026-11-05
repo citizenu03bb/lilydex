@@ -339,12 +339,37 @@ outil inconnu sans rien exécuter.
 jour et les jetons consommés sur 30 jours, lus dans les métadonnées d'usage du
 modèle.
 
+*Coût* ([fiche 0039](decisions/0039-alerte-de-cout-du-chat.md)). Les jetons
+de chaque question s'ajoutent au cumul du mois civil, chiffré au tarif public
+de `src/pokeprice/assistant_pricing.json`. Quand le coût estimé atteint 30 €
+(`POKEPRICE_ASSISTANT_COST_ALERT_EUR`, converti au taux
+`POKEPRICE_ASSISTANT_EUR_PER_USD`), une notification part, une fois par mois.
+Rien ne s'arrête : c'est un signal, pas un plafond.
+
 *Conservation* ([fiche 0034](decisions/0034-conversations-du-chat.md)). Les
 conversations, le journal des questions et des appels d'outils (outil,
 arguments, durée, jetons, jamais le texte d'un résultat) vivent dans
 `assistant.sqlite3`, à côté de la base, hors des sauvegardes. Ils sont gardés
 30 jours au plus : `pokeprice-manage purge` efface le reste. **Effacer** retire
 toutes vos conversations ; le décompte du jour reste, sans texte.
+
+*Signaler une réponse* ([fiche 0038](decisions/0038-capture-des-echecs.md)).
+Sous chaque réponse, le bouton 👎 ouvre une note facultative (« Qu'est-ce qui
+cloche ? ») ; **Signaler** l'enregistre avec la réponse, et le bouton affiche
+« Signalée ». Appuyer de nouveau remplace la note. Le serveur signale aussi
+seul une réponse quand le modèle ou un outil échoue, quand les quatre tours
+d'outils ne suffisent pas, ou quand la question suivante, posée dans les trois
+minutes, redit la précédente avec d'autres mots. Pour noter un défaut trouvé
+en essayant le chat, écrivez une question qui commence par **« Défaut : »**
+(« Défaut : il en compte 2, j'en ai 3 ») : elle ne part pas au modèle, le
+chat répond qu'elle est notée, et elle se rattache à la réponse précédente.
+Une conversation signalée échappe à la purge des 30 jours, jusqu'à 180 jours ;
+**Effacer** la retire comme les autres. `pokeprice-manage --data <dossier>
+assistant-drafts` en tire des brouillons de cas du
+[banc](../bench/assistant/README.md#brouillons-tirés-des-échanges-signalés),
+sans aucune donnée réelle. Route : `POST
+/api/assistant/answers/{id}/flag` (`{note?}`), l'identifiant étant le
+`message_id` de l'événement `done`.
 
 *Pour un développeur.* `POST /api/assistant` (`{question, conversation_id?, context?}`)
 répond en flux `text/event-stream`, avec les événements `text`, `tool` (nom de

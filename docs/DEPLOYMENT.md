@@ -37,6 +37,10 @@ Autres hébergeurs possibles, sur un petit serveur privé payant : Scaleway
     - `POKEPRICE_ASSISTANT_DAILY_LIMIT` (facultatif, 100 questions par jour
       pour toute la gestion) et `POKEPRICE_ASSISTANT_PER_MINUTE` (facultatif,
       6 questions par minute et par compte) ;
+    - `POKEPRICE_ASSISTANT_COST_ALERT_EUR` (facultatif, 30 € ; 0 éteint
+      l'alerte) et `POKEPRICE_ASSISTANT_EUR_PER_USD` (facultatif, 0,95 €
+      pour un dollar) : le seuil de l'alerte de coût mensuelle et le taux qui
+      convertit le tarif ([fiche 0039](decisions/0039-alerte-de-cout-du-chat.md)) ;
   - `POKEPRICE_HOST`, le nom de domaine accepté par l'application ;
   - `POKEPRICE_PUBLIC_ORIGIN`, l'origine HTTPS publique sans chemin, utilisée
     pour les URL des aperçus de partage ; si elle est absente, le serveur

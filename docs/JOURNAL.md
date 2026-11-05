@@ -28,6 +28,17 @@ daté la quitte, il est versé ici dans le même commit.
   gardé 30 jours avec la question ; le banc accepte un contexte par cas
   ([fiche 0036](decisions/0036-contexte-de-la-question.md),
   `tests/test_assistant_context.py`). Pas encore rejoué avec Gemini.
+- Chat de gestion, capture des échecs : bouton 👎 sous chaque réponse avec
+  une note facultative, signaux du serveur (erreur du modèle ou d'un outil,
+  plafond de tours, question reformulée) et convention « Défaut : … » ;
+  les conversations signalées échappent à la purge des 30 jours (180 jours
+  au plus) et `pokeprice-manage assistant-drafts` en tire des brouillons du
+  banc sans donnée réelle ([fiche 0038](decisions/0038-capture-des-echecs.md),
+  `tests/test_assistant_signals.py`).
+- Alerte de coût du chat : les jetons s'additionnent par mois civil, hors de la
+  purge des 30 jours, et une notification part une fois par mois quand le coût
+  estimé atteint 30 € ; la grille des tarifs passe du banc au paquet
+  ([fiche 0039](decisions/0039-alerte-de-cout-du-chat.md)).
 - Premier brief du matin reçu par ntfy et Web Push, sans erreur. ntfy est
   ensuite retiré du serveur : il ne doublait que le téléphone du propriétaire,
   déjà abonné à Web Push, et l'adresse de son sujet avait fui

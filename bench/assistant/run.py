@@ -98,6 +98,9 @@ def load_cases(path: Path = HERE / "commands.json", tools: list[dict] | None = N
         if not cid or cid in seen:
             raise ValueError(f"identifiant absent ou en double : {cid!r}")
         seen.add(cid)
+        if case.get("draft") or "brouillon" in case:
+            # A draft from `pokeprice-manage assistant-drafts` (fiche 0038): its <…> are still to fill.
+            raise ValueError(f"{cid} : brouillon à compléter, retirer draft et brouillon d'abord")
         if not case.get("prompt") or not case.get("category"):
             raise ValueError(f"{cid} : prompt et category sont obligatoires")
         expect = case.get("expect") or {}
@@ -220,6 +223,8 @@ def _days_since(since: str | None) -> float:
 
 # La consigne système est celle du chat de gestion : un seul fichier, dans le paquet.
 SYSTEM_PROMPT = HERE.parents[1] / "src" / "pokeprice" / "assistant_prompt.md"
+# One price list for the bench and the chat's cost alert (decision 0039).
+PRICING = HERE.parents[1] / "src" / "pokeprice" / "assistant_pricing.json"
 
 
 def load_system(path: Path = SYSTEM_PROMPT) -> str:
@@ -1179,7 +1184,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.merge:
         tools = load_tools()
         report = merge_reports([load_json(p) for p in args.merge], load_cases(tools=tools), tools,
-                               load_json(HERE / "pricing.json"))
+                               load_json(PRICING))
         json_path, md_path = write_report(report, args.label or "synthese", args.out)
         print(f"Rapport : {json_path} et {md_path}")
         return 0
@@ -1192,7 +1197,7 @@ def main(argv: list[str] | None = None) -> int:
         cases = [c for c in cases if c["category"] in set(args.category)]
     system = load_system()
     fixtures_data = load_json(HERE / "fixtures.json")
-    pricing = load_json(HERE / "pricing.json")
+    pricing = load_json(PRICING)
     adapters = [make_adapter(spec, args, cases) for spec in (args.candidate or DEFAULT_CANDIDATES)]
     progress = None if args.quiet else (lambda msg: print(msg, file=sys.stderr, flush=True))
     report = run_bench(adapters, cases, tools, system, fixtures_data, pricing, progress,

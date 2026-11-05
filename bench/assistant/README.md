@@ -16,7 +16,7 @@ répondent avec des données synthétiques.
 | `tools.json` | les schémas : 10 outils en lecture (V1, puis `knowledge` et `count_copies` de la V1.1, copie de `docs/assistant-tools.json`, fiches 0032, 0035 et 0037) et 4 outils d'écriture fictifs (V2) |
 | `fixtures.json` | les données synthétiques renvoyées par les outils |
 | `../../src/pokeprice/assistant_prompt.md` | la consigne système commune à tous les candidats : celle du chat de gestion, un seul fichier |
-| `pricing.json` | les tarifs publics, avec leur source et leur date de relevé |
+| `../../src/pokeprice/assistant_pricing.json` | les tarifs publics, avec leur source et leur date de relevé : un seul fichier pour le banc et l'alerte de coût du chat (fiche 0039) |
 | `run.py` | le harnais et les adaptateurs (Ollama, Anthropic, factice ; Gemini reprend celui du chat, `pokeprice.assistant_model`) |
 | `results/` | les rapports JSON et Markdown |
 
@@ -90,6 +90,27 @@ Pikachu mène sans qu'aucune de ses éditions ne dépasse deux exemplaires.
 Une commande réussit quand le bon outil est appelé avec les bons arguments,
 que tous les appels respectent leur schéma, qu'aucun outil n'est inventé et
 qu'aucun outil interdit n'est appelé.
+
+## Brouillons tirés des échanges signalés
+
+Les réponses signalées dans le chat (👎, erreur, plafond de tours, question
+reformulée, « Défaut : … » ; [fiche 0038](../../docs/decisions/0038-capture-des-echecs.md))
+deviennent des brouillons de cas :
+
+```bash
+pokeprice-manage --data /chemin/du/dossier assistant-drafts --output ~/brouillons.json
+```
+
+La commande exige `--data`, ouvre `assistant.sqlite3` et la base en lecture
+seule, et écrit sur la sortie standard, ou dans `--output` sans jamais écraser
+un fichier. Chaque brouillon a la forme d'une commande, avec `"draft": true`
+et un objet `brouillon` (signaux, note, outils appelés et leur issue). La
+question et la note y sont gardées, mais chaque identifiant, montant, date,
+adresse, téléphone et nom connu de la base devient un emplacement `<…_n>` ;
+la réponse du chat et les valeurs des arguments n'y entrent pas. Pour en faire
+un cas : remplacer chaque `<…>` par une donnée de `fixtures.json`, écrire
+`category` et `expect`, retirer `draft` et `brouillon`, puis le copier dans
+`commands.json`. `run.py` refuse un cas resté brouillon.
 
 ## Mesurer sur le serveur ARM
 

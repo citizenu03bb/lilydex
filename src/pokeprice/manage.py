@@ -264,6 +264,12 @@ def main():
     )
     vapid.add_argument("--output", help="Écrire les variables dans ce fichier (0600, jamais écrasé)")
     vapid.add_argument("--subject", default="", help="Contact du serveur : mailto:… ou https://…")
+    # Chantier V1.1 « capture des échecs » (decision 0038).
+    drafts = actions.add_parser(
+        "assistant-drafts",
+        help="Brouillons de cas du banc tirés des échanges signalés du chat (lecture seule)",
+    )
+    drafts.add_argument("--output", help="Écrire dans ce fichier (jamais écrasé) ; sortie standard sinon")
     exporter = actions.add_parser("export", help="Export de la collection gérée")
     exporter.add_argument("format", choices=["csv", "json", "html"])
     exporter.add_argument("output")
@@ -272,6 +278,11 @@ def main():
         arg == "--data" or arg.startswith("--data=") for arg in sys.argv[1:]
     ):
         parser.error("brief exige --data explicite")
+    if args.action == "assistant-drafts":
+        if not any(arg == "--data" or arg.startswith("--data=") for arg in sys.argv[1:]):
+            parser.error("assistant-drafts exige --data explicite")
+        write_assistant_drafts(args.data, args.output)
+        return
     if args.action == "vapid-keys":
         try:
             write_vapid_keys(args.output, args.subject)
@@ -642,6 +653,24 @@ def send_brief(store, since=None, notify=False, channels=None, origin=None):
         if not result["notified"]:
             raise RuntimeError("Brief non envoyé : " + ", ".join(result["errors"].values()))
     return result
+
+
+def write_assistant_drafts(data, output=None, stdout=None):
+    """The flagged exchanges as draft bench cases; reads the base, writes only ``output``."""
+    from .assistant_signals import drafts
+
+    try:
+        result = drafts(data)
+    except FileNotFoundError as error:
+        raise SystemExit(str(error)) from None
+    text = json.dumps(result, ensure_ascii=False, indent=1) + "\n"
+    if not output:
+        (stdout or sys.stdout).write(text)
+        return
+    target = Path(output)
+    with target.open("x", encoding="utf-8") as handle:  # never overwrites
+        handle.write(text)
+    print(f"{len(result['cases'])} brouillon(s) écrits dans {target}", file=sys.stderr)
 
 
 def write_vapid_keys(output=None, subject="", stdout=None):
