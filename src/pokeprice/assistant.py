@@ -228,6 +228,57 @@ class Journal:
                              "output_tokens": month["o"]},
         }
 
+    # -- V1.1, cost alert (decision 0039) ---------------------------------------
+    # The month's tokens per model, apart from the questions: the 30 days' purge
+    # never empties a calendar month before its cost is read. Counts only, no text,
+    # kept 13 months. Own tables, created when first used: no migration of the rest.
+
+    def cost_tables(self, db):
+        db.executescript(COST_SCHEMA)
+
+    def count_month(self, month, model, input_tokens, output_tokens):
+        with self.connect() as db, db:
+            self.cost_tables(db)
+            db.execute(
+                "INSERT INTO token_months(month,model,questions,input_tokens,output_tokens) "
+                "VALUES(?,?,1,?,?) ON CONFLICT(month,model) DO UPDATE SET "
+                "questions=questions+1,input_tokens=input_tokens+excluded.input_tokens,"
+                "output_tokens=output_tokens+excluded.output_tokens",
+                (month, model, input_tokens, output_tokens))
+            db.execute("DELETE FROM token_months WHERE month<?", (month_shift(month, -12),))
+            db.execute("DELETE FROM cost_alerts WHERE month<?", (month_shift(month, -12),))
+
+    def month_tokens(self, month):
+        with self.connect() as db, db:
+            self.cost_tables(db)
+            return [dict(r) for r in db.execute(
+                "SELECT model,questions,input_tokens,output_tokens FROM token_months "
+                "WHERE month=? ORDER BY model", (month,))]
+
+    def claim_alert(self, month, cost, now):
+        """Take the month's alert: once sent, never again; a failed send waits a lease."""
+        with self.lock, self.connect() as db, db:
+            self.cost_tables(db)
+            row = db.execute("SELECT sent_at,claimed_at FROM cost_alerts WHERE month=?",
+                             (month,)).fetchone()
+            if row and (row["sent_at"] or row["claimed_at"] > now - ALERT_LEASE):
+                return False
+            db.execute("INSERT INTO cost_alerts(month,claimed_at,cost) VALUES(?,?,?) "
+                       "ON CONFLICT(month) DO UPDATE SET claimed_at=excluded.claimed_at,"
+                       "cost=excluded.cost", (month, now, cost))
+            return True
+
+    def alert_done(self, month, now, error=""):
+        with self.connect() as db, db:
+            db.execute("UPDATE cost_alerts SET sent_at=?,error=? WHERE month=?",
+                       (None if error else now, error, month))
+
+    def alert_state(self, month):
+        with self.connect() as db, db:
+            self.cost_tables(db)
+            row = db.execute("SELECT * FROM cost_alerts WHERE month=?", (month,)).fetchone()
+            return dict(row) if row else None
+
 
 @dataclass
 class Question:
@@ -421,3 +472,148 @@ class Assistant:
                             outcome=outcome, **tokens)
         logger.info("assistant question=%s rounds=%d outcome=%s ms=%d in=%d out=%d", question.id,
                     rounds, outcome, duration, tokens["input_tokens"], tokens["output_tokens"])
+        self.count_cost(tokens)  # V1.1, cost alert (decision 0039).
+
+    # -- V1.1, cost alert (decision 0039) ---------------------------------------
+    cost_alert = None  # A CostAlert, set by the web app; None in the tests that need none.
+
+    def count_cost(self, tokens):
+        """The question's tokens join the month's; never stops the answer."""
+        try:
+            month = month_of(time.time())
+            self.journal.count_month(month, self.model.name, tokens["input_tokens"],
+                                     tokens["output_tokens"])
+            if self.cost_alert is not None:
+                self.cost_alert.check(month)
+        except Exception:  # noqa: BLE001 - a cost count never breaks the chat.
+            logger.exception("assistant cost count failed")
+
+
+# -- V1.1, cost alert (decision 0039) -------------------------------------------
+# The chat's cost on the calendar month (UTC, like the day's ceiling): the month's
+# tokens per model times the public price in assistant_pricing.json, the file the
+# bench reads too. The price is in dollars; the threshold in euros, through a fixed
+# rate that can be set. At the threshold, one alert a month on the alert channels.
+
+PRICING = Path(__file__).with_name("assistant_pricing.json")
+COST_SCHEMA = """
+CREATE TABLE IF NOT EXISTS token_months(month TEXT NOT NULL, model TEXT NOT NULL,
+    questions INTEGER NOT NULL DEFAULT 0, input_tokens INTEGER NOT NULL DEFAULT 0,
+    output_tokens INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(month, model));
+CREATE TABLE IF NOT EXISTS cost_alerts(month TEXT PRIMARY KEY, claimed_at REAL NOT NULL,
+    sent_at REAL, cost REAL NOT NULL DEFAULT 0, error TEXT NOT NULL DEFAULT '');
+"""
+DEFAULT_COST_ALERT_EUR = 30.0
+# Above the rate of the day it was set (about 0.86 €): the cost in euros reads a
+# little high, so the alert comes early rather than late.
+DEFAULT_EUR_PER_USD = 0.95
+ALERT_LEASE = 600  # Seconds before a failed send is tried again, at the next question.
+COST_ALERT_VARIABLE = "POKEPRICE_ASSISTANT_COST_ALERT_EUR"
+RATE_VARIABLE = "POKEPRICE_ASSISTANT_EUR_PER_USD"
+
+
+def month_of(moment):
+    return datetime.fromtimestamp(moment, timezone.utc).strftime("%Y-%m")
+
+
+def month_shift(month, months):
+    year, number = map(int, month.split("-"))
+    index = year * 12 + number - 1 + months
+    return f"{index // 12:04d}-{index % 12 + 1:02d}"
+
+
+def load_pricing(path=PRICING):
+    return json.loads(Path(path).read_text(encoding="utf-8"))
+
+
+def price_of(pricing, model, month):
+    """Dollars per million tokens for the month, or None for a model without a price."""
+    price = (pricing.get("models") or {}).get(model)
+    if not price or "input" not in price or "output" not in price:
+        return None
+    current = {"input": price["input"], "output": price["output"]}
+    for change in sorted(price.get("changes") or [], key=lambda c: c["from"]):
+        if change["from"] <= month:
+            current = {"input": change["input"], "output": change["output"]}
+    return current
+
+
+def month_cost(rows, pricing, month, eur_per_usd):
+    """The month's estimated cost; the models without a price are named, not counted."""
+    usd, unknown = 0.0, []
+    for row in rows:
+        price = price_of(pricing, row["model"], month)
+        if price is None:
+            if row["model"].split(":")[0] != "fake":
+                unknown.append(row["model"])
+            continue
+        usd += (row["input_tokens"] * price["input"]
+                + row["output_tokens"] * price["output"]) / 1_000_000
+    return {"month": month, "usd": round(usd, 4), "eur": round(usd * eur_per_usd, 4),
+            "unpriced_models": unknown}
+
+
+def euro_text(value):
+    return f"{value:.2f} €".replace(".", ",")
+
+
+class CostAlert:
+    """One alert a calendar month once the chat's estimated cost reaches the threshold.
+
+    ``channels`` are the alert channels (``Notifier.channels``: Web Push, e-mail).
+    The send runs in a thread (``spawn``): the answer never waits on a push service.
+    """
+
+    def __init__(self, journal, channels, origin="", *, threshold_eur=DEFAULT_COST_ALERT_EUR,
+                 eur_per_usd=DEFAULT_EUR_PER_USD, pricing=None, spawn=None, clock=time.time):
+        self.journal, self.channels = journal, list(channels)
+        self.link = origin.rstrip("/") + "/gestion"
+        self.threshold, self.rate = threshold_eur, eur_per_usd
+        self.pricing = load_pricing() if pricing is None else pricing
+        self.spawn = spawn or (lambda job: threading.Thread(
+            target=job, name="pokeprice-cost-alert", daemon=True).start())
+        self.clock = clock
+        self.warned = set()
+
+    @property
+    def enabled(self):
+        return self.threshold > 0 and bool(self.channels)
+
+    def cost(self, month):
+        return month_cost(self.journal.month_tokens(month), self.pricing, month, self.rate)
+
+    def check(self, month=None):
+        """After a question: the month's cost, and the alert when it is due; returns the cost."""
+        month = month or month_of(self.clock())
+        cost = self.cost(month)
+        for model in set(cost["unpriced_models"]) - self.warned:
+            self.warned.add(model)
+            logger.warning("assistant cost: no price for model=%s in %s, its tokens are not "
+                           "counted", model, PRICING.name)
+        if self.enabled and cost["eur"] >= self.threshold and \
+                self.journal.claim_alert(month, cost["eur"], self.clock()):
+            self.spawn(lambda: self.send(month, cost))
+        return cost
+
+    def text(self, cost):
+        title = f"Chat : coût estimé {euro_text(cost['eur'])} ce mois-ci"
+        body = (f"{title}, seuil {euro_text(self.threshold)}. Usage inhabituel ou tarif changé : "
+                f"regarder le journal du chat.")
+        return title, body
+
+    def send(self, month, cost):
+        title, body = self.text(cost)
+        sent, errors = [], []
+        for channel in self.channels:
+            try:
+                channel.send(title, f"{body}\n{self.link}", self.link)
+                sent.append(channel.name)
+            except Exception as error:  # noqa: BLE001 - one channel down never hides the other.
+                errors.append(type(error).__name__)  # The class only, never an address.
+        error = "" if sent else ", ".join(errors) or "aucun canal"
+        self.journal.alert_done(month, self.clock(), error)
+        if error:
+            logger.warning("assistant cost alert not sent month=%s error=%s", month, error)
+        else:
+            logger.info("assistant cost alert sent month=%s eur=%.2f channels=%s", month,
+                        cost["eur"], ",".join(sent))

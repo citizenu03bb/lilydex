@@ -9,6 +9,10 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-05
 
+- Alerte de coût du chat : les jetons s'additionnent par mois civil, hors de la
+  purge des 30 jours, et une notification part une fois par mois quand le coût
+  estimé atteint 30 € ; la grille des tarifs passe du banc au paquet
+  ([fiche 0039](decisions/0039-alerte-de-cout-du-chat.md)).
 - Premier brief du matin reçu par ntfy et Web Push, sans erreur. ntfy est
   ensuite retiré du serveur : il ne doublait que le téléphone du propriétaire,
   déjà abonné à Web Push, et l'adresse de son sujet avait fui

@@ -42,6 +42,7 @@ l'ancienne passe au statut « remplacée ».
 | [0032](0032-outils-assistant-lecture.md) | Le chat de gestion lit par huit outils fermés, sous une portée de délégation en lecture seule (proposée) | 2026-11-04 |
 | [0033](0033-notifications-web-push.md) | La gestion installée reçoit ses alertes par Web Push ; ntfy, d'abord gardé en secours, est retiré | 2026-11-04 |
 | [0034](0034-conversations-du-chat.md) | Les conversations du chat restent 30 jours au plus, dans un fichier à part, hors des sauvegardes | 2026-11-04 |
+| [0039](0039-alerte-de-cout-du-chat.md) | Le chat prévient une fois par mois quand son coût estimé atteint 30 €, sans plafond dur (proposée) | 2026-11-05 |
 
 ## Écrire une fiche
 
