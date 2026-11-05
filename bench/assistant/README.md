@@ -13,7 +13,7 @@ répondent avec des données synthétiques.
 | Fichier | Rôle |
 |---|---|
 | `commands.json` | les commandes types, en français familier, avec l'appel attendu |
-| `tools.json` | les schémas : 9 outils en lecture (V1 et `knowledge` de la V1.1, copie de `docs/assistant-tools.json`, fiches 0032 et 0035) et 4 outils d'écriture fictifs (V2) |
+| `tools.json` | les schémas : 10 outils en lecture (V1, puis `knowledge` et `count_copies` de la V1.1, copie de `docs/assistant-tools.json`, fiches 0032, 0035 et 0037) et 4 outils d'écriture fictifs (V2) |
 | `fixtures.json` | les données synthétiques renvoyées par les outils |
 | `../../src/pokeprice/assistant_prompt.md` | la consigne système commune à tous les candidats : celle du chat de gestion, un seul fichier |
 | `../../src/pokeprice/assistant_pricing.json` | les tarifs publics, avec leur source et leur date de relevé : un seul fichier pour le banc et l'alerte de coût du chat (fiche 0039) |
@@ -74,6 +74,18 @@ processeur seul, comme le serveur ARM).
   contrôle au chargement ; une clé qu'elle écarterait fait échouer le jeu.
 - `overrides` : remplace le résultat d'un outil pour ce cas (une consigne cachée
   dans un message de client, par exemple).
+- `expect.tool` peut être une liste d'outils également acceptés.
+- `check_numbers` : chaque nombre de la réponse doit figurer dans la question
+  ou dans un résultat d'outil de la question ; sinon le cas échoue (« nombres
+  sans source »), et une réponse vide aussi.
+- `answer_re` : une expression régulière que la réponse, sans casse ni accents,
+  doit contenir ; `answer_example` est la réponse de l'adaptateur parfait.
+- Une entrée faite seulement de clés `_` (`{"_chantier": …}`) est un
+  commentaire.
+
+Les doublons synthétiques de `fixtures.json` (`duplicates`) se déplient en
+exemplaires `EX-9001`… : par édition exacte, Racaillou mène ; par nom,
+Pikachu mène sans qu'aucune de ses éditions ne dépasse deux exemplaires.
 
 Une commande réussit quand le bon outil est appelé avec les bons arguments,
 que tous les appels respectent leur schéma, qu'aucun outil n'est inventé et

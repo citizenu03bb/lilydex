@@ -23,6 +23,11 @@
             "maxLength": 120,
             "description": "Nom (ou partie) de l'extension."
           },
+          "language": {
+            "type": "string",
+            "maxLength": 10,
+            "description": "Code de langue, par exemple fr, en, ja, it."
+          },
           "album": {
             "type": "string",
             "maxLength": 120,
@@ -246,6 +251,84 @@
             "type": "string",
             "maxLength": 80,
             "description": "Nom du sujet, par exemple plancher ou vitrine."
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "count_copies",
+      "description": "Compte les exemplaires de toute la collection, sans plafond de page : total, groupes par édition exacte (nom + extension + numéro + langue), par nom, extension, langue, statut, stock ou album, classés du plus nombreux au moins nombreux. duplicates_only : seulement les doublons (au moins 2 exemplaires). Vendus compris, sauf filtre stock.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "group_by": {
+            "type": "string",
+            "enum": [
+              "edition",
+              "name",
+              "set",
+              "language",
+              "status",
+              "stock",
+              "album"
+            ],
+            "maxLength": 20,
+            "default": "edition",
+            "description": "Regroupement ; edition pour les doublons exacts."
+          },
+          "duplicates_only": {
+            "type": "boolean",
+            "default": false,
+            "description": "Vrai : seulement les groupes d'au moins 2 exemplaires."
+          },
+          "top": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 10,
+            "description": "Nombre de groupes renvoyés, les plus nombreux d'abord."
+          },
+          "query": {
+            "type": "string",
+            "maxLength": 120,
+            "description": "Mots cherchés dans le nom, l'extension ou le numéro."
+          },
+          "set": {
+            "type": "string",
+            "maxLength": 120,
+            "description": "Nom (ou partie) de l'extension."
+          },
+          "language": {
+            "type": "string",
+            "maxLength": 10,
+            "description": "Code de langue, par exemple fr, en, ja, it."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "confirmed",
+              "review",
+              "unresolved",
+              "failed"
+            ],
+            "maxLength": 20,
+            "description": "Statut d'identification."
+          },
+          "stock": {
+            "type": "string",
+            "enum": [
+              "available",
+              "reserved",
+              "sold"
+            ],
+            "maxLength": 20,
+            "description": "État du stock ; available pour les cartes encore là."
+          },
+          "for_sale": {
+            "type": "boolean",
+            "description": "Vrai : seulement les exemplaires en vente ; faux : seulement les autres."
           }
         },
         "required": [],

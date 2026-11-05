@@ -464,6 +464,7 @@
   "chat.tool.sales_summary": "Je compte les ventes…",
   "chat.tool.agent_activity": "Je relis ce qu’ont fait les agents…",
   "chat.tool.todo_queue": "Je regarde la file « À toi »…",
+  "chat.tool.count_copies": "Je compte dans la collection…",
   "chat.tool.unknown": "Je vérifie ce que je peux faire…",
   "chat.tool.knowledge": "Je relis le guide de la gestion…",
   "chat.flag.label": "Signaler une réponse fausse ou inutile",

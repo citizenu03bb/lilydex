@@ -44,6 +44,7 @@ l'ancienne passe au statut « remplacée ».
 | [0034](0034-conversations-du-chat.md) | Les conversations du chat restent 30 jours au plus, dans un fichier à part, hors des sauvegardes | 2026-11-04 |
 | [0035](0035-connaissances-de-l-assistant.md) | Le chat connaît la gestion par une carte courte dans sa consigne et lit le guide à la demande (proposée) | 2026-11-05 |
 | [0036](0036-contexte-de-la-question.md) | Chaque question du chat part avec ce que l'écran affiche, par liste blanche, comme une donnée (proposée) | 2026-11-05 |
+| [0037](0037-comptage-et-nombres.md) | Le chat compte par un outil serveur, et chaque nombre de sa réponse vient d'un outil (proposée) | 2026-11-05 |
 | [0038](0038-capture-des-echecs.md) | Le chat garde les réponses signalées, par un 👎 ou par un signal du serveur, pour en tirer des cas du banc sans donnée réelle (proposée) | 2026-11-05 |
 | [0039](0039-alerte-de-cout-du-chat.md) | Le chat prévient une fois par mois quand son coût estimé atteint 30 €, sans plafond dur (proposée) | 2026-11-05 |
 

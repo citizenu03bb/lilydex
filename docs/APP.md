@@ -299,6 +299,11 @@ dans la langue de la question, en deux ou trois phrases.
   autonomie des agents, lots, ordre du classeur), au moment de la question ;
   les commandes de serveur en sont retirées
   ([fiche 0035](decisions/0035-connaissances-de-l-assistant.md)).
+- **Ce qu'il compte.** Doublons, classements (« top 10 de mes doublons ») et
+  comptes par extension, langue ou statut passent par un outil de comptage
+  sur toute la collection. Chaque nombre de sa réponse vient d'un outil
+  appelé pour la question ; sinon il dit qu'il ne peut pas le compter
+  ([fiche 0037](decisions/0037-comptage-et-nombres.md)).
 - **Ce qu'il ne fait pas.** Quand on lui demande une action (publier, changer
   un prix, rembourser…), il dit qu'il ne fait que lire et montre où agir : la
   file « À toi », la fiche de la carte dans Collection ou l'écran Ventes.

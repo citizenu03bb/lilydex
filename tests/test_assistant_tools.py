@@ -87,7 +87,7 @@ def test_registry_is_closed_and_strict():
     names = [t["name"] for t in tool_schemas()["tools"]]
     assert names == ["search_copies", "get_copy", "explain_price", "why_not_for_sale",
                      "list_listings", "sales_summary", "agent_activity", "todo_queue",
-                     "knowledge"]
+                     "knowledge", "count_copies"]
     for tool in TOOLS.values():
         parameters = tool.parameters
         assert parameters["type"] == "object" and parameters["additionalProperties"] is False
@@ -118,6 +118,9 @@ def test_the_agent_contract_lists_the_tool_routes():
     ("list_listings", {"max_age_days": -1}),
     ("sales_summary", {"since": "hier"}),
     ("todo_queue", {"limit": 101}),
+    ("count_copies", {"group_by": "couleur"}),
+    ("count_copies", {"top": 101}),
+    ("count_copies", {"top": 0}),
 ])
 def test_invalid_arguments_are_refused(assistant, name, arguments):
     before = counts(assistant["store"])
@@ -182,6 +185,8 @@ def test_search_copies(assistant):
     assert run(assistant, "search_copies", {"album": "Album B"})["total"] == 1
     assert run(assistant, "search_copies", {"album": "a"})["total"] == 3
     assert run(assistant, "search_copies", {"status": "review"})["total"] == 1
+    assert run(assistant, "search_copies", {"language": "FR"})["total"] == 4
+    assert run(assistant, "search_copies", {"language": "ja"})["total"] == 0
     on_sale = run(assistant, "search_copies", {"for_sale": True})
     assert [c["id"] for c in on_sale["items"]] == [cards[0]["id"]]
     assert run(assistant, "search_copies", {"for_sale": False})["total"] == 3
@@ -273,7 +278,7 @@ def test_no_tool_leaks_client_data_or_writes(assistant):
     store, cards = assistant["store"], assistant["cards"]
     before = counts(store)
     calls = [(name, {}) for name in ("search_copies", "list_listings", "sales_summary",
-                                     "agent_activity", "todo_queue")]
+                                     "agent_activity", "todo_queue", "count_copies")]
     calls += [(name, {"copy_id": c["id"]}) for c in cards
               for name in ("get_copy", "explain_price", "why_not_for_sale")]
     for name, arguments in calls:
@@ -290,3 +295,45 @@ def test_check_output_refuses_client_keys():
         check_output({"items": [{"email": "x@example.org"}]})
     with pytest.raises(UnsafeOutput):
         check_output({"note": {"untrusted_text": "x", "source": "s", "notice": "n", "extra": 1}})
+
+
+# -- V1.1 comptage (decision 0037) ---------------------------------------------
+
+
+def test_count_copies_groups_exact_editions_and_names(assistant):
+    store = assistant["store"]
+    # 3 Gourgeist 1/20 from the fixture, plus 2 more of the same edition, one in English,
+    # and 55 Racaillou: beyond the 50 of a search page, the total stays exact.
+    for n in range(10, 12):
+        add_copy(store, n)
+    add_copy(store, 12, language="en")
+    for n in range(20, 75):
+        add_copy(store, n, name="Racaillou", number="74/102", set_name="Base")
+    add_copy(store, 80, name="Pikachu", number="60/102")
+    edition = run(assistant, "count_copies", {"duplicates_only": True})
+    assert edition["total_copies"] == 4 + 3 + 55 + 1
+    assert [(g["name"], g["number"], g["language"], g["count"]) for g in edition["top"]] == [
+        ("Racaillou", "74/102", "fr", 55), ("Gourgeist", "1/20", "fr", 5)]
+    assert edition["duplicate_groups"] == 2 and edition["duplicate_extra_copies"] == 54 + 4
+    assert len(edition["top"][0]["copy_ids"]) == 5
+    by_name = run(assistant, "count_copies", {"group_by": "name", "top": 2})
+    assert [(g["name"], g["count"], g["editions"]) for g in by_name["top"]] == [
+        ("Racaillou", 55, 1), ("Gourgeist", 6, 2)]
+    assert by_name["groups_not_shown"] == 1  # Pikachu, two editions
+    assert run(assistant, "count_copies", {"group_by": "language"})["top"][1] == {
+        "language": "en", "count": 1, "editions": 1, "copy_ids": [by_lang_id(store)]}
+
+
+def by_lang_id(store):
+    with store.connect() as db:
+        return db.execute("SELECT id FROM copies WHERE language='en'").fetchone()[0]
+
+
+def test_count_copies_filters(assistant):
+    assert run(assistant, "count_copies", {"for_sale": True})["total_copies"] == 1
+    assert run(assistant, "count_copies", {"status": "review"})["total_copies"] == 1
+    assert run(assistant, "count_copies", {"query": "pikachu"})["total_copies"] == 1
+    assert run(assistant, "count_copies", {"stock": "sold"})["total_copies"] == 0
+    status = run(assistant, "count_copies", {"group_by": "status"})
+    assert {g["identification_status"]: g["count"] for g in status["top"]} == {
+        "confirmed": 3, "review": 1}

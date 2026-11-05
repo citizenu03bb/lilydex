@@ -262,6 +262,7 @@ def search_copies(ctx, values):
     terms = normalized(values.get("query", "")).split()
     number = normalized(values.get("number", ""))
     edition = normalized(values.get("set", ""))
+    language = normalized(values.get("language", ""))
     album = normalized(values.get("album", ""))
     found = []
     for card in ctx.cards().values():
@@ -276,6 +277,7 @@ def search_copies(ctx, values):
             all(t in haystack for t in terms)
             and (not number or own == number or own.split("/")[0].lstrip("0") == number.lstrip("0"))
             and (not edition or edition in normalized(card["set_name"] or ""))
+            and (not language or normalized(card["language"] or "") == language)
             and (not album or album in (normalized(card["album"] or ""), normalized(card["album_id"])))
             and ("status" not in values or card["identification_status"] == values["status"])
             and ("stock" not in values or card["stock_state"] == values["stock"])
@@ -531,6 +533,70 @@ def todo_queue(ctx, values):
     }
 
 
+# -- V1.1 comptage (decision 0037) ---------------------------------------------
+
+GROUPS = {
+    # Exact edition: what « doublon » means for a lot of duplicates.
+    "edition": ("name", "set_name", "number", "language"),
+    "name": ("name",),
+    "set": ("set_name",),
+    "language": ("language",),
+    "status": ("identification_status",),
+    "stock": ("stock_state",),
+    "album": ("album",),
+}
+
+
+def count_copies(ctx, values):
+    """Counts over the whole collection: no page, so totals are never capped."""
+    terms = normalized(values.get("query", "")).split()
+    edition = normalized(values.get("set", ""))
+    language = normalized(values.get("language", ""))
+    fields = GROUPS[values["group_by"]]
+    groups, total = {}, 0
+    for card in ctx.cards().values():
+        haystack = normalized(" ".join(
+            str(card.get(k) or "") for k in ("name", "set_name", "number", "catalog_names")
+        ))
+        if not (
+            all(t in haystack for t in terms)
+            and (not edition or edition in normalized(card["set_name"] or ""))
+            and (not language or normalized(card["language"] or "") == language)
+            and ("status" not in values or card["identification_status"] == values["status"])
+            and ("stock" not in values or card["stock_state"] == values["stock"])
+            and ("for_sale" not in values or bool(card["published"]) == values["for_sale"])
+        ):
+            continue
+        total += 1
+        key = tuple(normalized(str(card.get(f) or "")) for f in fields)
+        group = groups.setdefault(key, {"cards": [], "editions": set()})
+        group["cards"].append(card)
+        group["editions"].add(tuple(normalized(str(card.get(f) or "")) for f in GROUPS["edition"]))
+    rows = []
+    for group in groups.values():
+        cards = sorted(group["cards"], key=lambda c: c["id"])
+        first = cards[0]
+        row = {f: first.get(f) for f in fields}
+        row["count"] = len(cards)
+        if values["group_by"] != "edition":
+            row["editions"] = len(group["editions"])
+        row["copy_ids"] = [c["id"] for c in cards[:5]]
+        rows.append(row)
+    duplicates = [r for r in rows if r["count"] >= 2]
+    shown = duplicates if values["duplicates_only"] else rows
+    shown.sort(key=lambda r: (-r["count"], *(normalized(str(r[f] or "")) for f in fields)))
+    top = shown[: values["top"]]
+    return {
+        "group_by": values["group_by"],
+        "total_copies": total,
+        "groups_total": len(rows),
+        "duplicate_groups": len(duplicates),
+        "duplicate_extra_copies": sum(r["count"] - 1 for r in duplicates),
+        "top": top,
+        "groups_not_shown": len(shown) - len(top),
+    }
+
+
 @dataclass(frozen=True)
 class Tool:
     name: str
@@ -559,6 +625,7 @@ TOOLS = {
                 "number": {"type": "string", "maxLength": 20,
                            "description": "Numéro de la carte, par exemple 4 ou 4/102."},
                 "set": {"type": "string", "maxLength": 120, "description": "Nom (ou partie) de l'extension."},
+                "language": {"type": "string", "maxLength": 10, "description": "Code de langue, par exemple fr, en, ja, it."},
                 "album": {"type": "string", "maxLength": 120, "description": "Nom ou identifiant de l'album."},
                 "status": {"type": "string", "enum": ["confirmed", "review", "unresolved", "failed"],
                            "maxLength": 20, "description": "Statut d'identification."},
@@ -644,6 +711,32 @@ TOOLS = {
             knowledge,
         ),
         # -- fin V1.1, connaissances --
+        # V1.1 comptage (decision 0037).
+        Tool(
+            "count_copies",
+            "Compte les exemplaires de toute la collection, sans plafond de page : total, "
+            "groupes par édition exacte (nom + extension + numéro + langue), par nom, extension, "
+            "langue, statut, stock ou album, classés du plus nombreux au moins nombreux. "
+            "duplicates_only : seulement les doublons (au moins 2 exemplaires). Vendus compris, "
+            "sauf filtre stock.",
+            arguments({
+                "group_by": {"type": "string", "enum": list(GROUPS), "maxLength": 20,
+                             "default": "edition", "description": "Regroupement ; edition pour les doublons exacts."},
+                "duplicates_only": {"type": "boolean", "default": False,
+                                    "description": "Vrai : seulement les groupes d'au moins 2 exemplaires."},
+                "top": {"type": "integer", "minimum": 1, "maximum": 100, "default": 10,
+                        "description": "Nombre de groupes renvoyés, les plus nombreux d'abord."},
+                "query": {"type": "string", "maxLength": 120, "description": "Mots cherchés dans le nom, l'extension ou le numéro."},
+                "set": {"type": "string", "maxLength": 120, "description": "Nom (ou partie) de l'extension."},
+                "language": {"type": "string", "maxLength": 10, "description": "Code de langue, par exemple fr, en, ja, it."},
+                "status": {"type": "string", "enum": ["confirmed", "review", "unresolved", "failed"],
+                           "maxLength": 20, "description": "Statut d'identification."},
+                "stock": {"type": "string", "enum": ["available", "reserved", "sold"],
+                          "maxLength": 20, "description": "État du stock ; available pour les cartes encore là."},
+                "for_sale": {"type": "boolean", "description": "Vrai : seulement les exemplaires en vente ; faux : seulement les autres."},
+            }),
+            count_copies,
+        ),
     )
 }
 

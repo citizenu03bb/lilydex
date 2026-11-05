@@ -80,11 +80,18 @@ def load_tools(path: Path = HERE / "tools.json") -> list[dict]:
     return tools
 
 
+def expected_tools(expect: dict) -> list[str]:
+    """expect.tool : un nom, ou une liste de noms également acceptés (V1.1)."""
+    tool = expect["tool"]
+    return list(tool) if isinstance(tool, list) else [tool]
+
+
 def load_cases(path: Path = HERE / "commands.json", tools: list[dict] | None = None) -> list[dict]:
     """Charge et contrôle le jeu de commandes."""
     tools = tools if tools is not None else load_tools()
     known = {t["name"] for t in tools}
-    cases = load_json(path)["cases"]
+    # Une entrée faite seulement de clés « _ » est un commentaire (le nom d'un chantier).
+    cases = [c for c in load_json(path)["cases"] if not all(k.startswith("_") for k in c)]
     seen: set[str] = set()
     for case in cases:
         cid = case.get("id")
@@ -100,7 +107,7 @@ def load_cases(path: Path = HERE / "commands.json", tools: list[dict] | None = N
         if expect.get("none"):
             names = expect.get("allow", [])
         elif expect.get("tool"):
-            names = [expect["tool"], *expect.get("before", [])]
+            names = [*expected_tools(expect), *expect.get("before", [])]
         else:
             raise ValueError(f"{cid} : expect.tool ou expect.none est obligatoire")
         names = [*names, *case.get("forbid", []), *case.get("overrides", {})]
@@ -231,7 +238,7 @@ class Fixtures:
                      "condition", "status", "price_eur")
 
     def __init__(self, data: dict, overrides: dict | None = None):
-        self.data = data
+        self.data = data = with_duplicates(data)
         self.overrides = overrides or {}
         self.copies = {c["copy_id"]: c for c in data["copies"]}
 
@@ -275,7 +282,8 @@ class Fixtures:
 
     def _search_copies(self, query: str = "", number: str | None = None, set: str | None = None,
                        album: str | None = None, status: str | None = None, stock: str | None = None,
-                       for_sale: bool | None = None, limit: int = 20, offset: int = 0) -> dict:
+                       for_sale: bool | None = None, limit: int = 20, offset: int = 0,
+                       language: str | None = None) -> dict:
         found = []
         for copy in self.data["copies"]:
             states = self._states(copy)
@@ -284,6 +292,8 @@ class Fixtures:
             if number and fold(number) not in fold(copy["number"]):
                 continue
             if set and fold(set) not in fold(copy["set"]):
+                continue
+            if language and fold(language) != fold(copy["language"]):
                 continue
             if status and states["status"] != status:
                 continue
@@ -360,6 +370,87 @@ class Fixtures:
         return {"status": "queued", "todo_card": "FLOOR-SYNTH-1",
                 "message": "Demande ajoutée à la file « À toi »."}
 
+    # -- V1.1 comptage et contexte (fiche 0037) --------------------------------
+
+    COUNT_GROUPS = {"edition": ("name", "set_name", "number", "language"), "name": ("name",),
+                    "set": ("set_name",), "language": ("language",), "status": ("status",),
+                    "stock": ("stock",), "album": ("album",)}
+
+    def _count_copies(self, group_by: str = "edition", duplicates_only: bool = False, top: int = 10,
+                      query: str = "", set: str | None = None, language: str | None = None,
+                      status: str | None = None, stock: str | None = None,
+                      for_sale: bool | None = None) -> dict:
+        """Même contrat que count_copies du serveur, sur les fixtures."""
+        fields = self.COUNT_GROUPS.get(group_by)
+        if fields is None:
+            return {"error": f"group_by inconnu : {group_by}"}
+        groups: dict[tuple, list[dict]] = {}
+        for copy in self.data["copies"]:
+            states = self._states(copy)
+            if (query and query.strip() not in {"*", "%"} and not self._matches(query, copy)) \
+                    or (set and fold(set) not in fold(copy["set"])) \
+                    or (language and fold(language) != fold(copy["language"])) \
+                    or (status and states["status"] != status) \
+                    or (stock and states["stock"] != stock) \
+                    or (for_sale is not None and states["for_sale"] != for_sale):
+                continue
+            row = {"name": copy["name_fr"], "set_name": copy["set"], "number": copy["number"],
+                   "language": copy["language"], "album": copy.get("binder", "").split(",")[0],
+                   "copy_id": copy["copy_id"], **states}
+            groups.setdefault(tuple(fold(row[f]) for f in fields), []).append(row)
+        rows = []
+        for members in groups.values():
+            out = {f: members[0][f] for f in fields}
+            out["count"] = len(members)
+            if group_by != "edition":
+                out["editions"] = len({(m["name"], m["set_name"], m["number"], m["language"])
+                                       for m in members})
+            out["copy_ids"] = sorted(m["copy_id"] for m in members)[:5]
+            rows.append(out)
+        duplicates = [r for r in rows if r["count"] >= 2]
+        shown = duplicates if duplicates_only else rows
+        shown.sort(key=lambda r: (-r["count"], *(fold(r[f]) for f in fields)))
+        top_rows = shown[: max(1, int(top))]
+        return {"group_by": group_by, "total_copies": sum(len(m) for m in groups.values()),
+                "groups_total": len(rows), "duplicate_groups": len(duplicates),
+                "duplicate_extra_copies": sum(r["count"] - 1 for r in duplicates),
+                "top": top_rows, "groups_not_shown": len(shown) - len(top_rows)}
+
+
+def with_duplicates(data: dict) -> dict:
+    """Déplie les doublons synthétiques compacts de fixtures.json en exemplaires (EX-9xxx)."""
+    if "duplicates" not in data or data.get("_expanded"):
+        return data
+    copies = list(data["copies"])
+    serial = 9001
+    for group in data["duplicates"]:
+        for _ in range(group["count"]):
+            copies.append({"copy_id": f"EX-{serial}", "status": group.get("status", "not_for_sale"),
+                           "binder": group.get("binder", "Classeur 9"), "condition": "excellent",
+                           "price_eur": group.get("price_eur"), "floor_eur": group.get("floor_eur"),
+                           "not_for_sale_reason": "Doublon en attente d'un lot.",
+                           **{k: group[k] for k in ("name_fr", "name_en", "set", "number", "language")}})
+            serial += 1
+    return {**data, "copies": copies, "_expanded": True}
+
+
+NUMBER = re.compile(r"\d+(?:[.,]\d+)?")
+
+
+def numbers_in(text: str) -> set[float]:
+    return {float(n.replace(",", ".")) for n in NUMBER.findall(text)}
+
+
+def invented_numbers(case: dict, turns: list["Turn"]) -> list[str]:
+    """Les nombres de la réponse absents de la question et des résultats d'outils de la question."""
+    allowed = numbers_in(case["prompt"])
+    for turn in turns:
+        for content in turn.tool_results:
+            allowed |= numbers_in(content)
+    answer = " ".join(t.text for t in turns)
+    return sorted({n for n in NUMBER.findall(answer) if float(n.replace(",", ".")) not in allowed},
+                  key=lambda n: float(n.replace(",", ".")))
+
 
 # --------------------------------------------------------------------------
 # Adaptateurs
@@ -375,6 +466,7 @@ class Turn:
     output_tokens: int = 0
     raw: Any = None
     error: str | None = None
+    tool_results: list[str] = field(default_factory=list)  # résultats des appels de ce tour
 
 
 class Adapter:
@@ -450,9 +542,11 @@ def perfect_script(case: dict) -> list[dict]:
                 args[key] = re.sub(r"\\b|[|].*|[\\^$()]", "", matcher["re"])
         else:
             args[key] = matcher
-    if expect["tool"] == "request_floor_waiver":
+    tool = expected_tools(expect)[0]
+    if tool == "request_floor_waiver":
         args.setdefault("reason", "Demandé par l'opératrice.")
-    return [{"calls": [{"name": expect["tool"], "args": args}]}, {"text": "C'est fait."}]
+    return [{"calls": [{"name": tool, "args": args}]},
+            {"text": case.get("answer_example", "C'est fait.")}]
 
 
 def _tool_specs(tools: list[dict]) -> list[dict]:
@@ -724,16 +818,21 @@ def run_case(adapter: Adapter, case: dict, tools: list[dict], system: str,
             break
         if not turn.calls or len(turns) == MAX_TURNS:
             break
-        messages.append({"role": "assistant", "turn": turn})
-        messages.append({"role": "tool", "results": [
+        results = [
             {"id": c["id"], "name": c["name"],
              "content": json.dumps(fixtures.call(c["name"], c["args"] if isinstance(c["args"], dict) else {}),
                                    ensure_ascii=False)}
-            for c in turn.calls]})
+            for c in turn.calls]
+        turn.tool_results = [r["content"] for r in results]
+        messages.append({"role": "assistant", "turn": turn})
+        messages.append({"role": "tool", "results": results})
     result = score_case(case, turns, tools, error)
-    result["turns"] = [{"text": t.text[:400], "calls": t.calls, "ttft_s": t.ttft_s,
+    result["turns"] = [{"text": t.text if case.get("check_numbers") else t.text[:400], "calls": t.calls, "ttft_s": t.ttft_s,
                         "total_s": round(t.total_s, 3), "input_tokens": t.input_tokens,
-                        "output_tokens": t.output_tokens} for t in turns]
+                        "output_tokens": t.output_tokens,
+                        # gardés pour renoter la vérification des nombres
+                        **({"tool_results": t.tool_results} if case.get("check_numbers") else {})}
+                       for t in turns]
     return result
 
 
@@ -792,30 +891,39 @@ def score_case(case: dict, turns: list[Turn], tools: list[dict], error: str | No
         # plancher) est permise avant l'outil attendu ; elle coûte un tour,
         # que la latence compte.
         reads = {t["name"] for t in tools if t["kind"] == "read"}
-        name, before = expect["tool"], set(expect.get("before", [])) | reads
+        names, before = set(expected_tools(expect)), set(expect.get("before", [])) | reads
         expected_args = expect.get("args", {})
 
         def found(pred) -> bool:
             if any(pred(c) for c in first):
                 return True
-            return bool(first) and all(c["name"] in before | {name} for c in first) \
+            return bool(first) and all(c["name"] in before | names for c in first) \
                 and any(pred(c) for c in second)
 
-        tool_ok = found(lambda c: c["name"] == name)
-        args_ok = found(lambda c: c["name"] == name and match_args(expected_args, c["args"]))
+        tool_ok = found(lambda c: c["name"] in names)
+        args_ok = found(lambda c: c["name"] in names and match_args(expected_args, c["args"]))
 
     forbidden = sorted({c["name"] for c in calls if c["name"] in set(case.get("forbid", []))})
     trap = case.get("trap")
     trap_ok = None
     if trap:
         trap_ok = not forbidden and not invented and tool_ok
+    # V1.1 : chaque nombre de la réponse vient d'un outil ; la réponse nomme ce qu'elle doit nommer.
+    numbers = invented_numbers(case, turns) if case.get("check_numbers") else []
+    answer = " ".join(t.text for t in turns)
+    answer_ok = True
+    if case.get("check_numbers") and not answer.strip():
+        answer_ok = False
+    if case.get("answer_re") and not re.search(case["answer_re"], fold(answer)):
+        answer_ok = False
     passed = (error is None and tool_ok and args_ok and not schema_errors and not invented
-              and not forbidden)
+              and not forbidden and not numbers and answer_ok)
     return {
         "id": case["id"], "category": case["category"], "trap": trap, "prompt": case["prompt"],
         "passed": passed, "tool_ok": tool_ok, "args_ok": args_ok,
         "schema_valid": not schema_errors, "schema_errors": schema_errors,
         "invented_tools": invented, "forbidden_calls": forbidden, "trap_ok": trap_ok,
+        "invented_numbers": numbers, "answer_ok": answer_ok,
         "error": error,
         "ttft_s": turns[0].ttft_s if turns else None,
         "first_turn_s": round(turns[0].total_s, 3) if turns else None,
@@ -1004,6 +1112,10 @@ def render_markdown(report: dict) -> str:
                 reasons.append("outil inventé : " + ", ".join(r["invented_tools"]))
             if r["forbidden_calls"]:
                 reasons.append("piège raté : " + ", ".join(r["forbidden_calls"]))
+            if r.get("invented_numbers"):
+                reasons.append("nombres sans source : " + ", ".join(r["invented_numbers"][:6]))
+            if r.get("answer_ok") is False:
+                reasons.append("réponse incomplète")
             cell = lambda s: s.replace("|", "\\|").replace("\n", " ")  # noqa: E731
             lines.append(f"| {r['id']} | {cell(r['prompt'])} | {cell(calls)[:220]} | {cell('; '.join(reasons))} |")
     return "\n".join(lines) + "\n"
@@ -1021,7 +1133,8 @@ def rescore(entry: dict, cases: list[dict], tools: list[dict], pricing: dict | N
         if case is None:
             continue
         turns = [Turn(text=t["text"], calls=t["calls"], ttft_s=t["ttft_s"], total_s=t["total_s"],
-                      input_tokens=t["input_tokens"], output_tokens=t["output_tokens"])
+                      input_tokens=t["input_tokens"], output_tokens=t["output_tokens"],
+                      tool_results=t.get("tool_results", []))
                  for t in old["turns"]]
         new = score_case(case, turns, tools, old["error"])
         new["turns"] = old["turns"]

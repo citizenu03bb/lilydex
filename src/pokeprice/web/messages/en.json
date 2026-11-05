@@ -464,6 +464,7 @@
   "chat.tool.sales_summary": "Counting the sales…",
   "chat.tool.agent_activity": "Reading what the agents did…",
   "chat.tool.todo_queue": "Looking at the “Your turn” queue…",
+  "chat.tool.count_copies": "Counting the collection…",
   "chat.tool.unknown": "Checking what I can do…",
   "chat.tool.knowledge": "Reading the app guide…",
   "chat.flag.label": "Report a wrong or unhelpful answer",
