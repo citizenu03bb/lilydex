@@ -9,6 +9,10 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-05
 
+- Relecture du [plan de correction de l'audit](PLAN-AUDIT-CONFIDENTIALITE.md) :
+  journal d'effacement externe aux archives, restauration avant publication,
+  comparaison transactionnelle des prix et conservation distincte des échanges
+  signalés. Le plan devient une page maintenue et contrôlée.
 - Chat de gestion, V1.1 comptage : outil `count_copies` (doublons par édition
   exacte ou par nom, classements, comptes par extension, langue, statut,
   sans plafond de page) et règle des nombres dans la consigne, après une
