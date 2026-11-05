@@ -234,6 +234,22 @@
         "required": [],
         "additionalProperties": false
       }
+    },
+    {
+      "name": "knowledge",
+      "description": "Explique comment faire dans la gestion ou une règle métier, d'après le guide de l'application et les règles du projet : un écran (vitrine, suivre-lot, deplacer…) ou une règle (plancher, derogation, autonomie, lots, ordre-du-classeur). Sans sujet ou sujet inconnu : la liste des sujets. Jamais de commande de serveur.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "topic": {
+            "type": "string",
+            "maxLength": 80,
+            "description": "Nom du sujet, par exemple plancher ou vitrine."
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
     }
   ],
   "write": [

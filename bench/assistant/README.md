@@ -13,7 +13,7 @@ répondent avec des données synthétiques.
 | Fichier | Rôle |
 |---|---|
 | `commands.json` | les commandes types, en français familier, avec l'appel attendu |
-| `tools.json` | les schémas : 8 outils en lecture (V1, copie de `docs/assistant-tools.json`, fiche 0032) et 4 outils d'écriture fictifs (V2) |
+| `tools.json` | les schémas : 9 outils en lecture (V1 et `knowledge` de la V1.1, copie de `docs/assistant-tools.json`, fiches 0032 et 0035) et 4 outils d'écriture fictifs (V2) |
 | `fixtures.json` | les données synthétiques renvoyées par les outils |
 | `../../src/pokeprice/assistant_prompt.md` | la consigne système commune à tous les candidats : celle du chat de gestion, un seul fichier |
 | `pricing.json` | les tarifs publics, avec leur source et leur date de relevé |
@@ -67,6 +67,11 @@ processeur seul, comme le serveur ARM).
   `"optional": true` tolère l'absence de l'argument.
 - `expect.none` : aucune action attendue ; `allow` liste les lectures tolérées.
 - `forbid` : les outils dont un seul appel, à n'importe quel tour, rate le piège.
+- `context` : le contexte de l'interface joint à la question, comme l'envoie la
+  gestion ([fiche 0036](../../docs/decisions/0036-contexte-de-la-question.md)) :
+  `{"view": "collection", "copy_id": "EX-0101", "device": {"form": "phone"}}`
+  pour une question sur « la carte affichée ». La liste blanche du serveur le
+  contrôle au chargement ; une clé qu'elle écarterait fait échouer le jeu.
 - `overrides` : remplace le résultat d'un outil pour ce cas (une consigne cachée
   dans un message de client, par exemple).
 

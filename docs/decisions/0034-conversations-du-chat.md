@@ -36,6 +36,9 @@ une sauvegarde chiffrée se garde des mois sur Drive.
   du fournisseur), la durée, le nombre de tours et l'issue ; pour chaque appel
   d'outil, l'outil, ses arguments, sa durée et son issue. **Le texte des
   résultats d'outils n'y entre jamais** : il se recalcule depuis la base.
+  Chaque question garde aussi le contexte de l'interface qui l'accompagnait
+  (vue, identifiant de la fiche, filtres, appareil ;
+  [fiche 0036](0036-contexte-de-la-question.md)), effacé et purgé avec elle.
 - **30 jours au plus.** `pokeprice-manage purge`, qui applique déjà les
   durées de conservation des clients chaque nuit, efface les messages, les
   questions et les appels plus anciens.

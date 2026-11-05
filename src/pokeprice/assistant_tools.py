@@ -26,6 +26,7 @@ from pathlib import Path
 
 from .agent import AgentError
 from .agent_review import is_open, request_events, run_events
+from .assistant_knowledge import knowledge  # V1.1, connaissances (fiche 0035)
 from .library import normalized
 from .listings import Listings, reference_cents
 from .pricing import FLOOR_CENTS, display_price, lot_floor_cents, lot_max_margin
@@ -631,6 +632,18 @@ TOOLS = {
             arguments({"limit": {"type": "integer", "minimum": 1, "maximum": 100, "default": 50}}),
             todo_queue,
         ),
+        # -- V1.1, connaissances (fiche 0035) : le guide et les règles métier --
+        Tool(
+            "knowledge",
+            "Explique comment faire dans la gestion ou une règle métier, d'après le guide de "
+            "l'application et les règles du projet : un écran (vitrine, suivre-lot, deplacer…) ou "
+            "une règle (plancher, derogation, autonomie, lots, ordre-du-classeur). Sans sujet ou "
+            "sujet inconnu : la liste des sujets. Jamais de commande de serveur.",
+            arguments({"topic": {"type": "string", "maxLength": 80,
+                                 "description": "Nom du sujet, par exemple plancher ou vitrine."}}),
+            knowledge,
+        ),
+        # -- fin V1.1, connaissances --
     )
 }
 

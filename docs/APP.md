@@ -287,14 +287,27 @@ V1). Il répond à des questions comme « Qu'est-ce qui m'attend ? », « Combie
 j'ai vendu cette semaine ? » ou « Pourquoi le ronflex n'est pas en vente ? »,
 dans la langue de la question, en deux ou trois phrases.
 
-- **Ce qu'il lit.** Il passe seulement par les huit outils en lecture de la
+- **Ce qu'il lit.** Il passe seulement par les outils en lecture de la
   [fiche 0032](decisions/0032-outils-assistant-lecture.md) : la collection,
   les prix et planchers, les annonces, les ventes agrégées, l'activité des
   agents et la file « À toi ». Aucun outil ne lui donne le nom, l'adresse ou
   le message d'un client.
+- **Ce qu'il sait de l'application.** Sa consigne contient une carte courte
+  de la gestion : les onglets, ce que fait chaque écran, où agir. Pour « comment
+  je fais pour… » ou une règle, l'outil `knowledge` lui lit à la demande une
+  section de ce guide ou une règle métier (plancher anti-bradage, dérogations,
+  autonomie des agents, lots, ordre du classeur), au moment de la question ;
+  les commandes de serveur en sont retirées
+  ([fiche 0035](decisions/0035-connaissances-de-l-assistant.md)).
 - **Ce qu'il ne fait pas.** Quand on lui demande une action (publier, changer
   un prix, rembourser…), il dit qu'il ne fait que lire et montre où agir : la
   file « À toi », la fiche de la carte dans Collection ou l'écran Ventes.
+- **Ce qu'il sait de l'écran.** Chaque question part avec ce que la gestion
+  affiche : la vue, la fiche ouverte ou fermée depuis moins de dix minutes
+  (son identifiant seul), les filtres, l'appareil, la version de l'interface
+  et la dernière erreur. « Pourquoi celle-là n'est pas en vente ? » vise donc
+  cette fiche, qu'il relit par ses outils. Rien d'un client n'en fait partie
+  ([fiche 0036](decisions/0036-contexte-de-la-question.md)).
 - **Pendant qu'il cherche**, une ligne dit ce qu'il regarde (« Je regarde les
   annonces… »). Une carte qu'il cite devient un lien vers sa fiche, si un
   outil l'a renvoyée pour cette question ; un identifiant inventé reste du
@@ -346,14 +359,14 @@ sans aucune donnée réelle. Route : `POST
 /api/assistant/answers/{id}/flag` (`{note?}`), l'identifiant étant le
 `message_id` de l'événement `done`.
 
-*Pour un développeur.* `POST /api/assistant` (`{question, conversation_id?}`)
+*Pour un développeur.* `POST /api/assistant` (`{question, conversation_id?, context?}`)
 répond en flux `text/event-stream`, avec les événements `text`, `tool` (nom de
 l'outil), `card` (`copy_id`, nom, numéro), `done` (conversation, jetons,
 usage) et `error`. `GET /api/assistant` donne l'état, l'usage et la dernière
 conversation ; `DELETE /api/assistant/conversations[/{id}]` efface. Le code
 est dans `src/pokeprice/assistant.py` (boucle, journal),
-`assistant_model.py` (adaptateurs : Gemini, factice pour les tests) et
-`web/assistant.js` ; la consigne système, `assistant_prompt.md`, est la même
+`assistant_model.py` (adaptateurs : Gemini, factice pour les tests),
+`assistant_context.py` (liste blanche du contexte) et `web/assistant.js` ; la consigne système, `assistant_prompt.md`, est la même
 que celle du [banc](../bench/assistant/README.md).
 
 ## Saisir des cartes
