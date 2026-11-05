@@ -16,7 +16,7 @@ répondent avec des données synthétiques.
 | `tools.json` | les schémas : 9 outils en lecture (V1 et `knowledge` de la V1.1, copie de `docs/assistant-tools.json`, fiches 0032 et 0035) et 4 outils d'écriture fictifs (V2) |
 | `fixtures.json` | les données synthétiques renvoyées par les outils |
 | `../../src/pokeprice/assistant_prompt.md` | la consigne système commune à tous les candidats : celle du chat de gestion, un seul fichier |
-| `pricing.json` | les tarifs publics, avec leur source et leur date de relevé |
+| `../../src/pokeprice/assistant_pricing.json` | les tarifs publics, avec leur source et leur date de relevé : un seul fichier pour le banc et l'alerte de coût du chat (fiche 0039) |
 | `run.py` | le harnais et les adaptateurs (Ollama, Anthropic, factice ; Gemini reprend celui du chat, `pokeprice.assistant_model`) |
 | `results/` | les rapports JSON et Markdown |
 

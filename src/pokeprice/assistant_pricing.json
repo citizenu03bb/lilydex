@@ -1,0 +1,15 @@
+{
+  "_note": "Tarifs publics par million de jetons, en dollars US, relevés le jour indiqué ; « changes » donne un tarif annoncé, en vigueur à partir du mois AAAA-MM. Lu par le banc et par l'alerte de coût du chat (fiche 0039). Les modèles locaux n'ont pas de coût au jeton : le serveur est déjà payé (offre gratuite Oracle Cloud).",
+  "retrieved": "2026-11-04",
+  "sources": {
+    "anthropic": "https://platform.claude.com/docs/en/about-claude/pricing",
+    "gemini": "https://aistudio.google.com/docs/pricing"
+  },
+  "models": {
+    "anthropic:claude-haiku-5-5": {"input": 0.10, "output": 0.50, "cache_read": 0.01, "note": "prompts jusqu'à 100 000 jetons"},
+    "anthropic:claude-sonnet-5-5": {"input": 2.00, "output": 10.00, "cache_read": 0.10},
+    "anthropic:claude-opus-5-5": {"input": 4.00, "output": 20.00, "cache_read": 0.20},
+    "gemini:gemini-3.8-flash": {"input": 0.75, "output": 3.75, "changes": [{"from": "2027-01", "input": 1.50, "output": 7.50}], "note": "tarif Standard jusqu'au 31 décembre 2026, puis 1,50 / 7,50 ; sortie thinking comprise ; l'offre gratuite sert à améliorer les produits de Google, l'offre payante non"},
+    "gemini:gemini-3.5-flash-lite": {"input": 0.30, "output": 2.50, "note": "sortie thinking comprise"}
+  }
+}

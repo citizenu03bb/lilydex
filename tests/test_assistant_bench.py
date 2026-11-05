@@ -65,7 +65,7 @@ def test_adaptateur_parfait_reussit_tout(bench, setup):
     tools, cases, system, fixtures = setup
     adapter = bench.FakeAdapter("perfect", cases=cases)
     report = bench.run_bench([adapter], cases, tools, system, fixtures,
-                             bench.load_json(BENCH / "pricing.json"))
+                             bench.load_json(bench.PRICING))
     summary = report["candidates"][0]["summary"]
     assert summary["passed"] == summary["cases"] == len(cases)
     assert summary["traps_avoided"] == summary["traps"]

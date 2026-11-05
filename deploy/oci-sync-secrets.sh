@@ -42,7 +42,8 @@ echo "Transfert chiffré de la configuration secrète vers ${REMOTE_HOST}:/etc/p
     done
     # The management chat (decision 0031): its own Gemini key, never the OCR's.
     for name in POKEPRICE_ASSISTANT_GEMINI_KEY POKEPRICE_ASSISTANT_MODEL \
-        POKEPRICE_ASSISTANT_DAILY_LIMIT POKEPRICE_ASSISTANT_PER_MINUTE; do
+        POKEPRICE_ASSISTANT_DAILY_LIMIT POKEPRICE_ASSISTANT_PER_MINUTE \
+        POKEPRICE_ASSISTANT_COST_ALERT_EUR POKEPRICE_ASSISTANT_EUR_PER_USD; do
         grep -E "^${name}=" "$LOCAL_ENV" | tail -n 1 || true
     done
 } | ssh "$REMOTE_HOST" "sudo install -d -m 0750 -o root -g pokeprice /etc/pokeprice && \

@@ -334,6 +334,13 @@ outil inconnu sans rien exécuter.
 jour et les jetons consommés sur 30 jours, lus dans les métadonnées d'usage du
 modèle.
 
+*Coût* ([fiche 0039](decisions/0039-alerte-de-cout-du-chat.md)). Les jetons
+de chaque question s'ajoutent au cumul du mois civil, chiffré au tarif public
+de `src/pokeprice/assistant_pricing.json`. Quand le coût estimé atteint 30 €
+(`POKEPRICE_ASSISTANT_COST_ALERT_EUR`, converti au taux
+`POKEPRICE_ASSISTANT_EUR_PER_USD`), une notification part, une fois par mois.
+Rien ne s'arrête : c'est un signal, pas un plafond.
+
 *Conservation* ([fiche 0034](decisions/0034-conversations-du-chat.md)). Les
 conversations, le journal des questions et des appels d'outils (outil,
 arguments, durée, jetons, jamais le texte d'un résultat) vivent dans

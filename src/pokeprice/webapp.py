@@ -2862,6 +2862,26 @@ def create_app(
     )
     app.state.assistant = assistant
 
+    # V1.1, cost alert (decision 0039): one alert a month on the alert channels once
+    # the chat's estimated cost reaches the threshold; 0 switches it off.
+    from .assistant import (COST_ALERT_VARIABLE, DEFAULT_COST_ALERT_EUR, DEFAULT_EUR_PER_USD,
+                            RATE_VARIABLE, CostAlert)
+
+    def amount(name, default):
+        try:
+            value = float((os.environ.get(name, "") or str(default)).replace(",", "."))
+        except ValueError:
+            raise ValueError(f"{name} : nombre attendu.") from None
+        if value < 0:
+            raise ValueError(f"{name} : nombre positif attendu.")
+        return value
+
+    assistant.cost_alert = CostAlert(
+        assistant.journal, notifier.channels, public_origin,
+        threshold_eur=amount(COST_ALERT_VARIABLE, DEFAULT_COST_ALERT_EUR),
+        eur_per_usd=amount(RATE_VARIABLE, DEFAULT_EUR_PER_USD) or DEFAULT_EUR_PER_USD,
+    )
+
     class AssistantQuestion(BaseModel):
         model_config = ConfigDict(extra="forbid")
         question: str = Field(min_length=1, max_length=MAX_QUESTION)
