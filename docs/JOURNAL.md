@@ -9,6 +9,14 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-05
 
+- Chat de gestion, V1.1 comptage : outil `count_copies` (doublons par édition
+  exacte ou par nom, classements, comptes par extension, langue, statut,
+  sans plafond de page) et règle des nombres dans la consigne, après une
+  réponse aux doublons inventés la veille au soir. Le banc gagne 14 cas
+  (compter, comment faire, carte affichée) et la vérification des nombres ;
+  trois passes provisoires sur Gemini 3.8 Flash donnent 59, 60 et 59 sur 60
+  ([fiche 0037](decisions/0037-comptage-et-nombres.md),
+  [rapport](../bench/assistant/results/gemini-3.8-flash-v1.1-passe1.md)).
 - Premier brief du matin reçu par ntfy et Web Push, sans erreur. ntfy est
   ensuite retiré du serveur : il ne doublait que le téléphone du propriétaire,
   déjà abonné à Web Push, et l'adresse de son sujet avait fui
