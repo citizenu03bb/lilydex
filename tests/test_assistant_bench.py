@@ -35,9 +35,9 @@ def by_id(cases, cid):
     return next(c for c in cases if c["id"] == cid)
 
 
-def test_jeu_de_commandes_complet(setup):
+def test_jeu_de_commandes_complet(bench, setup):
     tools, cases, _, _ = setup
-    assert 40 <= len(cases) <= 60
+    assert 40 <= len(cases) <= 80
     categories = {c["category"] for c in cases}
     assert {"comprendre", "chercher", "ecrire", "piege"} <= categories
     traps = {c.get("trap") for c in cases}
@@ -45,7 +45,7 @@ def test_jeu_de_commandes_complet(setup):
     write = {t["name"] for t in tools if t["kind"] == "write"}
     assert write == {"publish_lot", "set_price", "unpublish_listing", "request_floor_waiver"}
     # chaque outil d'écriture est attendu au moins une fois
-    assert write <= {c["expect"].get("tool") for c in cases}
+    assert write <= {t for c in cases if c["expect"].get("tool") for t in bench.expected_tools(c["expect"])}
     # un piège de plancher n'accepte jamais set_price
     for case in cases:
         if case.get("trap") == "plancher":
@@ -240,3 +240,99 @@ def test_synthese_renote(bench, setup):
     merged = bench.merge_reports([report, report], [case], tools)
     assert len(merged["candidates"]) == 2
     assert all(c["summary"]["passed"] == 1 for c in merged["candidates"])
+
+
+# -- V1.1 comptage, comment faire, carte affichée (fiche 0037) -------------------
+
+
+def test_doublons_synthetiques(bench, setup):
+    _, _, _, fixtures = setup
+    fx = bench.Fixtures(fixtures)
+    edition = fx.call("count_copies", {"duplicates_only": True})
+    assert [(g["name"], g["count"]) for g in edition["top"][:4]] == [
+        ("Racaillou", 7), ("Magicarpe", 6), ("Énergie Eau", 5), ("Énergie Feu", 5)]
+    by_name = fx.call("count_copies", {"group_by": "name", "top": 2})
+    assert [(g["name"], g["count"], g["editions"]) for g in by_name["top"]] == [
+        ("Pikachu", 9, 7), ("Racaillou", 7, 1)]
+    assert fx.call("count_copies", {"language": "ja"})["total_copies"] == 2
+    # Les doublons dépliés gardent les cas existants : un seul Dracaufeu par édition.
+    assert fx.call("search_copies", {"query": "dracaufeu"})["total"] == 3
+
+
+def test_cas_reel_des_doublons_inventes(bench, setup):
+    """4 novembre, 23 h 22 : « top10 des cartes en doublon », réponse sans outil, chiffres inventés."""
+    tools, cases, system, fixtures = setup
+    case = by_id(cases, "compter-01")
+    invented = "Pikachu 16, Évoli 15, Miaouss 9, Salamèche 8."
+    without_tool = bench.FakeAdapter("x", script={case["id"]: [{"text": invented}]})
+    result = bench.run_case(without_tool, case, tools, system, fixtures)
+    assert not result["passed"] and not result["tool_ok"]
+    assert result["invented_numbers"] == ["8", "9", "15", "16"]
+    after_tool = bench.FakeAdapter("x", script={case["id"]: [
+        {"calls": [{"name": "count_copies", "args": {"duplicates_only": True}}]},
+        {"text": "Racaillou ×7, puis Pikachu 16 et Évoli 15."}]})
+    result = bench.run_case(after_tool, case, tools, system, fixtures)
+    assert result["tool_ok"] and result["invented_numbers"] == ["15", "16"] and not result["passed"]
+    honest = bench.FakeAdapter("x", script={case["id"]: [
+        {"calls": [{"name": "count_copies", "args": {"duplicates_only": True}}]},
+        {"text": "Racaillou 74/102 ×7, Magicarpe 35/102 ×6, Énergie Eau ×5, Évoli ×3."}]})
+    result = bench.run_case(honest, case, tools, system, fixtures)
+    assert result["passed"], result
+    # La renote garde les résultats d'outils et refait la vérification.
+    report = bench.run_bench([after_tool], [case], tools, system, fixtures)
+    merged = bench.merge_reports([report], [case], tools)
+    assert merged["candidates"][0]["results"][0]["invented_numbers"] == ["15", "16"]
+    assert "nombres sans source : 15, 16" in bench.render_markdown(merged)
+
+
+def test_reponse_attendue_et_vide(bench, setup):
+    tools, cases, system, fixtures = setup
+    case = by_id(cases, "compter-02")
+    call = {"calls": [{"name": "count_copies", "args": {"group_by": "name"}}]}
+    mute = bench.FakeAdapter("x", script={case["id"]: [call, {"text": ""}]})
+    assert not bench.run_case(mute, case, tools, system, fixtures)["answer_ok"]
+    wrong = bench.FakeAdapter("x", script={case["id"]: [call, {"text": "Racaillou, 7."}]})
+    assert not bench.run_case(wrong, case, tools, system, fixtures)["passed"]
+
+
+def test_knowledge_factice(bench, setup):
+    _, _, _, fixtures = setup
+    fx = bench.Fixtures(fixtures)
+    assert fx.call("knowledge", {"topic": "dérogation de plancher"})["topic"] == "Dérogation de plancher"
+    assert fx.call("knowledge", {"topic": "notifications"})["found"]
+    unknown = fx.call("knowledge", {"topic": "météo"})
+    assert not unknown["found"] and "Notifications" in unknown["topics"]
+
+
+def test_contexte_joint_a_la_question(bench, setup):
+    tools, cases, system, fixtures = setup
+    case = by_id(cases, "affichee-01")
+    seen = []
+
+    class Spy(bench.FakeAdapter):
+        def chat(self, system, messages, tools):
+            seen.append(messages[0]["text"])
+            return super().chat(system, messages, tools)
+
+    spy = Spy("x", script={case["id"]: [
+        {"calls": [{"name": "why_not_for_sale", "args": {"copy_id": "EX-0501"}}]}, {"text": "Doublon."}]})
+    assert bench.run_case(spy, case, tools, system, fixtures)["passed"]
+    assert seen[0].startswith("pourquoi elle est pas en vente ?") and "EX-0501" in seen[0]
+    assert bench.with_context("p", None) == "p"
+
+
+def test_commentaires_du_jeu_ignores(bench, tmp_path):
+    path = tmp_path / "commands.json"
+    path.write_text(json.dumps({"cases": [
+        {"_chantier": "x"},
+        {"id": "a", "category": "c", "prompt": "p", "expect": {"tool": "knowledge"}}]}))
+    assert [c["id"] for c in bench.load_cases(path)] == ["a"]
+
+
+def test_plusieurs_outils_acceptes(bench, setup):
+    tools, cases, system, fixtures = setup
+    case = by_id(cases, "chercher-01")
+    for name in ("search_copies", "count_copies"):
+        adapter = bench.FakeAdapter("x", script={case["id"]: [
+            {"calls": [{"name": name, "args": {"query": "dracaufeu"}}]}, {"text": "3."}]})
+        assert bench.run_case(adapter, case, tools, system, fixtures)["passed"], name

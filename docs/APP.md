@@ -292,6 +292,11 @@ dans la langue de la question, en deux ou trois phrases.
   les prix et planchers, les annonces, les ventes agrégées, l'activité des
   agents et la file « À toi ». Aucun outil ne lui donne le nom, l'adresse ou
   le message d'un client.
+- **Ce qu'il compte.** Doublons, classements (« top 10 de mes doublons ») et
+  comptes par extension, langue ou statut passent par un outil de comptage
+  sur toute la collection. Chaque nombre de sa réponse vient d'un outil
+  appelé pour la question ; sinon il dit qu'il ne peut pas le compter
+  ([fiche 0037](decisions/0037-comptage-et-nombres.md)).
 - **Ce qu'il ne fait pas.** Quand on lui demande une action (publier, changer
   un prix, rembourser…), il dit qu'il ne fait que lire et montre où agir : la
   file « À toi », la fiche de la carte dans Collection ou l'écran Ventes.

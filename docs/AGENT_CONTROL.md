@@ -245,7 +245,10 @@ uv run pokeprice-manage --data /CHEMIN_COLLECTION agent-create assistant-gestion
 | `POST /api/agent/v1/assistant-tools/{name}` | appelle un outil ; le corps est l'objet d'arguments, la réponse `{tool, result, request_id}` |
 
 Outils : `search_copies`, `get_copy`, `explain_price`, `why_not_for_sale`,
-`list_listings`, `sales_summary`, `agent_activity`, `todo_queue`. Leurs
+`list_listings`, `sales_summary`, `agent_activity`, `todo_queue`, et
+`count_copies`, qui compte toute la collection sans plafond de page : doublons
+par édition exacte, classements et comptes par nom, extension, langue, statut,
+stock ou album ([fiche 0037](decisions/0037-comptage-et-nombres.md)). Leurs
 schémas sont versionnés dans [assistant-tools.json](assistant-tools.json) ;
 `python -m pokeprice.assistant_tools --write` le régénère.
 

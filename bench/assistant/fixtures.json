@@ -353,6 +353,31 @@
   ],
   "estimated_minutes": 6
  },
+ "_duplicates_note": "V1.1 comptage : doublons synthétiques, dépliés par run.py en exemplaires EX-9001… Par édition exacte, Racaillou mène ; par nom, Pikachu mène sans qu'aucune de ses éditions ne dépasse 2 exemplaires.",
+ "duplicates": [
+  {"name_fr": "Racaillou", "name_en": "Geodude", "set": "Set de Base", "number": "74/102", "language": "fr", "count": 7},
+  {"name_fr": "Magicarpe", "name_en": "Magikarp", "set": "Set de Base", "number": "35/102", "language": "fr", "count": 6},
+  {"name_fr": "Énergie Feu", "name_en": "Fire Energy", "set": "Set de Base", "number": "98/102", "language": "fr", "count": 5},
+  {"name_fr": "Énergie Eau", "name_en": "Water Energy", "set": "Set de Base", "number": "102/102", "language": "fr", "count": 5},
+  {"name_fr": "Évoli", "name_en": "Eevee", "set": "Jungle", "number": "51/64", "language": "fr", "count": 3},
+  {"name_fr": "Pikachu", "name_en": "Pikachu", "set": "Set de Base", "number": "58/102", "language": "fr", "count": 2},
+  {"name_fr": "Pikachu", "name_en": "Pikachu", "set": "Écarlate et Violet", "number": "063/198", "language": "fr", "count": 1},
+  {"name_fr": "Pikachu", "name_en": "Pikachu", "set": "Jungle", "number": "60/64", "language": "fr", "count": 1},
+  {"name_fr": "Pikachu", "name_en": "Pikachu", "set": "XY", "number": "42/146", "language": "fr", "count": 1},
+  {"name_fr": "Pikachu", "name_en": "Pikachu", "set": "Pokémon 151", "number": "025/165", "language": "ja", "count": 1},
+  {"name_fr": "Pikachu", "name_en": "Pikachu", "set": "Set de Base", "number": "58/102", "language": "en", "count": 1}
+ ],
+ "_knowledge_note": "Faux résultats de l'outil knowledge (session A), en attendant son guide : textes de remplissage pour le banc, pas la documentation de l'application.",
+ "knowledge": [
+  {"topic": "Publier une carte ou un lot", "keywords": ["publier", "publie", "publication", "annonce", "vinted", "cardmarket", "leboncoin", "mettre", "vente", "lot"], "text": "Une carte se publie depuis sa fiche dans Collection, bouton Publier, une fois son identité, son état et sa photo confirmés. Un lot se compose dans Ventes, onglet Lots, puis se publie sur la vitrine ; l'annonce Vinted, Leboncoin ou Cardmarket se recopie depuis le brouillon du lot."},
+  {"topic": "Reprendre une photo", "keywords": ["photo", "photos", "reprendre", "refaire", "verso", "recto", "flou", "appareil"], "text": "Les photos à reprendre sont dans la file « À toi ». Ouvre la carte, touche Photo, prends le recto ou le verso demandé à plat, sans reflet ; l'agent relit la nouvelle photo à sa passe suivante."},
+  {"topic": "Plancher anti-bradage", "keywords": ["plancher", "bradage", "brader", "minimum", "prix", "marge", "baisser"], "text": "Le plancher est le prix sous lequel une carte ne se vend jamais sans accord : la référence moins la marge permise, jamais sous 0,50 €. Il se lit dans l'explication du prix sur la fiche de la carte."},
+  {"topic": "Dérogation de plancher", "keywords": ["derogation", "dérogation", "plancher", "accord", "exception", "sous"], "text": "Pour vendre sous le plancher, une dérogation est demandée ; elle apparaît dans la file « À toi », où tu l'acceptes ou la refuses. Rien ne se vend sous le plancher tant qu'elle n'est pas acceptée."},
+  {"topic": "Réservations et envois", "keywords": ["reservation", "réservation", "reservations", "réservations", "reserve", "envoi", "expedier", "expédier", "expedie", "expédié", "colis", "encaisser", "paiement"], "text": "Les réservations de la vitrine, les lots à encaisser et les colis à expédier sont dans Ventes. Quand le paiement est reçu, marque le lot payé ; quand le colis part, marque-le expédié avec le suivi."},
+  {"topic": "Notifications", "keywords": ["notification", "notifications", "alerte", "alertes", "activer", "push", "prevenir", "prévenir"], "text": "Les notifications s'activent dans la gestion, bouton Activer les notifications en haut de la file « À toi », puis en acceptant la demande du téléphone. Elles préviennent d'une réservation ou d'une décision qui t'attend."},
+  {"topic": "Identifier une carte", "keywords": ["identifier", "identification", "reconnaitre", "reconnaître", "inconnue", "verifier", "vérifier", "confirmer"], "text": "Les cartes à identifier ou à vérifier sont dans Collection, filtre Statut. Ouvre la fiche, compare la photo avec la proposition et confirme, ou choisis la bonne édition dans la liste."},
+  {"topic": "Doublons et lots", "keywords": ["doublon", "doublons", "double", "lots", "regrouper", "composer"], "text": "Les doublons se vendent en lots : dans Ventes, onglet Lots, l'agent propose des brouillons de lots de doublons ; tu les relis avant de les publier."}
+ ],
  "write_ok": {
   "status": "ok",
   "undo_token": "UNDO-SYNTH-1"
