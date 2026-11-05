@@ -7,6 +7,13 @@
 Une page qui décrit le fonctionnement ne porte pas de date : quand un passage
 daté la quitte, il est versé ici dans le même commit.
 
+## 2026-11-05
+
+- Premier brief du matin reçu par ntfy et Web Push, sans erreur. ntfy est
+  ensuite retiré du serveur : il ne doublait que le téléphone du propriétaire,
+  déjà abonné à Web Push, et l'adresse de son sujet avait fui
+  ([fiche 0033](decisions/0033-notifications-web-push.md)).
+
 ## 2026-11-04
 
 - Notifications plus visibles : l'interrupteur passe en tête des Réglages, au-dessus

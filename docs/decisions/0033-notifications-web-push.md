@@ -1,6 +1,6 @@
 # 0033 — La gestion installée reçoit ses alertes par Web Push ; ntfy reste en secours
 
-> **Statut :** proposée, complète la [décision 0029](0029-assistant-de-gestion.md) (brief du jour) et les [alertes au vendeur](../VITRINE.md#les-alertes-au-vendeur) · **Date :** 2026-11-04
+> **Statut :** en vigueur, ntfy retiré dès le 2026-11-05 (voir « Retrait anticipé de ntfy »), complète la [décision 0029](0029-assistant-de-gestion.md) (brief du jour) et les [alertes au vendeur](../VITRINE.md#les-alertes-au-vendeur) · **Date :** 2026-11-04
 
 **Contexte.** Le brief du matin et les alertes de la vitrine (nouvelle
 demande, rappels) partent par ntfy et par e-mail. Lily gère depuis son
@@ -88,6 +88,21 @@ quand ces trois critères seront réunis :
 
 Le retrait consiste à enlever `POKEPRICE_NTFY_URL` (et le jeton) du `~/.env`
 du portable puis à resynchroniser les secrets ; le code de ntfy reste, éteint.
+
+*Retrait anticipé de ntfy.* Le propriétaire a retiré ntfy le 2026-11-05, sans
+attendre ces critères, après le premier brief reçu par les deux canaux sans
+erreur :
+- ntfy n'arrivait que sur le téléphone du propriétaire, déjà abonné à Web Push
+  (Android, service de push de Google) ; Lily ne le suivait pas ;
+- l'adresse du sujet ntfy, qui en est le secret, avait fui : le retirer ferme
+  la fuite sans avoir à changer de sujet ;
+- l'iPhone de Lily se voit proposer l'activation par une carte du brief, tant
+  qu'il n'est pas abonné.
+
+Il n'y a plus de canal de secours : un abonnement coupé sans bruit fait perdre
+les alertes jusqu'à ce que l'interrupteur soit retouché. Le brief et la file
+« À toi » restent lisibles dans la gestion. Remettre `POKEPRICE_NTFY_URL`
+rallume ntfy.
 
 **Conséquences.**
 - Une dépendance de plus dans l'extra `web` : `pywebpush` et `py-vapid`, qui
