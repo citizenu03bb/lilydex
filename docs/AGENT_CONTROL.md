@@ -227,7 +227,7 @@ fiche. Le reçu indique qu’aucune confirmation physique n’a été créée.
 
 ## Outils de l'assistant de gestion
 
-Le futur chat de gestion et son banc d'essai lisent la collection par huit
+Le chat de gestion et son banc d'essai lisent la collection par des
 outils fermés, sans écrire ([fiche 0032](decisions/0032-outils-assistant-lecture.md)).
 Ils demandent la portée `assistant:read`, qui couvre toute la collection et
 que seul un compte gestionnaire ou administrateur délègue :
@@ -245,8 +245,10 @@ uv run pokeprice-manage --data /CHEMIN_COLLECTION agent-create assistant-gestion
 | `POST /api/agent/v1/assistant-tools/{name}` | appelle un outil ; le corps est l'objet d'arguments, la réponse `{tool, result, request_id}` |
 
 Outils : `search_copies`, `get_copy`, `explain_price`, `why_not_for_sale`,
-`list_listings`, `sales_summary`, `agent_activity`, `todo_queue`, et
-`count_copies`, qui compte toute la collection sans plafond de page : doublons
+`list_listings`, `sales_summary`, `agent_activity`, `todo_queue`, puis
+`knowledge`, qui renvoie une section du guide ou une règle métier, sans
+aucune commande ([fiche 0035](decisions/0035-connaissances-de-l-assistant.md)),
+et `count_copies`, qui compte toute la collection sans plafond de page : doublons
 par édition exacte, classements et comptes par nom, extension, langue, statut,
 stock ou album ([fiche 0037](decisions/0037-comptage-et-nombres.md)). Leurs
 schémas sont versionnés dans [assistant-tools.json](assistant-tools.json) ;

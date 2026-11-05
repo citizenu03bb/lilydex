@@ -295,32 +295,6 @@ def test_reponse_attendue_et_vide(bench, setup):
     assert not bench.run_case(wrong, case, tools, system, fixtures)["passed"]
 
 
-def test_knowledge_factice(bench, setup):
-    _, _, _, fixtures = setup
-    fx = bench.Fixtures(fixtures)
-    assert fx.call("knowledge", {"topic": "dérogation de plancher"})["topic"] == "Dérogation de plancher"
-    assert fx.call("knowledge", {"topic": "notifications"})["found"]
-    unknown = fx.call("knowledge", {"topic": "météo"})
-    assert not unknown["found"] and "Notifications" in unknown["topics"]
-
-
-def test_contexte_joint_a_la_question(bench, setup):
-    tools, cases, system, fixtures = setup
-    case = by_id(cases, "affichee-01")
-    seen = []
-
-    class Spy(bench.FakeAdapter):
-        def chat(self, system, messages, tools):
-            seen.append(messages[0]["text"])
-            return super().chat(system, messages, tools)
-
-    spy = Spy("x", script={case["id"]: [
-        {"calls": [{"name": "why_not_for_sale", "args": {"copy_id": "EX-0501"}}]}, {"text": "Doublon."}]})
-    assert bench.run_case(spy, case, tools, system, fixtures)["passed"]
-    assert seen[0].startswith("pourquoi elle est pas en vente ?") and "EX-0501" in seen[0]
-    assert bench.with_context("p", None) == "p"
-
-
 def test_commentaires_du_jeu_ignores(bench, tmp_path):
     path = tmp_path / "commands.json"
     path.write_text(json.dumps({"cases": [
@@ -336,3 +310,37 @@ def test_plusieurs_outils_acceptes(bench, setup):
         adapter = bench.FakeAdapter("x", script={case["id"]: [
             {"calls": [{"name": name, "args": {"query": "dracaufeu"}}]}, {"text": "3."}]})
         assert bench.run_case(adapter, case, tools, system, fixtures)["passed"], name
+
+
+# -- Contexte de l'interface (V1.1, fiche 0036) ---------------------------------
+
+
+def test_un_cas_peut_joindre_un_contexte(bench, setup):
+    tools, cases, system, fixtures = setup
+    case = by_id(cases, "contexte-01")
+    message = bench.question_message(case)
+    assert message["text"] == case["prompt"]
+    assert json.loads(message["context"])["interface_context"]["copy_id"] == "EX-0101"
+    # Les fournisseurs sans parties séparées lisent le contexte avant la question.
+    assert bench.user_text(message).endswith("\n\n" + case["prompt"])
+    assert bench.question_message(by_id(cases, "comprendre-01")) == {
+        "role": "user", "text": by_id(cases, "comprendre-01")["prompt"]}
+    seen = []
+
+    class Recorder(bench.FakeAdapter):
+        def chat(self, system, messages, tools):
+            seen.append(messages[0])
+            return super().chat(system, messages, tools)
+
+    adapter = Recorder(cases=cases)
+    assert bench.run_case(adapter, case, tools, system, fixtures)["passed"]
+    assert seen[0]["context"] == message["context"]
+
+
+def test_un_contexte_hors_liste_blanche_est_refuse(bench, tmp_path):
+    path = tmp_path / "commands.json"
+    path.write_text(json.dumps({"cases": [
+        {"id": "x", "category": "contexte", "prompt": "p", "context": {"email": "a@b.c"},
+         "expect": {"tool": "get_copy"}}]}))
+    with pytest.raises(ValueError, match="liste blanche"):
+        bench.load_cases(path, tools=bench.load_tools())

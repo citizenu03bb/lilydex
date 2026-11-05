@@ -241,6 +241,22 @@
       }
     },
     {
+      "name": "knowledge",
+      "description": "Explique comment faire dans la gestion ou une règle métier, d'après le guide de l'application et les règles du projet : un écran (vitrine, suivre-lot, deplacer…) ou une règle (plancher, derogation, autonomie, lots, ordre-du-classeur). Sans sujet ou sujet inconnu : la liste des sujets. Jamais de commande de serveur.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "topic": {
+            "type": "string",
+            "maxLength": 80,
+            "description": "Nom du sujet, par exemple plancher ou vitrine."
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
       "name": "count_copies",
       "description": "Compte les exemplaires de toute la collection, sans plafond de page : total, groupes par édition exacte (nom + extension + numéro + langue), par nom, extension, langue, statut, stock ou album, classés du plus nombreux au moins nombreux. duplicates_only : seulement les doublons (au moins 2 exemplaires). Vendus compris, sauf filtre stock.",
       "parameters": {
@@ -315,26 +331,6 @@
           }
         },
         "required": [],
-        "additionalProperties": false
-      }
-    }
-  ],
-  "_pending_note": "V1.1 : outils d'autres chantiers, pas encore dans docs/assistant-tools.json. knowledge est un faux de la session A (carte de l'app) ; il passe dans read quand sa PR est fusionnée.",
-  "pending": [
-    {
-      "name": "knowledge",
-      "description": "Explique comment faire quelque chose dans l'application (publier, photos, plancher, ventes, notifications…) et les règles du métier : renvoie la page du guide sur ce sujet. Ne fait aucune action.",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "topic": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 80,
-            "description": "Le sujet, en quelques mots."
-          }
-        },
-        "required": ["topic"],
         "additionalProperties": false
       }
     }

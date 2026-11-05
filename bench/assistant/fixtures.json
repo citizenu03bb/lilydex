@@ -367,19 +367,102 @@
   {"name_fr": "Pikachu", "name_en": "Pikachu", "set": "Pokémon 151", "number": "025/165", "language": "ja", "count": 1},
   {"name_fr": "Pikachu", "name_en": "Pikachu", "set": "Set de Base", "number": "58/102", "language": "en", "count": 1}
  ],
- "_knowledge_note": "Faux résultats de l'outil knowledge (session A), en attendant son guide : textes de remplissage pour le banc, pas la documentation de l'application.",
- "knowledge": [
-  {"topic": "Publier une carte ou un lot", "keywords": ["publier", "publie", "publication", "annonce", "vinted", "cardmarket", "leboncoin", "mettre", "vente", "lot"], "text": "Une carte se publie depuis sa fiche dans Collection, bouton Publier, une fois son identité, son état et sa photo confirmés. Un lot se compose dans Ventes, onglet Lots, puis se publie sur la vitrine ; l'annonce Vinted, Leboncoin ou Cardmarket se recopie depuis le brouillon du lot."},
-  {"topic": "Reprendre une photo", "keywords": ["photo", "photos", "reprendre", "refaire", "verso", "recto", "flou", "appareil"], "text": "Les photos à reprendre sont dans la file « À toi ». Ouvre la carte, touche Photo, prends le recto ou le verso demandé à plat, sans reflet ; l'agent relit la nouvelle photo à sa passe suivante."},
-  {"topic": "Plancher anti-bradage", "keywords": ["plancher", "bradage", "brader", "minimum", "prix", "marge", "baisser"], "text": "Le plancher est le prix sous lequel une carte ne se vend jamais sans accord : la référence moins la marge permise, jamais sous 0,50 €. Il se lit dans l'explication du prix sur la fiche de la carte."},
-  {"topic": "Dérogation de plancher", "keywords": ["derogation", "dérogation", "plancher", "accord", "exception", "sous"], "text": "Pour vendre sous le plancher, une dérogation est demandée ; elle apparaît dans la file « À toi », où tu l'acceptes ou la refuses. Rien ne se vend sous le plancher tant qu'elle n'est pas acceptée."},
-  {"topic": "Réservations et envois", "keywords": ["reservation", "réservation", "reservations", "réservations", "reserve", "envoi", "expedier", "expédier", "expedie", "expédié", "colis", "encaisser", "paiement"], "text": "Les réservations de la vitrine, les lots à encaisser et les colis à expédier sont dans Ventes. Quand le paiement est reçu, marque le lot payé ; quand le colis part, marque-le expédié avec le suivi."},
-  {"topic": "Notifications", "keywords": ["notification", "notifications", "alerte", "alertes", "activer", "push", "prevenir", "prévenir"], "text": "Les notifications s'activent dans la gestion, bouton Activer les notifications en haut de la file « À toi », puis en acceptant la demande du téléphone. Elles préviennent d'une réservation ou d'une décision qui t'attend."},
-  {"topic": "Identifier une carte", "keywords": ["identifier", "identification", "reconnaitre", "reconnaître", "inconnue", "verifier", "vérifier", "confirmer"], "text": "Les cartes à identifier ou à vérifier sont dans Collection, filtre Statut. Ouvre la fiche, compare la photo avec la proposition et confirme, ou choisis la bonne édition dans la liste."},
-  {"topic": "Doublons et lots", "keywords": ["doublon", "doublons", "double", "lots", "regrouper", "composer"], "text": "Les doublons se vendent en lots : dans Ventes, onglet Lots, l'agent propose des brouillons de lots de doublons ; tu les relis avant de les publier."}
- ],
  "write_ok": {
   "status": "ok",
   "undo_token": "UNDO-SYNTH-1"
+ },
+ "knowledge": {
+  "vitrine": {
+   "topic": "vitrine",
+   "title": "Publier en vitrine",
+   "text": "La fiche d'un exemplaire affiche, sous le prix, un bloc Vitrine. Publier met la carte en ligne au prix de vitrine proposé, jamais sous le plancher anti-bradage ; Retirer la dépublie.",
+   "truncated": false
+  },
+  "plancher": {
+   "topic": "plancher",
+   "title": "Le plancher anti-bradage",
+   "text": "Aucune vente sous le prix de référence diminué de la marge, lots compris. La marge vaut 15 % par défaut. Lot : le prix demandé est au moins 85 % de la somme des prix de référence de ses exemplaires. Le plancher absolu de 0,50 € par carte et par lot s'applique aussi.",
+   "truncated": false
+  },
+  "annonce": {
+   "topic": "annonce",
+   "title": "Préparer une annonce",
+   "text": "Dans Ventes, chaque lot propose Télécharger le brouillon d'annonce : un dossier ZIP avec un texte modifiable, les photos recto et verso et les informations à compléter. Les notes privées et les détails financiers sont exclus. Le téléchargement ne change pas le stock. Le prix demandé du lot est repris s'il existe ; un état non confirmé est indiqué « à vérifier ». Aucune annonce n'est publiée automatiquement sur une plateforme.",
+   "truncated": false
+  },
+  "derogation": {
+   "topic": "derogation",
+   "title": "Un prix sous le plancher : la dérogation",
+   "text": "- Sous le plancher, Listings.publish lève FloorRefusal avec les exemplaires, le prix demandé, le plancher, les références et la raison. Venant d'un agent, le refus inscrit aussi une demande : un événement floor-request sans exemplaire. L'outil de lots fait de même quand le plancher est son seul motif de refus, après l'annulation de sa transaction et jamais en essai à blanc. Une même sélection au même prix ne crée qu'une demande ouverte.\n- Le plancher absolu de 0,50 € ne se déroge pas.\n- Une demande se ferme d'elle-même quand un exemplaire est supprimé, réservé ou vendu, quand le lot est publié autrement, ou quand le prix de l'annonce auditée a changé.",
+   "truncated": true
+  },
+  "photo-demandee": {
+   "topic": "photo-demandee",
+   "title": "Quand l'agent demande une nouvelle photo",
+   "text": "Une variante ou un état incertain ne se publie jamais avec une mention « non vérifié », et ne se devine pas. Demandez une autre photo, précise :\n- quelle carte : UUID, album, page et pochette ;\n- quelle prise : recto ou verso, angle, lumière rasante pour une reverse, gros plan d'un coin, d'un bord ou d'un tampon ;\n- pourquoi : les deux hypothèses et ce qui les départage.\nLa carte reste hors vente jusqu'à la nouvelle photo ; reprenez ensuite la lecture et tranchez. Les seuils de sécurité de la vision ne baissent pas pour aller plus vite : une reverse de valeur se tranche sur une photo ciblée, pas sur une photo de classeur.",
+   "truncated": false
+  },
+  "deplacer": {
+   "topic": "deplacer",
+   "title": "Déplacer une sélection de cartes",
+   "text": "Cochez les exemplaires à ranger puis cliquez sur Déplacer vers… dans la barre de sélection : choisissez l'album d'arrivée (ou le même album pour changer de page), le mode de placement (Premières cases libres ou À partir d'une page et d'une case), le nombre de cases par page et le motif. L'aperçu indique pour chaque carte son emplacement de départ et sa case d'arrivée, signale toute case d'arrivée déjà occupée (avec le nom de la carte présente) et mentionne les cartes publiées à l'unité en vitrine.",
+   "truncated": true
+  },
+  "notifications": {
+   "topic": "notifications",
+   "title": "Recevoir les notifications sur le téléphone",
+   "text": "Tant qu'un appareil ne reçoit pas les notifications, le brief propose une carte « Recevoir le brief sur cet appareil », avec « Activer » ou « Plus tard » (la carte revient deux semaines après) ; sur un iPhone hors de l'application installée, elle explique comment l'installer. La carte n'est pas une décision de la file : le serveur ne sait pas quel appareil est abonné, c'est le navigateur qui le vérifie.",
+   "truncated": true
+  },
+  "demandes-clients": {
+   "topic": "demandes-clients",
+   "title": "Les clients et leurs demandes",
+   "text": "Sur la vitrine, un visiteur ajoute des cartes à Ma sélection (gardée dans son navigateur) et envoie la demande avec son nom et son e-mail, sans créer de compte. Une adresse inconnue devient un client en attente, sans mot de passe ; la réponse est la même que l'adresse soit connue ou non. Trois demandes en attente au plus par e-mail, cinq envois par heure et par adresse IP.",
+   "truncated": true
+  },
+  "suivre-lot": {
+   "topic": "suivre-lot",
+   "title": "Suivre un lot",
+   "text": "Un lot passe du brouillon à la réservation, la vente, le paiement déclaré, l'expédition et la clôture, ou à l'annulation et au retour. La réservation est transactionnelle : une réservation concurrente du même exemplaire échoue. Prix affiché, prix cible, prix minimum et prix convenu sont distincts ; frais, port, emballage et remboursements se saisissent en euros. Ventes filtre les lots par statut et masque les annulés par défaut.\n- Les montants sont stockés en centimes. Le net vaut : prix + port facturé − frais − coût du port − emballage − remboursements.\n- Le paiement est déclaré à la main : l'application ne prend ni n'effectue aucun paiement.",
+   "truncated": true
+  },
+  "topics": [
+   {
+    "topic": "vitrine",
+    "title": "Publier en vitrine"
+   },
+   {
+    "topic": "plancher",
+    "title": "Le plancher anti-bradage"
+   },
+   {
+    "topic": "suivre-lot",
+    "title": "Suivre un lot"
+   },
+   {
+    "topic": "annonce",
+    "title": "Préparer une annonce"
+   },
+   {
+    "topic": "derogation",
+    "title": "Un prix sous le plancher : la dérogation"
+   },
+   {
+    "topic": "photo-demandee",
+    "title": "Quand l'agent demande une nouvelle photo"
+   },
+   {
+    "topic": "deplacer",
+    "title": "Déplacer une sélection de cartes"
+   },
+   {
+    "topic": "notifications",
+    "title": "Recevoir les notifications sur le téléphone"
+   },
+   {
+    "topic": "demandes-clients",
+    "title": "Les clients et leurs demandes"
+   }
+  ]
  }
 }

@@ -17,6 +17,17 @@ daté la quitte, il est versé ici dans le même commit.
   trois passes provisoires sur Gemini 3.8 Flash donnent 59, 60 et 59 sur 60
   ([fiche 0037](decisions/0037-comptage-et-nombres.md),
   [rapport](../bench/assistant/results/gemini-3.8-flash-v1.1-passe1.md)).
+- Chat de gestion, V1.1 : une carte courte de la gestion dans sa consigne, et
+  l'outil `knowledge`, qui lit à la demande une section du guide ou une règle
+  métier (plancher, dérogations, autonomie, lots, ordre du classeur), sans les
+  commandes de serveur. Deux cas « comment faire » rejoignent le banc
+  ([fiche 0035](decisions/0035-connaissances-de-l-assistant.md)).
+- Chat de gestion, V1.1 : chaque question part avec le contexte de l'écran
+  (vue, fiche par identifiant, filtres, appareil, version, dernière erreur),
+  validé par liste blanche côté serveur, lu par le modèle comme une donnée et
+  gardé 30 jours avec la question ; le banc accepte un contexte par cas
+  ([fiche 0036](decisions/0036-contexte-de-la-question.md),
+  `tests/test_assistant_context.py`). Pas encore rejoué avec Gemini.
 - Premier brief du matin reçu par ntfy et Web Push, sans erreur. ntfy est
   ensuite retiré du serveur : il ne doublait que le téléphone du propriétaire,
   déjà abonné à Web Push, et l'adresse de son sujet avait fui

@@ -466,6 +466,7 @@
   "chat.tool.todo_queue": "Je regarde la file « À toi »…",
   "chat.tool.count_copies": "Je compte dans la collection…",
   "chat.tool.unknown": "Je vérifie ce que je peux faire…",
+  "chat.tool.knowledge": "Je relis le guide de la gestion…",
   "push.title": "Notifications",
   "push.label": "Notifications sur ce téléphone",
   "push.help": "Le brief du matin et les nouvelles demandes, en nombres seulement : jamais le nom ni l’adresse d’un client.",
