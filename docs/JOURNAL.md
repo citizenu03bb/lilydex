@@ -9,6 +9,11 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-05
 
+- Chat de gestion, V1.1 : une carte courte de la gestion dans sa consigne, et
+  l'outil `knowledge`, qui lit à la demande une section du guide ou une règle
+  métier (plancher, dérogations, autonomie, lots, ordre du classeur), sans les
+  commandes de serveur. Deux cas « comment faire » rejoignent le banc
+  ([fiche 0035](decisions/0035-connaissances-de-l-assistant.md)).
 - Chat de gestion, V1.1 : chaque question part avec le contexte de l'écran
   (vue, fiche par identifiant, filtres, appareil, version, dernière erreur),
   validé par liste blanche côté serveur, lu par le modèle comme une donnée et

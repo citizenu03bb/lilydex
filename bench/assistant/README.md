@@ -13,7 +13,7 @@ répondent avec des données synthétiques.
 | Fichier | Rôle |
 |---|---|
 | `commands.json` | les commandes types, en français familier, avec l'appel attendu |
-| `tools.json` | les schémas : 8 outils en lecture (V1, copie de `docs/assistant-tools.json`, fiche 0032) et 4 outils d'écriture fictifs (V2) |
+| `tools.json` | les schémas : 9 outils en lecture (V1 et `knowledge` de la V1.1, copie de `docs/assistant-tools.json`, fiches 0032 et 0035) et 4 outils d'écriture fictifs (V2) |
 | `fixtures.json` | les données synthétiques renvoyées par les outils |
 | `../../src/pokeprice/assistant_prompt.md` | la consigne système commune à tous les candidats : celle du chat de gestion, un seul fichier |
 | `pricing.json` | les tarifs publics, avec leur source et leur date de relevé |

@@ -465,6 +465,7 @@
   "chat.tool.agent_activity": "Je relis ce qu’ont fait les agents…",
   "chat.tool.todo_queue": "Je regarde la file « À toi »…",
   "chat.tool.unknown": "Je vérifie ce que je peux faire…",
+  "chat.tool.knowledge": "Je relis le guide de la gestion…",
   "push.title": "Notifications",
   "push.label": "Notifications sur ce téléphone",
   "push.help": "Le brief du matin et les nouvelles demandes, en nombres seulement : jamais le nom ni l’adresse d’un client.",

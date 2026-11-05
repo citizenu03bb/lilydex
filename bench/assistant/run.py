@@ -336,6 +336,15 @@ class Fixtures:
         return {"items": queue["items"][: max(1, int(limit))],
                 "estimated_minutes": queue["estimated_minutes"]}
 
+    # V1.1, connaissances (fiche 0035) : un extrait synthétique du guide par sujet.
+    def _knowledge(self, topic: str = "") -> dict:
+        known = self.data["knowledge"]
+        key = fold(topic)
+        for name, entry in known.items():
+            if name != "topics" and (key == name or name in key):
+                return entry
+        return {"topics": known["topics"], **({"unknown_topic": topic} if topic else {})}
+
     def _publish_lot(self, **_: Any) -> dict:
         return self.data["write_ok"]
 

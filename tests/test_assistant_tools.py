@@ -86,7 +86,8 @@ def test_export_is_current():
 def test_registry_is_closed_and_strict():
     names = [t["name"] for t in tool_schemas()["tools"]]
     assert names == ["search_copies", "get_copy", "explain_price", "why_not_for_sale",
-                     "list_listings", "sales_summary", "agent_activity", "todo_queue"]
+                     "list_listings", "sales_summary", "agent_activity", "todo_queue",
+                     "knowledge"]
     for tool in TOOLS.values():
         parameters = tool.parameters
         assert parameters["type"] == "object" and parameters["additionalProperties"] is False

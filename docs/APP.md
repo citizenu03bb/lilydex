@@ -287,11 +287,18 @@ V1). Il répond à des questions comme « Qu'est-ce qui m'attend ? », « Combie
 j'ai vendu cette semaine ? » ou « Pourquoi le ronflex n'est pas en vente ? »,
 dans la langue de la question, en deux ou trois phrases.
 
-- **Ce qu'il lit.** Il passe seulement par les huit outils en lecture de la
+- **Ce qu'il lit.** Il passe seulement par les outils en lecture de la
   [fiche 0032](decisions/0032-outils-assistant-lecture.md) : la collection,
   les prix et planchers, les annonces, les ventes agrégées, l'activité des
   agents et la file « À toi ». Aucun outil ne lui donne le nom, l'adresse ou
   le message d'un client.
+- **Ce qu'il sait de l'application.** Sa consigne contient une carte courte
+  de la gestion : les onglets, ce que fait chaque écran, où agir. Pour « comment
+  je fais pour… » ou une règle, l'outil `knowledge` lui lit à la demande une
+  section de ce guide ou une règle métier (plancher anti-bradage, dérogations,
+  autonomie des agents, lots, ordre du classeur), au moment de la question ;
+  les commandes de serveur en sont retirées
+  ([fiche 0035](decisions/0035-connaissances-de-l-assistant.md)).
 - **Ce qu'il ne fait pas.** Quand on lui demande une action (publier, changer
   un prix, rembourser…), il dit qu'il ne fait que lire et montre où agir : la
   file « À toi », la fiche de la carte dans Collection ou l'écran Ventes.

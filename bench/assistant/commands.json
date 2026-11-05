@@ -25,6 +25,10 @@
      "expect": {"tool": "get_copy", "args": {"copy_id": "EX-0301"}}},
     {"id": "comprendre-12", "category": "comprendre", "prompt": "explique-moi le prix du EX-0202",
      "expect": {"tool": "explain_price", "args": {"copy_id": "EX-0202"}}},
+    {"id": "comprendre-comment-01", "category": "comprendre", "prompt": "comment je fais pour mettre une carte en vitrine ?",
+     "expect": {"tool": "knowledge", "args": {"topic": {"re": "vitrine|publi"}}}},
+    {"id": "comprendre-comment-02", "category": "comprendre", "prompt": "c'est quoi la règle du plancher pour un lot ?",
+     "expect": {"tool": "knowledge", "args": {"topic": {"re": "plancher|brad"}}}},
 
     {"id": "chercher-01", "category": "chercher", "prompt": "j'ai combien de dracaufeu ?",
      "expect": {"tool": "search_copies", "args": {"query": {"re": "dracau|charizard"}}}},
