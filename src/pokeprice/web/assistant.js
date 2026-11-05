@@ -111,7 +111,11 @@ const Assistant = (() => {
     $("chat-off").hidden = state.enabled;
     $("chat-log").replaceChildren();
     chat.id = state.conversation?.id || null;
-    for (const m of state.conversation?.messages || []) bubble(m.role, m.text, m.cards);
+    const flagged = new Set(state.conversation?.flagged || []);
+    for (const m of state.conversation?.messages || []) {
+      const body = bubble(m.role, m.text, m.cards);
+      if (m.role === "assistant") flagControl(body.parentElement, m.id, flagged.has(m.id));
+    }
     usage(state.usage);
     suggestions();
     setBusy(false);
@@ -161,7 +165,7 @@ const Assistant = (() => {
         method: "POST",
         credentials: "same-origin",
         headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
-        body: JSON.stringify({ question, conversation_id: chat.id }),
+        body: JSON.stringify({ question, conversation_id: chat.id, context: await questionContext().catch(() => undefined) }),
       });
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
@@ -184,6 +188,7 @@ const Assistant = (() => {
         } else if (kind === "done") {
           chat.id = data.conversation_id;
           usage(data.usage);
+          flagControl(answer.parentElement, data.message_id, false);
         } else if (kind === "error") fail(data.message);
         scrollDown();
       }
@@ -194,6 +199,64 @@ const Assistant = (() => {
       scrollDown();
     }
   }
+
+  // -- V1.1, contexte de la question (fiche 0036) --------------------------------
+  // What the operator has in front of her, joined to each question: ids, filter
+  // values and the device only, never a client's name, message or address. The
+  // server keeps a closed list of keys (assistant_context.py) and drops the rest.
+  const seen = { card: null, version: null };
+  const RECENT_CARD_MS = 10 * 60 * 1000;
+  // The chat opens from the top bar, so a card's sheet is usually closed by then:
+  // the card shown is the one open, or the one closed in the last ten minutes.
+  $("detail-dialog")?.addEventListener("close", () => {
+    if (state.detail?.id) seen.card = { id: state.detail.id, at: Date.now() };
+  });
+  async function uiVersion() {
+    if (seen.version !== null || !("caches" in window)) return seen.version || undefined;
+    try {
+      const name = (await caches.keys()).find((n) => n.startsWith("lilydex-gestion-"));
+      seen.version = name ? name.slice("lilydex-gestion-".length) : "";
+    } catch {
+      seen.version = "";
+    }
+    return seen.version || undefined;
+  }
+  function device() {
+    const ua = navigator.userAgent;
+    const ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+    return {
+      form: matchMedia("(max-width: 700px), (pointer: coarse)").matches ? "phone" : "desktop",
+      display: matchMedia("(display-mode: standalone)").matches || navigator.standalone ? "standalone" : "browser",
+      os: ios ? "ios" : /Android/.test(ua) ? "android" : "other",
+    };
+  }
+  function filters(view) {
+    if (view === "sales") return { sales: $("sales-filter")?.value || "" };
+    if (view !== "collection") return {};
+    const query = Object.fromEntries(collectionQuery());
+    const out = {};
+    for (const key of ["q", "album", "stock", "status", "variant", "sort", "review"])
+      if (query[key]) out[key] = String(query[key]).slice(0, 80);
+    if ($("display-mode")?.value) out.display = $("display-mode").value;
+    return out;
+  }
+  async function questionContext() {
+    const view = state.view || "collection";
+    const card = $("detail-dialog")?.open
+      ? state.detail?.id
+      : seen.card && Date.now() - seen.card.at < RECENT_CARD_MS
+        ? seen.card.id
+        : null;
+    const sale = view === "sales" && /^#vente-([A-Za-z0-9_-]{1,120})$/.exec(location.hash);
+    const context = { view, filters: filters(view), device: device() };
+    if (card) context.copy_id = String(card);
+    if (sale) context.sale_id = sale[1];
+    const version = await uiVersion();
+    if (version) context.ui_version = version;
+    if (state.lastError) context.last_error = state.lastError.slice(0, 200);
+    return context;
+  }
+  // -- fin V1.1 -------------------------------------------------------------------
 
   function resize() {
     const input = $("chat-input");
@@ -217,6 +280,66 @@ const Assistant = (() => {
     chat.id = null;
     $("chat-open").hidden = !user || !editAllowed();
     if (!user && $("chat-dialog").open) $("chat-dialog").close();
+  }
+
+  // -- Chantier V1.1 « capture des échecs » (decision 0038) --------------------
+  // A 👎 under each answer, with an optional note, sent to
+  // POST /api/assistant/answers/{id}/flag and kept beside the answer for the bench.
+  function flagControl(item, id, flagged) {
+    if (!id || item.querySelector(".chat-flag")) return;
+    const box = el("div", undefined, "chat-flag");
+    const button = el("button", "👎", "chat-flag-button");
+    button.type = "button";
+    button.title = t("chat.flag.label");
+    button.setAttribute("aria-label", t("chat.flag.label"));
+    button.setAttribute("aria-expanded", "false");
+    const mark = () => {
+      button.textContent = `👎 ${t("chat.flag.done")}`;
+      button.classList.add("chat-flagged");
+    };
+    if (flagged) mark();
+    const form = el("form", undefined, "chat-flag-form");
+    form.hidden = true;
+    const note = el("textarea");
+    note.rows = 2;
+    note.maxLength = 500;
+    note.placeholder = t("chat.flag.placeholder");
+    note.setAttribute("aria-label", t("chat.flag.note_label"));
+    const actions = el("div", undefined, "chat-flag-actions");
+    const submit = el("button", t("chat.flag.send"), "primary");
+    const cancel = el("button", t("chat.flag.cancel"), "quiet");
+    cancel.type = "button";
+    actions.append(submit, cancel);
+    form.append(note, actions);
+    const toggle = (show) => {
+      form.hidden = !show;
+      button.setAttribute("aria-expanded", String(show));
+      if (show) {
+        note.focus();
+        scrollDown();
+      }
+    };
+    button.onclick = () => toggle(form.hidden);
+    cancel.onclick = () => toggle(false);
+    form.onsubmit = async (event) => {
+      event.preventDefault();
+      submit.disabled = true;
+      try {
+        await api(`/assistant/answers/${id}/flag`, {
+          method: "POST",
+          body: JSON.stringify({ note: note.value.trim() }),
+        });
+        mark();
+        toggle(false);
+        toast(t("chat.flag.sent"));
+      } catch (error) {
+        toast(error.message);
+      } finally {
+        submit.disabled = false;
+      }
+    };
+    box.append(button, form);
+    item.append(box);
   }
 
   $("chat-open").onclick = () => open();

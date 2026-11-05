@@ -240,3 +240,37 @@ def test_synthese_renote(bench, setup):
     merged = bench.merge_reports([report, report], [case], tools)
     assert len(merged["candidates"]) == 2
     assert all(c["summary"]["passed"] == 1 for c in merged["candidates"])
+
+
+# -- Contexte de l'interface (V1.1, fiche 0036) ---------------------------------
+
+
+def test_un_cas_peut_joindre_un_contexte(bench, setup):
+    tools, cases, system, fixtures = setup
+    case = by_id(cases, "contexte-01")
+    message = bench.question_message(case)
+    assert message["text"] == case["prompt"]
+    assert json.loads(message["context"])["interface_context"]["copy_id"] == "EX-0101"
+    # Les fournisseurs sans parties séparées lisent le contexte avant la question.
+    assert bench.user_text(message).endswith("\n\n" + case["prompt"])
+    assert bench.question_message(by_id(cases, "comprendre-01")) == {
+        "role": "user", "text": by_id(cases, "comprendre-01")["prompt"]}
+    seen = []
+
+    class Recorder(bench.FakeAdapter):
+        def chat(self, system, messages, tools):
+            seen.append(messages[0])
+            return super().chat(system, messages, tools)
+
+    adapter = Recorder(cases=cases)
+    assert bench.run_case(adapter, case, tools, system, fixtures)["passed"]
+    assert seen[0]["context"] == message["context"]
+
+
+def test_un_contexte_hors_liste_blanche_est_refuse(bench, tmp_path):
+    path = tmp_path / "commands.json"
+    path.write_text(json.dumps({"cases": [
+        {"id": "x", "category": "contexte", "prompt": "p", "context": {"email": "a@b.c"},
+         "expect": {"tool": "get_copy"}}]}))
+    with pytest.raises(ValueError, match="liste blanche"):
+        bench.load_cases(path, tools=bench.load_tools())

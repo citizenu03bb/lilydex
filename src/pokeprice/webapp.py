@@ -2886,6 +2886,9 @@ def create_app(
         model_config = ConfigDict(extra="forbid")
         question: str = Field(min_length=1, max_length=MAX_QUESTION)
         conversation_id: str | None = Field(default=None, max_length=40, pattern=r"^[a-f0-9-]{36}$")
+        # V1.1, contexte de la question (fiche 0036) : liste blanche appliquée par
+        # assistant_context.clean dans Assistant.prepare ; le superflu est écarté.
+        context: dict | None = None
 
     def assistant_refused(error):
         if isinstance(error, AgentError):
@@ -2906,7 +2909,8 @@ def create_app(
     @app.post("/api/assistant")
     def assistant_ask(values: AssistantQuestion, user=Depends(staff)):
         try:
-            question = assistant.prepare(user["id"], values.question, values.conversation_id)
+            question = assistant.prepare(user["id"], values.question, values.conversation_id,
+                                         values.context)
         except (Refused, AgentError) as error:
             assistant_refused(error)
 
@@ -2926,6 +2930,21 @@ def create_app(
     @app.delete("/api/assistant/conversations/{conversation_id}")
     def assistant_forget(conversation_id: str, user=Depends(staff)):
         return assistant.journal.delete(user["id"], conversation_id)
+
+    # Chantier V1.1 « capture des échecs » (decision 0038): the 👎 under an
+    # answer, with a free note, kept beside it for the bench.
+    from .assistant_signals import MAX_NOTE
+
+    class AssistantFlag(BaseModel):
+        model_config = ConfigDict(extra="forbid")
+        note: str = Field(default="", max_length=MAX_NOTE)
+
+    @app.post("/api/assistant/answers/{message_id}/flag")
+    def assistant_flag(message_id: int, values: AssistantFlag, user=Depends(staff)):
+        try:
+            return assistant.journal.thumbs_down(user["id"], message_id, values.note)
+        except KeyError as error:
+            raise HTTPException(404, str(error.args[0])) from None
 
     if agent_enabled:
         from .agent_api import install

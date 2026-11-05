@@ -9,6 +9,24 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-05
 
+- Chat de gestion, V1.1 : une carte courte de la gestion dans sa consigne, et
+  l'outil `knowledge`, qui lit à la demande une section du guide ou une règle
+  métier (plancher, dérogations, autonomie, lots, ordre du classeur), sans les
+  commandes de serveur. Deux cas « comment faire » rejoignent le banc
+  ([fiche 0035](decisions/0035-connaissances-de-l-assistant.md)).
+- Chat de gestion, V1.1 : chaque question part avec le contexte de l'écran
+  (vue, fiche par identifiant, filtres, appareil, version, dernière erreur),
+  validé par liste blanche côté serveur, lu par le modèle comme une donnée et
+  gardé 30 jours avec la question ; le banc accepte un contexte par cas
+  ([fiche 0036](decisions/0036-contexte-de-la-question.md),
+  `tests/test_assistant_context.py`). Pas encore rejoué avec Gemini.
+- Chat de gestion, capture des échecs : bouton 👎 sous chaque réponse avec
+  une note facultative, signaux du serveur (erreur du modèle ou d'un outil,
+  plafond de tours, question reformulée) et convention « Défaut : … » ;
+  les conversations signalées échappent à la purge des 30 jours (180 jours
+  au plus) et `pokeprice-manage assistant-drafts` en tire des brouillons du
+  banc sans donnée réelle ([fiche 0038](decisions/0038-capture-des-echecs.md),
+  `tests/test_assistant_signals.py`).
 - Alerte de coût du chat : les jetons s'additionnent par mois civil, hors de la
   purge des 30 jours, et une notification part une fois par mois quand le coût
   estimé atteint 30 € ; la grille des tarifs passe du banc au paquet

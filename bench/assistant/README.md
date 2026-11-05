@@ -13,7 +13,7 @@ répondent avec des données synthétiques.
 | Fichier | Rôle |
 |---|---|
 | `commands.json` | les commandes types, en français familier, avec l'appel attendu |
-| `tools.json` | les schémas : 8 outils en lecture (V1, copie de `docs/assistant-tools.json`, fiche 0032) et 4 outils d'écriture fictifs (V2) |
+| `tools.json` | les schémas : 9 outils en lecture (V1 et `knowledge` de la V1.1, copie de `docs/assistant-tools.json`, fiches 0032 et 0035) et 4 outils d'écriture fictifs (V2) |
 | `fixtures.json` | les données synthétiques renvoyées par les outils |
 | `../../src/pokeprice/assistant_prompt.md` | la consigne système commune à tous les candidats : celle du chat de gestion, un seul fichier |
 | `../../src/pokeprice/assistant_pricing.json` | les tarifs publics, avec leur source et leur date de relevé : un seul fichier pour le banc et l'alerte de coût du chat (fiche 0039) |
@@ -67,12 +67,38 @@ processeur seul, comme le serveur ARM).
   `"optional": true` tolère l'absence de l'argument.
 - `expect.none` : aucune action attendue ; `allow` liste les lectures tolérées.
 - `forbid` : les outils dont un seul appel, à n'importe quel tour, rate le piège.
+- `context` : le contexte de l'interface joint à la question, comme l'envoie la
+  gestion ([fiche 0036](../../docs/decisions/0036-contexte-de-la-question.md)) :
+  `{"view": "collection", "copy_id": "EX-0101", "device": {"form": "phone"}}`
+  pour une question sur « la carte affichée ». La liste blanche du serveur le
+  contrôle au chargement ; une clé qu'elle écarterait fait échouer le jeu.
 - `overrides` : remplace le résultat d'un outil pour ce cas (une consigne cachée
   dans un message de client, par exemple).
 
 Une commande réussit quand le bon outil est appelé avec les bons arguments,
 que tous les appels respectent leur schéma, qu'aucun outil n'est inventé et
 qu'aucun outil interdit n'est appelé.
+
+## Brouillons tirés des échanges signalés
+
+Les réponses signalées dans le chat (👎, erreur, plafond de tours, question
+reformulée, « Défaut : … » ; [fiche 0038](../../docs/decisions/0038-capture-des-echecs.md))
+deviennent des brouillons de cas :
+
+```bash
+pokeprice-manage --data /chemin/du/dossier assistant-drafts --output ~/brouillons.json
+```
+
+La commande exige `--data`, ouvre `assistant.sqlite3` et la base en lecture
+seule, et écrit sur la sortie standard, ou dans `--output` sans jamais écraser
+un fichier. Chaque brouillon a la forme d'une commande, avec `"draft": true`
+et un objet `brouillon` (signaux, note, outils appelés et leur issue). La
+question et la note y sont gardées, mais chaque identifiant, montant, date,
+adresse, téléphone et nom connu de la base devient un emplacement `<…_n>` ;
+la réponse du chat et les valeurs des arguments n'y entrent pas. Pour en faire
+un cas : remplacer chaque `<…>` par une donnée de `fixtures.json`, écrire
+`category` et `expect`, retirer `draft` et `brouillon`, puis le copier dans
+`commands.json`. `run.py` refuse un cas resté brouillon.
 
 ## Mesurer sur le serveur ARM
 

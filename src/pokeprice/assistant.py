@@ -12,7 +12,9 @@ The conversations, the question log and the token counts live beside the
 collection base, in ``assistant.sqlite3`` (decision 0034): out of the
 collection's backups, kept 30 days at most, purged by ``pokeprice-manage
 purge`` and erasable by their author. The log keeps the tool, its arguments,
-its duration and the tokens, never the text of a result.
+its duration and the tokens, never the text of a result. It also keeps the
+interface context sent with each question (``assistant_context``, decision
+0036): erased with the question's text, purged with it after 30 days.
 """
 
 import json
@@ -27,7 +29,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from . import assistant_tools
+from . import assistant_context, assistant_signals, assistant_tools
 from .agent import AgentError, permitted, require
 from .assistant_model import ModelError
 
@@ -40,6 +42,8 @@ HISTORY_MESSAGES = 6
 MAX_QUESTION = 1000
 MAX_CARDS = 5
 RETENTION = timedelta(days=30)
+FLAGGED_RETENTION = timedelta(days=180)  # a flagged exchange, for the bench (decision 0038)
+DEFECT_REPLY = "Noté : le défaut est enregistré pour le banc d’essai."
 DEFAULT_DAILY_LIMIT = 100
 DEFAULT_PER_MINUTE = 6
 FALLBACK = "Je n’ai pas su répondre : reformule ta question, ou regarde la file « À toi »."
@@ -71,6 +75,13 @@ CREATE TABLE IF NOT EXISTS tool_calls(id INTEGER PRIMARY KEY AUTOINCREMENT,
 """
 
 
+def migrate_context(db):
+    """V1.1 (decision 0036): the interface context of each question. Idempotent."""
+    columns = {row[1] for row in db.execute("PRAGMA table_info(questions)")}
+    if "context_json" not in columns:
+        db.execute("ALTER TABLE questions ADD COLUMN context_json TEXT NOT NULL DEFAULT '{}'")
+
+
 class Refused(Exception):
     """A question the server does not send to the model."""
 
@@ -98,6 +109,8 @@ class Journal:
         self.lock = threading.Lock()
         with self.connect() as db, db:
             db.executescript(SCHEMA)
+            migrate_context(db)
+            self.migrate_flags(db)
 
     def connect(self):
         db = sqlite3.connect(self.path, timeout=5)
@@ -114,12 +127,13 @@ class Journal:
             if not row:
                 raise KeyError("Conversation introuvable.")
             return [self.message(m) for m in db.execute(
-                "SELECT role,text,cards_json,created_at FROM messages "
+                "SELECT id,role,text,cards_json,created_at FROM messages "
                 "WHERE conversation_id=? ORDER BY id", (conversation_id,))]
 
     @staticmethod
     def message(row):
-        return {"role": row["role"], "text": row["text"], "cards": json.loads(row["cards_json"]),
+        return {"id": row["id"], "role": row["role"], "text": row["text"],
+                "cards": json.loads(row["cards_json"]),
                 "at": datetime.fromtimestamp(row["created_at"], timezone.utc).isoformat()}
 
     def latest(self, user_id):
@@ -128,15 +142,18 @@ class Journal:
                              "ORDER BY updated_at DESC LIMIT 1", (user_id,)).fetchone()
         if not row:
             return None
-        return {"id": row["id"], "messages": self.conversation(user_id, row["id"])}
+        return {"id": row["id"], "messages": self.conversation(user_id, row["id"]),
+                "flagged": self.thumbs(user_id, row["id"])}
 
     def add(self, conversation_id, role, text, cards=(), at=None):
         at = at or time.time()
         with self.connect() as db, db:
-            db.execute("INSERT INTO messages(conversation_id,role,text,cards_json,created_at) "
-                       "VALUES(?,?,?,?,?)",
-                       (conversation_id, role, text, json.dumps(list(cards), ensure_ascii=False), at))
+            row = db.execute("INSERT INTO messages(conversation_id,role,text,cards_json,created_at) "
+                             "VALUES(?,?,?,?,?)",
+                             (conversation_id, role, text, json.dumps(list(cards), ensure_ascii=False),
+                              at))
             db.execute("UPDATE conversations SET updated_at=? WHERE id=?", (at, conversation_id))
+        return row.lastrowid
 
     def delete(self, user_id, conversation_id=None):
         """Erase one conversation of this person, or all of them, with their tool log."""
@@ -150,20 +167,31 @@ class Journal:
                 # the tool arguments go.
                 db.execute("DELETE FROM tool_calls WHERE question_id IN "
                            "(SELECT id FROM questions WHERE conversation_id=?)", (cid,))
-                db.execute("UPDATE questions SET conversation_id='' WHERE conversation_id=?", (cid,))
+                db.execute("UPDATE questions SET conversation_id='', context_json='{}' "
+                           "WHERE conversation_id=?", (cid,))
                 db.execute("DELETE FROM conversations WHERE id=?", (cid,))
         return {"deleted": len(ids)}
 
     def purge(self, at=None):
-        """Nothing older than 30 days: messages, questions and their tool calls."""
-        cutoff = (at or time.time()) - RETENTION.total_seconds()
+        """Nothing older than 30 days: messages, questions and their tool calls.
+
+        A flagged conversation (decision 0038) stays for the bench, up to
+        ``FLAGGED_RETENTION``; its author can still erase it.
+        """
+        at = at or time.time()
+        cutoff = at - RETENTION.total_seconds()
         with self.connect() as db, db:
-            messages = db.execute("DELETE FROM messages WHERE created_at<?", (cutoff,)).rowcount
-            questions = db.execute("DELETE FROM questions WHERE created_at<?", (cutoff,)).rowcount
+            self.expire_flags(db, at)
+            kept = "conversation_id NOT IN (SELECT conversation_id FROM assistant_flags)"
+            messages = db.execute(f"DELETE FROM messages WHERE created_at<? AND {kept}",
+                                  (cutoff,)).rowcount
+            questions = db.execute(f"DELETE FROM questions WHERE created_at<? AND {kept}",
+                                   (cutoff,)).rowcount
             conversations = db.execute(
-                "DELETE FROM conversations WHERE updated_at<? OR NOT EXISTS "
+                "DELETE FROM conversations WHERE (updated_at<? OR NOT EXISTS "
                 "(SELECT 1 FROM messages m WHERE m.conversation_id=conversations.id) "
-                "AND created_at<?", (cutoff, cutoff)).rowcount
+                "AND created_at<?) AND id NOT IN (SELECT conversation_id FROM assistant_flags)",
+                (cutoff, cutoff)).rowcount
         return {"conversations": conversations, "messages": messages, "questions": questions}
 
     # -- Questions and limits --------------------------------------------------
@@ -206,6 +234,18 @@ class Journal:
                        (question_id, tool[:60], json.dumps(arguments, ensure_ascii=False)[:2000],
                         duration_ms, outcome, time.time()))
 
+    # -- Interface context (V1.1, decision 0036) ---------------------------------
+
+    def note_context(self, question_id, context):
+        with self.connect() as db, db:
+            db.execute("UPDATE questions SET context_json=? WHERE id=?",
+                       (json.dumps(context, ensure_ascii=False), question_id))
+
+    def context(self, question_id):
+        with self.connect() as db:
+            row = db.execute("SELECT context_json FROM questions WHERE id=?", (question_id,)).fetchone()
+        return json.loads(row[0]) if row else None
+
     def calls(self, question_id):
         with self.connect() as db:
             return [dict(r) for r in db.execute(
@@ -228,6 +268,100 @@ class Journal:
                              "output_tokens": month["o"]},
         }
 
+    # -- Chantier V1.1 « capture des échecs » (decision 0038) ------------------
+    # The 👎 and the automatic signals, in their own table; a flagged
+    # conversation escapes the 30 days' purge and goes when its author erases it.
+
+    FLAGS_SCHEMA = """
+    CREATE TABLE IF NOT EXISTS assistant_flags(id INTEGER PRIMARY KEY AUTOINCREMENT,
+        conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+        user_id TEXT NOT NULL, question_id TEXT, asked_id INTEGER, answer_id INTEGER,
+        kind TEXT NOT NULL, note TEXT NOT NULL DEFAULT '', created_at REAL NOT NULL);
+    CREATE INDEX IF NOT EXISTS assistant_flags_conversation ON assistant_flags(conversation_id);
+    """
+
+    @classmethod
+    def migrate_flags(cls, db):
+        """Idempotent: the table appears on the first start after the update."""
+        db.executescript(cls.FLAGS_SCHEMA)
+
+    @staticmethod
+    def expire_flags(db, at):
+        return db.execute("DELETE FROM assistant_flags WHERE created_at<?",
+                          (at - FLAGGED_RETENTION.total_seconds(),)).rowcount
+
+    def flag(self, conversation_id, user_id, kind, *, question_id=None, asked_id=None,
+             answer_id=None, note=""):
+        if kind not in assistant_signals.KINDS:
+            raise ValueError(kind)
+        with self.connect() as db, db:
+            db.execute("INSERT INTO assistant_flags(conversation_id,user_id,question_id,asked_id,"
+                       "answer_id,kind,note,created_at) VALUES(?,?,?,?,?,?,?,?)",
+                       (conversation_id, user_id, question_id, asked_id, answer_id, kind,
+                        (note or "")[:assistant_signals.MAX_NOTE], time.time()))
+
+    def thumbs_down(self, user_id, message_id, note=""):
+        """The 👎 of the author on one answer; a second press replaces the note."""
+        note = (note or "").strip()[:assistant_signals.MAX_NOTE]
+        with self.connect() as db, db:
+            answer = db.execute(
+                "SELECT m.id, m.conversation_id FROM messages m JOIN conversations c "
+                "ON c.id=m.conversation_id WHERE m.id=? AND m.role='assistant' AND c.user_id=?",
+                (message_id, user_id)).fetchone()
+            if not answer:
+                raise KeyError("Réponse introuvable.")
+            asked = db.execute("SELECT id, created_at FROM messages WHERE conversation_id=? "
+                               "AND role='user' "
+                               "AND id<? ORDER BY id DESC LIMIT 1",
+                               (answer["conversation_id"], message_id)).fetchone()
+            question = self.asked_in(db, answer["conversation_id"], asked)
+            existing = db.execute("SELECT id FROM assistant_flags WHERE answer_id=? "
+                                  "AND kind='thumbs_down'", (message_id,)).fetchone()
+            if existing:
+                db.execute("UPDATE assistant_flags SET note=?, created_at=? WHERE id=?",
+                           (note, time.time(), existing["id"]))
+            else:
+                db.execute("INSERT INTO assistant_flags(conversation_id,user_id,question_id,asked_id,"
+                           "answer_id,kind,note,created_at) VALUES(?,?,?,?,?,?,?,?)",
+                           (answer["conversation_id"], user_id,
+                            question,
+                            asked["id"] if asked else None, message_id, "thumbs_down", note,
+                            time.time()))
+        return {"message_id": message_id, "flagged": True}
+
+    @staticmethod
+    def asked_in(db, conversation_id, asked):
+        """The question row of a user message: the last one started before it was written."""
+        if not asked:
+            return None
+        row = db.execute("SELECT id FROM questions WHERE conversation_id=? AND created_at<=? "
+                         "ORDER BY created_at DESC LIMIT 1",
+                         (conversation_id, asked["created_at"])).fetchone()
+        return row[0] if row else None
+
+    def thumbs(self, user_id, conversation_id):
+        with self.connect() as db:
+            return [r[0] for r in db.execute(
+                "SELECT answer_id FROM assistant_flags WHERE conversation_id=? AND user_id=? "
+                "AND kind='thumbs_down'", (conversation_id, user_id))]
+
+    def flags(self, conversation_id=None):
+        with self.connect() as db:
+            where, args = ("WHERE conversation_id=?", (conversation_id,)) if conversation_id else ("", ())
+            return [dict(r) for r in db.execute(
+                f"SELECT conversation_id,question_id,asked_id,answer_id,kind,note "
+                f"FROM assistant_flags {where} ORDER BY id", args)]
+
+    def previous_exchange(self, conversation_id, asked_id):
+        """The question and answer before ``asked_id``: (question_id, asked, answer) or None."""
+        with self.connect() as db:
+            rows = db.execute("SELECT id,role,text,created_at FROM messages WHERE conversation_id=? "
+                              "AND id<? ORDER BY id DESC LIMIT 2",
+                              (conversation_id, asked_id)).fetchall()
+            if len(rows) < 2 or rows[0]["role"] != "assistant" or rows[1]["role"] != "user":
+                return None
+            question = self.asked_in(db, conversation_id, rows[1])
+        return question, dict(rows[1]), dict(rows[0])
     # -- V1.1, cost alert (decision 0039) ---------------------------------------
     # The month's tokens per model, apart from the questions: the 30 days' purge
     # never empties a calendar month before its cost is read. Counts only, no text,
@@ -287,6 +421,9 @@ class Question:
     user_id: str
     text: str
     history: list = field(default_factory=list)
+    asked_id: int = 0  # V1.1 « capture des échecs »: the user message, and a « Défaut : » note.
+    defect: str | None = None
+    context: dict = field(default_factory=dict)  # V1.1: the interface context, cleaned.
 
 
 def principal(store, user_id):
@@ -345,7 +482,7 @@ class Assistant:
             "conversation": self.journal.latest(user_id),
         }
 
-    def prepare(self, user_id, text, conversation_id=None):
+    def prepare(self, user_id, text, conversation_id=None, context=None):
         """Every check before anything leaves the server; raises Refused or AgentError."""
         if not self.enabled:
             raise Refused(503, "Chat désactivé : la clé du modèle n’est pas configurée.")
@@ -353,13 +490,57 @@ class Assistant:
         text = (text or "").strip()
         if not text or len(text) > MAX_QUESTION:
             raise Refused(422, f"Question vide ou trop longue ({MAX_QUESTION} caractères au plus).")
+        try:
+            context, dropped = assistant_context.clean(context)
+        except ValueError as error:
+            raise Refused(422, str(error)) from None
+        if dropped:
+            logger.info("assistant context dropped=%s", ",".join(dropped[:10]))
         question_id, conversation_id = self.journal.start(
             user_id, conversation_id, self.model.name,
             daily_limit=self.daily_limit, per_minute=self.per_minute)
         # Only the questions and answers before: never the earlier tool results.
         history = [m for m in self.journal.conversation(user_id, conversation_id) if m["text"]]
-        self.journal.add(conversation_id, "user", text)
-        return Question(question_id, conversation_id, user_id, text, history[-HISTORY_MESSAGES:])
+        asked_id = self.journal.add(conversation_id, "user", text)
+        if context:
+            self.journal.note_context(question_id, context)
+        question = Question(question_id, conversation_id, user_id, text, history[-HISTORY_MESSAGES:],
+                            context=context, asked_id=asked_id, defect=assistant_signals.defect(text))
+        self.rephrase_signal(question)
+        return question
+
+    # -- Chantier V1.1 « capture des échecs » (decision 0038) --------------------
+
+    def rephrase_signal(self, question):
+        """Flag the previous exchange when this question asks it again in other words."""
+        previous = self.journal.previous_exchange(question.conversation_id, question.asked_id)
+        if not previous or question.defect is not None:
+            return
+        question_id, asked, answer = previous
+        if assistant_signals.rephrased(asked["text"], question.text, time.time() - answer["created_at"]):
+            self.journal.flag(question.conversation_id, question.user_id, "rephrased",
+                              question_id=question_id, asked_id=asked["id"], answer_id=answer["id"])
+
+    def report_defect(self, question):
+        """« Défaut : … » is a report, not a question: noted, never sent to the model."""
+        previous = self.journal.previous_exchange(question.conversation_id, question.asked_id)
+        question_id, asked, answer = previous or (question.id, {"id": question.asked_id}, {"id": None})
+        self.journal.flag(question.conversation_id, question.user_id, "defect",
+                          question_id=question_id, asked_id=asked["id"], answer_id=answer["id"],
+                          note=question.defect or question.text)
+        yield "text", {"text": DEFECT_REPLY}
+        answer_id = self.journal.add(question.conversation_id, "assistant", DEFECT_REPLY)
+        self.journal.finish(question.id, input_tokens=0, output_tokens=0, duration_ms=0,
+                            tool_rounds=0, outcome="defect")
+        yield "done", {"conversation_id": question.conversation_id, "message_id": answer_id,
+                       "input_tokens": 0, "output_tokens": 0,
+                       "usage": self.journal.usage(self.daily_limit)}
+
+    def signal(self, question, signals, answer_id):
+        for kind, note in dict(signals).items():
+            self.journal.flag(question.conversation_id, question.user_id, kind,
+                              question_id=question.id, asked_id=question.asked_id or None,
+                              answer_id=answer_id, note=note)
 
     def messages(self, question):
         from .assistant_model import Turn
@@ -368,7 +549,11 @@ class Assistant:
         for m in question.history:
             out.append({"role": "user", "text": m["text"]} if m["role"] == "user"
                        else {"role": "assistant", "turn": Turn(text=m["text"])})
-        out.append({"role": "user", "text": question.text})
+        last = {"role": "user", "text": question.text}
+        # The interface context, as data beside the question; never in the instruction.
+        if question.context:
+            last["context"] = assistant_context.for_model(question.context)
+        out.append(last)
         return out
 
     def tool(self, question, call):
@@ -394,7 +579,11 @@ class Assistant:
 
     def run(self, question):
         """Answer one prepared question; yields the events of the route."""
+        if question.defect is not None:
+            yield from self.report_defect(question)
+            return
         started = self.clock()
+        signals, answer_id = [], None  # V1.1 « capture des échecs »
         tokens = {"input_tokens": 0, "output_tokens": 0}
         schemas = assistant_tools.tool_schemas()["tools"]
         system = system_prompt()
@@ -416,6 +605,8 @@ class Assistant:
                     raise ModelError("tour sans fin")
                 tokens["input_tokens"] += turn.input_tokens
                 tokens["output_tokens"] += turn.output_tokens
+                if turn.calls and not allow:
+                    signals.append(("max_rounds", f"{MAX_TOOL_ROUNDS} tours d’outils"))
                 if not turn.calls or not allow:
                     break
                 rounds += 1
@@ -429,6 +620,8 @@ class Assistant:
                         known = call.get("name") in assistant_tools.TOOLS
                         yield "tool", {"tool": call.get("name") if known else "unknown"}
                         result, status = self.tool(question, call)
+                        if status != "ok":
+                            signals.append(("tool_error", f"{str(call.get('name'))[:60]} : {status}"))
                         if status == "ok":
                             cards_in(result, seen)
                             copy_id = (call.get("args") or {}).get("copy_id")
@@ -446,25 +639,30 @@ class Assistant:
             cards = [seen[c] for c in dict.fromkeys([*cited, *topics])][:MAX_CARDS]
             for card in cards:
                 yield "card", card
-            self.journal.add(question.conversation_id, "assistant", text, cards)
+            answer_id = self.journal.add(question.conversation_id, "assistant", text, cards)
             self.close(question, started, rounds, outcome, tokens)
+            self.signal(question, reversed(signals), answer_id)
             finished = True
-            yield "done", {"conversation_id": question.conversation_id, **tokens,
+            yield "done", {"conversation_id": question.conversation_id, "message_id": answer_id, **tokens,
                            "usage": self.journal.usage(self.daily_limit)}
         except GeneratorExit:  # The phone left: the question ends, its count stays.
             outcome = "interrupted"
             raise
         except AgentError as error:  # The account lost its right during the question.
             outcome = error.code
+            signals.append(("tool_error", error.code))
             yield "error", {"code": error.code, "message": str(error)}
         except ModelError as error:
             outcome = "model_error"
+            signals.append(("model_error", str(error)[:200]))
             logger.warning("assistant model error=%s question=%s", error, question.id)
             yield "error", {"code": "model_error",
                             "message": "Le modèle ne répond pas pour l’instant : réessaie dans un moment."}
         finally:
             if not finished:
                 self.close(question, started, rounds, outcome, tokens)
+            if not finished and outcome != "interrupted":
+                self.signal(question, reversed(signals), None)
 
     def close(self, question, started, rounds, outcome, tokens):
         duration = int((self.clock() - started) * 1000)
