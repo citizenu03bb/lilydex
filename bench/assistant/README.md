@@ -79,6 +79,27 @@ Une commande réussit quand le bon outil est appelé avec les bons arguments,
 que tous les appels respectent leur schéma, qu'aucun outil n'est inventé et
 qu'aucun outil interdit n'est appelé.
 
+## Brouillons tirés des échanges signalés
+
+Les réponses signalées dans le chat (👎, erreur, plafond de tours, question
+reformulée, « Défaut : … » ; [fiche 0038](../../docs/decisions/0038-capture-des-echecs.md))
+deviennent des brouillons de cas :
+
+```bash
+pokeprice-manage --data /chemin/du/dossier assistant-drafts --output ~/brouillons.json
+```
+
+La commande exige `--data`, ouvre `assistant.sqlite3` et la base en lecture
+seule, et écrit sur la sortie standard, ou dans `--output` sans jamais écraser
+un fichier. Chaque brouillon a la forme d'une commande, avec `"draft": true`
+et un objet `brouillon` (signaux, note, outils appelés et leur issue). La
+question et la note y sont gardées, mais chaque identifiant, montant, date,
+adresse, téléphone et nom connu de la base devient un emplacement `<…_n>` ;
+la réponse du chat et les valeurs des arguments n'y entrent pas. Pour en faire
+un cas : remplacer chaque `<…>` par une donnée de `fixtures.json`, écrire
+`category` et `expect`, retirer `draft` et `brouillon`, puis le copier dans
+`commands.json`. `run.py` refuse un cas resté brouillon.
+
 ## Mesurer sur le serveur ARM
 
 Le poste de développement n'a pas le processeur du serveur. Pour une mesure

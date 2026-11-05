@@ -111,7 +111,11 @@ const Assistant = (() => {
     $("chat-off").hidden = state.enabled;
     $("chat-log").replaceChildren();
     chat.id = state.conversation?.id || null;
-    for (const m of state.conversation?.messages || []) bubble(m.role, m.text, m.cards);
+    const flagged = new Set(state.conversation?.flagged || []);
+    for (const m of state.conversation?.messages || []) {
+      const body = bubble(m.role, m.text, m.cards);
+      if (m.role === "assistant") flagControl(body.parentElement, m.id, flagged.has(m.id));
+    }
     usage(state.usage);
     suggestions();
     setBusy(false);
@@ -184,6 +188,7 @@ const Assistant = (() => {
         } else if (kind === "done") {
           chat.id = data.conversation_id;
           usage(data.usage);
+          flagControl(answer.parentElement, data.message_id, false);
         } else if (kind === "error") fail(data.message);
         scrollDown();
       }
@@ -275,6 +280,66 @@ const Assistant = (() => {
     chat.id = null;
     $("chat-open").hidden = !user || !editAllowed();
     if (!user && $("chat-dialog").open) $("chat-dialog").close();
+  }
+
+  // -- Chantier V1.1 « capture des échecs » (decision 0038) --------------------
+  // A 👎 under each answer, with an optional note, sent to
+  // POST /api/assistant/answers/{id}/flag and kept beside the answer for the bench.
+  function flagControl(item, id, flagged) {
+    if (!id || item.querySelector(".chat-flag")) return;
+    const box = el("div", undefined, "chat-flag");
+    const button = el("button", "👎", "chat-flag-button");
+    button.type = "button";
+    button.title = t("chat.flag.label");
+    button.setAttribute("aria-label", t("chat.flag.label"));
+    button.setAttribute("aria-expanded", "false");
+    const mark = () => {
+      button.textContent = `👎 ${t("chat.flag.done")}`;
+      button.classList.add("chat-flagged");
+    };
+    if (flagged) mark();
+    const form = el("form", undefined, "chat-flag-form");
+    form.hidden = true;
+    const note = el("textarea");
+    note.rows = 2;
+    note.maxLength = 500;
+    note.placeholder = t("chat.flag.placeholder");
+    note.setAttribute("aria-label", t("chat.flag.note_label"));
+    const actions = el("div", undefined, "chat-flag-actions");
+    const submit = el("button", t("chat.flag.send"), "primary");
+    const cancel = el("button", t("chat.flag.cancel"), "quiet");
+    cancel.type = "button";
+    actions.append(submit, cancel);
+    form.append(note, actions);
+    const toggle = (show) => {
+      form.hidden = !show;
+      button.setAttribute("aria-expanded", String(show));
+      if (show) {
+        note.focus();
+        scrollDown();
+      }
+    };
+    button.onclick = () => toggle(form.hidden);
+    cancel.onclick = () => toggle(false);
+    form.onsubmit = async (event) => {
+      event.preventDefault();
+      submit.disabled = true;
+      try {
+        await api(`/assistant/answers/${id}/flag`, {
+          method: "POST",
+          body: JSON.stringify({ note: note.value.trim() }),
+        });
+        mark();
+        toggle(false);
+        toast(t("chat.flag.sent"));
+      } catch (error) {
+        toast(error.message);
+      } finally {
+        submit.disabled = false;
+      }
+    };
+    box.append(button, form);
+    item.append(box);
   }
 
   $("chat-open").onclick = () => open();

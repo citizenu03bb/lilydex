@@ -2911,6 +2911,21 @@ def create_app(
     def assistant_forget(conversation_id: str, user=Depends(staff)):
         return assistant.journal.delete(user["id"], conversation_id)
 
+    # Chantier V1.1 « capture des échecs » (decision 0038): the 👎 under an
+    # answer, with a free note, kept beside it for the bench.
+    from .assistant_signals import MAX_NOTE
+
+    class AssistantFlag(BaseModel):
+        model_config = ConfigDict(extra="forbid")
+        note: str = Field(default="", max_length=MAX_NOTE)
+
+    @app.post("/api/assistant/answers/{message_id}/flag")
+    def assistant_flag(message_id: int, values: AssistantFlag, user=Depends(staff)):
+        try:
+            return assistant.journal.thumbs_down(user["id"], message_id, values.note)
+        except KeyError as error:
+            raise HTTPException(404, str(error.args[0])) from None
+
     if agent_enabled:
         from .agent_api import install
 

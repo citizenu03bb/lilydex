@@ -341,6 +341,24 @@ arguments, durée, jetons, jamais le texte d'un résultat) vivent dans
 30 jours au plus : `pokeprice-manage purge` efface le reste. **Effacer** retire
 toutes vos conversations ; le décompte du jour reste, sans texte.
 
+*Signaler une réponse* ([fiche 0038](decisions/0038-capture-des-echecs.md)).
+Sous chaque réponse, le bouton 👎 ouvre une note facultative (« Qu'est-ce qui
+cloche ? ») ; **Signaler** l'enregistre avec la réponse, et le bouton affiche
+« Signalée ». Appuyer de nouveau remplace la note. Le serveur signale aussi
+seul une réponse quand le modèle ou un outil échoue, quand les quatre tours
+d'outils ne suffisent pas, ou quand la question suivante, posée dans les trois
+minutes, redit la précédente avec d'autres mots. Pour noter un défaut trouvé
+en essayant le chat, écrivez une question qui commence par **« Défaut : »**
+(« Défaut : il en compte 2, j'en ai 3 ») : elle ne part pas au modèle, le
+chat répond qu'elle est notée, et elle se rattache à la réponse précédente.
+Une conversation signalée échappe à la purge des 30 jours, jusqu'à 180 jours ;
+**Effacer** la retire comme les autres. `pokeprice-manage --data <dossier>
+assistant-drafts` en tire des brouillons de cas du
+[banc](../bench/assistant/README.md#brouillons-tirés-des-échanges-signalés),
+sans aucune donnée réelle. Route : `POST
+/api/assistant/answers/{id}/flag` (`{note?}`), l'identifiant étant le
+`message_id` de l'événement `done`.
+
 *Pour un développeur.* `POST /api/assistant` (`{question, conversation_id?, context?}`)
 répond en flux `text/event-stream`, avec les événements `text`, `tool` (nom de
 l'outil), `card` (`copy_id`, nom, numéro), `done` (conversation, jetons,

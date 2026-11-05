@@ -382,6 +382,14 @@ Générer la paire de clés VAPID des notifications Web Push
 | `--output` `OUTPUT` | Écrire les variables dans ce fichier (0600, jamais écrasé) |
 | `--subject` `SUBJECT` | Contact du serveur : mailto:… ou https://… |
 
+### `pokeprice-manage assistant-drafts`
+
+Brouillons de cas du banc tirés des échanges signalés du chat (lecture seule)
+
+| Argument | Effet |
+|---|---|
+| `--output` `OUTPUT` | Écrire dans ce fichier (jamais écrasé) ; sortie standard sinon |
+
 ### `pokeprice-manage export`
 
 Export de la collection gérée
