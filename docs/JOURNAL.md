@@ -9,6 +9,12 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-05
 
+- Chat de gestion, V1.1 : chaque question part avec le contexte de l'écran
+  (vue, fiche par identifiant, filtres, appareil, version, dernière erreur),
+  validé par liste blanche côté serveur, lu par le modèle comme une donnée et
+  gardé 30 jours avec la question ; le banc accepte un contexte par cas
+  ([fiche 0036](decisions/0036-contexte-de-la-question.md),
+  `tests/test_assistant_context.py`). Pas encore rejoué avec Gemini.
 - Premier brief du matin reçu par ntfy et Web Push, sans erreur. ntfy est
   ensuite retiré du serveur : il ne doublait que le téléphone du propriétaire,
   déjà abonné à Web Push, et l'adresse de son sujet avait fui

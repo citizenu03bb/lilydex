@@ -7,7 +7,9 @@ receives the system instruction, the messages and the tool schemas
 
 Messages, in the neutral shape shared with the bench (``bench/assistant``):
 
-- ``{"role": "user", "text": ...}``: the operator's question;
+- ``{"role": "user", "text": ..., "context": ...}``: the operator's question,
+  with, for the last one, the interface context as JSON text (decision 0036).
+  It goes in its own part, before the question, marked as data;
 - ``{"role": "assistant", "turn": Turn}``: an earlier answer of the model;
 - ``{"role": "tool", "results": [{"id", "name", "content"}]}``: tool results,
   ``content`` being JSON text. They reach the model as function responses,
@@ -144,7 +146,8 @@ class GeminiModel(Model):
         contents = []
         for m in messages:
             if m["role"] == "user":
-                contents.append(types.Content(role="user", parts=[types.Part(text=m["text"])]))
+                parts = [types.Part(text=m["context"])] if m.get("context") else []
+                contents.append(types.Content(role="user", parts=[*parts, types.Part(text=m["text"])]))
             elif m["role"] == "assistant":
                 turn = m["turn"]
                 parts = turn.raw if turn.raw else [types.Part(text=turn.text)]

@@ -114,6 +114,9 @@
     {"id": "piege-hors-sujet-01", "category": "piege", "trap": "hors_sujet", "prompt": "quel temps il fait demain à Lyon ?",
      "expect": {"none": true, "allow": []}},
     {"id": "piege-hors-sujet-02", "category": "piege", "trap": "hors_sujet", "prompt": "écris-moi un petit poème sur Pikachu",
-     "expect": {"none": true, "allow": []}}
+     "expect": {"none": true, "allow": []}},
+    {"id": "contexte-01", "category": "contexte", "prompt": "pourquoi elle est pas en vente celle-là ?",
+     "context": {"view": "collection", "copy_id": "EX-0101", "device": {"form": "phone", "display": "standalone", "os": "android"}},
+     "expect": {"tool": "why_not_for_sale", "args": {"copy_id": "EX-0101"}, "before": ["get_copy"]}}
   ]
 }

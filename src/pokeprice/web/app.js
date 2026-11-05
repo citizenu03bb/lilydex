@@ -95,6 +95,8 @@ async function api(path, options = {}) {
         .join(" · ");
     if (response.status === 401 && path !== "/login" && path !== "/session")
       showAccess();
+    // V1.1, contexte de la question (fiche 0036) : la dernière erreur, pour le chat.
+    if (typeof state !== "undefined") state.lastError = String(detail || "Erreur de connexion.");
     throw new Error(detail || "Erreur de connexion.");
   }
   if (result === null)
