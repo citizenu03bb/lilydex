@@ -161,7 +161,7 @@ const Assistant = (() => {
         method: "POST",
         credentials: "same-origin",
         headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
-        body: JSON.stringify({ question, conversation_id: chat.id }),
+        body: JSON.stringify({ question, conversation_id: chat.id, context: await questionContext().catch(() => undefined) }),
       });
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
@@ -194,6 +194,64 @@ const Assistant = (() => {
       scrollDown();
     }
   }
+
+  // -- V1.1, contexte de la question (fiche 0036) --------------------------------
+  // What the operator has in front of her, joined to each question: ids, filter
+  // values and the device only, never a client's name, message or address. The
+  // server keeps a closed list of keys (assistant_context.py) and drops the rest.
+  const seen = { card: null, version: null };
+  const RECENT_CARD_MS = 10 * 60 * 1000;
+  // The chat opens from the top bar, so a card's sheet is usually closed by then:
+  // the card shown is the one open, or the one closed in the last ten minutes.
+  $("detail-dialog")?.addEventListener("close", () => {
+    if (state.detail?.id) seen.card = { id: state.detail.id, at: Date.now() };
+  });
+  async function uiVersion() {
+    if (seen.version !== null || !("caches" in window)) return seen.version || undefined;
+    try {
+      const name = (await caches.keys()).find((n) => n.startsWith("lilydex-gestion-"));
+      seen.version = name ? name.slice("lilydex-gestion-".length) : "";
+    } catch {
+      seen.version = "";
+    }
+    return seen.version || undefined;
+  }
+  function device() {
+    const ua = navigator.userAgent;
+    const ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+    return {
+      form: matchMedia("(max-width: 700px), (pointer: coarse)").matches ? "phone" : "desktop",
+      display: matchMedia("(display-mode: standalone)").matches || navigator.standalone ? "standalone" : "browser",
+      os: ios ? "ios" : /Android/.test(ua) ? "android" : "other",
+    };
+  }
+  function filters(view) {
+    if (view === "sales") return { sales: $("sales-filter")?.value || "" };
+    if (view !== "collection") return {};
+    const query = Object.fromEntries(collectionQuery());
+    const out = {};
+    for (const key of ["q", "album", "stock", "status", "variant", "sort", "review"])
+      if (query[key]) out[key] = String(query[key]).slice(0, 80);
+    if ($("display-mode")?.value) out.display = $("display-mode").value;
+    return out;
+  }
+  async function questionContext() {
+    const view = state.view || "collection";
+    const card = $("detail-dialog")?.open
+      ? state.detail?.id
+      : seen.card && Date.now() - seen.card.at < RECENT_CARD_MS
+        ? seen.card.id
+        : null;
+    const sale = view === "sales" && /^#vente-([A-Za-z0-9_-]{1,120})$/.exec(location.hash);
+    const context = { view, filters: filters(view), device: device() };
+    if (card) context.copy_id = String(card);
+    if (sale) context.sale_id = sale[1];
+    const version = await uiVersion();
+    if (version) context.ui_version = version;
+    if (state.lastError) context.last_error = state.lastError.slice(0, 200);
+    return context;
+  }
+  // -- fin V1.1 -------------------------------------------------------------------
 
   function resize() {
     const input = $("chat-input");

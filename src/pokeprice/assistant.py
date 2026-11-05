@@ -12,7 +12,9 @@ The conversations, the question log and the token counts live beside the
 collection base, in ``assistant.sqlite3`` (decision 0034): out of the
 collection's backups, kept 30 days at most, purged by ``pokeprice-manage
 purge`` and erasable by their author. The log keeps the tool, its arguments,
-its duration and the tokens, never the text of a result.
+its duration and the tokens, never the text of a result. It also keeps the
+interface context sent with each question (``assistant_context``, decision
+0036): erased with the question's text, purged with it after 30 days.
 """
 
 import json
@@ -27,7 +29,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from . import assistant_tools
+from . import assistant_context, assistant_tools
 from .agent import AgentError, permitted, require
 from .assistant_model import ModelError
 
@@ -71,6 +73,13 @@ CREATE TABLE IF NOT EXISTS tool_calls(id INTEGER PRIMARY KEY AUTOINCREMENT,
 """
 
 
+def migrate_context(db):
+    """V1.1 (decision 0036): the interface context of each question. Idempotent."""
+    columns = {row[1] for row in db.execute("PRAGMA table_info(questions)")}
+    if "context_json" not in columns:
+        db.execute("ALTER TABLE questions ADD COLUMN context_json TEXT NOT NULL DEFAULT '{}'")
+
+
 class Refused(Exception):
     """A question the server does not send to the model."""
 
@@ -98,6 +107,7 @@ class Journal:
         self.lock = threading.Lock()
         with self.connect() as db, db:
             db.executescript(SCHEMA)
+            migrate_context(db)
 
     def connect(self):
         db = sqlite3.connect(self.path, timeout=5)
@@ -150,7 +160,8 @@ class Journal:
                 # the tool arguments go.
                 db.execute("DELETE FROM tool_calls WHERE question_id IN "
                            "(SELECT id FROM questions WHERE conversation_id=?)", (cid,))
-                db.execute("UPDATE questions SET conversation_id='' WHERE conversation_id=?", (cid,))
+                db.execute("UPDATE questions SET conversation_id='', context_json='{}' "
+                           "WHERE conversation_id=?", (cid,))
                 db.execute("DELETE FROM conversations WHERE id=?", (cid,))
         return {"deleted": len(ids)}
 
@@ -206,6 +217,18 @@ class Journal:
                        (question_id, tool[:60], json.dumps(arguments, ensure_ascii=False)[:2000],
                         duration_ms, outcome, time.time()))
 
+    # -- Interface context (V1.1, decision 0036) ---------------------------------
+
+    def note_context(self, question_id, context):
+        with self.connect() as db, db:
+            db.execute("UPDATE questions SET context_json=? WHERE id=?",
+                       (json.dumps(context, ensure_ascii=False), question_id))
+
+    def context(self, question_id):
+        with self.connect() as db:
+            row = db.execute("SELECT context_json FROM questions WHERE id=?", (question_id,)).fetchone()
+        return json.loads(row[0]) if row else None
+
     def calls(self, question_id):
         with self.connect() as db:
             return [dict(r) for r in db.execute(
@@ -236,6 +259,7 @@ class Question:
     user_id: str
     text: str
     history: list = field(default_factory=list)
+    context: dict = field(default_factory=dict)  # V1.1: the interface context, cleaned.
 
 
 def principal(store, user_id):
@@ -294,7 +318,7 @@ class Assistant:
             "conversation": self.journal.latest(user_id),
         }
 
-    def prepare(self, user_id, text, conversation_id=None):
+    def prepare(self, user_id, text, conversation_id=None, context=None):
         """Every check before anything leaves the server; raises Refused or AgentError."""
         if not self.enabled:
             raise Refused(503, "Chat désactivé : la clé du modèle n’est pas configurée.")
@@ -302,13 +326,22 @@ class Assistant:
         text = (text or "").strip()
         if not text or len(text) > MAX_QUESTION:
             raise Refused(422, f"Question vide ou trop longue ({MAX_QUESTION} caractères au plus).")
+        try:
+            context, dropped = assistant_context.clean(context)
+        except ValueError as error:
+            raise Refused(422, str(error)) from None
+        if dropped:
+            logger.info("assistant context dropped=%s", ",".join(dropped[:10]))
         question_id, conversation_id = self.journal.start(
             user_id, conversation_id, self.model.name,
             daily_limit=self.daily_limit, per_minute=self.per_minute)
         # Only the questions and answers before: never the earlier tool results.
         history = [m for m in self.journal.conversation(user_id, conversation_id) if m["text"]]
         self.journal.add(conversation_id, "user", text)
-        return Question(question_id, conversation_id, user_id, text, history[-HISTORY_MESSAGES:])
+        if context:
+            self.journal.note_context(question_id, context)
+        return Question(question_id, conversation_id, user_id, text, history[-HISTORY_MESSAGES:],
+                        context)
 
     def messages(self, question):
         from .assistant_model import Turn
@@ -317,7 +350,11 @@ class Assistant:
         for m in question.history:
             out.append({"role": "user", "text": m["text"]} if m["role"] == "user"
                        else {"role": "assistant", "turn": Turn(text=m["text"])})
-        out.append({"role": "user", "text": question.text})
+        last = {"role": "user", "text": question.text}
+        # The interface context, as data beside the question; never in the instruction.
+        if question.context:
+            last["context"] = assistant_context.for_model(question.context)
+        out.append(last)
         return out
 
     def tool(self, question, call):

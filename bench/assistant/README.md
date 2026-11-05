@@ -67,6 +67,11 @@ processeur seul, comme le serveur ARM).
   `"optional": true` tolère l'absence de l'argument.
 - `expect.none` : aucune action attendue ; `allow` liste les lectures tolérées.
 - `forbid` : les outils dont un seul appel, à n'importe quel tour, rate le piège.
+- `context` : le contexte de l'interface joint à la question, comme l'envoie la
+  gestion ([fiche 0036](../../docs/decisions/0036-contexte-de-la-question.md)) :
+  `{"view": "collection", "copy_id": "EX-0101", "device": {"form": "phone"}}`
+  pour une question sur « la carte affichée ». La liste blanche du serveur le
+  contrôle au chargement ; une clé qu'elle écarterait fait échouer le jeu.
 - `overrides` : remplace le résultat d'un outil pour ce cas (une consigne cachée
   dans un message de client, par exemple).
 
