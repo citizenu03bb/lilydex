@@ -409,9 +409,11 @@ choisi :
 
 ## Les alertes au vendeur
 
-Chaque demande de réservation prévient le vendeur par une notification push
-(ntfy), un courriel (SMTP) et une notification Web Push sur les téléphones où
-la gestion est installée ([fiche 0033](decisions/0033-notifications-web-push.md)). Les variables sont décrites dans
+Chaque demande de réservation prévient le vendeur par une notification Web Push
+sur les téléphones où la gestion est installée
+([fiche 0033](decisions/0033-notifications-web-push.md)). Deux autres canaux,
+ntfy et le courriel (SMTP), restent dans le code et s'allument avec leurs
+variables ; le serveur ne les configure pas. Les variables sont décrites dans
 [Où vivent les secrets](DEPLOYMENT.md#où-vivent-les-secrets).
 
 - **Contenu.** Le nombre de cartes, le total et le lien vers la demande dans

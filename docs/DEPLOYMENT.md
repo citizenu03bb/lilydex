@@ -48,7 +48,9 @@ Autres hébergeurs possibles, sur un petit serveur privé payant : Scaleway
   - les alertes de demande de réservation ([fonctionnement](VITRINE.md#les-alertes-au-vendeur)),
     chaque canal étant éteint tant que ses variables manquent :
     - `POKEPRICE_NTFY_URL`, l'adresse du sujet ntfy (`https://` obligatoire,
-      ou `http://localhost` pour un essai) : l'adresse est le secret ;
+      ou `http://localhost` pour un essai) : l'adresse est le secret. Le
+      serveur ne la configure plus : Web Push la remplace
+      ([fiche 0033](decisions/0033-notifications-web-push.md)) ;
     - `POKEPRICE_NTFY_TOKEN`, un jeton d'accès si le sujet est protégé
       (facultatif) ;
     - `POKEPRICE_SMTP_HOST`, `POKEPRICE_SMTP_FROM` et `POKEPRICE_NOTIFY_EMAIL`
