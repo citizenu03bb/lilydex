@@ -91,6 +91,9 @@ def load_cases(path: Path = HERE / "commands.json", tools: list[dict] | None = N
         if not cid or cid in seen:
             raise ValueError(f"identifiant absent ou en double : {cid!r}")
         seen.add(cid)
+        if case.get("draft") or "brouillon" in case:
+            # A draft from `pokeprice-manage assistant-drafts` (fiche 0038): its <…> are still to fill.
+            raise ValueError(f"{cid} : brouillon à compléter, retirer draft et brouillon d'abord")
         if not case.get("prompt") or not case.get("category"):
             raise ValueError(f"{cid} : prompt et category sont obligatoires")
         expect = case.get("expect") or {}

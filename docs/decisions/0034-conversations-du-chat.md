@@ -39,6 +39,10 @@ une sauvegarde chiffrée se garde des mois sur Drive.
 - **30 jours au plus.** `pokeprice-manage purge`, qui applique déjà les
   durées de conservation des clients chaque nuit, efface les messages, les
   questions et les appels plus anciens.
+- **Exception : les échanges signalés** par un 👎 ou par un signal du serveur
+  ([fiche 0038](0038-capture-des-echecs.md)). Leur conversation reste jusqu'à
+  180 jours après le signal, pour en tirer un cas du banc ; elle reste
+  effaçable par son auteur.
 - **Effaçables par leur auteur** : le bouton « Effacer » du panneau et
   `DELETE /api/assistant/conversations` retirent les conversations et les
   arguments des appels. Le décompte de la question reste, sans texte ni

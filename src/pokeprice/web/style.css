@@ -2442,6 +2442,49 @@ button.chat-card {
   padding: 2px 12px calc(8px + env(safe-area-inset-bottom));
   font-size: 0.75rem;
 }
+/* Chantier V1.1 « capture des échecs » (decision 0038): the 👎 under an answer. */
+.chat-flag {
+  margin-top: 4px;
+}
+button.chat-flag-button {
+  min-height: 36px;
+  min-width: 44px;
+  padding: 4px 10px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+button.chat-flag-button:hover,
+button.chat-flag-button[aria-expanded="true"] {
+  border-color: var(--line);
+}
+button.chat-flag-button.chat-flagged {
+  color: var(--text, inherit);
+}
+.chat-flag-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+.chat-flag-form textarea {
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  font-size: 16px; /* no zoom on focus on the phone */
+  resize: vertical;
+}
+.chat-flag-actions {
+  display: flex;
+  gap: 8px;
+}
+.chat-flag-actions button {
+  min-height: 44px;
+}
 @media (max-width: 600px) {
   dialog.chat-dialog {
     inset: 0 auto auto 0;
