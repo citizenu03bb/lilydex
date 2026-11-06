@@ -19,6 +19,10 @@ d'une photo par Gemini ou le relevé d'un prix sur TCGdex, le signalent.
 
 Les mots propres au projet sont définis dans le [glossaire](GLOSSAIRE.md).
 
+Les fenêtres de dialogue de la gestion portent le nom de leur titre visible
+pour les technologies d'assistance. Le contrôle automatique vérifie ces
+références ; il ne remplace pas un essai avec un lecteur d'écran.
+
 ## Ce que vous pouvez faire
 
 - **Démarrer** : installer, créer le compte administrateur, ouvrir l'accès à

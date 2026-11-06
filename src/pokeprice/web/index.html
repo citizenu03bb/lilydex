@@ -564,9 +564,9 @@
         <p id="chat-usage" class="help chat-usage"></p>
       </div>
     </dialog>
-    <dialog id="detail-dialog">
+    <dialog id="detail-dialog" aria-labelledby="detail-title">
       <div class="dialog-header">
-        <span class="eyebrow">FICHE D’EXEMPLAIRE</span
+        <span id="detail-title" class="eyebrow">FICHE D’EXEMPLAIRE</span
         ><button
           class="close"
           data-close="detail-dialog"
@@ -577,7 +577,7 @@
       </div>
       <div id="detail-body"></div>
     </dialog>
-    <dialog id="add-dialog">
+    <dialog id="add-dialog" aria-labelledby="intake-title">
       <div class="dialog-header">
         <h2 id="intake-title">Ajouter une carte</h2>
         <button
@@ -816,9 +816,9 @@
         <button class="primary" type="submit">Appliquer à la sélection</button>
       </form>
     </dialog>
-    <dialog id="series-dialog">
+    <dialog id="series-dialog" aria-labelledby="series-title">
       <div class="dialog-header">
-        <h2>Commencer une série</h2>
+        <h2 id="series-title">Commencer une série</h2>
         <button data-close="series-dialog" class="close" aria-label="Fermer">
           ×
         </button>
@@ -924,9 +924,9 @@
         <p id="page-error" class="error" role="alert"></p>
       </div>
     </dialog>
-    <dialog id="batch-dialog">
+    <dialog id="batch-dialog" aria-labelledby="batch-title">
       <div class="dialog-header">
-        <h2>Préparer les photos par lot</h2>
+        <h2 id="batch-title">Préparer les photos par lot</h2>
         <button data-close="batch-dialog" class="close" aria-label="Fermer">
           ×
         </button>
@@ -965,9 +965,9 @@
         <p id="batch-error" class="error" role="alert"></p>
       </div>
     </dialog>
-    <dialog id="move-dialog">
+    <dialog id="move-dialog" aria-labelledby="move-title">
       <div class="dialog-header">
-        <h2>{{t:move.title}}</h2>
+        <h2 id="move-title">{{t:move.title}}</h2>
         <button data-close="move-dialog" class="close" aria-label="Fermer">
           ×
         </button>
@@ -1036,9 +1036,9 @@
         <p id="move-error" class="error" role="alert"></p>
       </div>
     </dialog>
-    <dialog id="sale-dialog">
+    <dialog id="sale-dialog" aria-labelledby="sale-title">
       <div class="dialog-header">
-        <h2>2. Enregistrer le lot</h2>
+        <h2 id="sale-title">2. Enregistrer le lot</h2>
         <button
           class="close"
           data-close="sale-dialog"

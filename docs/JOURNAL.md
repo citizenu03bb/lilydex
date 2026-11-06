@@ -22,6 +22,10 @@ daté la quitte, il est versé ici dans le même commit.
   chat et du modèle même sans purge. La saisie annonce le transfert vers
   Google et un flux coupé reste incomplet avec reprise possible
   (`tests/test_assistant_privacy.py`).
+- Audit, accessibilité : chaque dialogue de la gestion est relié à son titre
+  visible. Le contrôle statique vérifie une cible unique, visible dans le
+  balisage et non vide ; aucun essai Orca ou TalkBack n'est réalisé
+  (`tests/test_dialog_accessibility.py`).
 
 ## 2026-11-05
 
