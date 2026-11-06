@@ -495,5 +495,16 @@
   "push.denied": "Les notifications sont bloquées pour cette application : autorisez-les dans les réglages du téléphone.",
   "push.on": "Notifications activées sur ce téléphone.",
   "push.off": "Notifications désactivées sur ce téléphone.",
-  "push.error": "Impossible de changer les notifications. Réessayez."
+  "push.error": "Impossible de changer les notifications. Réessayez.",
+  "valuation.trend": "Tendance",
+  "valuation.trend.help": "Tendance TCGdex de la variante enregistrée.",
+  "valuation.trend.missing": "{count} sans prix",
+  "valuation.prudent": "Valeur prudente",
+  "valuation.prudent.help": "Minimum entre tendance et moyenne à 30 jours. Les deux prix sont nécessaires ; aucune décote d’état.",
+  "valuation.prudent.missing": "{count} sans valeur prudente",
+  "valuation.sale_estimate": "Estimation de vente",
+  "valuation.sale_estimate.help": "Dernières offres Cardmarket collées pour l’identité, la variante et l’état actuels. Prix demandés, hors frais et port. Un exemplaire sans offre collée n’a pas d’estimation, même s’il a une tendance.",
+  "valuation.sale_estimate.missing": "{count} sans offre collée",
+  "valuation.coverage": { "one": "{known}/{count} exemplaire", "other": "{known}/{count} exemplaires" },
+  "valuation.bulk": "{count} en vrac"
 }
