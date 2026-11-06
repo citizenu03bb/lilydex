@@ -15,7 +15,7 @@ import time
 import warnings
 from decimal import Decimal
 from pathlib import Path
-from typing import Literal
+from typing import Annotated, Literal
 from urllib.parse import quote, urlsplit
 
 from fastapi import (
@@ -61,7 +61,7 @@ from .privacy import Privacy
 from .notifications import (
     Notifier, WebPush, channels_from_env, euros, subscribe, subscribed, unsubscribe,
 )
-from .reservations import SHIPPING_SERVICES, Reservations, shipping_config, valid_email
+from .reservations import BasketConflict, SHIPPING_SERVICES, Reservations, shipping_config, valid_email
 from .variant_catalogue import VariantCatalogue
 from .catalogue_image import CatalogueImages
 from .variant_pricing import category
@@ -139,7 +139,7 @@ ERROR_CODES = {
     "La boutique n’est pas encore ouverte aux réservations.": "requests_closed",
     "Carte absente de la vitrine.": "card_not_found",
     "Choisissez des cartes distinctes.": "duplicate_cards",
-    "Une carte n’est plus disponible : actualisez la vitrine.": "card_unavailable",
+    "Votre sélection a changé : vérifiez les prix et les disponibilités.": "basket_changed",
     "Trop de demandes en attente : attendez une réponse du vendeur.": "too_many_pending",
     "Demande introuvable.": "request_not_found",
     "La demande a changé. Actualisez la page.": "request_changed",
@@ -420,10 +420,14 @@ class Signup(Model):
     consent: Literal[True]
 
 
-class RequestCreate(Model):
+class BasketQuote(Model):
     listing_ids: list[str] = Field(min_length=1, max_length=50)
-    message: str = Field(default="", max_length=1000)
     delivery: Literal["shipping", "hand"] = "shipping"
+
+
+class RequestCreate(BasketQuote):
+    expected_prices: dict[str, Annotated[int, Field(strict=True, ge=0)]] = Field(max_length=50)
+    message: str = Field(default="", max_length=1000)
     registered: bool | None = None
 
 
@@ -926,6 +930,11 @@ def create_app(
 
     @app.exception_handler(Conflict)
     async def conflict(request, exc):
+        if isinstance(exc, BasketConflict):
+            return Response(json.dumps({
+                "detail": str(exc), "code": "basket_changed", "quote": exc.quote,
+                "changed": exc.changed, "unavailable": exc.quote["unavailable"],
+            }), status_code=409, media_type="application/json")
         return error_response(str(exc), 409)
 
     @app.exception_handler(KeyError)
@@ -1367,6 +1376,10 @@ def create_app(
             "vous pourrez vous connecter une fois le vôtre activé."
         }
 
+    @app.post("/api/public/quote")
+    def basket_quote(values: BasketQuote, _=Depends(public_rate)):
+        return reservations.quote(values.listing_ids, values.delivery)
+
     guests = {}
 
     @app.post("/api/public/requests", status_code=202)
@@ -1388,6 +1401,7 @@ def create_app(
             unusable,
             delivery=values.delivery,
             registered=values.registered,
+            expected_prices=values.expected_prices,
         )
         return {
             "detail": "Demande envoyée. Rien n’est bloqué tant que le vendeur ne l’a pas "
@@ -1482,6 +1496,7 @@ def create_app(
             values.message,
             delivery=values.delivery,
             registered=values.registered,
+            expected_prices=values.expected_prices,
         )
 
     @app.post("/api/me/requests/{request_id}/cancel")

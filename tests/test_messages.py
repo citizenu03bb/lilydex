@@ -156,7 +156,7 @@ def test_every_error_code_has_its_text_and_the_french_is_the_detail():
 
 def test_errors_a_visitor_meets_carry_their_code(tmp_path):
     store = Store(tmp_path / "inventory")
-    guest = {"email": "ondine@example.org", "display_name": "Ondine", "listing_ids": ["x"], "consent": True}
+    guest = {"email": "ondine@example.org", "display_name": "Ondine", "listing_ids": ["x"], "expected_prices": {"x": 0}, "consent": True}
     with TestClient(create_app(store.root)) as client:
         login = client.post("/api/login", json={"username": "personne", "password": "faux-mot-de-passe"})
         foreign = client.post("/api/logout", headers={"origin": "https://ailleurs.example"})

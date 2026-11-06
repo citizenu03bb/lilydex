@@ -1,3 +1,4 @@
+from basket_helpers import accepted_prices
 import json
 import re
 from test_library import inputs
@@ -189,7 +190,7 @@ def test_client_request_with_hand_delivery_and_postal_shipping(tmp_path):
     # Case 1: hand delivery
     req_hand = client_buyer.post(
         "/api/me/requests",
-        json={"listing_ids": [pikachu_id], "message": "Je suis du coin", "delivery": "hand"},
+        json={"listing_ids": [pikachu_id], "expected_prices": accepted_prices(store, [pikachu_id]), "message": "Je suis du coin", "delivery": "hand"},
     ).json()
     assert req_hand["delivery"] == "hand"
     assert req_hand["shipping_cents"] == 0
@@ -204,7 +205,7 @@ def test_client_request_with_hand_delivery_and_postal_shipping(tmp_path):
     # Case 2: shipping for Dracaufeu (>= 50 € -> 65 € -> automatic registered R2)
     req_drac = client_buyer.post(
         "/api/me/requests",
-        json={"listing_ids": [dracaufeu_id], "message": "Envoi soigné svp", "delivery": "shipping"},
+        json={"listing_ids": [dracaufeu_id], "expected_prices": accepted_prices(store, [dracaufeu_id]), "message": "Envoi soigné svp", "delivery": "shipping"},
     ).json()
     assert req_drac["delivery"] == "shipping"
     assert req_drac["registered"] is True
@@ -259,7 +260,7 @@ def test_schema_24_moves_the_delivery_prefix_out_of_old_messages(tmp_path):
     for listing_id in (pikachu_id, dracaufeu_id, pikachu_id):
         client.post(
             "/api/public/requests",
-            json={"email": f"{listing_id[:8]}@example.org", "display_name": "Ancien", "listing_ids": [listing_id],
+            json={"email": f"{listing_id[:8]}@example.org", "display_name": "Ancien", "listing_ids": [listing_id], "expected_prices": accepted_prices(store, [listing_id]),
                   "message": "", "consent": True},
         ).raise_for_status()
     old_messages = ["[delivery:hand]\nJe passe samedi", "[delivery:registered]\nMerci", "[delivery:shipping]"]

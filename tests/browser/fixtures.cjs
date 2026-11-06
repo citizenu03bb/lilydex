@@ -31,7 +31,8 @@ const test = base.extend({
         audit.external.push(request.url());
         return route.abort();
       }
-      if (!['GET', 'HEAD'].includes(request.method())) {
+      const quote = request.method() === 'POST' && url.pathname === '/api/public/quote';
+      if (!['GET', 'HEAD'].includes(request.method()) && !quote) {
         audit.writes.push(`${request.method()} ${url.pathname}`);
         return route.abort();
       }

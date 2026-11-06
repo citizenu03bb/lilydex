@@ -1,5 +1,6 @@
 """Seller alerts: simulated channels only, no network and no key."""
 
+from basket_helpers import accepted_prices
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -45,7 +46,7 @@ def wire(store, app, channels, clock=None):
 
 def guest_request(store, listing_ids, app_factory):
     with TestClient(app_factory(store.root)) as visitor:
-        return visitor.post("/api/public/requests", json={**GUEST, "listing_ids": listing_ids})
+        return visitor.post("/api/public/requests", json={**GUEST, "listing_ids": listing_ids, "expected_prices": accepted_prices(store, listing_ids)})
 
 
 def test_channels_are_off_unless_configured():

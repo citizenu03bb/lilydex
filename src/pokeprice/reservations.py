@@ -410,6 +410,15 @@ def sale_reference(sale_id):
     return "LILY-" + sale_id.replace("-", "")[:8].upper()
 
 
+class BasketConflict(Conflict):
+    """A public, current basket snapshot; no client or hidden listing data."""
+
+    def __init__(self, quote, changed):
+        super().__init__("Votre sélection a changé : vérifiez les prix et les disponibilités.")
+        self.quote = quote
+        self.changed = changed
+
+
 class Reservations:
     def __init__(self, store, storefront, notifier=None):
         self.store, self.storefront, self.notifier = store, storefront, notifier
@@ -663,17 +672,17 @@ class Reservations:
                 ).fetchall()
             ]
 
-    def create(self, client_id, listing_ids, message, delivery="shipping", registered=None):
-        prices = self.prices(listing_ids)
+    def create(self, client_id, listing_ids, message, delivery="shipping", registered=None, *, expected_prices):
+        prices = self.prices(listing_ids, expected_prices, delivery)
         with self.store.connect(write=True) as db:
             request = self.insert(db, client_id, prices(db), message, OPEN_LIMIT, delivery, registered)
         self.notified()
         return request
 
-    def guest(self, email, display_name, listing_ids, message, unusable_hash, delivery="shipping", registered=None):
+    def guest(self, email, display_name, listing_ids, message, unusable_hash, delivery="shipping", registered=None, *, expected_prices):
         """Only a proved mailbox receives guest requests in its signed-in account."""
         email = valid_email(email)
-        prices = self.prices(listing_ids)
+        prices = self.prices(listing_ids, expected_prices, delivery)
         with self.store.connect(write=True) as db:
             if not db.execute("SELECT 1 FROM users WHERE role='admin' LIMIT 1").fetchone():
                 raise Conflict("La boutique n’est pas encore ouverte aux réservations.")
@@ -697,20 +706,62 @@ class Reservations:
         if self.notifier:
             self.notifier.wake()
 
-    def prices(self, listing_ids):
-        """Check the choice now; read each card's price inside the request's transaction."""
+    @staticmethod
+    def distinct(listing_ids):
         if not listing_ids or len(listing_ids) != len(set(listing_ids)):
             raise ValueError("Choisissez des cartes distinctes.")
 
+    def quote(self, listing_ids, delivery="shipping"):
+        """Public prices and availability from one consistent database snapshot."""
+        self.distinct(listing_ids)
+        with self.store.connect() as db:
+            db.execute("BEGIN")
+            return self.basket_quote(db, listing_ids, delivery)
+
+    def basket_quote(self, db, listing_ids, delivery):
+        items, unavailable = [], []
+        for listing_id in listing_ids:
+            rows = self.storefront.rows(db, listing_id)
+            if not rows:
+                unavailable.append(listing_id)
+                continue
+            row = rows[0]
+            cards = self.storefront.cards(db, listing_id)
+            if not cards:
+                unavailable.append(listing_id)
+                continue
+            label = row["title"] if len(cards) > 1 else " · ".join(
+                str(cards[0][key]) for key in ("name", "set_name", "number") if cards[0][key]
+            )
+            items.append({"id": listing_id, "label": label,
+                          "price_cents": row["price_cents"], "card_count": len(cards)})
+        subtotal = sum(item["price_cents"] for item in items)
+        shipping = shipping_quote(sum(item["card_count"] for item in items), subtotal, delivery)
+        return {"items": items, "unavailable": unavailable, "subtotal_cents": subtotal,
+                "delivery": delivery, "shipping_cents": shipping["shipping_cents"],
+                "registered": shipping["registered"],
+                "registered_threshold_cents": registered_threshold_cents(),
+                "total_cents": subtotal + shipping["shipping_cents"]}
+
+    def prices(self, listing_ids, expected_prices, delivery="shipping"):
+        """Compare and insert under the same write lock, including guest requests."""
+        self.distinct(listing_ids)
+        if set(expected_prices) != set(listing_ids) or any(
+            type(price) is not int or price < 0 for price in expected_prices.values()
+        ):
+            raise ValueError("Acceptez le prix de chaque article de la sélection.")
+
         def read(db):
             self.expire(db)
-            prices = {}
-            for listing_id in listing_ids:
-                rows = self.storefront.rows(db, listing_id)
-                if not rows:
-                    raise Conflict("Une carte n’est plus disponible : actualisez la vitrine.")
-                prices[listing_id] = rows[0]["price_cents"]
-            return prices
+            quote = self.basket_quote(db, listing_ids, delivery)
+            changed = [
+                {"id": item["id"], "expected_cents": expected_prices[item["id"]],
+                 "price_cents": item["price_cents"]}
+                for item in quote["items"] if expected_prices[item["id"]] != item["price_cents"]
+            ]
+            if quote["unavailable"] or changed:
+                raise BasketConflict(quote, changed)
+            return {item["id"]: item["price_cents"] for item in quote["items"]}
 
         return read
 

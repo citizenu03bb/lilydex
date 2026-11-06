@@ -42,7 +42,9 @@ les dépendances web et dev verrouillées. Le serveur écoute uniquement sur
 la boucle locale et crée sa collection et ses photos dans un dossier
 temporaire supprimé à l'arrêt. Il refuse de réutiliser un serveur existant.
 Les requêtes externes et les écritures HTTP sont bloquées et font échouer
-la recette si elles sont tentées ; les services Python sont remplacés par
+la recette si elles sont tentées. Le POST de devis est en lecture seule ;
+les envois de demandes testés sont interceptés dans le navigateur et ne
+parviennent pas au serveur. Les services Python sont remplacés par
 des fonctions de test. Aucun secret ni jeu de données local n'est nécessaire.
 
 Le [workflow CI](.github/workflows/tests.yml) lance un job par moteur sur

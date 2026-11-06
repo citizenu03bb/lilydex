@@ -1,5 +1,6 @@
 """Read-only tools of the management assistant (decision 0032)."""
 
+from basket_helpers import accepted_prices
 import json
 
 import pytest
@@ -61,7 +62,7 @@ def assistant(tmp_path):
         assert listing.status_code == 200, listing.text
         guest = TestClient(app)
         sent = guest.post("/api/public/requests", json={
-            "email": CLIENT_EMAIL, "display_name": CLIENT_NAME, "listing_ids": [listing.json()["id"]],
+            "email": CLIENT_EMAIL, "display_name": CLIENT_NAME, "listing_ids": [listing.json()["id"]], "expected_prices": accepted_prices(store, [listing.json()["id"]]),
             "message": CLIENT_MESSAGE, "consent": True,
         })
         assert sent.status_code in (201, 202), sent.text

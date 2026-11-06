@@ -4,6 +4,7 @@ import json
 from datetime import datetime, timedelta, timezone
 
 import pytest
+from basket_helpers import accepted_prices
 from fastapi.testclient import TestClient
 from test_client_identity import issue, redeem
 from test_privacy import accepted_request
@@ -24,7 +25,7 @@ def test_replay_erases_a_request_moved_by_proof_without_erasing_its_old_real_own
         admin, store, listings, "previous@example.org", "Propriétaire conservé"
     )
     kept = previous.post("/api/me/requests", json={
-        "listing_ids": [listings[1]["id"]], "message": "demande distincte conservée",
+        "expected_prices": accepted_prices(store, [listings[1]["id"]]), "listing_ids": [listings[1]["id"]], "message": "demande distincte conservée",
     }).json()
     with store.connect(write=True) as db:
         previous_id = db.execute("SELECT client_id FROM requests WHERE id=?", (request["id"],)).fetchone()[0]

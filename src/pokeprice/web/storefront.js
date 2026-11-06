@@ -67,7 +67,10 @@ function saveBasket() {
 function readBasket() {
   try {
     const value = JSON.parse(localStorage.getItem(BASKET) || "[]");
-    return Array.isArray(value) ? value.filter((x) => x && x.id) : [];
+    return Array.isArray(value) ? value.filter((x, index, entries) =>
+      x && typeof x.id === "string" && x.id && Number.isSafeInteger(x.price_cents) &&
+      x.price_cents >= 0 && entries.findIndex((entry) => entry?.id === x.id) === index
+    ).slice(0, 50) : [];
   } catch {
     return [];
   }
@@ -88,7 +91,7 @@ async function call(path, options = {}) {
   if (!response.ok) {
     let detail = failure(body, t("error.http", { status: response.status }));
     if (Array.isArray(detail)) detail = t("error.fields");
-    throw Object.assign(new Error(detail), { status: response.status });
+    throw Object.assign(new Error(detail), { status: response.status, body });
   }
   return body;
 }
@@ -643,6 +646,61 @@ function formError(form, message) {
   error.hidden = !message;
 }
 
+// A quote never overwrites changes made while its request was in flight.
+const basketFingerprint = () => JSON.stringify(state.basket.map(({ id, price_cents }) => [id, price_cents]));
+let basketRefresh = 0;
+function applyBasketQuote(quote, snapshot) {
+  const quoted = new Map(quote.items.map((item) => [item.id, item]));
+  const checked = new Set(snapshot.map((item) => item.id));
+  const removed = snapshot.filter((item) => quote.unavailable.includes(item.id));
+  let changed = false;
+  state.basket = state.basket.flatMap((entry) => {
+    if (!checked.has(entry.id)) return [entry];
+    if (quote.unavailable.includes(entry.id)) return [];
+    const current = quoted.get(entry.id);
+    if (!current) return [entry];
+    if (entry.price_cents !== current.price_cents) changed = true;
+    return [{ ...entry, ...current,
+      previous_price_cents: entry.price_cents !== current.price_cents
+        ? entry.price_cents : entry.previous_price_cents }];
+  });
+  state.basketQuote = quote;
+  const notes = [];
+  if (changed) notes.push(t("basket.prices_changed"));
+  if (removed.length) notes.push(t("basket.unavailable", { items: removed.map((item) => item.label).join(", ") }));
+  if (notes.length) state.basketNotice = notes.join(" ");
+  saveBasket();
+  renderBasket();
+  if ((changed || removed.length) && $("basket").open) {
+    const notice = $("basket-updates");
+    notice.tabIndex = -1;
+    notice.focus({ preventScroll: true });
+    $("basket-items").scrollIntoView({ block: "start" });
+  }
+  return changed || removed.length > 0;
+}
+async function refreshBasket() {
+  if (!state.basket.length) return false;
+  const sequence = ++basketRefresh;
+  const fingerprint = basketFingerprint();
+  const snapshot = state.basket.map((entry) => ({ ...entry }));
+  const deliveryInput = document.querySelector('input[name="delivery"]:checked');
+  const quote = await call("/api/public/quote", {
+    method: "POST", body: JSON.stringify({ listing_ids: snapshot.map((entry) => entry.id),
+      delivery: deliveryInput?.value || "shipping" }),
+  });
+  const currentDelivery = document.querySelector('input[name="delivery"]:checked')?.value || "shipping";
+  if (sequence !== basketRefresh || fingerprint !== basketFingerprint() || quote.delivery !== currentDelivery) return false;
+  return !applyBasketQuote(quote, snapshot) && state.basket.length > 0;
+}
+async function restoreBasket() {
+  try { await refreshBasket(); }
+  catch (error) {
+    state.basketNotice = t("basket.check_failed");
+    renderBasket();
+  }
+}
+
 function renderBasket() {
   $("basket-title").textContent = t("basket.title");
   const list = $("basket-items");
@@ -655,6 +713,9 @@ function renderBasket() {
     image.alt = "";
     image.addEventListener("error", () => image.remove());
     line.append(image, el("span", entry.label, "basket-name"), el("span", euros(entry.price_cents), "price"));
+    if (Number.isSafeInteger(entry.previous_price_cents) && entry.previous_price_cents !== entry.price_cents) {
+      line.append(el("span", t("basket.previous_price", { price: euros(entry.previous_price_cents) }), "help"));
+    }
     const remove = el("button", t("basket.remove"));
     remove.type = "button";
     remove.addEventListener("click", () => {
@@ -669,7 +730,11 @@ function renderBasket() {
   const cardCount = state.basket.reduce((sum, x) => sum + (x.card_count || 1), 0);
   const deliveryInput = document.querySelector('input[name="delivery"]:checked');
   const delivery = deliveryInput ? deliveryInput.value : "shipping";
-  const quote = shippingQuote(cardCount, subtotal, delivery);
+  const checkedQuote = state.basketQuote;
+  const quote = checkedQuote && checkedQuote.delivery === delivery &&
+    checkedQuote.items.length === state.basket.length && state.basket.every((entry) =>
+      checkedQuote.items.some((item) => item.id === entry.id && item.price_cents === entry.price_cents))
+    ? checkedQuote : shippingQuote(cardCount, subtotal, delivery);
   const summary = $("basket-summary");
   const conditionsNote = $("basket-conditions-note");
 
@@ -699,7 +764,7 @@ function renderBasket() {
       regNotice.hidden = !quote || !quote.registered;
       if (quote && quote.registered)
         regNotice.textContent = t("basket.registered_notice", {
-          threshold: euros(shippingRates.registered_threshold_cents),
+          threshold: euros(quote.registered_threshold_cents ?? shippingRates?.registered_threshold_cents),
         });
     }
     $("basket-total").textContent = quote
@@ -717,6 +782,15 @@ function renderBasket() {
     $("basket-total").textContent = t("basket.empty");
   }
 
+  let notice = $("basket-updates");
+  if (!notice) {
+    notice = el("p", "", "notice");
+    notice.id = "basket-updates";
+    notice.setAttribute("role", "status");
+    list.after(notice);
+  }
+  notice.textContent = state.basketNotice || "";
+  notice.hidden = !state.basketNotice;
   $("basket-form").hidden = !state.basket.length;
   $("basket-browse").hidden = Boolean(state.basket.length);
   // A disabled fieldset is left out of the form's checks.
@@ -1024,6 +1098,7 @@ $("signup-open").addEventListener("click", () => $("signup").showModal());
 $("basket-open").addEventListener("click", () => {
   renderBasket();
   $("basket").showModal();
+  restoreBasket();
 });
 $("requests-open").addEventListener("click", () => {
   renderRequests();
@@ -1155,10 +1230,18 @@ $("basket-form").addEventListener("submit", async (event) => {
   const form = event.target;
   try {
   formError(form, "");
+  try {
+    if (!await refreshBasket()) return;
+  } catch (error) {
+    formError(form, t("basket.check_failed"));
+    return;
+  }
+  const snapshot = state.basket.map((entry) => ({ ...entry }));
   const deliveryInput = form.querySelector('input[name="delivery"]:checked');
   // The server sets the registered tier from the cards' total.
   const body = {
-    listing_ids: state.basket.map((x) => x.id),
+    listing_ids: snapshot.map((x) => x.id),
+    expected_prices: Object.fromEntries(snapshot.map((x) => [x.id, x.price_cents])),
     message: form.message.value,
     delivery: deliveryInput ? deliveryInput.value : "shipping",
   };
@@ -1178,7 +1261,9 @@ $("basket-form").addEventListener("submit", async (event) => {
         }),
       });
     }
-    state.basket = [];
+    state.basket = state.basket.filter((entry) => !body.listing_ids.includes(entry.id));
+    state.basketNotice = "";
+    state.basketQuote = null;
     saveBasket();
     form.reset();
     load();
@@ -1192,7 +1277,10 @@ $("basket-form").addEventListener("submit", async (event) => {
     renderRequests();
     $("requests").showModal();
   } catch (error) {
-    formError(form, error.message);
+    if (error.status === 409 && error.body?.quote) {
+      applyBasketQuote(error.body.quote, snapshot);
+      formError(form, t("basket.review_again"));
+    } else formError(form, error.message);
   }
   } finally { releaseForm(form); }
 });
@@ -1221,6 +1309,7 @@ $("password-form").addEventListener("submit", async (event) => {
 openLink();
 state.basket = readBasket();
 renderAccount();
+restoreBasket();
 whoAmI();
 readFilters();
 load();

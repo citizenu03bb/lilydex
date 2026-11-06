@@ -29,6 +29,17 @@ une vignette sans état confirmé indique « État à confirmer ». Un lot porte
 nombre de cartes et précise que son prix concerne l'ensemble. Dans **Ma
 sélection**, chaque ligne montre aussi le recto de la première carte.
 
+Le panier conserve une sélection sur l’appareil. Au rechargement, à son ouverture
+et avant tout envoi, il redemande au serveur le prix et la disponibilité de
+chaque publication. Un article indisponible est retiré et nommé. Un prix modifié
+s’affiche avec son ancien prix ; le visiteur vérifie la sélection puis clique
+de nouveau sur **Envoyer la demande** pour accepter les montants affichés.
+Si la vérification échoue, le panier est conservé et la demande attend un nouvel
+essai. L’envoi transmet les prix acceptés pour chaque article. Le serveur les
+compare aux prix courants dans la transaction qui crée la demande : une
+modification entre le devis et l’envoi produit un conflit explicite et ne crée
+aucune demande. Cette règle s’applique avec ou sans compte.
+
 ## Les règles
 
 | Sujet | Règle |
@@ -323,6 +334,14 @@ minute et par adresse :
   `view2`) et `format` (`jpeg`, `webp` selon les variantes proposées). `thumb` et
   `full` conservent leur format JPEG ; les dimensions annoncées sont celles
   réellement produites.
+- `POST /api/public/quote` : devis sans réservation, limité à 50 publications
+  distinctes ; renvoie les articles disponibles (identifiant, libellé public,
+  prix en centimes, nombre de cartes), les identifiants indisponibles, le
+  sous-total et les frais d’envoi selon le mode de livraison. Les montants
+  acceptés sont obligatoires dans `expected_prices` (identifiant → centimes
+  entiers) sur les deux routes de création de demandes. Un conflit 409 porte
+  le code `basket_changed`, les articles dont le prix change et le devis
+  courant ; une publication retirée ne révèle aucun de ses champs privés.
 - `POST /api/public/signup` : e-mail, nom, mot de passe de 10 caractères au
   moins, lecture de l'information sur les données ; crée un compte `pending`.
   La réponse et son délai sont les mêmes, que l'adresse soit connue ou non ;

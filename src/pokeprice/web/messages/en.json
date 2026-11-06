@@ -189,6 +189,12 @@
   "signup.submit": "Create my account",
   "signup.sent": "Registration received. The seller approves each account: you can sign in once yours is activated.",
 
+  "basket.prices_changed": "Prices have changed. Review your selection, then click “Send request” again to accept these prices.",
+  "basket.unavailable": "Unavailable items removed: {items}.",
+  "basket.previous_price": "Previous price: {price}",
+  "basket.check_failed": "Prices and availability could not be checked. Your selection is saved; try again before sending it.",
+  "basket.review_again": "Your selection changed while sending. Review it, then send your request again.",
+  "error.basket_changed": "Your selection has changed: check prices and availability.",
   "basket.title": "My selection",
   "basket.label": { "one": "My selection, {count} listing", "other": "My selection, {count} listings" },
   "basket.guest": "So the seller can reply, without creating an account",

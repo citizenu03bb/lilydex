@@ -25,6 +25,10 @@ def no_service(*args, **kwargs):
 
 
 def build_fixture(root):
+    # Synthetic fixtures never inherit real provider credentials or channels.
+    for name in tuple(os.environ):
+        if name.startswith("POKEPRICE_") or name in {"GEMINI_API_KEY", "GOOGLE_API_KEY"}:
+            os.environ.pop(name, None)
     store = Store(root / "inventory")
     import_collection(store, inputs(root))
 

@@ -1,5 +1,6 @@
 """The management chat, V1 (decisions 0029, 0031, 0034): fake model only, no key."""
 
+from basket_helpers import accepted_prices
 import dataclasses
 import importlib.util
 import json
@@ -63,7 +64,7 @@ def env(tmp_path, monkeypatch):
     listing = owner.put(f"/api/copies/{cards[0]['id']}/listing", json={"price_eur": "3.00"})
     assert listing.status_code == 200, listing.text
     sent = TestClient(app).post("/api/public/requests", json={
-        "email": CLIENT_EMAIL, "display_name": CLIENT_NAME, "listing_ids": [listing.json()["id"]],
+        "email": CLIENT_EMAIL, "display_name": CLIENT_NAME, "listing_ids": [listing.json()["id"]], "expected_prices": accepted_prices(store, [listing.json()["id"]]),
         "message": CLIENT_MESSAGE, "consent": True,
     })
     assert sent.status_code in (201, 202), sent.text
