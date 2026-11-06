@@ -323,8 +323,10 @@ def test_un_cas_peut_joindre_un_contexte(bench, setup):
     assert json.loads(message["context"])["interface_context"]["copy_id"] == "EX-0101"
     # Les fournisseurs sans parties séparées lisent le contexte avant la question.
     assert bench.user_text(message).endswith("\n\n" + case["prompt"])
-    assert bench.question_message(by_id(cases, "comprendre-01")) == {
-        "role": "user", "text": by_id(cases, "comprendre-01")["prompt"]}
+    plain = bench.question_message(by_id(cases, "comprendre-01"))
+    assert plain["text"] == by_id(cases, "comprendre-01")["prompt"]
+    # Sans contexte d'interface, la question part quand même avec l'heure et le rôle.
+    assert json.loads(plain["context"]) == {"server_context": bench.server_facts({})}
     seen = []
 
     class Recorder(bench.FakeAdapter):
@@ -344,3 +346,18 @@ def test_un_contexte_hors_liste_blanche_est_refuse(bench, tmp_path):
          "expect": {"tool": "get_copy"}}]}))
     with pytest.raises(ValueError, match="liste blanche"):
         bench.load_cases(path, tools=bench.load_tools())
+
+
+# -- Défaut du 6 novembre : une erreur jointe sans rapport n'est pas commentée --
+
+
+def test_erreur_jointe_sans_rapport(bench, setup):
+    tools, cases, system, fixtures = setup
+    case = by_id(cases, "affichee-05")
+    assert case["context"]["last_error"]
+    call = {"calls": [{"name": "count_copies", "args": {"duplicates_only": True}}]}
+    chatty = bench.FakeAdapter("x", script={case["id"]: [
+        call, {"text": "Racaillou 74/102 ×7. Pense à te reconnecter, ta session semble expirée."}]})
+    assert not bench.run_case(chatty, case, tools, system, fixtures)["passed"]
+    quiet = bench.FakeAdapter("x", script={case["id"]: [call, {"text": "Racaillou 74/102 ×7."}]})
+    assert bench.run_case(quiet, case, tools, system, fixtures)["passed"]

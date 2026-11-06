@@ -26,6 +26,17 @@ daté la quitte, il est versé ici dans le même commit.
   visible. Le contrôle statique vérifie une cible unique, visible dans le
   balisage et non vide ; aucun essai Orca ou TalkBack n'est réalisé
   (`tests/test_dialog_accessibility.py`).
+- Chat de gestion : chaque question part avec l'heure de Paris et le rôle du
+  compte (`server_context`) ; la date de la consigne suit Paris et non plus
+  UTC ; la consigne ne suppose plus le genre de la personne ; `count_copies`
+  donne la valeur de la sélection en cotes ; cas `compter-04` et `role-01` au
+  banc ([fiche 0036](decisions/0036-contexte-de-la-question.md),
+  [fiche 0037](decisions/0037-comptage-et-nombres.md)).
+- Défaut du chat : à « top10 des cartes en doublon », il conseillait de se
+  reconnecter, parce que l'interface joignait encore l'erreur de la session
+  expirée d'avant la connexion. La dernière erreur est désormais datée, jointe
+  cinq minutes au plus et effacée à la connexion ; la consigne ne la commente
+  que si la question porte sur un problème ; cas `affichee-05` au banc.
 
 ## 2026-11-05
 

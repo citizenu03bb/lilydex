@@ -118,7 +118,8 @@ def test_the_context_reaches_the_model_beside_the_question_and_the_journal(env):
     conversation = events[-1][1]["conversation_id"]
     sse(ask(env["owner"], "et sinon ?", conversation_id=conversation))
     later = env["model"].seen[-1]["messages"]
-    assert "context" not in later[-1] and all("context" not in m for m in later if m["role"] == "user")
+    assert "interface_context" not in json.loads(later[-1]["context"])
+    assert all("context" not in m for m in later[:-1] if m["role"] == "user")
 
 
 def test_the_route_refuses_a_context_that_is_not_an_object_or_too_big(env):  # noqa: F811
@@ -176,3 +177,32 @@ def test_the_gemini_adapter_sends_the_context_as_its_own_part():
     [content] = client.requests[0]["contents"]
     assert [p.text for p in content.parts] == [part, "et celle-là ?"]
     assert "EX-0101" not in client.requests[0]["config"].system_instruction
+
+
+# -- L'heure de Paris et le rôle, joints par le serveur ------------------------------
+
+
+def test_server_facts_give_paris_time_and_the_role():
+    from datetime import datetime, timezone
+
+    from pokeprice.assistant import ROLE_LABELS, now_text, server_facts, system_prompt
+
+    # 23 h 30 UTC on 5 November is already Friday 6 November, 0 h 30, in Paris.
+    late = datetime(2026, 11, 5, 23, 30, tzinfo=timezone.utc)
+    assert now_text(late) == "vendredi 6 novembre 2026, 0 h 30"
+    assert now_text(datetime(2026, 7, 1, 22, 5, tzinfo=timezone.utc)) == "jeudi 2 juillet 2026, 0 h 05"
+    facts = server_facts("editor", late)
+    assert facts["role"] == ROLE_LABELS["editor"] and "Réglages" in facts["role"]
+    part = json.loads(for_model({}, facts))
+    assert part == {"server_context": facts}
+    assert "interface_context" in json.loads(for_model({"view": "sales"}, facts))
+    prompt = system_prompt()
+    assert "server_context" in prompt and "opératrice" not in prompt and "tutoie-la" not in prompt
+
+
+def test_each_question_carries_the_server_facts(env):  # noqa: F811
+    env["model"].script = [{"text": "Bonjour."}]
+    sse(ask(env["owner"], "bonjour"))
+    [last] = env["model"].seen[-1]["messages"][-1:]
+    server = json.loads(last["context"])["server_context"]
+    assert server["timezone"] == "Europe/Paris" and server["role"].startswith("administrateur")

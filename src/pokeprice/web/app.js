@@ -96,7 +96,9 @@ async function api(path, options = {}) {
     if (response.status === 401 && path !== "/login" && path !== "/session")
       showAccess();
     // V1.1, contexte de la question (fiche 0036) : la dernière erreur, pour le chat.
-    if (typeof state !== "undefined") state.lastError = String(detail || "Erreur de connexion.");
+    // Datée : le chat ne la joint que tant qu'elle est récente (assistant.js).
+    if (typeof state !== "undefined")
+      state.lastError = { text: String(detail || "Erreur de connexion."), at: Date.now() };
     throw new Error(detail || "Erreur de connexion.");
   }
   if (result === null)
@@ -3049,6 +3051,7 @@ $("login-form").addEventListener("submit", async (e) => {
       body: JSON.stringify(data),
     });
     state.setup = false;
+    state.lastError = null; // V1.1 : l'erreur d'avant la connexion ne concerne plus rien.
     e.target.reset();
     await showWorkspace(user);
   } catch (err) {

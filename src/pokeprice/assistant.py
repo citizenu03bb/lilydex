@@ -29,6 +29,7 @@ from contextlib import closing
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from . import assistant_context, assistant_signals, assistant_tools
 from .agent import AgentError, permitted, require
@@ -120,11 +121,33 @@ def retention_warning(directory, at=None):
     return None
 
 
+PARIS = ZoneInfo("Europe/Paris")
+# What each role sees, in the words of the app map (assistant_prompt.md).
+ROLE_LABELS = {
+    "admin": "administrateur : voit tous les onglets, dont Statistiques et Réglages",
+    "editor": "équipe : voit Collection et Ventes, pas Statistiques ni Réglages",
+    "reader": "lecture seule : consulte, ne modifie rien",
+}
+
+
 def system_prompt(today=None):
     """The one system instruction, shared with the bench (bench/assistant/run.py)."""
-    today = today or datetime.now(timezone.utc).date()
+    today = today or datetime.now(PARIS).date()
     text = f"{DAYS[today.weekday()]} {today.day} {MONTHS[today.month - 1]} {today.year}"
     return PROMPT.read_text(encoding="utf-8").replace("{date_du_jour}", text)
+
+
+def now_text(moment=None):
+    """« vendredi 6 novembre 2026, 7 h 05 », in Paris time."""
+    moment = (moment or datetime.now(timezone.utc)).astimezone(PARIS)
+    return (f"{DAYS[moment.weekday()]} {moment.day} {MONTHS[moment.month - 1]} {moment.year}, "
+            f"{moment.hour} h {moment.minute:02d}")
+
+
+def server_facts(role, moment=None):
+    """What the server knows for sure about this question: the time and who asks."""
+    return {"now": now_text(moment), "timezone": "Europe/Paris",
+            "role": ROLE_LABELS.get(role, role or "inconnu")}
 
 
 def day_of(moment):
@@ -492,6 +515,7 @@ class Question:
     asked_id: int = 0  # V1.1 « capture des échecs »: the user message, and a « Défaut : » note.
     defect: str | None = None
     context: dict = field(default_factory=dict)  # V1.1: the interface context, cleaned.
+    role: str = ""  # The account's role, read from the base: never from the interface.
 
 
 def principal(store, user_id):
@@ -554,7 +578,7 @@ class Assistant:
         """Every check before anything leaves the server; raises Refused or AgentError."""
         if not self.enabled:
             raise Refused(503, "Chat désactivé : la clé du modèle n’est pas configurée.")
-        principal(self.store, user_id)
+        role = principal(self.store, user_id)["role"]
         text = (text or "").strip()
         if not text or len(text) > MAX_QUESTION:
             raise Refused(422, f"Question vide ou trop longue ({MAX_QUESTION} caractères au plus).")
@@ -573,7 +597,8 @@ class Assistant:
         if context:
             self.journal.note_context(question_id, context)
         question = Question(question_id, conversation_id, user_id, text, history[-HISTORY_MESSAGES:],
-                            context=context, asked_id=asked_id, defect=assistant_signals.defect(text))
+                            context=context, asked_id=asked_id, defect=assistant_signals.defect(text),
+                            role=role)
         self.rephrase_signal(question)
         return question
 
@@ -618,9 +643,9 @@ class Assistant:
             out.append({"role": "user", "text": m["text"]} if m["role"] == "user"
                        else {"role": "assistant", "turn": Turn(text=m["text"])})
         last = {"role": "user", "text": question.text}
-        # The interface context, as data beside the question; never in the instruction.
-        if question.context:
-            last["context"] = assistant_context.for_model(question.context)
+        # The interface context and the server's facts (time, role), as data beside the
+        # question; never in the instruction, which stays the same all day.
+        last["context"] = assistant_context.for_model(question.context, server_facts(question.role))
         out.append(last)
         return out
 
