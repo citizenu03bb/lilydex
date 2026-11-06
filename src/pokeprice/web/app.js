@@ -212,17 +212,18 @@ function reviewThreshold() {
 }
 function renderValuationTotals(target, values) {
   target.replaceChildren();
-  for (const [key, label, description] of [
-    ["trend", "Tendance", "Tendance TCGdex de la variante enregistrée."],
-    ["prudent", "Valeur prudente", "Minimum entre tendance et moyenne à 30 jours. Les deux prix sont nécessaires ; aucune décote d’état."],
-    ["sale_estimate", "Estimation de vente", "Dernières offres collées pour l’identité, la variante et l’état actuels. Prix demandés, hors frais et port."],
+  // Each total has its own source: "missing" names what each copy lacks.
+  for (const [key, label, description, missing] of [
+    ["trend", "Tendance", "Tendance TCGdex de la variante enregistrée.", "sans prix"],
+    ["prudent", "Valeur prudente", "Minimum entre tendance et moyenne à 30 jours. Les deux prix sont nécessaires ; aucune décote d’état.", "sans valeur prudente"],
+    ["sale_estimate", "Estimation de vente", "Dernières offres Cardmarket collées pour l’identité, la variante et l’état actuels. Prix demandés, hors frais et port. Un exemplaire sans offre collée n’a pas d’estimation, même s’il a une tendance.", "sans offre collée"],
   ]) {
     const box = el("div", undefined, "valuation-total");
     box.title = description;
     box.append(
       el("span", label),
       el("strong", money(values[key + "_cents"])),
-      el("small", `${values[key + "_known"]}/${values.copies} exemplaires · ${values[key + "_missing"]} sans prix${values.bulk_copies ? ` · ${values.bulk_copies} en vrac` : ""}`),
+      el("small", `${values[key + "_known"]}/${values.copies} exemplaires · ${values[key + "_missing"]} ${missing}${values.bulk_copies ? ` · ${values.bulk_copies} en vrac` : ""}`),
     );
     target.append(box);
   }

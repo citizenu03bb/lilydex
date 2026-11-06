@@ -1003,7 +1003,9 @@ comparez celles du même état.
 La collection et les résultats filtrés affichent **Tendance**, **Valeur
 prudente** (le plus bas entre la tendance et la moyenne à 30 jours, sans
 décote d'état) et **Estimation de vente**, avec le nombre d'exemplaires
-couverts. Les prix absents restent inconnus. Une estimation ancienne, après une
+couverts. Les prix absents restent inconnus. L'estimation de vente ne couvre
+que les exemplaires dont vous avez collé des offres Cardmarket ; les autres
+sont comptés « sans offre collée », même s'ils ont une tendance. Une estimation ancienne, après une
 correction d'identité, de variante ou d'état, reste visible dans la fiche mais
 sort des totaux. Le prix prudent du catalogue n'est pas une estimation de vente
 pour l'état PO ni pour une langue donnée.

@@ -197,9 +197,14 @@ La collection complète et les résultats filtrés affichent séparément :
 - **Estimation de vente** : les dernières offres collées pour l'identité, la
   variante et l'état actuels, hors frais et port.
 
-Chaque montant indique le nombre d'exemplaires couverts, ceux sans prix et
-ceux en vrac, comptés à part et sans montant ; un total entièrement inconnu
-s'affiche indisponible. Les totaux portent sur tous
+Chaque montant indique le nombre d'exemplaires couverts, ceux qui n'ont pas
+cette valeur et ceux en vrac, comptés à part et sans montant ; un total
+entièrement inconnu s'affiche indisponible. Le manque se nomme d'après la
+source : « sans prix » pour la tendance, « sans valeur prudente » quand la
+moyenne à 30 jours manque, « sans offre collée » pour l'estimation de vente.
+L'estimation de vente ne reprend jamais la tendance : un exemplaire coté mais
+sans offres Cardmarket collées reste hors de ce total, si bien que sa
+couverture est bien plus faible que celle de la tendance. Les totaux portent sur tous
 les résultats filtrés, avant la pagination, et comptent chaque exemplaire une
 fois dans l'affichage par édition.
 

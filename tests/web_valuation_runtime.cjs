@@ -11,7 +11,10 @@ const target = element("section");
 context.renderValuationTotals(target, { copies: 2, trend_cents: 50000, trend_known: 1, trend_missing: 1, prudent_cents: 10000, prudent_known: 1, prudent_missing: 1, sale_estimate_cents: null, sale_estimate_known: 0, sale_estimate_missing: 2 });
 assert.equal(target.children.length, 3);
 assert.equal(target.children[1].children[1].text, "100 €");
-assert.equal(target.children[1].children[2].text, "1/2 exemplaires · 1 sans prix");
+assert.equal(target.children[0].children[2].text, "1/2 exemplaires · 1 sans prix");
+assert.equal(target.children[1].children[2].text, "1/2 exemplaires · 1 sans valeur prudente");
+// The sale estimate needs pasted offers: a copy with a trend still counts as lacking them.
+assert.equal(target.children[2].children[2].text, "0/2 exemplaires · 2 sans offre collée");
 assert.equal(target.children[2].children[1].text, "Prix indisponible");
 // A refreshed empty result removes the previous amounts, without inventing zero.
 context.renderValuationTotals(target, { copies: 0, trend_cents: null, trend_known: 0, trend_missing: 0, prudent_cents: null, prudent_known: 0, prudent_missing: 0, sale_estimate_cents: null, sale_estimate_known: 0, sale_estimate_missing: 0 });
