@@ -2,7 +2,7 @@
 
 Les cartes de Lily (Lily's cards) digitises, identifies, prices and sells a multilingual Pokémon card collection
 (French, English, Japanese and Italian cards). The shop is live:
-[lilydex.duckdns.org](https://lilydex.duckdns.org). The Python package and its commands are
+[lescartesdelily.fr](https://lescartesdelily.fr). The Python package and its commands are
 called `pokeprice`, `pokeprice-manage` and `pokeprice-agent`; the repository keeps the
 product's former name, `lilydex`.
 

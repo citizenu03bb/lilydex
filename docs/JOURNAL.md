@@ -9,6 +9,10 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-06
 
+- La boutique passe sur son propre domaine, `lescartesdelily.fr` (OVH).
+  `www.lescartesdelily.fr` et `lilydex.duckdns.org` redirigent en 301, chemin
+  compris ; `oci-deploy.sh` prend ces redirections en arguments. Les sessions
+  et abonnements Web Push, liés à l'ancienne origine, sont à refaire une fois.
 - Le [plan de correction de l'audit](PLAN-AUDIT-CONFIDENTIALITE.md) précise
   la quarantaine des anciennes demandes sans preuve de destinataire et le
   rejeu par identifiants immuables. Les lots identité et rétention se mettent
