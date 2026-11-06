@@ -344,3 +344,18 @@ def test_un_contexte_hors_liste_blanche_est_refuse(bench, tmp_path):
          "expect": {"tool": "get_copy"}}]}))
     with pytest.raises(ValueError, match="liste blanche"):
         bench.load_cases(path, tools=bench.load_tools())
+
+
+# -- Défaut du 6 novembre : une erreur jointe sans rapport n'est pas commentée --
+
+
+def test_erreur_jointe_sans_rapport(bench, setup):
+    tools, cases, system, fixtures = setup
+    case = by_id(cases, "affichee-05")
+    assert case["context"]["last_error"]
+    call = {"calls": [{"name": "count_copies", "args": {"duplicates_only": True}}]}
+    chatty = bench.FakeAdapter("x", script={case["id"]: [
+        call, {"text": "Racaillou 74/102 ×7. Pense à te reconnecter, ta session semble expirée."}]})
+    assert not bench.run_case(chatty, case, tools, system, fixtures)["passed"]
+    quiet = bench.FakeAdapter("x", script={case["id"]: [call, {"text": "Racaillou 74/102 ×7."}]})
+    assert bench.run_case(quiet, case, tools, system, fixtures)["passed"]

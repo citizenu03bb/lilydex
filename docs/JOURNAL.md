@@ -7,6 +7,14 @@
 Une page qui décrit le fonctionnement ne porte pas de date : quand un passage
 daté la quitte, il est versé ici dans le même commit.
 
+## 2026-11-06
+
+- Défaut du chat : à « top10 des cartes en doublon », il conseillait de se
+  reconnecter, parce que l'interface joignait encore l'erreur de la session
+  expirée d'avant la connexion. La dernière erreur est désormais datée, jointe
+  cinq minutes au plus et effacée à la connexion ; la consigne ne la commente
+  que si la question porte sur un problème ; cas `affichee-05` au banc.
+
 ## 2026-11-05
 
 - Banc du chat, V1.1 complète sur master (#73 à #77) : trois passes sur

@@ -165,6 +165,12 @@
      "expect": {"tool": "get_copy", "args": {"copy_id": "EX-0301"}}},
     {"id": "affichee-04", "category": "carte_affichee", "prompt": "son prix il sort d'où ?",
      "context": {"view": "collection", "copy_id": "EX-0102"},
-     "expect": {"tool": "explain_price", "args": {"copy_id": "EX-0102"}}}
+     "expect": {"tool": "explain_price", "args": {"copy_id": "EX-0102"}}},
+    {"_chantier": "Défaut du 6 novembre : une erreur jointe sans rapport avec la question ne doit pas être commentée."},
+    {"id": "affichee-05", "category": "carte_affichee", "prompt": "top10 des cartes en doublon",
+     "context": {"view": "collection", "last_error": "Connectez-vous pour consulter la collection."},
+     "expect": {"tool": "count_copies"},
+     "check_numbers": true, "answer_re": "racaillou", "answer_not_re": "connect|session|expir",
+     "answer_example": "Tes doublons : Racaillou 74/102 ×7, Magicarpe 35/102 ×6."}
   ]
 }

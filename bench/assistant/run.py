@@ -916,6 +916,8 @@ def score_case(case: dict, turns: list[Turn], tools: list[dict], error: str | No
         answer_ok = False
     if case.get("answer_re") and not re.search(case["answer_re"], fold(answer)):
         answer_ok = False
+    if case.get("answer_not_re") and re.search(case["answer_not_re"], fold(answer)):
+        answer_ok = False
     passed = (error is None and tool_ok and args_ok and not schema_errors and not invented
               and not forbidden and not numbers and answer_ok)
     return {
