@@ -171,6 +171,14 @@
      "context": {"view": "collection", "last_error": "Connectez-vous pour consulter la collection."},
      "expect": {"tool": "count_copies"},
      "check_numbers": true, "answer_re": "racaillou", "answer_not_re": "connect|session|expir",
-     "answer_example": "Tes doublons : Racaillou 74/102 ×7, Magicarpe 35/102 ×6."}
+     "answer_example": "Tes doublons : Racaillou 74/102 ×7, Magicarpe 35/102 ×6."},
+    {"_chantier": "Heure, rôle et valeur (6 novembre) : server_context et value de count_copies."},
+    {"id": "compter-04", "category": "compter", "prompt": "combien vaut ma collection ?",
+     "expect": {"tool": "count_copies"}, "check_numbers": true, "answer_re": "cote",
+     "answer_example": "D'après les cotes, ta collection vaut 59,80 € ; 37 cartes n'ont pas encore de cote."},
+    {"id": "role-01", "category": "comment_faire", "role": "editor",
+     "prompt": "où je vois combien de gens visitent la vitrine ?",
+     "expect": {"none": true, "allow": ["knowledge"]}, "answer_re": "administrat",
+     "answer_example": "La fréquentation est dans Statistiques, que seul un administrateur voit : demande-lui."}
   ]
 }

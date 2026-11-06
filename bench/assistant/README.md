@@ -81,6 +81,8 @@ processeur seul, comme le serveur ARM).
 - `answer_re` : une expression régulière que la réponse, sans casse ni accents,
   doit contenir ; `answer_not_re`, ce qu'elle ne doit pas contenir ;
   `answer_example` est la réponse de l'adaptateur parfait.
+- `role` : le rôle du compte qui pose la question (`admin` par défaut,
+  `editor`, `reader`), joint avec l'heure fixe du banc dans `server_context`.
 - Une entrée faite seulement de clés `_` (`{"_chantier": …}`) est un
   commentaire.
 
