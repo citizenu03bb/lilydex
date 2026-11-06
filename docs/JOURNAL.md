@@ -7,6 +7,13 @@
 Une page qui décrit le fonctionnement ne porte pas de date : quand un passage
 daté la quitte, il est versé ici dans le même commit.
 
+## 2026-11-06
+
+- Le [plan de correction de l'audit](PLAN-AUDIT-CONFIDENTIALITE.md) précise
+  la quarantaine des anciennes demandes sans preuve de destinataire et le
+  rejeu par identifiants immuables. Les lots identité et rétention se mettent
+  en ligne ensemble ; la réussite des tests ne vaut pas déploiement.
+
 ## 2026-11-05
 
 - Relecture du [plan de correction de l'audit](PLAN-AUDIT-CONFIDENTIALITE.md) :

@@ -1,7 +1,7 @@
 # Plan d'action : l'audit de confidentialité et d'usage
 
 > **Pour qui :** quiconque corrige les défauts relevés par l'audit de confidentialité, de rétention, du panier et de la gestion.
-> **Vous y trouverez :** les neuf constats, regroupés en lots indépendants, avec pour chacun la correction visée, le test qui la prouve et l'ordre recommandé.
+> **Vous y trouverez :** les neuf constats, regroupés en lots de correction, avec pour chacun la correction visée, le test qui la prouve et l'ordre recommandé.
 > **Statut :** plan de correction maintenu à partir des constats du commit `1c4766b`, confrontés au code de la PR qui introduit ce plan. Les réalisations vont dans le [journal](JOURNAL.md) ; les choix de conception dans les [fiches de décision](decisions/README.md).
 
 ## Le constat
@@ -14,7 +14,7 @@ une base temporaire ; le reste n'a été ni testé en production, ni sur un
 appareil, ni avec un lecteur d'écran. Les tests ciblés de l'assistant lancés
 pendant l'audit n'ont pas abouti : ils ne comptent pas comme réussis.
 
-Une relecture rapide confirme les constats 1 à 3 dans le code :
+Les constats 1 à 3 correspondent aux chemins du code audité :
 `PATCH /api/me` change l'e-mail (qui sert d'identifiant) sans preuve de
 contrôle, l'invité est rattaché par `email=?`, l'effacement cherche l'identité
 courante dans les lots, et `forget()` valide la base avant `record()`.
@@ -35,6 +35,9 @@ courante dans les lots, et `forget()` valide la base avant `record()`.
 
 - Un lot, une branche, une PR ; chaque correction arrive avec le test qui
   rejoue le scénario de l'audit et échouait avant elle.
+- L1 et L2 se relisent séparément mais se mettent en ligne ensemble. Les
+  transferts de demandes entre identités exigent un journal d'effacement
+  qui suit aussi les demandes par leur identifiant immuable.
 - Les tests n'appellent aucun service réel (ni e-mail, ni Gemini) et tournent
   sur une base temporaire.
 - L'assistant est en cours de développement (V1.1) : le lot L4 se fait dans
@@ -67,10 +70,15 @@ courante dans les lots, et `forget()` valide la base avant `record()`.
   ne prouve pas le contrôle de son adresse ; les comptes existants ne sont
   pas marqués vérifiés sans preuve. Les liens de mot de passe déjà émis sont
   invalidés lorsque l'adresse change.
-- Décision à prendre : si l'application n'a pas de canal d'envoi d'e-mail
-  utilisable pour ce lien, le changement d'adresse passe par le vendeur
-  (demande visible dans la gestion), et le rattachement automatique des
-  invités est suspendu pour tout compte dont l'adresse a changé.
+- Le lien de mot de passe existant sert aussi de preuve de la nouvelle
+  adresse. Le vendeur le transmet manuellement à son destinataire exact ;
+  aucun canal d'envoi automatique supplémentaire n'est nécessaire.
+- Les anciennes demandes ne prouvent pas leur destinataire initial, même
+  quand un historique de lot contient une adresse : celle-ci peut provenir
+  du profil. Elles restent exclues de l'accès client et du rattachement
+  automatique jusqu'à confirmation explicite de leurs coordonnées par
+  l'administrateur, depuis une correspondance indépendante. L'effacement du
+  profil préserve les demandes invitées non prouvées dans une identité isolée.
 - Test : client approuvé → changement vers une adresse libre → demande invitée
   à cette adresse → la demande n'apparaît pas dans son compte et il ne peut
   pas l'annuler. Puis vérification du lien → l'adresse change.
@@ -103,13 +111,21 @@ courante dans les lots, et `forget()` valide la base avant `record()`.
   rejeu est idempotent, donc une intention dont l'effacement n'a pas abouti
   est simplement rejouée. Une erreur d'écriture ou de synchronisation empêche
   la validation de l'effacement.
+- Elle contient les identifiants du compte et des demandes réellement
+  effacées, ainsi que la portée qui préserve les demandes invitées non
+  prouvées lors d'une suppression par le client. Le rejeu suit l'ordre des
+  intentions et les cibles immuables : un transfert vers un compte vérifié
+  ne permet pas de soustraire une demande à un effacement antérieur.
+- Un repère enregistré avec l'effacement vérifie le préfixe durable du
+  journal. Un fichier vidé ou remplacé par une copie trop ancienne ne vaut
+  pas journal courant valide.
 - `restore` refuse de finir quand le journal est absent ou illisible, sauf
   option explicite (`--sans-journal`) qui dit ce qu'elle risque ; il signale
   un journal incomplet (intention sans fin). Le journal est validé avant
   restauration ; la destination définitive n'apparaît qu'après un rejeu
   réussi dans un dossier temporaire.
-- Le journal vit **à côté** du dossier `--data`, dans `erasures.jsonl` ; les
-  archives de collection et leur copie distante ne l'emportent pas. Inclure
+- Le journal vit **à côté** du dossier `--data`, dans `erasures.jsonl` ; dans
+  le code audité, les archives et leur copie distante ne l'emportent pas. Inclure
   `inventory_backup.py`, `server_backup.py` et `drive_backup.py` dans le lot
   pour préserver une copie récente du journal, y compris après perte du
   serveur. Une copie ancienne dans l'archive ne remplace jamais le journal
@@ -118,6 +134,10 @@ courante dans les lots, et `forget()` valide la base avant `record()`.
   non validé ; panne après l'intention durable → rejeu de l'effacement ;
   journal absent ou invalide → aucune destination restaurée ; sauvegarde et
   rapatriement → journal récupérable avec les effacements récents.
+- Test croisé L1/L2 : demande invitée → preuve de boîte et transfert vers
+  un compte → effacement → restauration d'une archive antérieure au
+  transfert → demande et coordonnées copiées toujours effacées, sans
+  supprimer le profil ni les demandes sans rapport d'un autre propriétaire.
 
 **Constat 4 — empreinte d'audience.** Fichiers : `audience.py` (`forget`),
 `web/about.html`.
@@ -218,21 +238,22 @@ banc.
 
 ## L'ordre recommandé
 
-1. **L1**, en premier : les deux défauts P1 touchent des clients réels. Le
-   constat 2 n'attend aucune décision ; le constat 1 attend celle sur le
-   canal d'envoi d'e-mail.
-2. **L2**, ensuite : petit, et il rend fiable l'effacement que L1 corrige.
+1. **L1**, en premier : les deux défauts P1 touchent des clients réels.
+2. **L2**, à intégrer avec L1 avant leur mise en ligne : il rend fiable
+   l'effacement, y compris après un changement de propriétaire d'une demande.
 3. **L3**, à mener en parallèle de L2 (fichiers distincts).
 4. **L5**, à tout moment : court et sans risque.
 5. **L4**, dans le développement de l'assistant, au plus tard avant la
    phase C, qui donnera des commandes à l'assistant.
 
-Chaque lot se termine par `uv run --extra web --extra dev pytest`, une mise en
-ligne, et une ligne dans le journal.
+Chaque lot se termine par `uv run --extra web --extra dev pytest` et une ligne
+dans le journal. La mise en ligne respecte les dépendances ci-dessus et la
+recette sur une sauvegarde restaurée ; la réussite des tests ne décrit pas
+une mise en production.
 
-## La décision qui reste à prendre
+## Le parcours retenu pour la preuve d'adresse
 
-Le constat 1 dépend d'un choix : vérifier la nouvelle adresse par un lien
-envoyé par e-mail, ce qui suppose un canal d'envoi fiable, ou faire passer
-tout changement d'adresse par le vendeur. Ce choix fera l'objet d'une fiche
-dans `decisions/`.
+Le changement passe par le vendeur, qui transmet le lien existant à usage
+unique. La nouvelle adresse et l'identifiant n'entrent en vigueur qu'à son
+utilisation. Les PR de correction portent la fiche de décision et la recette
+des anciennes demandes dont l'origine exige une vérification humaine.
