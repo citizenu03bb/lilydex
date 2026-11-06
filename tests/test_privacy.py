@@ -1,3 +1,4 @@
+from basket_helpers import accepted_prices
 import json
 import sys
 from datetime import datetime, timedelta, timezone
@@ -17,7 +18,7 @@ def accepted_request(admin, store, listings, email="sacha@example.org", name="Sa
     signup(store, email, name)
     activate(admin, email)
     me = client_of(store, email)
-    me.post("/api/me/requests", json={"listing_ids": [listings[0]["id"]], "message": "12 rue des Lilas"})
+    me.post("/api/me/requests", json={"listing_ids": [listings[0]["id"]], "expected_prices": accepted_prices(store, [listings[0]["id"]]), "message": "12 rue des Lilas"})
     request = admin.get("/api/requests").json()[0]
     sale_id = admin.post(
         f"/api/requests/{request['id']}/accept",
@@ -54,7 +55,7 @@ def test_forgetting_a_client_keeps_the_lot_but_not_the_person(shop):
     assert me.get("/api/me").status_code == 401  # the session went with the account
     assert [u["username"] for u in admin.get("/api/users").json()] == ["pat"]
     log = [json.loads(line) for line in Privacy(store).log.read_text().splitlines()]
-    assert [entry["user_id"] for entry in log] == [result["erased"]]
+    assert [entry["user_id"] for entry in log if entry["phase"] == "intent"] == [result["erased"]]
     assert "sacha" not in Privacy(store).log.read_text()
 
 
@@ -76,8 +77,8 @@ def test_retention_periods(shop):
     clients = {c["email"]: c["id"] for c in admin.get("/api/clients").json()}
     admin.patch(f"/api/clients/{clients['refuse@example.org']}", json={"status": "refused"})
     fidele = client_of(store, "fidele@example.org")
-    kept_sale = fidele.post("/api/me/requests", json={"listing_ids": [listings[1]["id"]]}).json()
-    stale = fidele.post("/api/me/requests", json={"listing_ids": [listings[2]["id"]]}).json()
+    kept_sale = fidele.post("/api/me/requests", json={"listing_ids": [listings[1]["id"]], "expected_prices": accepted_prices(store, [listings[1]["id"]])}).json()
+    stale = fidele.post("/api/me/requests", json={"listing_ids": [listings[2]["id"]], "expected_prices": accepted_prices(store, [listings[2]["id"]])}).json()
     fidele.post(f"/api/me/requests/{stale['id']}/cancel", json={"expected_version": 1})
     at = datetime.now(timezone.utc)
     old = (at - timedelta(days=4 * 365)).isoformat()
@@ -94,7 +95,7 @@ def test_retention_periods(shop):
     assert {c["email"] for c in admin.get("/api/clients").json()} == {"recent@example.org", "fidele@example.org"}
     assert [r["id"] for r in fidele.get("/api/me/requests").json()] == [kept_sale["id"]]
     assert Privacy(store).purge(at) == {"clients": {}, "requests": 0}
-    assert len(Privacy(store).log.read_text().splitlines()) == 3
+    assert sum(json.loads(line)["phase"] == "intent" for line in Privacy(store).log.read_text().splitlines()) == 3
 
 
 def test_a_restore_replays_erasures_made_since_the_archive(shop, tmp_path, monkeypatch, capsys):

@@ -13,6 +13,19 @@ daté la quitte, il est versé ici dans le même commit.
   la quarantaine des anciennes demandes sans preuve de destinataire et le
   rejeu par identifiants immuables. Les lots identité et rétention se mettent
   en ligne ensemble ; la réussite des tests ne vaut pas déploiement.
+- Corrections L1/L2 de l'audit préparées : preuve d'adresse par le lien du
+  vendeur, coordonnées figées, effacement durable et rejeu par identifiants de
+  demandes, nettoyage d'audience indépendant. Scénarios de sauvegarde et de
+  transfert rejoués sur bases temporaires (`tests/test_privacy_restore_identity.py`).
+- Audit, assistant : effacer une conversation bloque les arguments, le
+  contexte et les réponses tardives ; les messages expirés restent hors du
+  chat et du modèle même sans purge. La saisie annonce le transfert vers
+  Google et un flux coupé reste incomplet avec reprise possible
+  (`tests/test_assistant_privacy.py`).
+- Audit, accessibilité : chaque dialogue de la gestion est relié à son titre
+  visible. Le contrôle statique vérifie une cible unique, visible dans le
+  balisage et non vide ; aucun essai Orca ou TalkBack n'est réalisé
+  (`tests/test_dialog_accessibility.py`).
 - Chat de gestion : chaque question part avec l'heure de Paris et le rôle du
   compte (`server_context`) ; la date de la consigne suit Paris et non plus
   UTC ; la consigne ne suppose plus le genre de la personne ; `count_copies`

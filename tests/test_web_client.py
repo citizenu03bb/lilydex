@@ -302,3 +302,15 @@ def test_page_batch_workflow_uploads_previews_applies_and_undoes():
         text=True,
     )
 
+
+
+def test_basket_revalidates_prices_requires_acknowledgment_and_preserves_network_failures():
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("Node.js is required to exercise basket quotes")
+    root = Path(__file__).resolve().parents[1]
+    result = subprocess.run([
+        node, str(root / "tests/storefront_basket_runtime.cjs"),
+        str(root / "src/pokeprice/web/storefront.js"),
+    ], capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr

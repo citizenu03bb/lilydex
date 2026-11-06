@@ -277,6 +277,8 @@ Restaurer dans un nouveau dossier --data
 | Argument | Effet |
 |---|---|
 | `archive` |  |
+| `--journal` `JOURNAL` | Journal d’effacement courant ; par défaut à côté de --data |
+| `--sans-journal` | Restaurer sans rejeu : risque de réintroduire des données effacées |
 | `--photos` `PHOTOS` | Réserve de photos d'une archive v2 ; par défaut, photos/ à côté de l'archive |
 
 ### `pokeprice-manage prices`
@@ -363,6 +365,10 @@ Effacer un client de la vitrine (e-mail ou identifiant)
 ### `pokeprice-manage purge`
 
 Appliquer les durées de conservation des données clients et du chat
+
+### `pokeprice-manage audience-purge`
+
+Effacer les empreintes des jours précédents sans attendre une visite
 
 ### `pokeprice-manage brief`
 

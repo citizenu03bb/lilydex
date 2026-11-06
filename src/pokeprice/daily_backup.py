@@ -109,6 +109,15 @@ def daily(store, *, force=False):
     date = datetime.now(ZoneInfo("Europe/Paris")).strftime("%Y-%m-%d")
     folder = store.root.parent / "backups"
     target = folder / f"daily-{date}.zip"
+    from .privacy import journal_snapshot
+
+    current_journal = journal_snapshot(store)
+    if target.exists() and not force:
+        # A same-day mirror/Drive retry must carry newly requested erasures.
+        with zipfile.ZipFile(target) as archive:
+            force = force or "erasures.jsonl" not in archive.namelist() or (
+                archive.read("erasures.jsonl") != current_journal
+            )
     # Reusing a completed daily archive makes scheduler retries idempotent.
     if force or not target.exists():
         folder.mkdir(parents=True, exist_ok=True)

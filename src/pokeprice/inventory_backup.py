@@ -65,6 +65,11 @@ def backup(store, destination, reserve=None):
     destination.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     if destination.exists():
         raise ValueError("La sauvegarde existe déjà.")
+    from .privacy import erasure_log, journal_snapshot, read_erasures
+
+    # Check the DB's durable erasure marker without changing the collection.
+    # A lost used journal cannot turn into a valid-looking empty record.
+    journal_snapshot(store)
     with tempfile.TemporaryDirectory() as tmp:
         snapshot = Path(tmp) / "collection.sqlite3"
         with store.connect() as db, closing(sqlite3.connect(snapshot)) as target:
@@ -75,6 +80,8 @@ def backup(store, destination, reserve=None):
             disable_tokens(target)
             target.commit()
         files = {"collection.sqlite3": snapshot.read_bytes()}
+        # An erasure after the DB snapshot must still be replayable.
+        files["erasures.jsonl"] = read_erasures(erasure_log(store.root))["body"]
         reserved = {}
         # Include previous photos referenced in correction history as well.
         for photo in sorted(store.photos.glob("*.jpg")):
@@ -256,11 +263,13 @@ def assemble(light_path, reserve, destination):
     return {"path": str(destination), "files": len(files)}
 
 
-def restore_backup(archive_path, destination, photos=None):
+def restore_backup(archive_path, destination, photos=None, *, journal=None):
     """Restore into a new folder.
 
     A v2 archive reads its photos from `photos`, by default the reserve
-    `photos/` beside the archive.
+    `photos/` beside the archive. A validated current `journal` is replayed
+    before publishing the destination. Omitting it is for archive verification
+    or the CLI's explicit --sans-journal recovery only.
     """
     destination = Path(destination)
     if destination.exists():
@@ -278,7 +287,7 @@ def restore_backup(archive_path, destination, photos=None):
         for name, checksum in expected.items():
             parts = Path(name).parts
             if (
-                name != "collection.sqlite3"
+                name not in ("collection.sqlite3", "erasures.jsonl")
                 and not (
                     len(parts) == 2
                     and parts[0] == "photos"
@@ -295,6 +304,10 @@ def restore_backup(archive_path, destination, photos=None):
                 raise ValueError("Somme de contrôle invalide.")
             if parts[0] == "reference_documents" and Path(name).stem != checksum:
                 raise ValueError("Identité de document incohérente.")
+            if name == "erasures.jsonl":
+                from .privacy import parse_erasures
+
+                parse_erasures(archive.read(name))
         reserve = Path(photos) if photos else Path(archive_path).parent / "photos"
         if external and not reserve.is_dir():
             raise ValueError(
@@ -305,6 +318,9 @@ def restore_backup(archive_path, destination, photos=None):
             recovered = Path(temporary) / "restored"
             recovered.mkdir()
             for name in expected:
+                if name == "erasures.jsonl":
+                    # This older snapshot never replaces the current journal.
+                    continue
                 target = recovered / name
                 target.parent.mkdir(exist_ok=True)
                 target.write_bytes(archive.read(name))
@@ -364,8 +380,14 @@ def restore_backup(archive_path, destination, photos=None):
 
                 disable_tokens(db)
                 db.commit()
+            result = Store(recovered).summary()
+            if journal is not None:
+                from .privacy import Privacy
+
+                result["erasures"] = Privacy(Store(recovered)).replay(journal)
+                result.update(Store(recovered).summary())
             recovered.rename(destination)
-    return Store(destination).summary()
+    return result
 
 
 def export_data(store):

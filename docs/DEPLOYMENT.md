@@ -174,12 +174,28 @@ Donnez aussi des chemins absolus aux fichiers.
 | `oci-deploy.sh` | Déploie le code, l'environnement, la base initiale, les unités et Caddy. |
 | `pokeprice.service` | Le service de l'application. Durcissement : `User=pokeprice`, `NoNewPrivileges`, `PrivateTmp`, `ProtectSystem=strict` (système en lecture seule), `ProtectHome` (dossiers personnels masqués), écriture limitée à `/srv/pokeprice` ; cookie de session marqué `Secure` (`--secure-cookie`) ; seul l'hôte `${POKEPRICE_HOST}` est accepté. |
 | `pokeprice-backup.service` et `.timer` | Chaque nuit vers 3 h : durées de conservation des données clients (`purge`), puis archive vérifiée (`backup-daily`), 7 archives gardées. |
+| `pokeprice-audience-purge.service` et `.timer` | Nettoyage indépendant des sels et empreintes des jours précédents, programmé à 0 h 05, heure de Paris, avec au plus cinq minutes de délai aléatoire. Activé par `oci-deploy.sh`. |
 | `pokeprice-media-cache.service` et `.timer` | Entretien indépendant des dérivés publics, vers 4 h 30, limité au cache. |
 | `pokeprice-prices.service` et `.timer` | Cotation matinale de la collection vers 6 h 20 (`prices --from-guide`). Non activés par `oci-deploy.sh`. |
 | `pokeprice-brief.service` et `.timer` | Brief du jour de la gestion vers 7 h 30 (`brief --notify`). Non activés par `oci-deploy.sh`. |
 | `Caddyfile.example` | HTTPS, compression, corps de requête limité à 9 Mo, relais vers `127.0.0.1:3820`. |
 | `pokeprice-drive-backup.service` et `.timer` | Unités utilisateur **du portable** : rapatriement, chiffrement et copie Drive à 3 h 15. |
 | `oci-pull-backup.sh` | Raccourci de `backup-server-pull` (ou de `backup-server-drive` avec `--push-drive`) : rapatrie et contrôle la dernière archive du serveur. |
+
+## Effacer les empreintes d'audience
+
+Le nettoyage d'audience ne dépend ni d'une visite, ni d'un rapport, ni de la
+sauvegarde : `pokeprice-audience-purge.timer` lance `audience-purge` chaque
+nuit et rattrape un passage manqué au démarrage. Le service dispose de cinq
+minutes pour finir. La notice annonce une suppression programmée dans l'heure
+après minuit, heure de Paris ; une machine arrêtée ou un service en échec
+demande une intervention. Contrôlez son état et son journal comme ceux de la
+sauvegarde :
+
+```bash
+systemctl status pokeprice-audience-purge.timer pokeprice-audience-purge.service
+journalctl -u pokeprice-audience-purge.service
+```
 
 ## Entretenir le cache public
 

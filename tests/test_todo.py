@@ -1,5 +1,6 @@
 """The management assistant: the brief, the « À toi » queue and the pushed brief."""
 
+from basket_helpers import accepted_prices
 import sys
 
 import pytest
@@ -17,7 +18,7 @@ def request_cards(admin, store, listings, email="sacha@example.org"):
     signup(store, email)
     activate(admin, email)
     me = client_of(store, email)
-    sent = me.post("/api/me/requests", json={"listing_ids": [listings[0]["id"], listings[1]["id"]]})
+    sent = me.post("/api/me/requests", json={"listing_ids": [listings[0]["id"], listings[1]["id"]], "expected_prices": accepted_prices(store, [listings[0]["id"], listings[1]["id"]])})
     assert sent.status_code == 201, sent.text
     return sent.json()
 

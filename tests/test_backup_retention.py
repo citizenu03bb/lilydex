@@ -2,13 +2,16 @@
 
 import os
 import time
+import zipfile
 from collections import namedtuple
+from pathlib import Path
 
 import pytest
 
 from pokeprice import daily_backup, inventory_backup
 from pokeprice.daily_backup import prune_occasional
 from pokeprice.inventory import Store
+from pokeprice.privacy import Privacy, erasure_log
 
 DAY = 86400
 
@@ -53,6 +56,37 @@ def test_a_backup_is_refused_before_writing_when_the_disk_is_short(tmp_path, mon
     with pytest.raises(OSError, match="Espace disque insuffisant"):
         inventory_backup.backup(store, target)
     assert not target.exists()
+
+
+def test_force_replaces_a_corrupt_same_day_archive_with_a_verified_backup(tmp_path):
+    store = Store(tmp_path / "inventory")
+    first = daily_backup.daily(store)
+    target = Path(first["path"])
+    target.write_bytes(b"archive interrompue")
+
+    rebuilt = daily_backup.daily(store, force=True)
+
+    assert rebuilt["path"] == first["path"]
+    with zipfile.ZipFile(target) as archive:
+        assert archive.testzip() is None
+        assert "collection.sqlite3" in archive.namelist()
+    assert daily_backup.verify(target)["sha256"] == rebuilt["sha256"]
+
+
+def test_force_still_requires_the_current_erasure_journal_before_replacing_an_archive(tmp_path):
+    store = Store(tmp_path / "inventory")
+    first = daily_backup.daily(store)
+    target = Path(first["path"])
+    target.write_bytes(b"archive interrompue")
+    with store.connect(write=True) as db:
+        db.execute("INSERT INTO users(id,username,password_hash,role,created_at,email) VALUES(?,?,?,?,?,?)",
+                   ("client", "client@example.test", "unusable", "client", "2026-01-01", "client@example.test"))
+    Privacy(store).forget("client")
+    erasure_log(store.root).unlink()
+
+    with pytest.raises(ValueError, match="Journal d’effacement absent ou illisible"):
+        daily_backup.daily(store, force=True)
+    assert target.read_bytes() == b"archive interrompue"
 
 
 def test_old_archives_make_room_before_the_daily_archive_is_written(tmp_path, monkeypatch):

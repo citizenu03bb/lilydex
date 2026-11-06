@@ -15,6 +15,7 @@ carries a real datum of the collection or of a client.
 import json
 import re
 import sqlite3
+import time
 import unicodedata
 from difflib import SequenceMatcher
 from pathlib import Path
@@ -89,11 +90,23 @@ def known_values(collection):
     found = set()
     if not collection or not Path(collection).exists():
         return found
+
+    def remember(value):
+        if not isinstance(value, str):
+            return
+        value = value.strip()
+        if len(value) >= 3:
+            found.add(value)
+        # A display name also appears by its parts (« la demande de Martin »).
+        if " " in value and "@" not in value and len(value) < 60:
+            found.update(p for p in value.split() if len(p) >= 3)
+
     queries = (
         "SELECT username, email, display_name FROM users",
         "SELECT id FROM copies",
         "SELECT id, title FROM listings",
-        "SELECT id, message, client_email, client_name FROM requests",
+        "SELECT id, message FROM requests",
+        "SELECT client_email, client_name FROM requests",
     )
     with sqlite3.connect(f"file:{Path(collection)}?mode=ro", uri=True) as db:
         for query in queries:
@@ -103,14 +116,26 @@ def known_values(collection):
                 continue
             for row in rows:
                 for value in row:
-                    if not isinstance(value, str):
-                        continue
-                    value = value.strip()
-                    if len(value) >= 3:
-                        found.add(value)
-                    # A display name also appears by its parts (« la demande de Martin »).
-                    if " " in value and "@" not in value and len(value) < 60:
-                        found.update(p for p in value.split() if len(p) >= 3)
+                    remember(value)
+        try:
+            historical = db.execute("SELECT identity_json FROM requests").fetchall()
+        except sqlite3.Error:  # The column is absent before the identity migration.
+            historical = []
+        for (raw,) in historical:
+            if not isinstance(raw, str):
+                continue
+            try:
+                identities = json.loads(raw)
+            except ValueError:
+                continue
+            if not isinstance(identities, list):
+                continue
+            for identity in identities:
+                if isinstance(identity, dict):
+                    # These are erasure inputs, not a JSON blob to copy into a
+                    # draft. Only scalar contact values participate in masking.
+                    for key in ("name", "email"):
+                        remember(identity.get(key))
     return found
 
 
@@ -171,6 +196,8 @@ def arguments(values, known, slots):
 
 def drafts(directory, *, limit=200):
     """The flagged exchanges of ``directory`` as draft bench cases; reads only."""
+    from .assistant import FLAGGED_RETENTION
+
     directory = Path(directory)
     journal = directory / "assistant.sqlite3"
     if not journal.exists():
@@ -183,8 +210,9 @@ def drafts(directory, *, limit=200):
             flagged = db.execute(
                 "SELECT question_id, conversation_id, MIN(created_at) at, "
                 "GROUP_CONCAT(kind) kinds, GROUP_CONCAT(note, ' / ') notes FROM assistant_flags "
+                "WHERE created_at>=? "
                 "GROUP BY COALESCE(question_id, conversation_id) ORDER BY at LIMIT ?",
-                (limit,)).fetchall()
+                (time.time() - FLAGGED_RETENTION.total_seconds(), limit)).fetchall()
         except sqlite3.OperationalError:
             flagged = []
         for index, row in enumerate(flagged, 1):

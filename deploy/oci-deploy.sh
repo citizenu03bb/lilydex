@@ -44,9 +44,12 @@ if ! ssh "$REMOTE_HOST" "sudo test -f /srv/pokeprice/inventory/collection.sqlite
     scp "$LATEST_ZIP" "${REMOTE_HOST}:/tmp/pokeprice-init.zip"
     ssh "$REMOTE_HOST" "sudo chown pokeprice:pokeprice /tmp/pokeprice-init.zip && \
         sudo rmdir /srv/pokeprice/inventory 2>/dev/null || true && \
+        sudo rm -f -- /tmp/pokeprice-init-erasures.jsonl && \
+        sudo -u pokeprice /opt/pokeprice/.venv/bin/python -c \"import os,zipfile; f=os.fdopen(os.open('/tmp/pokeprice-init-erasures.jsonl',os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600),'wb'); f.write(zipfile.ZipFile('/tmp/pokeprice-init.zip').read('erasures.jsonl')); f.close()\" && \
+        if ! sudo test -e /srv/pokeprice/erasures.jsonl; then sudo install -m 0600 -o pokeprice -g pokeprice /tmp/pokeprice-init-erasures.jsonl /srv/pokeprice/erasures.jsonl; fi && \
         sudo -u pokeprice env HOME=/srv/pokeprice /opt/pokeprice/.venv/bin/python -m pokeprice.manage \
-            --data /srv/pokeprice/inventory restore /tmp/pokeprice-init.zip && \
-        sudo rm -f /tmp/pokeprice-init.zip && \
+            --data /srv/pokeprice/inventory restore /tmp/pokeprice-init.zip --journal /srv/pokeprice/erasures.jsonl && \
+        sudo rm -f /tmp/pokeprice-init.zip /tmp/pokeprice-init-erasures.jsonl && \
         sudo -u pokeprice env HOME=/srv/pokeprice /opt/pokeprice/.venv/bin/python -m pokeprice.manage \
             --data /srv/pokeprice/inventory backup-daily"
 else
@@ -57,12 +60,14 @@ echo "[5/6] Installation des unités systemd et configuration de Caddy pour ${DO
 ssh "$REMOTE_HOST" "sudo cp /opt/pokeprice/deploy/pokeprice.service /etc/systemd/system/ && \
     sudo cp /opt/pokeprice/deploy/pokeprice-backup.service /etc/systemd/system/ && \
     sudo cp /opt/pokeprice/deploy/pokeprice-backup.timer /etc/systemd/system/ && \
+    sudo cp /opt/pokeprice/deploy/pokeprice-audience-purge.service /etc/systemd/system/ && \
+    sudo cp /opt/pokeprice/deploy/pokeprice-audience-purge.timer /etc/systemd/system/ && \
     sudo cp /opt/pokeprice/deploy/pokeprice-media-cache.service /etc/systemd/system/ && \
     sudo cp /opt/pokeprice/deploy/pokeprice-media-cache.timer /etc/systemd/system/ && \
     if command -v restorecon >/dev/null 2>&1; then sudo restorecon -v /etc/systemd/system/pokeprice* >/dev/null 2>&1 || true; fi && \
     sudo sed 's/cards.example.com/${DOMAIN}/g' /opt/pokeprice/deploy/Caddyfile.example | sudo tee /etc/caddy/Caddyfile >/dev/null && \
     sudo systemctl daemon-reload && \
-    sudo systemctl enable --now pokeprice.service pokeprice-backup.timer pokeprice-media-cache.timer && \
+    sudo systemctl enable --now pokeprice.service pokeprice-backup.timer pokeprice-media-cache.timer pokeprice-audience-purge.timer && \
     sudo systemctl restart pokeprice.service && \
     sudo systemctl reload-or-restart caddy"
 

@@ -1,9 +1,46 @@
+from datetime import date
+
 from test_public_storefront import shop  # noqa: F401
 
 from pokeprice.audience import Audience
 
 BROWSER = "Mozilla/5.0 (X11; Linux x86_64) Firefox/140.0"
 PHONE = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0) Mobile Safari/604.1"
+
+
+def test_scheduled_cleanup_needs_no_visit_or_report(tmp_path):
+    audience = Audience(tmp_path)
+    audience.record("page", "accueil", "private-address", BROWSER, today="2026-10-20")
+    assert audience.purge(today="2026-10-21")["deleted"] == 2
+    with audience.connect() as db:
+        assert db.execute("SELECT COUNT(*) FROM salts").fetchone()[0] == 0
+        assert db.execute("SELECT COUNT(*) FROM seen").fetchone()[0] == 0
+        assert db.execute("SELECT COUNT(*) FROM totals").fetchone()[0] > 0
+    assert audience.purge(today="2026-10-21") == {"deleted": 0}
+
+
+def test_cleanup_timer_is_independent_and_enabled_by_deployment():
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    timer = (root / "deploy/pokeprice-audience-purge.timer").read_text()
+    assert "OnCalendar=*-*-* 00:05:00 Europe/Paris" in timer and "Persistent=true" in timer
+    service = (root / "deploy/pokeprice-audience-purge.service").read_text()
+    assert "--data /srv/pokeprice/inventory audience-purge" in service
+    assert "pokeprice-audience-purge.timer" in (root / "deploy/oci-deploy.sh").read_text()
+
+
+def test_cleanup_command_never_opens_the_collection(tmp_path, monkeypatch, capsys):
+    import json
+    from pokeprice import audience as audience_module, manage
+
+    audience = Audience(tmp_path)
+    audience.record("page", "accueil", "address", BROWSER, today="2026-10-20")
+    monkeypatch.setattr(audience_module, "current_day", lambda: date(2026, 10, 21))
+    monkeypatch.setattr("sys.argv", ["manage", "--data", str(tmp_path), "audience-purge"])
+    manage.main()
+    assert json.loads(capsys.readouterr().out) == {"deleted": 2}
+    assert not (tmp_path / "collection.sqlite3").exists()
 
 
 def test_a_visitor_counts_once_a_day_and_leaves_no_trace(tmp_path):

@@ -127,19 +127,25 @@ const Assistant = (() => {
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
-    for (;;) {
-      const { value, done } = await reader.read();
-      buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
-      let end;
-      while ((end = buffer.indexOf("\n\n")) >= 0) {
-        const block = buffer.slice(0, end);
-        buffer = buffer.slice(end + 2);
-        const fields = Object.fromEntries(
-          block.split("\n").map((line) => [line.slice(0, line.indexOf(": ")), line.slice(line.indexOf(": ") + 2)]),
-        );
-        if (fields.event) yield [fields.event, JSON.parse(fields.data || "{}")];
+    try {
+      for (;;) {
+        const { value, done } = await reader.read();
+        buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+        let end;
+        while ((end = buffer.indexOf("\n\n")) >= 0) {
+          const block = buffer.slice(0, end);
+          buffer = buffer.slice(end + 2);
+          const fields = Object.fromEntries(
+            block.split("\n").map((line) => [line.slice(0, line.indexOf(": ")), line.slice(line.indexOf(": ") + 2)]),
+          );
+          if (fields.event) yield [fields.event, JSON.parse(fields.data || "{}")];
+        }
+        if (done) return;
       }
-      if (done) return;
+    } finally {
+      // A terminal event ends the stream even if the transport fails afterwards.
+      try { await reader.cancel(); } catch {}
+      reader.releaseLock();
     }
   }
 
@@ -155,9 +161,20 @@ const Assistant = (() => {
     scrollDown();
     setBusy(true);
     let text = "";
+    let completed = false;
     const cards = [];
     const fail = (message) => {
-      answer.replaceChildren(el("p", t("chat.error", { message }), "chat-text error"));
+      renderAnswer(answer, text, cards);
+      answer.append(el("p", t("chat.error", { message }), "chat-text error"));
+      const retry = el("button", t("chat.retry"), "quiet");
+      retry.type = "button";
+      retry.onclick = () => {
+        if (chat.busy) return;
+        retry.disabled = true;
+        send(question);
+      };
+      answer.append(retry);
+      answer.parentElement.classList.add("chat-incomplete");
       answer.parentElement.classList.remove("chat-pending");
     };
     try {
@@ -175,7 +192,8 @@ const Assistant = (() => {
         return;
       }
       for await (const [kind, data] of events(response)) {
-        if (kind === "text") {
+        if (kind === "start") chat.id = data.conversation_id;
+        else if (kind === "text") {
           text += data.text;
           renderAnswer(answer, text, cards);
           answer.parentElement.classList.remove("chat-pending");
@@ -186,14 +204,22 @@ const Assistant = (() => {
           cards.push(data);
           renderAnswer(answer, text, cards);
         } else if (kind === "done") {
+          completed = true;
           chat.id = data.conversation_id;
+          answer.parentElement.classList.remove("chat-pending");
           usage(data.usage);
           flagControl(answer.parentElement, data.message_id, false);
-        } else if (kind === "error") fail(data.message);
+          return;
+        } else if (kind === "error") {
+          if (data.code === "conversation_erased") chat.id = null;
+          fail(data.message);
+          return;
+        }
         scrollDown();
       }
+      if (!completed) fail(t("chat.interrupted"));
     } catch (error) {
-      fail(error.message);
+      if (!completed) fail(error.message);
     } finally {
       setBusy(false);
       scrollDown();

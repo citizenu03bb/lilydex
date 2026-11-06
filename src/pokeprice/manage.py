@@ -164,6 +164,9 @@ def main():
         "restore", help="Restaurer dans un nouveau dossier --data"
     )
     restore.add_argument("archive")
+    restore.add_argument("--journal", help="Journal d’effacement courant ; par défaut à côté de --data")
+    restore.add_argument("--sans-journal", action="store_true",
+                         help="Restaurer sans rejeu : risque de réintroduire des données effacées")
     restore.add_argument(
         "--photos",
         help="Réserve de photos d'une archive v2 ; par défaut, photos/ à côté de l'archive",
@@ -252,6 +255,7 @@ def main():
     actions.add_parser(
         "purge", help="Appliquer les durées de conservation des données clients et du chat"
     )
+    actions.add_parser("audience-purge", help="Effacer les empreintes des jours précédents sans attendre une visite")
     brief = actions.add_parser(
         "brief", help="Brief du jour : ce que l'agent a fait, ce qui attend une décision"
     )
@@ -289,7 +293,13 @@ def main():
         except (ValueError, FileExistsError) as error:
             parser.error(str(error))
         return
-    if args.action == "public-media-cache":
+    if args.action == "audience-purge":
+        if not any(arg == "--data" or arg.startswith("--data=") for arg in sys.argv[1:]):
+            parser.error("audience-purge exige --data explicite")
+        from .audience import Audience
+
+        result = Audience(args.data).purge()
+    elif args.action == "public-media-cache":
         if not any(arg == "--data" or arg.startswith("--data=") for arg in sys.argv[1:]):
             parser.error("public-media-cache exige --data explicite")
         from .media_cache import prune_public_media
@@ -315,12 +325,17 @@ def main():
     elif args.action == "restore":
         from .inventory_backup import restore_backup
 
-        result = restore_backup(args.archive, args.data, args.photos)
-        from .privacy import Privacy, erasure_log
+        from .privacy import erasure_log, erasures_guard
 
-        # The archive may predate erasures: they are applied again.
-        if erasure_log(args.data).exists():
-            result["erasures"] = Privacy(Store(args.data)).replay()
+        if args.sans_journal:
+            if args.journal:
+                parser.error("--journal et --sans-journal sont incompatibles")
+            result = restore_backup(args.archive, args.data, args.photos)
+            result["warning"] = "Restauration sans journal : des données effacées peuvent réapparaître."
+        else:
+            # Hold the current journal stable until replay and publication.
+            with erasures_guard(args.journal or erasure_log(args.data)) as journal:
+                result = restore_backup(args.archive, args.data, args.photos, journal=journal)
     elif args.action in ("backup-server-pull", "backup-server-drive"):
         # The live base is on the server: --data is never opened here.
         from .server_backup import Mirror, pull_latest
@@ -635,6 +650,12 @@ def send_brief(store, since=None, notify=False, channels=None, origin=None):
         parse_since(since) if since else default_since()
     )
     title, body = brief_text(brief)
+    from .assistant import retention_warning
+
+    warning = retention_warning(store.root)
+    if warning:
+        title = "La purge du chat demande une vérification"
+        body = f"{warning}\n{body}"
     result = {"title": title, "text": body, "minutes": brief["minutes"],
               "waiting": len(brief["waiting"]), "done_since": brief["done_since"]}
     if notify:

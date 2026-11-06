@@ -2,6 +2,7 @@
 
 import json
 
+from basket_helpers import accepted_prices
 from fastapi.testclient import TestClient
 from test_privacy import accepted_request, dump
 from test_reservations import PASSWORD, activate, client_of, guest, shop, signup  # noqa: F401
@@ -116,7 +117,7 @@ def test_mailbox_proof_can_recover_a_legacy_request_attached_to_another_account(
     signup(store, "wrong@example.org")
     original = activate(admin, "wrong@example.org")
     owner = client_of(store, "wrong@example.org")
-    owner.post("/api/me/requests", json={"listing_ids": [listings[0]["id"]]}).raise_for_status()
+    owner.post("/api/me/requests", json={"expected_prices": accepted_prices(store, [listings[0]["id"]]), "listing_ids": [listings[0]["id"]]}).raise_for_status()
     with store.connect(write=True) as db:
         db.execute("UPDATE requests SET guest=1,client_email='recipient@example.org'")
     assert owner.get("/api/me/requests").json() == []
@@ -156,7 +157,7 @@ def test_unknown_legacy_contact_stays_quarantined_until_seller_recovers_its_orig
     signup(store, "attacker@example.org", "Compte courant")
     account = activate(admin, "attacker@example.org")
     original = client_of(store, "attacker@example.org")
-    first = original.post("/api/me/requests", json={"listing_ids": [listings[0]["id"]], "message": "message privé du destinataire"}).json()
+    first = original.post("/api/me/requests", json={"expected_prices": accepted_prices(store, [listings[0]["id"]]), "listing_ids": [listings[0]["id"]], "message": "message privé du destinataire"}).json()
     # This is what the old data can establish after the pre-fix claimant changed
     # profile: the current address is a guess, not the guest's actual origin.
     with store.connect(write=True) as db:
@@ -200,7 +201,7 @@ def test_request_id_erasure_survives_reassignment_and_leaves_other_owner_data(sh
     signup(store, "another@example.org", "Autre compte")
     other = activate(admin, "another@example.org")
     browser = client_of(store, "another@example.org")
-    kept = browser.post("/api/me/requests", json={"listing_ids": [listings[1]["id"]]}).json()
+    kept = browser.post("/api/me/requests", json={"expected_prices": accepted_prices(store, [listings[1]["id"]]), "listing_ids": [listings[1]["id"]]}).json()
     privacy = Privacy(store)
     with store.connect(write=True) as db:
         original = db.execute("SELECT client_id FROM requests WHERE id=?", (request["id"],)).fetchone()[0]

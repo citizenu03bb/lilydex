@@ -2,14 +2,16 @@ import hashlib
 import os
 import shutil
 import subprocess
+import zipfile
 from typing import ClassVar
 
 import pytest
 
 from pokeprice import drive_backup, server_backup
 from pokeprice.daily_backup import status
-from pokeprice.inventory import Store
+from pokeprice.inventory import Store, now
 from pokeprice.inventory_backup import backup
+from pokeprice.privacy import Privacy, erasure_log
 
 
 @pytest.fixture
@@ -141,6 +143,31 @@ def test_corrupt_pull_leaves_no_archive_and_no_success(tmp_path, server, drive):
     assert list(mirror.root.glob("*.zip*")) == []
     assert status(mirror)["external"] is None
     assert status(mirror)["last_error"]
+
+
+def test_pull_and_encrypted_drive_copy_preserve_recent_erasure_journal(
+    tmp_path, server, drive, server_archive
+):
+    import pyrage
+    from pokeprice.reservations import Reservations
+
+    store = Store(tmp_path / "server-inventory")
+    with store.connect(write=True) as db:
+        db.execute("INSERT INTO users(id,username,password_hash,role,created_at) VALUES(?,?,?,?,?)",
+                   ("seller", "seller", "unused-test-hash", "admin", now()))
+    Reservations(store, None).signup("client@example.org", "Client", "unusable-test-password")
+    Privacy(store).forget("client@example.org")
+    expected = erasure_log(store.root).read_bytes()
+    server_archive.unlink()
+    backup(store, server_archive)
+    mirror = server_backup.Mirror(tmp_path / "laptop" / "oci-backups")
+    result = drive_backup.upload_server(mirror, "opc@203.0.113.7", binary="fake", remote="gdrive")
+    with zipfile.ZipFile(mirror.root / "oci-daily-2026-10-17.zip") as archive:
+        assert archive.read("erasures.jsonl") == expected
+    recovered = tmp_path / "drive-recovered.zip"
+    pyrage.decrypt_file(str(drive.files[result["remote_name"]]), str(recovered), [drive_backup.load_key()])
+    with zipfile.ZipFile(recovered) as archive:
+        assert archive.read("erasures.jsonl") == expected
 
 
 def test_local_retention_keeps_only_the_latest_full_archive(tmp_path, server, drive):

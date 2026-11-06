@@ -1,3 +1,4 @@
+from basket_helpers import accepted_prices
 import json
 import threading
 
@@ -96,7 +97,7 @@ def test_a_request_reserves_nothing_until_partial_acceptance(shop):
     activate(admin, "sacha@example.org")
     me = client_of(store, "sacha@example.org")
     ids = [listings[0]["id"], listings[1]["id"]]
-    sent = me.post("/api/me/requests", json={"listing_ids": ids, "message": "Remise en main propre"})
+    sent = me.post("/api/me/requests", json={"listing_ids": ids, "expected_prices": accepted_prices(store, ids), "message": "Remise en main propre"})
     assert sent.status_code == 201
     request = sent.json()
     assert request["status"] == "sent" and request["total_cents"] == 470 and "client_id" not in request
@@ -128,7 +129,7 @@ def test_two_requests_for_one_card_cannot_both_be_accepted(shop):
     for email in ("a@example.org", "b@example.org"):
         signup(store, email)
         activate(admin, email)
-        client_of(store, email).post("/api/me/requests", json={"listing_ids": [listings[2]["id"]]})
+        client_of(store, email).post("/api/me/requests", json={"listing_ids": [listings[2]["id"]], "expected_prices": accepted_prices(store, [listings[2]["id"]])})
     first, second = sorted(admin.get("/api/requests").json(), key=lambda r: r["email"])
     assert admin.post(f"/api/requests/{first['id']}/accept", json={"expected_version": first["version"], "listing_ids": [listings[2]["id"]]}).status_code == 200
     late = admin.post(f"/api/requests/{second['id']}/accept", json={"expected_version": second["version"], "listing_ids": [listings[2]["id"]]})
@@ -168,7 +169,7 @@ def race_accept(shop, monkeypatch, rival):
     signup(store, "sacha@example.org")
     activate(admin, "sacha@example.org")
     ids = [listings[0]["id"], listings[1]["id"]]
-    client_of(store, "sacha@example.org").post("/api/me/requests", json={"listing_ids": ids})
+    client_of(store, "sacha@example.org").post("/api/me/requests", json={"listing_ids": ids, "expected_prices": accepted_prices(store, ids)})
     request = admin.get("/api/requests").json()[0]
     service = Reservations(store, Storefront(store))
     outcome = interleave(monkeypatch, store, lambda: rival(service, request, ids[1]))
@@ -224,8 +225,8 @@ def test_clients_cancel_their_own_requests_and_old_ones_expire(shop):
         signup(store, email)
         activate(admin, email)
     a, b = client_of(store, "a@example.org"), client_of(store, "b@example.org")
-    first = a.post("/api/me/requests", json={"listing_ids": [listings[0]["id"]]}).json()
-    second = a.post("/api/me/requests", json={"listing_ids": [listings[1]["id"]]}).json()
+    first = a.post("/api/me/requests", json={"listing_ids": [listings[0]["id"]], "expected_prices": accepted_prices(store, [listings[0]["id"]])}).json()
+    second = a.post("/api/me/requests", json={"listing_ids": [listings[1]["id"]], "expected_prices": accepted_prices(store, [listings[1]["id"]])}).json()
     assert b.post(f"/api/me/requests/{first['id']}/cancel", json={"expected_version": 1}).status_code == 404
     assert b.get("/api/me/requests").json() == []
     assert a.post(f"/api/me/requests/{first['id']}/cancel", json={"expected_version": 1}).json()["status"] == "cancelled"
@@ -235,7 +236,7 @@ def test_clients_cancel_their_own_requests_and_old_ones_expire(shop):
     assert statuses == {first["id"]: "cancelled", second["id"]: "expired"}
     unpublished = admin.delete(f"/api/copies/{listings[2]['items'][0]['id']}/listing")
     assert unpublished.status_code == 200
-    assert a.post("/api/me/requests", json={"listing_ids": [listings[2]["id"]]}).status_code == 409
+    assert a.post("/api/me/requests", json={"listing_ids": [listings[2]["id"]], "expected_prices": accepted_prices(store, [listings[2]["id"]])}).status_code == 409
 
 
 def test_roles_around_requests(shop):
@@ -243,7 +244,7 @@ def test_roles_around_requests(shop):
     signup(store, "a@example.org")
     activate(admin, "a@example.org")
     me = client_of(store, "a@example.org")
-    request = me.post("/api/me/requests", json={"listing_ids": [listings[0]["id"]]}).json()
+    request = me.post("/api/me/requests", json={"listing_ids": [listings[0]["id"]], "expected_prices": accepted_prices(store, [listings[0]["id"]])}).json()
     assert me.get("/api/requests").status_code == 403
     assert me.get("/api/clients").status_code == 403
     assert admin.post("/api/users", json={"username": "lecteur", "password": "Lecture-test-2026!", "role": "reader"}).status_code == 201
@@ -273,7 +274,7 @@ def guest(store, email, listing_ids, name="Ondine", message="", **delivery):
     with TestClient(create_app(store.root)) as visitor:
         return visitor.post(
             "/api/public/requests",
-            json={"email": email, "display_name": name, "listing_ids": listing_ids,
+            json={"email": email, "display_name": name, "listing_ids": listing_ids, "expected_prices": accepted_prices(store, listing_ids),
                   "message": message, "consent": True, **delivery},
         )
 
@@ -343,7 +344,7 @@ def test_guest_requests_are_limited(shop):
         statuses = [
             visitor.post(
                 "/api/public/requests",
-                json={"email": f"x{i}@example.org", "display_name": "X", "listing_ids": [ids[0]], "consent": True},
+                json={"email": f"x{i}@example.org", "display_name": "X", "listing_ids": [ids[0]], "expected_prices": accepted_prices(store, [ids[0]]), "consent": True},
             ).status_code
             for i in range(6)
         ]
@@ -419,7 +420,7 @@ def test_payment_details_reach_a_client_only_while_their_lot_awaits_payment(shop
     signup(store, "sacha@example.org")
     activate(admin, "sacha@example.org")
     me = client_of(store, "sacha@example.org")
-    me.post("/api/me/requests", json={"listing_ids": [listings[0]["id"]], "message": ""}).raise_for_status()
+    me.post("/api/me/requests", json={"listing_ids": [listings[0]["id"]], "expected_prices": accepted_prices(store, [listings[0]["id"]]), "message": ""}).raise_for_status()
     assert "payment" not in me.get("/api/me/requests").json()[0]
 
     request = admin.get("/api/requests").json()[0]
