@@ -56,6 +56,7 @@ tenues à jour.
 | Page | Ce que vous y trouvez |
 |---|---|
 | [Audit de sécurité](AUDIT-SECURITE.md) | L'audit fait avant la publication du code |
+| [Plan d'action : l'audit de confidentialité](PLAN-AUDIT-CONFIDENTIALITE.md) | Les défauts de vie privée, de rétention, de panier et d'accessibilité relevés, regroupés en lots, et l'ordre recommandé |
 | [Évaluation des logiciels existants](EVALUATION.md) | Trois logiciels libres essayés avant d'écrire l'application |
 | [Instantané initial](RECOVERY.md) | La copie figée des fichiers d'origine et sa restauration |
 | [Audit des photos](AUDIT-PHOTOS.md) | La revue des découpes et des identités lues des classeurs |

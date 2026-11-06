@@ -9,6 +9,10 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-06
 
+- Le [plan de correction de l'audit](PLAN-AUDIT-CONFIDENTIALITE.md) précise
+  la quarantaine des anciennes demandes sans preuve de destinataire et le
+  rejeu par identifiants immuables. Les lots identité et rétention se mettent
+  en ligne ensemble ; la réussite des tests ne vaut pas déploiement.
 - Chat de gestion : chaque question part avec l'heure de Paris et le rôle du
   compte (`server_context`) ; la date de la consigne suit Paris et non plus
   UTC ; la consigne ne suppose plus le genre de la personne ; `count_copies`
@@ -23,6 +27,10 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-05
 
+- Relecture du [plan de correction de l'audit](PLAN-AUDIT-CONFIDENTIALITE.md) :
+  journal d'effacement externe aux archives, restauration avant publication,
+  comparaison transactionnelle des prix et conservation distincte des échanges
+  signalés. Le plan devient une page maintenue et contrôlée.
 - Banc du chat, V1.1 complète sur master (#73 à #77) : trois passes sur
   Gemini 3.8 Flash, 61, 59 et 61 cas réussis sur 63 ; 14 pièges évités sur 14,
   aucune réponse dangereuse, cas « doublons » réussi aux trois passes, environ

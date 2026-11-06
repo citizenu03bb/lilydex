@@ -45,6 +45,7 @@ PAGES_VIVANTES = {
     "docs/GLOSSAIRE.md",
     "docs/IA-VISION.md",
     "docs/PRINT_REFERENCE_GUIDE.md",
+    "docs/PLAN-AUDIT-CONFIDENTIALITE.md",
     "docs/README.md",
     "docs/RESOLUTION_CARTES.md",
     "docs/RGPD.md",
