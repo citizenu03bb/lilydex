@@ -495,5 +495,16 @@
   "push.denied": "Notifications are blocked for this app: allow them in the phone’s settings.",
   "push.on": "Notifications are on for this phone.",
   "push.off": "Notifications are off for this phone.",
-  "push.error": "The notifications could not be changed. Please try again."
+  "push.error": "The notifications could not be changed. Please try again.",
+  "valuation.trend": "Trend",
+  "valuation.trend.help": "TCGdex trend of the recorded variant.",
+  "valuation.trend.missing": "{count} unpriced",
+  "valuation.prudent": "Prudent value",
+  "valuation.prudent.help": "Lower of the trend and the 30-day average. Both prices are required; no condition discount.",
+  "valuation.prudent.missing": "{count} without prudent value",
+  "valuation.sale_estimate": "Sale estimate",
+  "valuation.sale_estimate.help": "Latest Cardmarket offers pasted for the current identity, variant and condition. Asking prices, before fees and shipping. A copy without pasted offers has no estimate, even if it has a trend.",
+  "valuation.sale_estimate.missing": "{count} without pasted offers",
+  "valuation.coverage": { "one": "{known}/{count} copy", "other": "{known}/{count} copies" },
+  "valuation.bulk": "{count} in bulk"
 }
