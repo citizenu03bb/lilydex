@@ -578,6 +578,7 @@ def count_copies(ctx, values):
         first = cards[0]
         row = {f: first.get(f) for f in fields}
         row["count"] = len(cards)
+        row["reference_cents"] = sum(c["reference_cents"] or 0 for c in cards)
         if values["group_by"] != "edition":
             row["editions"] = len(group["editions"])
         row["copy_ids"] = [c["id"] for c in cards[:5]]
@@ -586,9 +587,19 @@ def count_copies(ctx, values):
     shown = duplicates if values["duplicates_only"] else rows
     shown.sort(key=lambda r: (-r["count"], *(normalized(str(r[f] or "")) for f in fields)))
     top = shown[: values["top"]]
+    counted = [c for g in groups.values() for c in g["cards"]]
+    priced = [c for c in counted if c["reference_cents"]]
     return {
         "group_by": values["group_by"],
         "total_copies": total,
+        # The collection's worth, as the sum of reference prices (« cotes »): never
+        # a sale price; copies without a reference are counted apart.
+        "value": {
+            "reference_cents": sum(c["reference_cents"] for c in priced),
+            "prudent_cents": sum((c["valuation"] or {}).get("prudent_cents") or 0 for c in priced),
+            "priced_copies": len(priced),
+            "unpriced_copies": len(counted) - len(priced),
+        },
         "groups_total": len(rows),
         "duplicate_groups": len(duplicates),
         "duplicate_extra_copies": sum(r["count"] - 1 for r in duplicates),
@@ -718,7 +729,7 @@ TOOLS = {
             "groupes par édition exacte (nom + extension + numéro + langue), par nom, extension, "
             "langue, statut, stock ou album, classés du plus nombreux au moins nombreux. "
             "duplicates_only : seulement les doublons (au moins 2 exemplaires). Vendus compris, "
-            "sauf filtre stock.",
+            "sauf filtre stock. value : somme des cotes, et exemplaires sans cote.",
             arguments({
                 "group_by": {"type": "string", "enum": list(GROUPS), "maxLength": 20,
                              "default": "edition", "description": "Regroupement ; edition pour les doublons exacts."},

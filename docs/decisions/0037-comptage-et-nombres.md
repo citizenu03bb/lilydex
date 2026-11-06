@@ -41,7 +41,12 @@ gagne le filtre de langue, que le modèle lui passait dès qu'il l'a vu sur
 total des exemplaires, le nombre de groupes et de doublons, les exemplaires
 en trop, et pour chaque groupe ses champs, son nombre, le nombre d'éditions
 (hors regroupement par édition) et jusqu'à cinq identifiants. Les vendus
-comptent, sauf filtre `stock`.
+comptent, sauf filtre `stock`. Pour « combien vaut… », chaque groupe porte la
+somme de ses cotes (`reference_cents`) et la sortie un bloc `value` : somme
+des cotes de référence et des cotes prudentes, exemplaires cotés et sans cote.
+C'est une cote, jamais un prix de vente garanti ; la consigne demande de le
+dire avec le nombre de cartes sans cote. Le contrôle des nombres du banc lit
+les montants en centimes aussi en euros (5980 autorise 59,80 et 60).
 
 *La règle.* Une section à part de `assistant_prompt.md`, « Nombres » :
 chaque nombre de la réponse vient d'un résultat d'outil de cette question,

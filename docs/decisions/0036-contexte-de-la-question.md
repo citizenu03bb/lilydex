@@ -28,7 +28,8 @@ pour une consigne.
   (`sale_id`), les filtres actifs (`filters`), l'appareil (`device` : téléphone
   ou ordinateur, gestion installée ou navigateur, iOS, Android ou autre), la
   version de l'interface (`ui_version`, celle du cache du service worker) et
-  le dernier message d'erreur renvoyé par le serveur (`last_error`).
+  le dernier message d'erreur renvoyé par le serveur (`last_error`), s'il date
+  de moins de cinq minutes ; une connexion réussie l'efface.
 - **Aucune donnée de client** : ni nom, ni message, ni adresse, ni titre de
   lot. Une fiche ou une vente passe par son identifiant seul.
 - **Le serveur décide** (`assistant_context.clean`) : chaque clé a sa
@@ -47,6 +48,14 @@ pour une consigne.
   consigne système n'en reçoit rien ; une section à part lui dit que « la carte
   affichée » est la fiche du contexte, à relire par les outils. Seule la
   question en cours porte son contexte ; l'historique n'en rejoue aucun.
+- **Ce que sait le serveur** part dans la même partie, sous `server_context`,
+  à chaque question, même sans contexte d'écran : la date et l'heure à Paris
+  (`now`, la consigne ne portant que la date pour rester la même toute la
+  journée) et le rôle du compte, lu dans la base et jamais dans l'interface
+  (`role` : administrateur, équipe ou lecture seule, avec ce qu'il voit). Le
+  chat ne renvoie donc pas un compte d'équipe vers Statistiques ou Réglages, et
+  la consigne ne suppose ni le genre ni le prénom de la personne : aucun nom
+  ne part au modèle.
 - **Gardé avec la question** dans `assistant.sqlite3` (colonne
   `questions.context_json`, ajoutée par une migration idempotente) : effacé
   avec la conversation par son auteur, purgé avec la question après 30 jours

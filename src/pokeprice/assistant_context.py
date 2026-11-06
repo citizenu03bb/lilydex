@@ -139,9 +139,17 @@ def clean(raw):
     return out, dropped
 
 
-def for_model(context):
-    """The context as the model reads it: a data part, beside the question."""
-    if not context:
+def for_model(context, server=None):
+    """The context as the model reads it: a data part, beside the question.
+
+    ``server`` holds what the server itself knows (time in Paris, the account's
+    role); ``interface_context`` what the screen showed.
+    """
+    if not context and not server:
         return None
-    return json.dumps({"interface_context": context, "source": "interface", "notice": NOTICE},
-                      ensure_ascii=False)
+    part = {}
+    if server:
+        part["server_context"] = server
+    if context:
+        part.update({"interface_context": context, "source": "interface", "notice": NOTICE})
+    return json.dumps(part, ensure_ascii=False)
