@@ -206,6 +206,8 @@ const Assistant = (() => {
   // server keeps a closed list of keys (assistant_context.py) and drops the rest.
   const seen = { card: null, version: null };
   const RECENT_CARD_MS = 10 * 60 * 1000;
+  // Une erreur plus vieille ne décrit plus l'écran : elle n'est pas jointe.
+  const RECENT_ERROR_MS = 5 * 60 * 1000;
   // The chat opens from the top bar, so a card's sheet is usually closed by then:
   // the card shown is the one open, or the one closed in the last ten minutes.
   $("detail-dialog")?.addEventListener("close", () => {
@@ -253,7 +255,9 @@ const Assistant = (() => {
     if (sale) context.sale_id = sale[1];
     const version = await uiVersion();
     if (version) context.ui_version = version;
-    if (state.lastError) context.last_error = state.lastError.slice(0, 200);
+    const error = state.lastError;
+    if (error?.text && Date.now() - error.at < RECENT_ERROR_MS)
+      context.last_error = error.text.slice(0, 200);
     return context;
   }
   // -- fin V1.1 -------------------------------------------------------------------

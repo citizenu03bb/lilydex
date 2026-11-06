@@ -28,7 +28,8 @@ pour une consigne.
   (`sale_id`), les filtres actifs (`filters`), l'appareil (`device` : téléphone
   ou ordinateur, gestion installée ou navigateur, iOS, Android ou autre), la
   version de l'interface (`ui_version`, celle du cache du service worker) et
-  le dernier message d'erreur renvoyé par le serveur (`last_error`).
+  le dernier message d'erreur renvoyé par le serveur (`last_error`), s'il date
+  de moins de cinq minutes ; une connexion réussie l'efface.
 - **Aucune donnée de client** : ni nom, ni message, ni adresse, ni titre de
   lot. Une fiche ou une vente passe par son identifiant seul.
 - **Le serveur décide** (`assistant_context.clean`) : chaque clé a sa
