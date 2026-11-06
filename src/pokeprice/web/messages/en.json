@@ -251,6 +251,8 @@
   "payment.after": "The seller prepares the parcel as soon as the payment arrives.",
 
   "profile.email": "Email (also used to sign in)",
+  "profile.email_help": "To change your address, ask the seller for a link sent to the new address. Your current address remains your sign-in name until confirmation.",
+  "profile.pending": "Change to {email} pending: ask the seller for the confirmation link. Your sign-in address is unchanged.",
   "profile.current_password": "Current password",
   "profile.save": "Save",
   "profile.saved": "Changes saved.",
@@ -260,6 +262,7 @@
   "profile.delete.help": "Your account, your requests and their messages are permanently deleted. A sale already concluded stays in the seller’s accounts, without your name, email address or message.",
   "profile.delete.confirm": "I understand this is permanent.",
   "profile.deleted": "Your account and your data have been deleted.",
+  "profile.deleted_unverified": "Your account is deleted. Older requests without mailbox proof remain separate: contact the seller to verify or erase them.",
 
   "logout.no_answer": "the server is not responding.",
   "logout.failed": "Could not sign out: {reason} Please try again.",

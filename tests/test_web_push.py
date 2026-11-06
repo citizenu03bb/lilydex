@@ -158,11 +158,11 @@ def test_schema_25_adds_the_subscriptions_table_after_a_snapshot(tmp_path):
         db.execute("PRAGMA user_version=24")
     migrated = Store(store.root)
     with migrated.connect() as db:
-        assert db.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION == 25
+        assert db.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION >= 25
         columns = [r[1] for r in db.execute("PRAGMA table_info(push_subscriptions)")]
     # The endpoint, the browser's keys and the account: nothing else.
     assert columns == ["endpoint", "p256dh", "auth", "user_id"]
-    assert list((tmp_path / "backups").glob("before-schema25-from24-*"))
+    assert list((tmp_path / "backups").glob(f"before-schema{SCHEMA_VERSION}-from24-*"))
 
 
 # --- Subscriptions -----------------------------------------------------------

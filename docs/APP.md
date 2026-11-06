@@ -1092,8 +1092,9 @@ L'inscription rappelle de choisir un mot de passe propre au site.
 
 Sur la vitrine, un visiteur ajoute des cartes à **Ma sélection** (gardée dans
 son navigateur) et envoie la demande avec son nom et son e-mail, **sans créer
-de compte**. Une adresse inconnue devient un client **en attente**, sans mot de
-passe ; la réponse est la même que l'adresse soit connue ou non. Trois
+de compte**. Sans adresse prouvée, la demande reste dans une identité invitée
+**en attente**, séparée d'un compte inscrit à la même adresse ; la réponse
+est la même que l'adresse soit connue ou non. Trois
 demandes en attente au plus par e-mail, cinq envois par heure et par adresse
 IP.
 
@@ -1117,9 +1118,9 @@ Dans **Ventes**, le panneau **Demandes de la vitrine** liste les demandes, en
 attente d'abord, avec l'e-mail, le message et les exemplaires. **Accepter les
 cartes cochées** crée un lot « Vitrine · nom du client », canal Vitrine, au prix
 figé lors de la demande, et le réserve aussitôt ; les cartes non cochées sont
-« non retenues ». Accepter valide aussi un client en attente : la demande
-porte la mention « E-mail non vérifié » tant que ce n'est pas fait, et c'est
-votre réponse qui vérifie l'adresse. Si un exemplaire vient d'être réservé
+« non retenues ». Accepter active aussi un client en attente, mais ne prouve
+pas son adresse : seul le lien reçu à cette adresse permet de rattacher ses
+demandes invitées à un compte connecté. Si un exemplaire vient d'être réservé
 ailleurs, l'acceptation échoue sans laisser de brouillon. **Refuser la demande** demande un motif,
 visible par le client. Contactez ensuite le client depuis votre messagerie pour
 le paiement et l'envoi : le lot suit le circuit habituel et le client voit son
@@ -1143,8 +1144,20 @@ Le site n'envoie pas d'e-mails : pour qu'un client choisisse un mot de passe,
 ou en change après un oubli, **Lien de mot de passe** (Comptes clients de la
 vitrine, administrateur) copie un lien à usage unique, valable 7 jours, à
 coller dans votre réponse. Un nouveau lien remplace le précédent. En l'ouvrant,
-le client choisit son mot de passe, son compte devient actif et il est
-connecté ; ses anciennes sessions sont fermées.
+le client choisit son mot de passe, prouve l'adresse destinataire, son compte
+devient actif et il est connecté ; ses anciennes sessions sont fermées.
+Le lien confirme aussi une nouvelle adresse demandée dans **Mon compte**.
+Envoyez-le uniquement à la destination indiquée après sa création. Un
+changement de demande d'adresse invalide les liens antérieurs.
+
+Les anciennes demandes dont le contact d'origine est inconnu restent masquées
+aux comptes, même après preuve de l'adresse courante du profil. Elles portent
+une notice dans **Demandes de la vitrine** : l'administrateur retrouve les
+coordonnées dans sa messagerie et les confirme ou les corrige dans le
+formulaire de la demande. Il peut ensuite transmettre le lien au destinataire
+pour le rattachement au compte. Ni le profil courant ni le nom et l'adresse
+copiés dans un lot ne prouvent l'origine de ces anciennes demandes. Supprimer
+son compte ne les détruit pas ; le vendeur les traite séparément.
 
 ### Les données des clients
 
@@ -1157,7 +1170,8 @@ effacé avec ses demandes. Les durées sont dans `privacy.py` : en changer une,
 c'est changer la notice aussi.
 
 Un client gère lui-même ses droits dans **Mon compte** : corriger son nom et
-son e-mail (qui sert aussi à se connecter), télécharger toutes ses données en
+demander un changement d'e-mail (l'ancien reste l'identifiant jusqu'au lien
+du vendeur), télécharger toutes ses données en
 JSON (`/api/me/export`), supprimer son compte. Modifier ou supprimer demande le
 mot de passe actuel. Une demande d'effacement reçue par e-mail se traite sur le
 serveur, avec `--data` (forme complète dans
@@ -1172,7 +1186,10 @@ issu d'une demande acceptée reste dans les ventes, avec ses montants, mais le
 nom, l'e-mail et le message du client y sont remplacés (« client effacé »,
 « message effacé »), dans le lot comme dans son historique. Seuls les comptes
 clients s'effacent ainsi, jamais ceux de l'équipe. Ce qui a été ajouté à la
-main dans les notes d'un lot n'est pas retrouvé : relisez ces notes.
+main dans les notes d'un lot n'est pas retrouvé : relisez ces notes. Les
+coordonnées figées des demandes permettent de retrouver les anciennes
+identités, même après un changement de profil. Pour une identité invitée,
+utilisez son identifiant de client, visible dans l'API de gestion.
 
 Chaque effacement est inscrit, par identifiant de compte seulement, dans
 `erasures.jsonl` à côté du dossier de collection. `restore` rejoue ce journal

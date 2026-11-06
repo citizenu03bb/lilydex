@@ -291,6 +291,74 @@ REQUEST_STATUS = {
 }
 
 
+def guest_identity(db, email, unusable_hash, timestamp=None, *, identity_id=None):
+    """Separate unproved guest contacts from every account that can sign in."""
+    if identity_id:
+        row = db.execute("SELECT id FROM users WHERE id=? AND guest_account=1", (identity_id,)).fetchone()
+    else:
+        row = db.execute(
+            "SELECT u.id FROM users u JOIN requests r ON r.client_id=u.id "
+            "WHERE u.guest_account=1 AND r.client_email=? COLLATE NOCASE LIMIT 1", (email,)
+        ).fetchone()
+    if row:
+        return row["id"]
+    client_id, timestamp = identity_id or str(uuid.uuid4()), timestamp or now()
+    db.execute(
+        "INSERT INTO users(id,username,password_hash,role,created_at,email,display_name,status,consent_at,guest_account) "
+        "VALUES(?,?,?,?,?,?,?,?,?,1)",
+        (client_id, "guest:" + client_id, unusable_hash, "client", timestamp, None, "", "pending", timestamp),
+    )
+    return client_id
+
+
+def migrate_client_identity(db):
+    """Schema 26: frozen contacts and mailbox proof; no legacy proof is invented."""
+    db.execute("BEGIN IMMEDIATE")
+    try:
+        def add(table, column, definition):
+            if column in {r[1] for r in db.execute(f"PRAGMA table_info({table})")}:
+                return False
+            db.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+            return True
+
+        add("users", "pending_email", "TEXT NOT NULL DEFAULT ''")
+        add("users", "email_verified_at", "TEXT NOT NULL DEFAULT ''")
+        add("users", "guest_account", "INTEGER NOT NULL DEFAULT 0")
+        if add("password_links", "email", "TEXT NOT NULL DEFAULT ''"):
+            db.execute("DELETE FROM password_links")  # Old links carry no target address.
+        recover = add("requests", "client_email", "TEXT NOT NULL DEFAULT ''")
+        recover = add("requests", "client_name", "TEXT NOT NULL DEFAULT ''") or recover
+        add("requests", "guest", "INTEGER NOT NULL DEFAULT 1")
+        add("requests", "contact_known", "INTEGER NOT NULL DEFAULT 0")
+        add("requests", "identity_json", "TEXT NOT NULL DEFAULT '[]'")
+        rows = db.execute(
+            "SELECT r.id,r.sale_id,r.created_at,u.email,u.display_name FROM requests r "
+            "JOIN users u ON u.id=r.client_id WHERE ?", (recover,)
+        ).fetchall()
+        for row in rows:
+            email, name = row["email"] or "", row["display_name"]
+            if row["sale_id"]:
+                for event in db.execute(
+                    "SELECT after_json FROM sale_events WHERE sale_id=? ORDER BY id", (row["sale_id"],)
+                ).fetchall():
+                    state = json.loads(event["after_json"])
+                    prefix = f"Demande {row['id']} de "
+                    if state.get("notes", "").startswith(prefix):
+                        email = state["notes"][len(prefix):].split("\n", 1)[0].removesuffix(".")
+                        if state.get("title", "").startswith("Vitrine · "):
+                            name = state["title"].removeprefix("Vitrine · ")
+                        break
+            db.execute("UPDATE requests SET client_email=?,client_name=?,identity_json=? WHERE id=?",
+                       (email, name, json.dumps([{"email": email, "name": name}], ensure_ascii=False), row["id"]))
+            # Keep the original client link for older erasure journals. guest=1
+            # hides unproved provenance until proof, or detachment on self-delete.
+        db.execute("PRAGMA user_version=26")
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+
+
 def valid_email(value):
     value = (value or "").strip()
     if len(value) > 254 or not EMAIL.match(value):
@@ -380,14 +448,13 @@ class Reservations:
 
     def clients(self):
         with self.store.connect() as db:
-            return [
-                dict(r)
-                for r in db.execute(
-                    "SELECT id,email,display_name,status,disabled,created_at,consent_at "
-                    "FROM users WHERE role='client' "
-                    "ORDER BY CASE status WHEN 'pending' THEN 0 ELSE 1 END, created_at DESC"
-                )
-            ]
+            return [dict(r) for r in db.execute(
+                "SELECT u.id,COALESCE(u.email,(SELECT r.client_email FROM requests r WHERE r.client_id=u.id LIMIT 1)) AS email,"
+                "CASE WHEN u.guest_account=1 THEN (SELECT r.client_name FROM requests r WHERE r.client_id=u.id LIMIT 1) "
+                "ELSE u.display_name END AS display_name,u.status,u.disabled,u.created_at,u.consent_at,"
+                "u.pending_email,u.email_verified_at,u.guest_account FROM users u WHERE u.role='client' "
+                "ORDER BY CASE u.status WHEN 'pending' THEN 0 ELSE 1 END,u.created_at DESC"
+            )]
 
     def set_client(self, client_id, status, disabled):
         with self.store.connect(write=True) as db:
@@ -404,42 +471,69 @@ class Reservations:
         return {"ok": True}
 
     def password_link(self, client_id, actor):
-        """A new one-time link replaces the previous ones; the token is shown once."""
+        """The seller sends this one-time mailbox proof manually, to its bound address."""
         token = secrets.token_urlsafe(32)
         timestamp = datetime.now(timezone.utc)
         with self.store.connect(write=True) as db:
-            row = db.execute(
-                "SELECT status,disabled FROM users WHERE id=? AND role='client'", (client_id,)
-            ).fetchone()
+            row = db.execute("SELECT * FROM users WHERE id=? AND role='client'", (client_id,)).fetchone()
             if not row:
                 raise KeyError("Client introuvable.")
             if row["status"] == "refused" or row["disabled"]:
                 raise Conflict("Ce compte est refusé ou désactivé : validez-le d’abord.")
+            target = row["pending_email"] or row["email"]
+            if not target:
+                contact = db.execute("SELECT client_email FROM requests WHERE client_id=? AND contact_known=1 LIMIT 1", (client_id,)).fetchone()
+                if not contact:
+                    raise Conflict("Confirmez les coordonnées de la demande dans votre messagerie avant de créer le lien.")
+                target = contact[0]
+                account = db.execute("SELECT * FROM users WHERE email=? COLLATE NOCASE", (target,)).fetchone()
+                if account:
+                    if account["role"] != "client" or account["status"] == "refused" or account["disabled"]:
+                        raise Conflict("Ce compte est refusé ou désactivé : validez-le d’abord.")
+                    if account["pending_email"]:
+                        raise Conflict("Confirmez d’abord le changement d’adresse demandé sur ce compte.")
+                    client_id = account["id"]
             db.execute("DELETE FROM password_links WHERE user_id=?", (client_id,))
             expires_at = (timestamp + LINK_EXPIRY).isoformat()
             db.execute(
-                "INSERT INTO password_links VALUES(?,?,?,?,?)",
-                (hashlib.sha256(token.encode()).hexdigest(), client_id, actor,
-                 timestamp.isoformat(), expires_at),
+                "INSERT INTO password_links(token_hash,user_id,created_by,created_at,expires_at,email) VALUES(?,?,?,?,?,?)",
+                (hashlib.sha256(token.encode()).hexdigest(), client_id, actor, timestamp.isoformat(), expires_at, target),
             )
-        return {"token": token, "expires_at": expires_at}
+        return {"token": token, "expires_at": expires_at, "email": target}
 
     def use_link(self, db, token, password_hash):
-        """Set the password a link was made for; the link proves the address."""
+        """Activate only the address to which the seller delivered this proof."""
         row = db.execute(
-            "SELECT u.id,u.username,u.role FROM password_links l JOIN users u ON u.id=l.user_id "
-            "WHERE l.token_hash=? AND l.expires_at>? AND u.role='client' "
-            "AND u.status!='refused' AND u.disabled=0",
+            "SELECT u.*,l.email AS target_email FROM password_links l JOIN users u ON u.id=l.user_id "
+            "WHERE l.token_hash=? AND l.expires_at>? AND u.role='client' AND u.status!='refused' AND u.disabled=0 "
+            "AND (l.email=CASE WHEN u.pending_email!='' THEN u.pending_email ELSE u.email END COLLATE NOCASE "
+            "OR (u.guest_account=1 AND u.email IS NULL))",
             (hashlib.sha256(token.encode()).hexdigest(), now()),
         ).fetchone()
         if not row:
             raise ValueError("Ce lien n’est plus valable : demandez-en un autre au vendeur.")
+        target = row["target_email"]
+        if db.execute("SELECT 1 FROM users WHERE (email=? OR username=?) AND id<>?", (target, target, row["id"])).fetchone():
+            raise Conflict("Cette adresse est déjà utilisée par un autre compte.")
         db.execute(
-            "UPDATE users SET password_hash=?,status='active' WHERE id=?", (password_hash, row["id"])
+            "UPDATE users SET password_hash=?,status='active',email=?,username=?,pending_email='',guest_account=0,email_verified_at=? WHERE id=?",
+            (password_hash, target, target, now(), row["id"]),
         )
-        db.execute("DELETE FROM password_links WHERE user_id=?", (row["id"],))
+        # Proof of this mailbox, rather than approval, grants the guest requests.
+        for guest in db.execute(
+            "SELECT DISTINCT u.id,u.guest_account FROM users u JOIN requests r ON r.client_id=u.id "
+            "WHERE r.guest=1 AND r.contact_known=1 AND u.id<>? AND r.client_email=? COLLATE NOCASE", (row["id"], target),
+        ).fetchall():
+            db.execute("UPDATE requests SET client_id=? WHERE client_id=? AND guest=1 AND contact_known=1 AND client_email=? COLLATE NOCASE",
+                       (row["id"], guest["id"], target))
+            if guest["guest_account"] and not db.execute("SELECT 1 FROM requests WHERE client_id=?", (guest["id"],)).fetchone():
+                db.execute("DELETE FROM sessions WHERE user_id=?", (guest["id"],))
+                db.execute("DELETE FROM password_links WHERE user_id=?", (guest["id"],))
+                db.execute("DELETE FROM users WHERE id=?", (guest["id"],))
+        db.execute("UPDATE requests SET guest=0 WHERE client_id=? AND contact_known=1 AND client_email=? COLLATE NOCASE", (row["id"], target))
+        db.execute("DELETE FROM password_links WHERE user_id=? OR email=? COLLATE NOCASE", (row["id"], target))
         db.execute("DELETE FROM sessions WHERE user_id=?", (row["id"],))
-        return dict(row)
+        return {"id": row["id"], "username": target, "role": row["role"]}
 
     # -- Requests ---------------------------------------------------------
 
@@ -452,6 +546,8 @@ class Reservations:
 
     def describe(self, db, row, *, staff=False):
         request = dict(row)
+        if not staff:
+            request.pop("identity_json", None)
         sale = (
             db.execute(
                 "SELECT status,paid,amount_cents,shipping_charged_cents FROM sales WHERE id=?",
@@ -522,8 +618,7 @@ class Reservations:
                 **self.payment(db),
             }
             if staff:
-                client_row = db.execute("SELECT email,display_name FROM users WHERE id=?", (row["client_id"],)).fetchone()
-                client_name = (client_row["display_name"] or client_row["email"]) if client_row else ""
+                client_name = row["client_name"] or row["client_email"]
                 request["reply_text"] = reply_message(request, request["payment"], client_name)
         return request
 
@@ -559,8 +654,9 @@ class Reservations:
             return [
                 self.describe(db, r)
                 for r in db.execute(
-                    "SELECT * FROM requests WHERE client_id=? ORDER BY created_at DESC",
-                    (client_id,),
+                    "SELECT r.* FROM requests r JOIN users u ON u.id=r.client_id WHERE r.client_id=? "
+                    "AND r.contact_known=1 AND (r.guest=0 OR (u.email_verified_at!='' AND r.client_email=u.email COLLATE NOCASE)) "
+                    "ORDER BY r.created_at DESC", (client_id,),
                 ).fetchall()
             ]
 
@@ -572,34 +668,25 @@ class Reservations:
         return request
 
     def guest(self, email, display_name, listing_ids, message, unusable_hash, delivery="shipping", registered=None):
-        """A request without signing in: the address is checked when the seller replies.
-
-        An unknown address gets a pending account without a usable password; a
-        known one gets the request, unless its account is closed to requests.
-        Either way the answer is the same: it never tells who has an account.
-        """
+        """Only a proved mailbox receives guest requests in its signed-in account."""
         email = valid_email(email)
         prices = self.prices(listing_ids)
         with self.store.connect(write=True) as db:
             if not db.execute("SELECT 1 FROM users WHERE role='admin' LIMIT 1").fetchone():
                 raise Conflict("La boutique n’est pas encore ouverte aux réservations.")
             chosen = prices(db)
-            row = db.execute(
-                "SELECT id,role,status,disabled FROM users WHERE email=? OR username=?", (email, email)
-            ).fetchone()
+            row = db.execute("SELECT * FROM users WHERE email=? OR username=?", (email, email)).fetchone()
             if row and (row["role"] != "client" or row["status"] == "refused" or row["disabled"]):
                 return
-            if row:
-                client_id = row["id"]
-            else:
-                client_id, timestamp = str(uuid.uuid4()), now()
-                db.execute(
-                    "INSERT INTO users(id,username,password_hash,role,created_at,email,"
-                    "display_name,status,consent_at) VALUES(?,?,?,?,?,?,?,?,?)",
-                    (client_id, email, unusable_hash, "client", timestamp, email,
-                     display_name.strip(), "pending", timestamp),
-                )
-            self.insert(db, client_id, chosen, message, GUEST_LIMIT, delivery, registered)
+            proved = bool(row and row["email_verified_at"])
+            client_id = row["id"] if proved else guest_identity(db, email, unusable_hash)
+            if not proved:
+                isolated = db.execute("SELECT status,disabled FROM users WHERE id=?", (client_id,)).fetchone()
+                if isolated["status"] == "refused" or isolated["disabled"]:
+                    return
+            # Preserve the account's canonical case for a known address.
+            contact = (row["email"] if row else email, display_name.strip())
+            self.insert(db, client_id, chosen, message, GUEST_LIMIT, delivery, registered, contact=contact, guest=not proved)
         self.notified()
 
     def notified(self):
@@ -624,17 +711,24 @@ class Reservations:
 
         return read
 
-    def insert(self, db, client_id, prices, message, limit, delivery="shipping", registered=None):
+    def insert(self, db, client_id, prices, message, limit, delivery="shipping", registered=None, *, contact=None, guest=False):
         open_count = db.execute(
             "SELECT COUNT(*) FROM requests WHERE client_id=? AND status='sent'",
             (client_id,),
         ).fetchone()[0]
         if open_count >= limit:
             raise Conflict("Trop de demandes en attente : attendez une réponse du vendeur.")
+        if contact is None:
+            client = db.execute("SELECT email,display_name FROM users WHERE id=?", (client_id,)).fetchone()
+            contact = (client["email"], client["display_name"])
         timestamp = datetime.now(timezone.utc)
         request = {
             "id": str(uuid.uuid4()),
             "client_id": client_id,
+            "client_email": contact[0],
+            "client_name": contact[1],
+            "guest": int(guest),
+            "contact_known": 1,
             "status": "sent",
             "message": message.strip(),
             # A hand delivery is never registered; None leaves the threshold to decide.
@@ -660,7 +754,8 @@ class Reservations:
     def cancel(self, client_id, request_id, version):
         with self.store.connect(write=True) as db:
             row = db.execute(
-                "SELECT * FROM requests WHERE id=? AND client_id=?", (request_id, client_id)
+                "SELECT r.* FROM requests r JOIN users u ON u.id=r.client_id WHERE r.id=? AND r.client_id=? "
+                "AND r.contact_known=1 AND (r.guest=0 OR (u.email_verified_at!='' AND r.client_email=u.email COLLATE NOCASE))", (request_id, client_id)
             ).fetchone()
             if not row:
                 raise KeyError("Demande introuvable.")
@@ -679,7 +774,7 @@ class Reservations:
             self.expire(db)
             result = []
             for row in db.execute(
-                "SELECT r.*,u.email,u.display_name,u.status AS client_status FROM requests r JOIN users u ON u.id=r.client_id "
+                "SELECT r.*,r.client_email AS email,r.client_name AS display_name,u.status AS client_status,u.email_verified_at FROM requests r JOIN users u ON u.id=r.client_id "
                 "ORDER BY CASE r.status WHEN 'sent' THEN 0 ELSE 1 END, r.created_at DESC"
             ).fetchall():
                 request = self.describe(db, row, staff=True)
@@ -699,6 +794,33 @@ class Reservations:
             db.execute("UPDATE request_items SET outcome='refused' WHERE request_id=?", (request_id,))
             self.log(db, row, actor, "refused", reason)
         return {"ok": True}
+
+    def confirm_contact(self, request_id, version, email, name, actor):
+        """The seller recovers legacy origin from independent correspondence."""
+        email = valid_email(email)
+        with self.store.connect(write=True) as db:
+            row = db.execute("SELECT * FROM requests WHERE id=?", (request_id,)).fetchone()
+            if not row:
+                raise KeyError("Demande introuvable.")
+            if row["version"] != version:
+                raise Conflict("La demande a changé. Actualisez la page.")
+            if row["contact_known"]:
+                raise Conflict("Les coordonnées de cette demande sont déjà confirmées.")
+            known = db.execute("SELECT role,status,disabled FROM users WHERE email=? OR username=?", (email, email)).fetchone()
+            if known and (known["role"] != "client" or known["status"] == "refused" or known["disabled"]):
+                raise Conflict("Ce compte est refusé ou désactivé : validez-le d’abord.")
+            # Copied historical identities remain private erasure inputs, never
+            # evidence of who owns an old guest request.
+            identities = json.loads(row["identity_json"])
+            historical = {"email": row["client_email"], "name": row["client_name"]}
+            if historical not in identities:
+                identities.append(historical)
+            client_id = guest_identity(db, email, secrets.token_hex(16) + ":" + secrets.token_hex(32))
+            db.execute("UPDATE requests SET client_id=?,client_email=?,client_name=?,contact_known=1,guest=1,"
+                       "identity_json=?,updated_at=?,version=version+1 WHERE id=?",
+                       (client_id, email, name.strip(), json.dumps(identities, ensure_ascii=False), now(), request_id))
+            self.log(db, row, actor, "contact-confirmed", "Coordonnées reprises depuis la correspondance du vendeur")
+        return {"ok": True, "client_id": client_id, "email": email}
 
     def pending(self, db, request_id, version):
         row = db.execute("SELECT * FROM requests WHERE id=?", (request_id,)).fetchone()
@@ -727,9 +849,9 @@ class Reservations:
         with self.store.connect(write=True) as db:
             self.expire(db)
             row = self.pending(db, request_id, version)
-            client = db.execute(
-                "SELECT email,display_name FROM users WHERE id=?", (row["client_id"],)
-            ).fetchone()
+            if not row["contact_known"]:
+                raise Conflict("Confirmez les coordonnées de cette demande dans la messagerie avant de l’accepter.")
+            client = {"email": row["client_email"], "display_name": row["client_name"]}
             items = {
                 r["listing_id"]: r["price_cents"]
                 for r in db.execute(

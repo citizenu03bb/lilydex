@@ -251,6 +251,8 @@
   "payment.after": "Le vendeur prépare l’envoi dès qu’il a reçu le paiement.",
 
   "profile.email": "E-mail (aussi pour vous connecter)",
+  "profile.email_help": "Pour changer d’adresse, demandez au vendeur un lien à recevoir à la nouvelle adresse. L’adresse actuelle reste votre identifiant jusqu’à sa confirmation.",
+  "profile.pending": "Changement vers {email} en attente : demandez le lien de confirmation au vendeur. Votre adresse de connexion reste inchangée.",
   "profile.current_password": "Mot de passe actuel",
   "profile.save": "Enregistrer",
   "profile.saved": "Modifications enregistrées.",
@@ -260,6 +262,7 @@
   "profile.delete.help": "Votre compte, vos demandes et leurs messages sont effacés définitivement. Une vente déjà conclue reste dans les comptes du vendeur, sans votre nom, votre e-mail ni votre message.",
   "profile.delete.confirm": "Je comprends que c’est définitif.",
   "profile.deleted": "Votre compte et vos données ont été supprimés.",
+  "profile.deleted_unverified": "Votre compte est supprimé. Les anciennes demandes dont l’adresse n’est pas prouvée restent séparées : contactez le vendeur pour les vérifier ou les effacer.",
 
   "logout.no_answer": "le serveur ne répond pas.",
   "logout.failed": "Déconnexion impossible : {reason} Réessayez.",

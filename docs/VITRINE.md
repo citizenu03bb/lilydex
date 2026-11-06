@@ -35,7 +35,7 @@ sélection**, chaque ligne montre aussi le recto de la première carte.
 |---|---|
 | Visibilité | Vitrine ouverte, sans compte ; un compte sert seulement à suivre ses demandes |
 | Prix affiché | Voir [le prix affiché](#le-prix-affiché) ; plancher absolu 0,50 € et plancher anti-bradage (référence moins `POKEPRICE_LOT_MAX_MARGIN`, 15 % par défaut) ; sous le plancher, lots ou cadeaux |
-| Comptes clients | Créés par une première demande (sans mot de passe) ou par l'inscription ; **en attente** jusqu'à l'acceptation d'une demande ou la validation par un administrateur |
+| Comptes clients | Identité invitée isolée pour une demande sans adresse prouvée, ou compte par inscription ; l'approbation du vendeur ne prouve pas l'adresse |
 | Mot de passe | Choisi par un lien à usage unique que le vendeur colle dans son e-mail ; le même lien sert en cas d'oubli |
 | Réservation | Une demande ne bloque rien ; les cartes sont réservées à l'**acceptation** |
 | Paiement | Wero, virement ou PayPal, réglés par l'administrateur ; le client voit les coordonnées, le montant et la référence du lot seulement tant que le lot est réservé et non payé ; `/a-propos` nomme les moyens, sans coordonnées |
@@ -262,8 +262,12 @@ migration, transaction, `PRAGMA user_version` incrémenté.
   (`pending`, `active`, `refused`) et `consent_at`. Un client né d'une demande
   sans compte a pour mot de passe le hachage d'une valeur aléatoire oubliée
   aussitôt : aucune connexion n'est possible avant un lien.
+- `pending_email` conserve l'adresse de changement demandée sans modifier
+  l'identifiant ; `email_verified_at` enregistre la preuve par lien. Une
+  identité `guest_account` garde `email` à `NULL` et ne partage jamais le mot
+  de passe d'un compte inscrit avec la même adresse.
 - `password_links` : `token_hash`, `user_id`, `created_by`, `created_at`,
-  `expires_at`.
+  `expires_at`, `email` (la destination du lien, figée).
 - `listings` : une publication. `id` (public), `state` (`online`, `offline`),
   `price_cents`, `price_mode` (`trend`, `manual`, `offers`), `price_source`,
   `price_date`, `published_at`, `published_by`, `version`. Ses exemplaires
@@ -273,7 +277,12 @@ migration, transaction, `PRAGMA user_version` incrémenté.
 - `requests` : `id`, `client_id`, `status` (`sent`, `accepted`,
   `partially_accepted`, `refused`, `expired`, `cancelled`), `message`,
   `sale_id` (le lot créé à l'acceptation), `created_at`, `expires_at`,
-  `version`.
+  `version`, `client_email`, `client_name` (coordonnées figées de la demande),
+  `guest` (provenance sans connexion), `contact_known` (origine connue ou
+  retrouvée par le vendeur). `identity_json` garde en privé les identités
+  historiques utiles à l'effacement ; il n'est pas rendu au client.
+  L'acceptation copie les coordonnées connues dans le lot ; l'effacement les
+  retrouve même après un changement du profil.
 - `request_items` : `request_id`, `listing_id`, `price_cents` figé à la
   demande, `outcome` (`pending`, `accepted`, `unavailable`, `refused`).
 - `settings` : `key`, `value_json`, `updated_by`, `updated_at`. La clé
@@ -319,22 +328,32 @@ minute et par adresse :
   La réponse et son délai sont les mêmes, que l'adresse soit connue ou non ;
   5 inscriptions par heure et par adresse au plus.
 - `POST /api/public/requests` : la demande sans compte (cartes, message, nom,
-  e-mail, lecture de l'information sur les données). Une adresse inconnue
-  reçoit un compte `pending` sans mot de passe utilisable ; une adresse
-  connue reçoit la demande, sauf un compte refusé, désactivé ou de l'équipe,
+  e-mail, lecture de l'information sur les données). Sans preuve préalable de
+  l'adresse, la demande reçoit une identité invitée isolée, même si un compte
+  inscrit utilise cette adresse. Un compte à l'adresse prouvée reçoit la
+  demande, sauf un compte refusé, désactivé ou de l'équipe,
   qui ne reçoit rien. La réponse et son délai sont les mêmes dans tous les
   cas ; 5 demandes par heure et par adresse IP, 3 demandes en attente par
   e-mail au plus.
 - `POST /api/public/password` : jeton d'un lien et nouveau mot de passe ; active
-  le compte, efface ses autres liens et sessions, puis ouvre une session. Le
+  le compte et prouve l'adresse de destination figée dans le lien. Il confirme
+  le changement en attente, rattache les demandes invitées de cette adresse,
+  efface les autres liens et sessions, puis ouvre une session. Le
   lien a la forme `/#mot-de-passe=<jeton>` : le jeton reste après le `#`, que
   le navigateur n'envoie jamais au serveur ni dans le `Referer`, et la vitrine
   le retire de l'adresse dès l'ouverture.
+- `PATCH /api/requests/{id}/contact` (administrateur) : reprend l'origine
+  d'une ancienne demande depuis la correspondance du vendeur, avec version
+  attendue, e-mail, nom et confirmation explicite de cette vérification. Il
+  ne suffit pas de prouver l'adresse courante d'un profil pour retrouver une
+  demande dont le contact d'origine est inconnu.
 
 **Client** (session, rôle `client` actif) :
 
 - `GET`, `PATCH /api/me`, `GET /api/me/export`, `POST /api/me/delete` : voir,
-  corriger, exporter ou supprimer son compte.
+  corriger, exporter ou supprimer son compte. `PATCH` change le nom et place
+  la nouvelle adresse en attente : l'adresse de connexion reste la même
+  jusqu'à la preuve transmise par le vendeur.
 - `GET`, `POST /api/me/requests` et `POST /api/me/requests/{id}/cancel` : les
   demandes.
 - `POST /api/login` (commun) : un compte `pending` reçoit « compte en attente
@@ -378,6 +397,16 @@ minute et par adresse :
 - **Données des clients.** Durées de conservation appliquées chaque nuit par
   `purge`, droits exercés dans **Mon compte**, effacement par `forget` : voir
   [Données personnelles](RGPD.md).
+- **Preuve d'adresse.** L'activation d'un compte ne donne pas accès aux
+  demandes invitées de son adresse. Le lien du vendeur reste nécessaire.
+  La migration marque le contact d'origine des anciennes demandes inconnu,
+  même si l'historique d'un lot contient un nom et un e-mail : ils servent à
+  l'effacement. Le vendeur doit retrouver le destinataire dans sa messagerie
+  et le confirmer sur la demande avant tout rattachement. Une preuve
+  d'adresse ne contourne pas cette étape. Supprimer son compte détache ces
+  demandes sans les détruire.
+  Le vendeur les traite séparément, par leur identité invitée
+  ([fiche 0040](decisions/0040-preuve-adresse-client.md)).
 - **Indexation.** `X-Robots-Tag: noindex, nofollow` sur la gestion et l'API,
   sauf les photos publiques ; `noindex` sur une fiche absente. Avec
   `POKEPRICE_INDEXING=off`, `noindex` sur toute la vitrine et les photos

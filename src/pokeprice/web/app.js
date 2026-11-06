@@ -2442,8 +2442,44 @@ async function loadRequests() {
       ),
     );
     // Sent without an account: your first e-mail is what checks the address.
-    if (request.client_status === "pending")
-      card.append(el("p", "E-mail non vérifié : accepter la demande valide le client.", "sale-meta"));
+    if (!request.email_verified_at)
+      card.append(el("p", "Adresse non prouvée : le lien transmis par le vendeur permet de rattacher les demandes invitées au compte.", "sale-meta"));
+    if (!request.contact_known) {
+      card.append(el("p", "Ancienne demande : l’adresse affichée est historique, sans preuve du destinataire d’origine. Vérifiez votre correspondance avant de la rattacher à un compte.", "notice"));
+      if (state.user?.role === "admin") {
+        const form = el("form", undefined, "stack");
+        const email = el("input"), name = el("input"), evidence = el("input");
+        email.type = "email";
+        email.required = name.required = evidence.required = true;
+        email.maxLength = 254;
+        name.maxLength = 80;
+        evidence.type = "checkbox";
+        const emailLabel = el("label", "Adresse du destinataire retrouvée dans votre messagerie");
+        const nameLabel = el("label", "Nom du destinataire");
+        const evidenceLabel = el("label", "J’ai vérifié ces coordonnées dans ma correspondance.", "check-label");
+        emailLabel.append(email);
+        nameLabel.append(name);
+        evidenceLabel.prepend(evidence);
+        const confirm = el("button", "Confirmer les coordonnées de cette demande");
+        confirm.type = "submit";
+        form.append(emailLabel, nameLabel, evidenceLabel, confirm);
+        form.onsubmit = async (event) => {
+          event.preventDefault();
+          if (confirm.disabled || !form.reportValidity()) return;
+          confirm.disabled = true;
+          try {
+            await api(`/requests/${request.id}/contact`, { method: "PATCH", body: JSON.stringify({
+              expected_version: request.version, email: email.value.trim(), display_name: name.value.trim(),
+              correspondence_checked: evidence.checked,
+            }) });
+            toast("Coordonnées confirmées. Envoyez le lien de mot de passe depuis les comptes clients.");
+            await loadRequests();
+          } catch (error) { toast(error.message); }
+          finally { confirm.disabled = false; }
+        };
+        card.append(form);
+      }
+    }
     if (request.message) card.append(el("p", `Message : ${request.message}`));
     if (request.decision) card.append(el("p", `Réponse : ${request.decision}`, "sale-meta"));
     const list = el("ul", undefined, "request-lines");
@@ -2475,6 +2511,7 @@ async function loadRequests() {
       const accept = el("button", "Accepter les cartes cochées", "primary"),
         refuse = el("button", "Refuser la demande");
       accept.type = refuse.type = "button";
+      accept.disabled = !request.contact_known;
       accept.addEventListener("click", async () => {
         const chosen = checks.filter((c) => c.checked).map((c) => c.value);
         if (!chosen.length) return toast("Cochez au moins une carte.");
@@ -2569,6 +2606,7 @@ async function loadClients() {
       el("strong", client.display_name || client.email),
       el("span", ` · ${client.email} · ${client.disabled ? "désactivé" : labels[client.status]} · depuis le ${new Date(client.created_at).toLocaleDateString("fr-FR")}`),
     );
+    if (client.pending_email) row.append(el("p", `Adresse à confirmer : ${client.pending_email}. Envoyez le lien à cette adresse.`, "help"));
     const act = (text, status, disabled) => {
       const button = el("button", text);
       button.type = "button";
@@ -2599,9 +2637,9 @@ async function loadClients() {
           const until = new Date(made.expires_at).toLocaleDateString("fr-FR");
           try {
             await navigator.clipboard.writeText(url);
-            toast(`Lien copié, valable une fois jusqu’au ${until} : collez-le dans votre e-mail à ${client.email}.`);
+            toast(`Lien copié, valable une fois jusqu’au ${until} : collez-le dans votre e-mail à ${made.email}.`);
           } catch {
-            prompt(`Lien valable une fois jusqu’au ${until}, à envoyer à ${client.email} :`, url);
+            prompt(`Lien valable une fois jusqu’au ${until}, à envoyer à ${made.email} :`, url);
           }
         } catch (e) {
           toast(e.message);

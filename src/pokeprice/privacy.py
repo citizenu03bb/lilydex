@@ -42,7 +42,7 @@ class Privacy:
         self.store = store
         self.log = erasure_log(store.root)
 
-    def forget(self, who, reason="Demande de la personne"):
+    def forget(self, who, reason="Demande de la personne", *, preserve_unverified=False):
         """Erase one client, found by e-mail or account id; staff accounts are never touched."""
         with self.store.connect(write=True) as db:
             user = db.execute(
@@ -51,24 +51,67 @@ class Privacy:
             ).fetchone()
             if not user:
                 raise KeyError("Client introuvable.")
-            result = self.erase(db, user)
+            result = self.erase(db, user, preserve_unverified=preserve_unverified)
         self.record([(user["id"], reason)])
         return result
 
-    def erase(self, db, user):
+    @staticmethod
+    def request_ids(db, user_id, *, preserve_unverified=False):
+        """Immutable erasure targets survive a guest's later account reassignment."""
+        where = "client_id=?" + (" AND guest=0" if preserve_unverified else "")
+        return [r[0] for r in db.execute(f"SELECT id FROM requests WHERE {where} ORDER BY id", (user_id,))]
+
+    def erase(self, db, user, *, preserve_unverified=False):
+        detached = []
+        if preserve_unverified:
+            from .reservations import guest_identity
+            from secrets import token_hex
+            from uuid import NAMESPACE_OID, uuid5
+
+            detached = db.execute(
+                "SELECT id,client_email,created_at FROM requests WHERE client_id=? AND guest=1", (user["id"],)
+            ).fetchall()
+            for request in detached:
+                # A later guest erasure finds this identity again when replaying
+                # an archive that predates the account's self-deletion.
+                identity_id = str(uuid5(NAMESPACE_OID, user["id"] + "\0" + request["client_email"].casefold()))
+                guest_id = guest_identity(db, request["client_email"],
+                                          token_hex(16) + ":" + token_hex(32), request["created_at"], identity_id=identity_id)
+                db.execute("UPDATE requests SET client_id=? WHERE id=?", (guest_id, request["id"]))
+        secrets = [(user[key], ERASED_CLIENT) for key in ("email", "pending_email", "display_name") if user[key]]
+        result = {"erased": user["id"], **self.erase_requests(db, self.request_ids(db, user["id"]), secrets=secrets)}
+        db.execute("DELETE FROM sessions WHERE user_id=?", (user["id"],))
+        db.execute("DELETE FROM password_links WHERE user_id=?", (user["id"],))
+        db.execute("DELETE FROM users WHERE id=?", (user["id"],))
+        if detached:
+            result["unverified_requests"] = len(detached)
+        return result
+
+    def erase_requests(self, db, request_ids, secrets=()):
+        """Erase only these requests and copied sale identities, whoever owns them now.
+
+        The durable journal stores request IDs rather than personal text. This
+        replay path never removes a reassigned owner's unrelated profile or requests.
+        """
+        request_ids = set(request_ids)
+        if not request_ids:
+            return {"requests": 0, "lots": 0}
         requests = db.execute(
-            "SELECT id,message,sale_id FROM requests WHERE client_id=?", (user["id"],)
+            "SELECT r.*,u.email AS owner_email,u.pending_email AS owner_pending_email,u.display_name AS owner_name "
+            "FROM requests r JOIN users u ON u.id=r.client_id WHERE r.id IN ("
+            + ",".join("?" for _ in request_ids) + ")", tuple(request_ids),
         ).fetchall()
-        secrets = [(user["email"], ERASED_CLIENT)]
-        if user["display_name"].strip():
-            secrets.append((user["display_name"].strip(), ERASED_CLIENT))
-        for r in requests:
-            msg = r["message"].strip()
-            if msg:
-                secrets.append((msg, ERASED_MESSAGE))
+        secrets = list(secrets)
+        for request in requests:
+            for key in ("owner_email", "owner_pending_email", "owner_name", "client_email", "client_name"):
+                if request[key]:
+                    secrets.append((request[key], ERASED_CLIENT))
+            for identity in json.loads(request["identity_json"]):
+                secrets.extend((identity[key], ERASED_CLIENT) for key in ("email", "name") if identity.get(key))
+            if request["message"].strip():
+                secrets.append((request["message"].strip(), ERASED_MESSAGE))
         request_ids = {r["id"] for r in requests}
         sale_ids = {r["sale_id"] for r in requests if r["sale_id"]}
-        # Accepted requests copied the client into their lot and its history.
         for sale_id in sale_ids:
             row = db.execute("SELECT title,notes FROM sales WHERE id=?", (sale_id,)).fetchone()
             db.execute(
@@ -89,21 +132,15 @@ class Privacy:
                     "UPDATE sale_events SET before_json=?,after_json=?,reason=? WHERE id=?",
                     (*states, scrub(event["reason"], secrets), event["id"]),
                 )
-        # Card histories keep the decision, not what the seller wrote about the client.
         for event in db.execute(
             "SELECT id,reason,after_json FROM events WHERE kind='storefront-request'"
         ).fetchall():
             if json.loads(event["after_json"]).get("request_id") in request_ids:
-                db.execute(
-                    "UPDATE events SET reason=? WHERE id=?", (scrub(event["reason"], secrets), event["id"])
-                )
+                db.execute("UPDATE events SET reason=? WHERE id=?", (scrub(event["reason"], secrets), event["id"]))
         for request_id in request_ids:
             db.execute("DELETE FROM request_items WHERE request_id=?", (request_id,))
             db.execute("DELETE FROM requests WHERE id=?", (request_id,))
-        db.execute("DELETE FROM sessions WHERE user_id=?", (user["id"],))
-        db.execute("DELETE FROM password_links WHERE user_id=?", (user["id"],))
-        db.execute("DELETE FROM users WHERE id=?", (user["id"],))
-        return {"erased": user["id"], "requests": len(request_ids), "lots": len(sale_ids)}
+        return {"requests": len(request_ids), "lots": len(sale_ids)}
 
     def purge(self, at=None):
         """Apply the retention periods; run every night before the backup."""
