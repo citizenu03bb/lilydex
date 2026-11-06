@@ -22,8 +22,6 @@ données sensibles, ni suivi à grande échelle, ni profilage.
 
 ## Registre des traitements
 
-Mis à jour le 23 octobre 2026.
-
 ### 1. Comptes clients et demandes de réservation
 
 | | |
@@ -31,7 +29,7 @@ Mis à jour le 23 octobre 2026.
 | Finalité | Permettre à un visiteur de réserver des cartes et au vendeur de lui répondre |
 | Base légale | Mesures précontractuelles à la demande de la personne (art. 6.1.b) |
 | Personnes | Clients de la vitrine : inscrits, ou ayant envoyé une demande sans compte |
-| Données | E-mail (aussi identifiant), nom affiché, mot de passe haché (scrypt) s'il a été choisi, dates d'inscription ou de première demande et de lecture de la notice, statut du compte, demandes (cartes, prix, message, réponse du vendeur), empreinte d'un lien de mot de passe en cours (7 jours au plus) |
+| Données | E-mail de connexion et adresse en attente, nom affiché, mot de passe haché (scrypt) s'il a été choisi, dates d'inscription, de preuve de l'adresse et de lecture de la notice, statut du compte, demandes (cartes, prix, message, réponse du vendeur, coordonnées figées et anciennes identités utiles à l'effacement), empreinte d'un lien lié à son adresse destinataire (7 jours au plus) |
 | Accès | Équipe de gestion : administrateurs (comptes et demandes), éditeurs et lecteurs (demandes, avec l'e-mail) |
 | Sous-traitants | Oracle Cloud Infrastructure, région Marseille (hébergement) ; Google Drive (copies de sauvegarde **chiffrées** avec age : Google ne peut pas les lire) |
 | Transferts hors UE | Copies chiffrées sur Google Drive, sous le Data Privacy Framework UE–États-Unis |
@@ -40,6 +38,10 @@ Mis à jour le 23 octobre 2026.
 
 Une vente conclue reste dans les comptes du vendeur avec ses montants ; à
 l'effacement du client, son nom, son e-mail et son message en sont retirés.
+Les coordonnées copiées et leur historique restent liés aux identifiants des
+demandes : l'effacement les retrouve après un changement de profil ou un
+rattachement à un autre compte. Les anciennes identités sont privées ; elles
+ne prouvent pas à elles seules le destinataire d'une demande invitée.
 
 ### 2. Sécurité du site : limitation de débit et journal technique
 
@@ -78,11 +80,13 @@ terminée. `forget` ne retrouve pas ce qui y a été tapé à la main.
 | Personnes | Visiteurs de la vitrine, hors robots, équipe de gestion et navigateurs qui s'y opposent par Global Privacy Control (`Sec-GPC`) |
 | Données | Totaux par jour : visiteurs, pages vues, cartes ouvertes, domaine du site d'origine, ordinateur ou téléphone. Pour distinguer un visiteur dans la journée : une empreinte de l'adresse IP et du navigateur, salée par une valeur tirée au hasard chaque jour |
 | Accès | Administrateurs, page **Statistiques** de la gestion |
-| Durées | Empreintes et sel : effacés à la fin du jour ; totaux : 25 mois |
+| Durées | Empreintes et sel : effacement programmé chaque nuit dans l'heure après minuit, heure de Paris ; totaux : 25 mois |
 
-L'adresse IP n'est jamais écrite : seule son empreinte salée l'est, et le sel
-disparaît avec la journée. Les totaux sont dans `audience.sqlite3`, à côté de
-la base de la collection, hors des sauvegardes.
+La mesure d'audience ne conserve pas l'adresse IP : elle écrit son empreinte
+salée. Un minuteur indépendant nettoie les sels et empreintes des jours
+précédents, sans attendre une visite ni un rapport ; un passage manqué est
+rattrapé au démarrage. Les totaux sont dans `audience.sqlite3`, à côté de la
+base de la collection, hors des sauvegardes.
 
 ### Hors traitement
 
@@ -92,8 +96,8 @@ sans métadonnées EXIF ni GPS.
 
 ## Les durées de conservation
 
-Elles sont appliquées chaque nuit, avant la sauvegarde, par
-`pokeprice-manage purge`, et doivent rester identiques à celles de la page
+Les durées des comptes clients et des demandes sont appliquées chaque nuit,
+avant la sauvegarde, par `pokeprice-manage purge`, et doivent rester identiques à celles de la page
 `/a-propos`, de sa traduction `/en/a-propos` et de `privacy.py`.
 
 | Donnée | Durée |
@@ -104,21 +108,43 @@ Elles sont appliquées chaque nuit, avant la sauvegarde, par
 | Client sans demande depuis 3 ans | effacé, avec ses demandes |
 | Compteurs de limitation de débit | quelques minutes à une heure, en mémoire, perdus au redémarrage |
 | Journal technique (journald) | 3 mois |
-| Empreintes de visite et leur sel | effacés à la fin du jour |
+| Empreintes de visite et leur sel | effacement programmé chaque nuit dans l'heure après minuit, heure de Paris, par un minuteur indépendant |
 | Totaux de la mesure d'audience | 25 mois |
 | Archives sur le serveur | les 7 dernières nuits |
 | Archives rapatriées sur le portable | les 3 dernières |
 | Copies sur Google Drive | 7 jours, puis une par semaine sur 8 semaines, puis une par mois sur 12 mois ; 30 jours de corbeille |
 | Comptes de l'équipe | le temps de la participation |
 
-Un client effacé ne revient pas par une ancienne archive : chaque effacement
-est rejoué à la restauration ([Sauvegardes](DAILY-BACKUPS.md#effacements-de-clients-rejoués)).
+Chaque effacement écrit et synchronise son intention avant la validation de
+la base : identifiants du compte et des demandes visées, portée, date et
+motif. La base mémorise la taille et l'empreinte du préfixe durable de ce
+journal, qui vit à côté de la collection. La restauration valide ce repère
+et rejoue les intentions avant de publier son dossier ; un journal absent,
+tronqué, remplacé ou trop ancien bloque la reprise normale.
+
+Les sauvegardes et leur copie chiffrée emportent un instantané de ce journal.
+Après perte du serveur, la garantie porte sur les effacements présents dans
+la dernière copie récupérée : elle ne prouve pas l'absence d'effacements plus
+récents perdus avec le serveur. Une reprise explicite sans journal signale le
+risque de faire réapparaître ces données
+([Sauvegardes](DAILY-BACKUPS.md#effacements-de-clients-rejoués)).
 
 ## Demandes des personnes
 
-Un client connecté corrige son nom et son e-mail, télécharge ses données et
-supprime son compte lui-même, dans **Mon compte**. Pour une demande reçue par
-e-mail :
+Un client connecté corrige son nom, demande un changement d'e-mail,
+télécharge ses données et supprime son compte dans **Mon compte**. L'adresse
+en attente ne remplace l'identifiant qu'après utilisation du lien reçu à
+cette adresse, créé par le vendeur puis transmis depuis sa messagerie.
+L'approbation d'un compte ne vaut pas preuve d'adresse.
+
+Les anciennes demandes invitées dont l'origine n'est pas établie restent
+séparées de l'accès au compte et de son export. Sa suppression les préserve
+dans une identité invitée ; l'administrateur retrouve leur destinataire dans
+sa correspondance indépendante avant de confirmer leurs coordonnées, puis
+fait prouver cette adresse pour un rattachement. Cette portée est conservée
+dans le journal pour être rejouée fidèlement.
+
+Pour une demande reçue par e-mail :
 
 1. **Vérifier l'identité** : la demande doit venir de l'adresse du compte, ou
    le client se connecte et utilise **Mon compte**. Ne rien envoyer à une autre

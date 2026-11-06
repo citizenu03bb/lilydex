@@ -1,8 +1,8 @@
 """Anonymous storefront audience: daily totals, without cookie or kept address.
 
 A visitor is told apart for one day only, by a hash of their address and
-browser salted with a random value. The salt and the day's hashes are deleted
-when the day ends: afterwards no count leads back to anyone. Totals are kept
+browser salted with a random value. An independent midnight cleanup deletes
+the salt and the day's hashes: afterwards only totals remain. Totals are kept
 25 months, the period the CNIL allows an audience measure exempt from consent.
 The period is the one announced on /a-propos.
 """
@@ -13,9 +13,10 @@ import secrets
 import sqlite3
 import threading
 from contextlib import closing
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from urllib.parse import urlsplit
+from zoneinfo import ZoneInfo
 
 RETENTION = timedelta(days=761)  # 25 months
 BOTS = re.compile(
@@ -31,6 +32,10 @@ CREATE TABLE IF NOT EXISTS salts(day TEXT PRIMARY KEY, value TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS seen(day TEXT NOT NULL, visitor TEXT NOT NULL,
     PRIMARY KEY(day, visitor));
 """
+
+
+def current_day():
+    return datetime.now(ZoneInfo("Europe/Paris")).date()
 
 
 def counted(agent, headers):
@@ -65,6 +70,7 @@ class Audience:
     def connect(self):
         db = sqlite3.connect(self.path, timeout=5)
         db.row_factory = sqlite3.Row
+        db.execute("PRAGMA secure_delete=ON")
         return closing(db)
 
     def forget(self, db, today):
@@ -75,7 +81,7 @@ class Audience:
         db.execute("DELETE FROM totals WHERE day<?", (cutoff,))
 
     def record(self, kind, key, address, agent, referrer="", today=None):
-        today = today or date.today().isoformat()
+        today = today or current_day().isoformat()
         with self.lock, self.connect() as db, db:
             if self.day != today:
                 self.forget(db, today)
@@ -95,6 +101,14 @@ class Audience:
             if domain:
                 self.bump(db, today, "referrer", domain)
 
+    def purge(self, today=None):
+        """Clean up without waiting for a visit or report (independent timer)."""
+        today = today or current_day().isoformat()
+        with self.lock, self.connect() as db, db:
+            before = db.total_changes
+            self.forget(db, today)
+            return {"deleted": db.total_changes - before}
+
     def bump(self, db, day, kind, key):
         db.execute(
             "INSERT INTO totals VALUES(?,?,?,1) "
@@ -103,7 +117,7 @@ class Audience:
         )
 
     def report(self, days=30, today=None):
-        last = date.fromisoformat(today) if today else date.today()
+        last = date.fromisoformat(today) if today else current_day()
         first = last - timedelta(days=days - 1)
         with self.lock, self.connect() as db, db:
             self.forget(db, last.isoformat())

@@ -1149,6 +1149,10 @@ devient actif et il est connecté ; ses anciennes sessions sont fermées.
 Le lien confirme aussi une nouvelle adresse demandée dans **Mon compte**.
 Envoyez-le uniquement à la destination indiquée après sa création. Un
 changement de demande d'adresse invalide les liens antérieurs.
+Depuis une identité invitée, ce bouton vise l'adresse de sa demande. Si un
+compte utilise déjà cette adresse avec un changement en attente, la création
+de ce lien annule ce changement non confirmé et ses anciens liens : le
+destinataire peut ainsi prouver son adresse actuelle.
 
 Les anciennes demandes dont le contact d'origine est inconnu restent masquées
 aux comptes, même après preuve de l'adresse courante du profil. Elles portent

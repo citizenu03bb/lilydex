@@ -1,0 +1,12 @@
+[Unit]
+Description=Effacement quotidien des empreintes d’audience
+
+[Timer]
+OnCalendar=*-*-* 00:05:00 Europe/Paris
+Persistent=true
+RandomizedDelaySec=5min
+AccuracySec=1min
+Unit=pokeprice-audience-purge.service
+
+[Install]
+WantedBy=timers.target

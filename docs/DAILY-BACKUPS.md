@@ -80,8 +80,10 @@ quotidiennes gardées, plus celle du jour à venir) : sur un disque presque
 plein, le contrôle d'espace refuserait sinon la nouvelle archive et la
 rotation ne passerait jamais.
 
-Si l'archive du jour existe déjà, le service la contrôle de nouveau au lieu de
-la refaire : relancer le service ne crée pas de doublon.
+Si l'archive du jour existe déjà et que le journal d'effacement ne change
+pas, le service la contrôle de nouveau : relancer ne crée pas de doublon.
+`backup-daily --force` refait cette archive même si elle est illisible, après
+avoir validé le journal d'effacement courant.
 
 ### Sur le portable, à 3 h 15
 
@@ -212,8 +214,8 @@ active : il faudra en créer de nouvelles.
 Sur le portable, à la racine du dépôt :
 
 ```bash
-# Restaurer dans un dossier neuf et afficher le bilan de la collection
-uv run --extra web pokeprice-manage --data /tmp/collection-restauree restore data/oci-backups/oci-daily-<date>.zip
+# Restaurer avec le journal courant récupéré du serveur
+uv run --extra web pokeprice-manage --data /tmp/collection-restauree restore data/oci-backups/oci-daily-<date>.zip --journal /tmp/erasures-recuperees.jsonl
 ```
 
 ### Restaurer une archive du serveur
@@ -252,11 +254,66 @@ copies en clair comme les autres archives (voir [Rétention](#rétention)).
 
 ### Effacements de clients rejoués
 
-Une archive peut dater d'avant l'effacement d'un client. Si un journal des
-effacements (`erasures.jsonl`) se trouve dans le dossier parent de la
-destination, `restore` efface de nouveau les clients qu'il cite. Sur le
-serveur, ce journal est `/srv/pokeprice/erasures.jsonl` : une collection
-restaurée dans un dossier de `/srv/pokeprice/` en profite. Voir
+Une archive peut dater d'avant l'effacement d'un client. Le journal
+`erasures.jsonl` vit dans le dossier parent de la collection, sur le serveur
+dans `/srv/pokeprice/erasures.jsonl`. Chaque effacement, demandé ou lié à la
+durée de conservation, y écrit une intention synchronisée sur disque avant
+de valider la base, puis une fin d'opération. Une interruption entre ces
+étapes laisse une intention que la restauration rejoue aussi.
+Le journal conserve aussi le périmètre de l'effacement : une suppression
+personnelle peut préserver les demandes invitées dont le compte n'a jamais
+prouvé l'origine ; une ancienne intention sans ce champ garde son périmètre
+complet lors du rejeu.
+
+`restore` exige un journal courant, par défaut celui du dossier parent de la
+destination, ou celui indiqué par `--journal <chemin>`. Un journal absent,
+illisible ou mal formé arrête la restauration avant toute publication de la
+destination. La base est contrôlée et les effacements sont rejoués dans un
+dossier temporaire ; le dossier demandé n'apparaît qu'après leur réussite.
+Les intentions sans fin sont signalées dans le résultat et restent rejouables.
+
+Les archives portent une copie du journal prise après l'instantané de la
+base. Un nouvel effacement fait refaire l'archive quotidienne, même lors
+d'une relance le même jour ; le rapatriement du serveur et la copie chiffrée
+Drive emportent ainsi ce journal. La restauration ne remplace jamais le
+journal courant par la copie plus ancienne d'une archive.
+La base mémorise la taille et l'empreinte du préfixe durable du journal lors
+d'un effacement, dans la même transaction. Si ce fichier disparaît, est vidé,
+remplacé ou devient plus ancien que ce repère, la sauvegarde et les nouveaux
+effacements échouent au lieu de fabriquer un journal vide. La restauration
+contrôle aussi ce repère avant le rejeu. Récupérez le journal courant avant
+de reprendre. Les intentions se rejouent dans leur ordre d'écriture : un
+effacement peut viser une identité invitée détachée par une intention précédente.
+Chaque intention conserve aussi les identifiants immuables des demandes
+visées, sélectionnées dans la transaction d'effacement. Un rattachement à un
+autre compte entre la sauvegarde et la suppression ne peut donc pas faire
+réapparaître ces demandes ou l'identité copiée dans leurs lots. Le rejeu retire
+ces seules demandes chez un autre propriétaire, sans effacer son profil ni
+ses autres demandes ; une identité invitée devenue vide est retirée.
+Une liste explicite vide n'est pas un ancien marqueur sans cibles : elle
+préserve les demandes parties vers un autre compte avant la suppression.
+Si l'archive les rattache encore au compte effacé, elles sont détachées et
+leur origine reste à vérifier, au lieu d'être effacées ou réattribuées au seul
+détenteur de l'ancienne adresse.
+
+Après perte du serveur, récupérez le journal dans la **dernière archive
+vérifiée disponible**, puis indiquez ce fichier avec `--journal` quand vous
+restaurez une archive, même plus ancienne. Avec les archives déchiffrées :
+
+```bash
+umask 077
+python -c "import sys,zipfile; sys.stdout.buffer.write(zipfile.ZipFile(sys.argv[1]).read('erasures.jsonl'))" derniere-archive.zip > /tmp/erasures-recuperees.jsonl
+uv run --extra web pokeprice-manage --data /tmp/collection-restauree restore ancienne-archive.zip --journal /tmp/erasures-recuperees.jsonl
+```
+
+Cette copie garantit seulement les effacements présents à sa capture : elle
+ne prouve pas l'absence d'effacements plus récents perdus avec le serveur.
+Vérifiez la fraîcheur du journal avant de remettre une collection en service.
+Conservez ce journal courant dans le dossier parent de la collection remise
+en service ; `--journal` indique une source de rejeu et ne remplace jamais le
+fichier courant par une autre copie.
+L'option explicite `--sans-journal` permet une reprise exceptionnelle, avec
+un avertissement : des données effacées peuvent réapparaître. Voir
 [Données personnelles](RGPD.md).
 
 Pour remettre une collection restaurée en service sur le serveur, suivez
@@ -312,7 +369,7 @@ avec `--data /srv/pokeprice/inventory`. Sans `--data`, une commande vise
 | `backup-key` | Crée une fois la clé de chiffrement ; n'affiche que la clé publique | Portable |
 | `backup-server-pull --host <utilisateur>@<ip-serveur>` | Rapatrie et contrôle la dernière archive du serveur, sans rien envoyer sur Drive | Portable |
 | `backup-server-drive --host <utilisateur>@<ip-serveur> --rclone <chemin> --remote gdrive` | Rapatrie et contrôle, puis chiffre, envoie sur Drive, retélécharge et restaure | Portable (timer) |
-| `--data <dossier-neuf> restore <archive.zip> [--photos <réserve>]` | Restaure dans un dossier inexistant ; une archive légère lit ses photos dans `--photos`, par défaut `photos/` à côté de l'archive | Portable ou serveur |
+| `--data <dossier-neuf> restore <archive.zip> [--photos <réserve>] [--journal <journal-courant>]` | Rejoue le journal d'effacement avant de publier le dossier ; par défaut, journal du dossier parent de la destination. Une archive légère lit ses photos dans `--photos`, par défaut `photos/` à côté de l'archive | Portable ou serveur |
 | `backup-daily [--force]` | Archive quotidienne légère et contrôlée d'une base, rotation à 3 ; `--force` refait l'archive du jour | Serveur (timer) |
 | `purge` | Applique les durées de conservation des données clients, juste avant l'archive | Serveur (timer) |
 | `backup [<fichier.zip>]` | Archive manuelle. Par défaut, archive légère `backups/collection-<horodatage>.zip` à côté du dossier de la base, avec la réserve ; vers un fichier choisi, archive complète et autonome | Là où est la base |

@@ -491,7 +491,10 @@ class Reservations:
                     if account["role"] != "client" or account["status"] == "refused" or account["disabled"]:
                         raise Conflict("Ce compte est refusé ou désactivé : validez-le d’abord.")
                     if account["pending_email"]:
-                        raise Conflict("Confirmez d’abord le changement d’adresse demandé sur ce compte.")
+                        # This seller action starts from the guest's current
+                        # mailbox. An unproved alternative must not prevent
+                        # its actual owner from receiving a recovery link.
+                        db.execute("UPDATE users SET pending_email='' WHERE id=?", (account["id"],))
                     client_id = account["id"]
             db.execute("DELETE FROM password_links WHERE user_id=?", (client_id,))
             expires_at = (timestamp + LINK_EXPIRY).isoformat()

@@ -13,6 +13,10 @@ daté la quitte, il est versé ici dans le même commit.
   la quarantaine des anciennes demandes sans preuve de destinataire et le
   rejeu par identifiants immuables. Les lots identité et rétention se mettent
   en ligne ensemble ; la réussite des tests ne vaut pas déploiement.
+- Corrections L1/L2 de l'audit préparées : preuve d'adresse par le lien du
+  vendeur, coordonnées figées, effacement durable et rejeu par identifiants de
+  demandes, nettoyage d'audience indépendant. Scénarios de sauvegarde et de
+  transfert rejoués sur bases temporaires (`tests/test_privacy_restore_identity.py`).
 
 ## 2026-11-05
 
