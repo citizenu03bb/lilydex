@@ -111,7 +111,8 @@ def test_a_question_streams_tools_text_cards_then_done(env):
     before = counts(env["store"])
     events = sse(ask(env["owner"], "Où en est mon gourgeist ?"))
     kinds = [k for k, _ in events]
-    assert kinds[0] == "tool" and events[0][1] == {"tool": "search_copies"}
+    assert kinds[0] == "start" and events[0][1]["conversation_id"]
+    assert kinds[1] == "tool" and events[1][1] == {"tool": "search_copies"}
     assert "text" in kinds and kinds[-1] == "done"
     text = "".join(d["text"] for k, d in events if k == "text")
     assert text == f"Ta carte [{card['id']}] est en vente à 3 €."

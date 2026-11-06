@@ -17,6 +17,11 @@ daté la quitte, il est versé ici dans le même commit.
   vendeur, coordonnées figées, effacement durable et rejeu par identifiants de
   demandes, nettoyage d'audience indépendant. Scénarios de sauvegarde et de
   transfert rejoués sur bases temporaires (`tests/test_privacy_restore_identity.py`).
+- Audit, assistant : effacer une conversation bloque les arguments, le
+  contexte et les réponses tardives ; les messages expirés restent hors du
+  chat et du modèle même sans purge. La saisie annonce le transfert vers
+  Google et un flux coupé reste incomplet avec reprise possible
+  (`tests/test_assistant_privacy.py`).
 
 ## 2026-11-05
 

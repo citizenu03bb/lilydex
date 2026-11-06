@@ -555,9 +555,10 @@
           <div id="chat-suggestions" class="chat-suggestions" role="group" aria-label="{{t:chat.suggestions}}"></div>
         </div>
         <p id="chat-tool" class="chat-tool" role="status" hidden></p>
+        <p id="chat-privacy" class="help chat-privacy">{{t:chat.privacy}}</p>
         <form id="chat-form" class="chat-form">
           <textarea id="chat-input" rows="1" maxlength="1000" required
-            aria-label="{{t:chat.input_label}}" placeholder="{{t:chat.placeholder}}"></textarea>
+            aria-label="{{t:chat.input_label}}" aria-describedby="chat-privacy" placeholder="{{t:chat.placeholder}}"></textarea>
           <button class="primary" id="chat-send">{{t:chat.send}}</button>
         </form>
         <p id="chat-usage" class="help chat-usage"></p>

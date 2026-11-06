@@ -10,8 +10,9 @@ response channel, never in the instructions.
 
 The conversations, the question log and the token counts live beside the
 collection base, in ``assistant.sqlite3`` (decision 0034): out of the
-collection's backups, kept 30 days at most, purged by ``pokeprice-manage
-purge`` and erasable by their author. The log keeps the tool, its arguments,
+collection's backups, readable for 30 days, purged nightly by ``pokeprice-manage
+purge`` and erasable by their author. Flagged exchanges have a separate
+180-day retention for the bench. The log keeps the tool, its arguments,
 its duration and the tokens, never the text of a result. It also keeps the
 interface context sent with each question (``assistant_context``, decision
 0036): erased with the question's text, purged with it after 30 days.
@@ -90,6 +91,35 @@ class Refused(Exception):
         self.status, self.retry_after = status, retry_after
 
 
+class ConversationErased(Refused):
+    """The conversation disappeared while a question was in flight."""
+
+    def __init__(self):
+        super().__init__(404, "Cette conversation est effacée ou expirée : ouvrez-en une nouvelle.")
+
+
+def retention_warning(directory, at=None):
+    """The morning brief detects a missed night's purge, without reading any text."""
+    path = Path(directory) / "assistant.sqlite3"
+    if not path.exists():
+        return None
+    at = time.time() if at is None else at
+    try:
+        with closing(sqlite3.connect(f"file:{path}?mode=ro", uri=True)) as db:
+            row = db.execute(
+                "SELECT 1 FROM messages m WHERE m.created_at<? AND NOT EXISTS "
+                "(SELECT 1 FROM assistant_flags f WHERE f.conversation_id=m.conversation_id "
+                "AND f.created_at>=?) UNION ALL SELECT 1 FROM assistant_flags WHERE created_at<? LIMIT 1",
+                (at - RETENTION.total_seconds() - 86400,
+                 at - FLAGGED_RETENTION.total_seconds(),
+                 at - FLAGGED_RETENTION.total_seconds() - 86400)).fetchone()
+    except sqlite3.Error:
+        return "La purge du chat ne peut pas être contrôlée : vérifiez le journal du serveur."
+    if row:
+        return "La purge nocturne du chat est en retard : vérifiez le service de sauvegarde."
+    return None
+
+
 def system_prompt(today=None):
     """The one system instruction, shared with the bench (bench/assistant/run.py)."""
     today = today or datetime.now(timezone.utc).date()
@@ -111,6 +141,14 @@ class Journal:
             db.executescript(SCHEMA)
             migrate_context(db)
             self.migrate_flags(db)
+            # Earlier versions could append tool arguments after deletion. A
+            # question without a live conversation is only a quota counter.
+            db.execute("DELETE FROM tool_calls WHERE NOT EXISTS "
+                       "(SELECT 1 FROM questions q JOIN conversations c ON c.id=q.conversation_id "
+                       "WHERE q.id=tool_calls.question_id)")
+            db.execute("UPDATE questions SET conversation_id='',context_json='{}' "
+                       "WHERE (conversation_id!='' OR context_json!='{}') AND NOT EXISTS "
+                       "(SELECT 1 FROM conversations c WHERE c.id=questions.conversation_id)")
 
     def connect(self):
         db = sqlite3.connect(self.path, timeout=5)
@@ -121,14 +159,15 @@ class Journal:
     # -- Conversations --------------------------------------------------------
 
     def conversation(self, user_id, conversation_id):
+        cutoff = time.time() - RETENTION.total_seconds()
         with self.connect() as db:
-            row = db.execute("SELECT id FROM conversations WHERE id=? AND user_id=?",
-                             (conversation_id, user_id)).fetchone()
+            row = db.execute("SELECT id FROM conversations WHERE id=? AND user_id=? AND updated_at>=?",
+                             (conversation_id, user_id, cutoff)).fetchone()
             if not row:
                 raise KeyError("Conversation introuvable.")
             return [self.message(m) for m in db.execute(
                 "SELECT id,role,text,cards_json,created_at FROM messages "
-                "WHERE conversation_id=? ORDER BY id", (conversation_id,))]
+                "WHERE conversation_id=? AND created_at>=? ORDER BY id", (conversation_id, cutoff))]
 
     @staticmethod
     def message(row):
@@ -139,25 +178,33 @@ class Journal:
     def latest(self, user_id):
         with self.connect() as db:
             row = db.execute("SELECT id FROM conversations WHERE user_id=? "
-                             "ORDER BY updated_at DESC LIMIT 1", (user_id,)).fetchone()
+                             "AND updated_at>=? ORDER BY updated_at DESC LIMIT 1",
+                             (user_id, time.time() - RETENTION.total_seconds())).fetchone()
         if not row:
             return None
-        return {"id": row["id"], "messages": self.conversation(user_id, row["id"]),
+        try:
+            messages = self.conversation(user_id, row["id"])
+        except KeyError:  # Deleted in another tab between the two reads.
+            return None
+        return {"id": row["id"], "messages": messages,
                 "flagged": self.thumbs(user_id, row["id"])}
 
     def add(self, conversation_id, role, text, cards=(), at=None):
         at = at or time.time()
         with self.connect() as db, db:
             row = db.execute("INSERT INTO messages(conversation_id,role,text,cards_json,created_at) "
-                             "VALUES(?,?,?,?,?)",
+                             "SELECT ?,?,?,?,? WHERE EXISTS (SELECT 1 FROM conversations WHERE id=?)",
                              (conversation_id, role, text, json.dumps(list(cards), ensure_ascii=False),
-                              at))
+                              at, conversation_id))
+            if not row.rowcount:
+                raise ConversationErased()
             db.execute("UPDATE conversations SET updated_at=? WHERE id=?", (at, conversation_id))
         return row.lastrowid
 
     def delete(self, user_id, conversation_id=None):
         """Erase one conversation of this person, or all of them, with their tool log."""
         with self.connect() as db, db:
+            db.execute("BEGIN IMMEDIATE")
             where, args = "user_id=?", [user_id]
             if conversation_id:
                 where, args = where + " AND id=?", args + [conversation_id]
@@ -200,9 +247,10 @@ class Journal:
         """Reserve a question within the day's ceiling and the account's rate."""
         at = at or time.time()
         with self.lock, self.connect() as db, db:
+            db.execute("BEGIN IMMEDIATE")
             if conversation_id:
-                if not db.execute("SELECT 1 FROM conversations WHERE id=? AND user_id=?",
-                                  (conversation_id, user_id)).fetchone():
+                if not db.execute("SELECT 1 FROM conversations WHERE id=? AND user_id=? AND updated_at>=?",
+                                  (conversation_id, user_id, at - RETENTION.total_seconds())).fetchone():
                     raise KeyError("Conversation introuvable.")
             if db.execute("SELECT COUNT(*) FROM questions WHERE day=?",
                           (day_of(at),)).fetchone()[0] >= daily_limit:
@@ -229,17 +277,32 @@ class Journal:
     def call(self, question_id, tool, arguments, duration_ms, outcome):
         # The arguments are the model's, bounded by the schemas; the result is never kept.
         with self.connect() as db, db:
-            db.execute("INSERT INTO tool_calls(question_id,tool,arguments_json,duration_ms,outcome,"
-                       "created_at) VALUES(?,?,?,?,?,?)",
+            written = db.execute("INSERT INTO tool_calls(question_id,tool,arguments_json,duration_ms,outcome,"
+                       "created_at) SELECT ?,?,?,?,?,? WHERE EXISTS "
+                       "(SELECT 1 FROM questions q JOIN conversations c ON c.id=q.conversation_id WHERE q.id=?)",
                        (question_id, tool[:60], json.dumps(arguments, ensure_ascii=False)[:2000],
-                        duration_ms, outcome, time.time()))
+                        duration_ms, outcome, time.time(), question_id))
+            if not written.rowcount:
+                raise ConversationErased()
+
+    def require_question(self, question_id):
+        """An erased question keeps counters only; it cannot resume work or send data."""
+        with self.connect() as db:
+            row = db.execute("SELECT 1 FROM questions q JOIN conversations c "
+                             "ON c.id=q.conversation_id WHERE q.id=? AND q.created_at>=?",
+                             (question_id, time.time() - RETENTION.total_seconds())).fetchone()
+        if not row:
+            raise ConversationErased()
 
     # -- Interface context (V1.1, decision 0036) ---------------------------------
 
     def note_context(self, question_id, context):
         with self.connect() as db, db:
-            db.execute("UPDATE questions SET context_json=? WHERE id=?",
-                       (json.dumps(context, ensure_ascii=False), question_id))
+            written = db.execute("UPDATE questions SET context_json=? WHERE id=? AND EXISTS "
+                                 "(SELECT 1 FROM conversations c WHERE c.id=questions.conversation_id)",
+                                 (json.dumps(context, ensure_ascii=False), question_id))
+            if not written.rowcount:
+                raise ConversationErased()
 
     def context(self, question_id):
         with self.connect() as db:
@@ -296,18 +359,21 @@ class Journal:
             raise ValueError(kind)
         with self.connect() as db, db:
             db.execute("INSERT INTO assistant_flags(conversation_id,user_id,question_id,asked_id,"
-                       "answer_id,kind,note,created_at) VALUES(?,?,?,?,?,?,?,?)",
+                       "answer_id,kind,note,created_at) SELECT ?,?,?,?,?,?,?,? "
+                       "WHERE EXISTS (SELECT 1 FROM conversations WHERE id=?)",
                        (conversation_id, user_id, question_id, asked_id, answer_id, kind,
-                        (note or "")[:assistant_signals.MAX_NOTE], time.time()))
+                        (note or "")[:assistant_signals.MAX_NOTE], time.time(), conversation_id))
 
     def thumbs_down(self, user_id, message_id, note=""):
         """The 👎 of the author on one answer; a second press replaces the note."""
         note = (note or "").strip()[:assistant_signals.MAX_NOTE]
         with self.connect() as db, db:
+            db.execute("BEGIN IMMEDIATE")
             answer = db.execute(
                 "SELECT m.id, m.conversation_id FROM messages m JOIN conversations c "
-                "ON c.id=m.conversation_id WHERE m.id=? AND m.role='assistant' AND c.user_id=?",
-                (message_id, user_id)).fetchone()
+                "ON c.id=m.conversation_id WHERE m.id=? AND m.role='assistant' AND c.user_id=? "
+                "AND m.created_at>=?",
+                (message_id, user_id, time.time() - RETENTION.total_seconds())).fetchone()
             if not answer:
                 raise KeyError("Réponse introuvable.")
             asked = db.execute("SELECT id, created_at FROM messages WHERE conversation_id=? "
@@ -347,7 +413,9 @@ class Journal:
 
     def flags(self, conversation_id=None):
         with self.connect() as db:
-            where, args = ("WHERE conversation_id=?", (conversation_id,)) if conversation_id else ("", ())
+            where, args = "WHERE created_at>=?", (time.time() - FLAGGED_RETENTION.total_seconds(),)
+            if conversation_id:
+                where, args = where + " AND conversation_id=?", (*args, conversation_id)
             return [dict(r) for r in db.execute(
                 f"SELECT conversation_id,question_id,asked_id,answer_id,kind,note "
                 f"FROM assistant_flags {where} ORDER BY id", args)]
@@ -356,8 +424,8 @@ class Journal:
         """The question and answer before ``asked_id``: (question_id, asked, answer) or None."""
         with self.connect() as db:
             rows = db.execute("SELECT id,role,text,created_at FROM messages WHERE conversation_id=? "
-                              "AND id<? ORDER BY id DESC LIMIT 2",
-                              (conversation_id, asked_id)).fetchall()
+                              "AND id<? AND created_at>=? ORDER BY id DESC LIMIT 2",
+                              (conversation_id, asked_id, time.time() - RETENTION.total_seconds())).fetchall()
             if len(rows) < 2 or rows[0]["role"] != "assistant" or rows[1]["role"] != "user":
                 return None
             question = self.asked_in(db, conversation_id, rows[1])
@@ -560,6 +628,7 @@ class Assistant:
         """Run one call the model proposed, after the principal's check; the result is data."""
         name, args = call.get("name", ""), call.get("args")
         started = time.perf_counter()
+        self.journal.require_question(question.id)
         try:
             if name not in assistant_tools.TOOLS:
                 raise AgentError(404, "unknown_tool", "Outil inconnu : aucun outil de ce nom.")
@@ -579,8 +648,13 @@ class Assistant:
 
     def run(self, question):
         """Answer one prepared question; yields the events of the route."""
+        yield "start", {"conversation_id": question.conversation_id}
         if question.defect is not None:
-            yield from self.report_defect(question)
+            try:
+                self.journal.require_question(question.id)
+                yield from self.report_defect(question)
+            except ConversationErased as error:
+                yield "error", {"code": "conversation_erased", "message": str(error)}
             return
         started = self.clock()
         signals, answer_id = [], None  # V1.1 « capture des échecs »
@@ -591,11 +665,13 @@ class Assistant:
         answer, seen, topics, rounds, outcome, finished = [], {}, [], 0, "ok", False
         try:
             for round_ in range(MAX_TOOL_ROUNDS + 1):
+                self.journal.require_question(question.id)
                 if self.clock() - started > QUESTION_SECONDS:
                     raise ModelError("délai de la question dépassé")
                 allow = round_ < MAX_TOOL_ROUNDS
                 turn = None
                 for kind, value in self.model.stream(system, messages, schemas, allow_tools=allow):
+                    self.journal.require_question(question.id)
                     if kind == "text" and value:
                         answer.append(value)
                         yield "text", {"text": value}
@@ -648,6 +724,9 @@ class Assistant:
         except GeneratorExit:  # The phone left: the question ends, its count stays.
             outcome = "interrupted"
             raise
+        except ConversationErased as error:
+            outcome = "erased"
+            yield "error", {"code": "conversation_erased", "message": str(error)}
         except AgentError as error:  # The account lost its right during the question.
             outcome = error.code
             signals.append(("tool_error", error.code))
@@ -661,7 +740,7 @@ class Assistant:
         finally:
             if not finished:
                 self.close(question, started, rounds, outcome, tokens)
-            if not finished and outcome != "interrupted":
+            if not finished and outcome not in ("interrupted", "erased"):
                 self.signal(question, reversed(signals), None)
 
     def close(self, question, started, rounds, outcome, tokens):

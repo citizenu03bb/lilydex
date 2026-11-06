@@ -317,6 +317,10 @@ dans la langue de la question, en deux ou trois phrases.
   annonces… »). Une carte qu'il cite devient un lien vers sa fiche, si un
   outil l'a renvoyée pour cette question ; un identifiant inventé reste du
   texte.
+- **Si la connexion coupe**, la réponse reste marquée incomplète avec un
+  bouton **Réessayer la question**. L'identifiant de conversation arrive dès
+  le début du flux : la reprise reste dans cette conversation. Une question
+  déjà envoyée compte dans le plafond, même si sa réponse est interrompue.
 - **Qui y a accès.** Les comptes de gestion qui peuvent modifier
   (gestionnaire, administrateur). Un compte en lecture seule n'a pas le
   bouton, comme il ne peut pas déléguer `assistant:read`.
@@ -350,8 +354,18 @@ Rien ne s'arrête : c'est un signal, pas un plafond.
 conversations, le journal des questions et des appels d'outils (outil,
 arguments, durée, jetons, jamais le texte d'un résultat) vivent dans
 `assistant.sqlite3`, à côté de la base, hors des sauvegardes. Ils sont gardés
-30 jours au plus : `pokeprice-manage purge` efface le reste. **Effacer** retire
-toutes vos conversations ; le décompte du jour reste, sans texte.
+30 jours dans le chat et dans l'historique envoyé au modèle, même si la purge
+manque. `pokeprice-manage purge` efface les données expirées chaque nuit ; le
+brief signale un retard dépassant une nuit. **Effacer** retire toutes vos
+conversations et bloque les écritures d'une question en cours ; le décompte
+du jour reste, sans texte ni argument.
+Le démarrage retire aussi les traces tardives d'une conversation effacée
+qui auraient été conservées par une version antérieure.
+
+Près de la saisie, une note explique que les questions, le contexte de la
+conversation et de l'écran, ainsi que les résultats des outils partent chez
+Google (Gemini). N'y collez pas de données de clients. Les durées ci-dessus
+concernent le stockage local du site.
 
 *Signaler une réponse* ([fiche 0038](decisions/0038-capture-des-echecs.md)).
 Sous chaque réponse, le bouton 👎 ouvre une note facultative (« Qu'est-ce qui
@@ -363,16 +377,20 @@ minutes, redit la précédente avec d'autres mots. Pour noter un défaut trouvé
 en essayant le chat, écrivez une question qui commence par **« Défaut : »**
 (« Défaut : il en compte 2, j'en ai 3 ») : elle ne part pas au modèle, le
 chat répond qu'elle est notée, et elle se rattache à la réponse précédente.
-Une conversation signalée échappe à la purge des 30 jours, jusqu'à 180 jours ;
+Une conversation signalée échappe à la purge des 30 jours, jusqu'à 180 jours
+après son dernier signal, pour le parcours du banc. Ses messages de plus de
+30 jours restent exclus du chat et de l'historique envoyé au modèle ;
 **Effacer** la retire comme les autres. `pokeprice-manage --data <dossier>
 assistant-drafts` en tire des brouillons de cas du
 [banc](../bench/assistant/README.md#brouillons-tirés-des-échanges-signalés),
-sans aucune donnée réelle. Route : `POST
+sans aucune donnée réelle. Le masquage prend aussi en compte les anciens noms
+et adresses figés dans une demande dont les coordonnées changent. Route : `POST
 /api/assistant/answers/{id}/flag` (`{note?}`), l'identifiant étant le
 `message_id` de l'événement `done`.
 
 *Pour un développeur.* `POST /api/assistant` (`{question, conversation_id?, context?}`)
-répond en flux `text/event-stream`, avec les événements `text`, `tool` (nom de
+répond en flux `text/event-stream`, avec un événement `start` (identifiant de
+conversation), puis `text`, `tool` (nom de
 l'outil), `card` (`copy_id`, nom, numéro), `done` (conversation, jetons,
 usage) et `error`. `GET /api/assistant` donne l'état, l'usage et la dernière
 conversation ; `DELETE /api/assistant/conversations[/{id}]` efface. Le code

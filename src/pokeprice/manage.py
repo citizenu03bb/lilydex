@@ -650,6 +650,12 @@ def send_brief(store, since=None, notify=False, channels=None, origin=None):
         parse_since(since) if since else default_since()
     )
     title, body = brief_text(brief)
+    from .assistant import retention_warning
+
+    warning = retention_warning(store.root)
+    if warning:
+        title = "La purge du chat demande une vérification"
+        body = f"{warning}\n{body}"
     result = {"title": title, "text": body, "minutes": brief["minutes"],
               "waiting": len(brief["waiting"]), "done_since": brief["done_since"]}
     if notify:

@@ -88,6 +88,29 @@ précédents, sans attendre une visite ni un rapport ; un passage manqué est
 rattrapé au démarrage. Les totaux sont dans `audience.sqlite3`, à côté de la
 base de la collection, hors des sauvegardes.
 
+### 6. Assistant de gestion
+
+Les membres de la gestion posent des questions à Google (Gemini). Les
+questions, le contexte de la conversation et de l'écran et les résultats des
+outils lui sont transmis ; la note près de la saisie le précise et demande de
+ne pas y coller de données de clients. Les outils excluent les coordonnées
+et messages de clients, sans pouvoir empêcher une personne de les saisir.
+
+Le journal local `assistant.sqlite3` contient les messages, le contexte de
+l'écran, les appels d'outils (arguments, durée, résultat technique, jamais le
+texte du résultat) et les jetons. Il reste hors des sauvegardes de collection.
+Le chat et l'historique envoyé au modèle excluent les messages de plus de
+30 jours ; la purge nocturne les efface du stockage. Une conversation
+signalée est conservée pour le banc jusqu'à 180 jours après son dernier
+signal ; ce délai ne prolonge pas sa visibilité dans le chat. L'auteur peut
+effacer ses conversations, signaux compris, même pendant une réponse en
+cours. Un retard de purge dépassant une nuit apparaît dans le brief.
+
+Ces durées décrivent la conservation locale, pas celle du fournisseur du
+modèle. Les brouillons tirés des échanges signalés sont des fichiers séparés
+que l'opérateur garde sans données réelles et retire quand ils ne servent
+plus ([guide](APP.md#lassistant)).
+
 ### Hors traitement
 
 Les photos envoyées à Gemini pour lire les cartes ne montrent que des cartes :
