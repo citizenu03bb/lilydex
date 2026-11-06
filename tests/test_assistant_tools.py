@@ -321,7 +321,8 @@ def test_count_copies_groups_exact_editions_and_names(assistant):
         ("Racaillou", 55, 1), ("Gourgeist", 6, 2)]
     assert by_name["groups_not_shown"] == 1  # Pikachu, two editions
     assert run(assistant, "count_copies", {"group_by": "language"})["top"][1] == {
-        "language": "en", "count": 1, "editions": 1, "copy_ids": [by_lang_id(store)]}
+        "language": "en", "count": 1, "reference_cents": 100, "editions": 1,
+        "copy_ids": [by_lang_id(store)]}
 
 
 def by_lang_id(store):
@@ -337,3 +338,16 @@ def test_count_copies_filters(assistant):
     status = run(assistant, "count_copies", {"group_by": "status"})
     assert {g["identification_status"]: g["count"] for g in status["top"]} == {
         "confirmed": 3, "review": 1}
+
+
+def test_count_copies_sums_reference_prices(assistant):
+    """« Combien vaut ma collection ? » : the sum of the cotes, unpriced copies apart."""
+    whole = run(assistant, "count_copies", {"group_by": "language", "top": 100})
+    value = whole["value"]
+    assert value["priced_copies"] + value["unpriced_copies"] == whole["total_copies"]
+    assert value["reference_cents"] == sum(g["reference_cents"] for g in whole["top"])
+    gourgeist = run(assistant, "count_copies", {"query": "gourgeist"})
+    assert gourgeist["value"]["reference_cents"] == 3 * 300
+    assert gourgeist["value"]["prudent_cents"] <= gourgeist["value"]["reference_cents"]
+    assert run(assistant, "count_copies", {"stock": "sold"})["value"] == {
+        "reference_cents": 0, "prudent_cents": 0, "priced_copies": 0, "unpriced_copies": 0}

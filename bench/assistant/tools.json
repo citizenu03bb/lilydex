@@ -258,7 +258,7 @@
     },
     {
       "name": "count_copies",
-      "description": "Compte les exemplaires de toute la collection, sans plafond de page : total, groupes par édition exacte (nom + extension + numéro + langue), par nom, extension, langue, statut, stock ou album, classés du plus nombreux au moins nombreux. duplicates_only : seulement les doublons (au moins 2 exemplaires). Vendus compris, sauf filtre stock.",
+      "description": "Compte les exemplaires de toute la collection, sans plafond de page : total, groupes par édition exacte (nom + extension + numéro + langue), par nom, extension, langue, statut, stock ou album, classés du plus nombreux au moins nombreux. duplicates_only : seulement les doublons (au moins 2 exemplaires). Vendus compris, sauf filtre stock. value : somme des cotes, et exemplaires sans cote.",
       "parameters": {
         "type": "object",
         "properties": {
