@@ -125,11 +125,16 @@ def test_a_client_corrects_exports_and_deletes_their_account(shop):
     wrong = me.patch("/api/me", json={"display_name": "Sacha", "email": "s@example.org", "password": "faux-mot-de-passe"})
     assert wrong.status_code == 403
     changed = me.patch("/api/me", json={"display_name": "Sacha K.", "email": "S@example.org", "password": PASSWORD})
-    assert changed.json() == {"email": "S@example.org", "display_name": "Sacha K."}
+    assert changed.json() == {"email": "sacha@example.org", "pending_email": "S@example.org", "display_name": "Sacha K."}
     signup(store, "autre@example.org")
     taken = me.patch("/api/me", json={"display_name": "X", "email": "autre@example.org", "password": PASSWORD})
     assert taken.status_code == 409
-    me.post("/api/logout")
+    account = next(c for c in admin.get("/api/clients").json() if c["email"] == "sacha@example.org")
+    link = admin.post(f"/api/clients/{account['id']}/password-link").json()
+    assert link["email"] == "S@example.org"
+    with TestClient(create_app(store.root)) as recipient:
+        assert recipient.post("/api/public/password", json={"token": link["token"], "password": PASSWORD}).status_code == 200
+    assert me.get("/api/me").status_code == 401
     me = client_of(store, "s@example.org")  # the new address is the login
 
     exported = me.get("/api/me/export")

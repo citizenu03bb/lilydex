@@ -93,7 +93,7 @@ def known_values(collection):
         "SELECT username, email, display_name FROM users",
         "SELECT id FROM copies",
         "SELECT id, title FROM listings",
-        "SELECT id, message FROM requests",
+        "SELECT id, message, client_email, client_name FROM requests",
     )
     with sqlite3.connect(f"file:{Path(collection)}?mode=ro", uri=True) as db:
         for query in queries:

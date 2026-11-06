@@ -62,7 +62,7 @@ def test_signup_waits_for_validation_and_never_reveals_known_addresses(shop):
         assert pending.status_code == 403 and "attente" in pending.json()["detail"]
     activate(admin, "sacha+cartes@example.org")
     me = client_of(store, "sacha+cartes@example.org")
-    assert me.get("/api/me").json() == {"email": "sacha+cartes@example.org", "display_name": "Sacha"}
+    assert me.get("/api/me").json() == {"email": "sacha+cartes@example.org", "display_name": "Sacha", "pending_email": ""}
     assert me.get("/api/copies").status_code == 403
 
 
@@ -330,7 +330,7 @@ def test_a_guest_request_never_reveals_known_addresses(shop):
     owners = {r["email"] for r in admin.get("/api/requests").json()}
     # The known client gets the request; a refused account and a staff name get nothing.
     assert owners == {"sacha@example.org", "nouveau@example.org"}
-    assert [c["display_name"] for c in admin.get("/api/clients").json() if c["email"] == "sacha@example.org"] == ["Sacha"]
+    assert [c["display_name"] for c in admin.get("/api/clients").json() if c["email"] == "sacha@example.org" and not c["guest_account"]] == ["Sacha"]
 
 
 def test_guest_requests_are_limited(shop):

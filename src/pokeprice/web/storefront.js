@@ -1033,7 +1033,7 @@ $("account-open").addEventListener("click", () => {
   const form = $("profile-form");
   form.reset();
   form.display_name.value = state.me.display_name;
-  form.email.value = state.me.email;
+  form.email.value = state.me.pending_email || state.me.email;
   for (const box of [form, $("delete-form")]) formError(box, "");
   form.querySelector(".notice").hidden = true;
   $("delete-form").reset();
@@ -1056,7 +1056,7 @@ $("profile-form").addEventListener("submit", async (event) => {
     });
     form.password.value = "";
     const notice = form.querySelector(".notice");
-    notice.textContent = t("profile.saved");
+    notice.textContent = state.me.pending_email ? t("profile.pending", { email: state.me.pending_email }) : t("profile.saved");
     notice.hidden = false;
   } catch (error) {
     formError(form, error.message);
@@ -1068,8 +1068,9 @@ $("delete-form").addEventListener("submit", async (event) => {
   const form = event.target;
   try {
   formError(form, "");
+  let deleted;
   try {
-    await call("/api/me/delete", {
+    deleted = await call("/api/me/delete", {
       method: "POST",
       body: JSON.stringify({ password: form.password.value }),
     });
@@ -1081,7 +1082,7 @@ $("delete-form").addEventListener("submit", async (event) => {
   state.basket = [];
   saveBasket();
   $("account").close();
-  $("notice").textContent = t("profile.deleted");
+  $("notice").textContent = deleted.unverified_requests ? t("profile.deleted_unverified") : t("profile.deleted");
   $("notice").hidden = false;
   } finally { releaseForm(form); }
 });

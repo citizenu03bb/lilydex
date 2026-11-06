@@ -447,6 +447,12 @@ class RequestAccept(RequestVersion):
     listing_ids: list[str] = Field(min_length=1, max_length=50)
 
 
+class RequestContact(RequestVersion):
+    email: str = Field(min_length=3, max_length=254)
+    display_name: str = Field(min_length=1, max_length=80)
+    correspondence_checked: Literal[True]
+
+
 class Profile(Model):
     display_name: str = Field(min_length=1, max_length=80)
     email: str = Field(min_length=3, max_length=254)
@@ -1404,7 +1410,7 @@ def create_app(
     def me(user=Depends(client)):
         with store.connect() as db:
             row = db.execute(
-                "SELECT email,display_name FROM users WHERE id=?", (user["id"],)
+                "SELECT email,display_name,pending_email FROM users WHERE id=?", (user["id"],)
             ).fetchone()
         return dict(row)
 
@@ -1425,13 +1431,17 @@ def create_app(
             ).fetchone()
             if taken:
                 raise Conflict("Cette adresse est déjà utilisée par un autre compte.")
-            # The e-mail is also the login name.
+            current = db.execute("SELECT email,pending_email FROM users WHERE id=?", (user["id"],)).fetchone()
+            pending = email if email.casefold() != current["email"].casefold() else ""
+            if pending != current["pending_email"]:
+                db.execute("DELETE FROM password_links WHERE user_id=?", (user["id"],))
+            # The requested mailbox becomes the login only after proof by link.
             db.execute(
-                "UPDATE users SET email=?,username=?,display_name=? WHERE id=?",
-                (email, email, values.display_name.strip(), user["id"]),
+                "UPDATE users SET pending_email=?,display_name=? WHERE id=?",
+                (pending, values.display_name.strip(), user["id"]),
             )
             row = db.execute(
-                "SELECT email,display_name FROM users WHERE id=?", (user["id"],)
+                "SELECT email,display_name,pending_email FROM users WHERE id=?", (user["id"],)
             ).fetchone()
         return dict(row)
 
@@ -1441,7 +1451,7 @@ def create_app(
         with store.connect() as db:
             account = dict(
                 db.execute(
-                    "SELECT email,display_name,status,created_at,consent_at FROM users WHERE id=?",
+                    "SELECT email,display_name,pending_email,email_verified_at,status,created_at,consent_at FROM users WHERE id=?",
                     (user["id"],),
                 ).fetchone()
             )
@@ -1456,9 +1466,9 @@ def create_app(
     def me_delete(values: PasswordCheck, response: Response, user=Depends(client)):
         with store.connect() as db:
             own_password(db, user, values.password)
-        Privacy(store).forget(user["id"], "Suppression par la personne")
+        result = Privacy(store).forget(user["id"], "Suppression par la personne", preserve_unverified=True)
         response.delete_cookie("pokeprice_session", path="/")
-        return {"ok": True}
+        return {"ok": True, **({"unverified_requests": result["unverified_requests"]} if result.get("unverified_requests") else {})}
 
     @app.get("/api/me/requests")
     def my_requests(user=Depends(client)):
@@ -1507,6 +1517,11 @@ def create_app(
         return reservations.accept(
             request_id, values.expected_version, values.listing_ids, user["username"]
         )
+
+    @app.patch("/api/requests/{request_id}/contact")
+    def request_contact(request_id: str, values: RequestContact, user=Depends(admin)):
+        return reservations.confirm_contact(request_id, values.expected_version, values.email,
+                                            values.display_name, user["username"])
 
     @app.post("/api/requests/{request_id}/refuse")
     def request_refuse(request_id: str, values: CopyRemoval, user=Depends(editor)):

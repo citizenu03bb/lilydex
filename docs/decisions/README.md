@@ -47,8 +47,10 @@ l'ancienne passe au statut « remplacée ».
 | [0037](0037-comptage-et-nombres.md) | Le chat compte par un outil serveur, et chaque nombre de sa réponse vient d'un outil (proposée) | 2026-11-05 |
 | [0038](0038-capture-des-echecs.md) | Le chat garde les réponses signalées, par un 👎 ou par un signal du serveur, pour en tirer des cas du banc sans donnée réelle (proposée) | 2026-11-05 |
 | [0039](0039-alerte-de-cout-du-chat.md) | Le chat prévient une fois par mois quand son coût estimé atteint 30 €, sans plafond dur (proposée) | 2026-11-05 |
+| [0040](0040-preuve-adresse-client.md) | Le lien transmis par le vendeur prouve l'adresse avant changement d'identifiant ou rattachement des demandes invitées | 2026-11-06 |
 
 ## Écrire une fiche
+
 
 Copiez une fiche existante. Le titre dit la décision, pas le sujet. Donnez les
 options réellement envisagées, avec leurs chiffres quand ils existent, et les
