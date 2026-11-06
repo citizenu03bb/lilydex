@@ -13,6 +13,14 @@ daté la quitte, il est versé ici dans le même commit.
   journal d'effacement externe aux archives, restauration avant publication,
   comparaison transactionnelle des prix et conservation distincte des échanges
   signalés. Le plan devient une page maintenue et contrôlée.
+- Banc du chat, V1.1 complète sur master (#73 à #77) : trois passes sur
+  Gemini 3.8 Flash, 61, 59 et 61 cas réussis sur 63 ; 14 pièges évités sur 14,
+  aucune réponse dangereuse, cas « doublons » réussi aux trois passes, environ
+  6 $ par mois estimés. Échecs : le modèle répond depuis la carte de
+  l'application sans appeler `knowledge` (comment-05, comment-06), cherche
+  dans le guide au lieu de préparer une écriture V2 (ecrire-01, -02, -07),
+  compte au lieu de lister (chercher-10)
+  ([résultats](../bench/assistant/results/gemini-3.8-flash-v1.1-passe1.md)).
 - Chat de gestion, V1.1 comptage : outil `count_copies` (doublons par édition
   exacte ou par nom, classements, comptes par extension, langue, statut,
   sans plafond de page) et règle des nombres dans la consigne, après une
