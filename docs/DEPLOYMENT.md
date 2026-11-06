@@ -14,7 +14,7 @@ garde seul l'accès à Google Drive.
 |---|---|
 | Serveur | Oracle Cloud, offre gratuite (Always Free) : instance ARM Ampere `VM.Standard.A1.Flex` (1 à 4 cœurs, 6 à 24 Go de mémoire) ou AMD `VM.Standard.E2.1.Micro` (1 Go, plus 2 Go d'échange) ; disque de 47 à 100 Go. L'option vision demande l'instance ARM. |
 | Système | Oracle Linux 8 ou 9 (utilisateur `opc`) ou Ubuntu 22.04 ou 24.04 (utilisateur `ubuntu`) : les scripts gèrent les deux. |
-| HTTPS | Caddy sur les ports 80 et 443, certificat Let's Encrypt automatique, sous-domaine gratuit pointé en `A` vers l'adresse du serveur ([deSEC](https://desec.io) en `.dedyn.io` ou [DuckDNS](https://www.duckdns.org) en `.duckdns.org`). |
+| HTTPS | Caddy sur les ports 80 et 443, certificat Let's Encrypt automatique, domaine pointé en `A` vers l'adresse du serveur : domaine acheté (la boutique utilise `lescartesdelily.fr`) ou sous-domaine gratuit ([deSEC](https://desec.io) en `.dedyn.io`, [DuckDNS](https://www.duckdns.org) en `.duckdns.org`). |
 | Application | Service systemd `pokeprice`, sous l'utilisateur `pokeprice`, code dans `/opt/pokeprice`, données dans `/srv/pokeprice/inventory`, écoute sur `127.0.0.1:3820`. |
 | Sauvegardes | Chaque nuit sur le serveur, rapatriées et copiées chiffrées sur Drive par le portable : voir [Sauvegardes](DAILY-BACKUPS.md). |
 
@@ -108,8 +108,14 @@ sous-domaine. Remplacez `<utilisateur>` par `opc` (Oracle Linux) ou `ubuntu`.
    les unités systemd et la configuration Caddy, puis vérifie `/health`.
 
    ```bash
-   ./deploy/oci-deploy.sh <utilisateur>@<ip-serveur> <sous-domaine>
+   ./deploy/oci-deploy.sh <utilisateur>@<ip-serveur> <domaine> [<domaine-redirigé>...]
    ```
+
+   Les domaines ajoutés après le premier (`www`, ancienne adresse)
+   redirigent en 301 vers le domaine principal, chemin compris. La boutique
+   se déploie avec
+   `lescartesdelily.fr www.lescartesdelily.fr lilydex.duckdns.org` ; un
+   déploiement sans ces redirections les retire de Caddy.
 
    **Si le serveur n'a aucune base**, le script crée une archive
    quotidienne *à partir de la base du portable* (`data/inventory`) et la

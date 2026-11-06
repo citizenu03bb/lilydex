@@ -1,16 +1,25 @@
 #!/usr/bin/env bash
 # Déploiement complet du code, de la sauvegarde vérifiée et des services systemd sur OCI.
 # Compatible Oracle Linux (opc@<IP>) et Ubuntu (ubuntu@<IP>).
-# Usage : ./deploy/oci-deploy.sh <opc|ubuntu>@<IP_OCI> <DOMAINE_HTTPS>
+# Usage : ./deploy/oci-deploy.sh <opc|ubuntu>@<IP_OCI> <DOMAINE_HTTPS> [DOMAINE_REDIRIGÉ...]
+# Les domaines suivants (www, ancienne adresse) redirigent en 301 vers le domaine principal.
 set -euo pipefail
 
-if [ "$#" -ne 2 ]; then
-    echo "Usage: $0 <user@oci-ip> <domaine-https>" >&2
+if [ "$#" -lt 2 ]; then
+    echo "Usage: $0 <user@oci-ip> <domaine-https> [domaine-redirigé...]" >&2
     exit 1
 fi
 
 REMOTE_HOST="$1"
 DOMAIN="$2"
+shift 2
+for name in "$DOMAIN" "$@"; do
+    if ! [[ "$name" =~ ^[A-Za-z0-9.-]+$ ]]; then
+        echo "Nom de domaine invalide : $name" >&2
+        exit 1
+    fi
+done
+REDIRECTS="$(IFS=,; echo "$*" | sed 's/,/, /g')"
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
 
@@ -65,7 +74,10 @@ ssh "$REMOTE_HOST" "sudo cp /opt/pokeprice/deploy/pokeprice.service /etc/systemd
     sudo cp /opt/pokeprice/deploy/pokeprice-media-cache.service /etc/systemd/system/ && \
     sudo cp /opt/pokeprice/deploy/pokeprice-media-cache.timer /etc/systemd/system/ && \
     if command -v restorecon >/dev/null 2>&1; then sudo restorecon -v /etc/systemd/system/pokeprice* >/dev/null 2>&1 || true; fi && \
-    sudo sed 's/cards.example.com/${DOMAIN}/g' /opt/pokeprice/deploy/Caddyfile.example | sudo tee /etc/caddy/Caddyfile >/dev/null && \
+    { sudo sed 's/cards.example.com/${DOMAIN}/g' /opt/pokeprice/deploy/Caddyfile.example; \
+      if [ -n '${REDIRECTS}' ]; then printf '\n%s {\n    redir https://%s{uri} permanent\n}\n' '${REDIRECTS}' '${DOMAIN}'; fi; } \
+      | sudo tee /etc/caddy/Caddyfile >/dev/null && \
+    sudo caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null && \
     sudo systemctl daemon-reload && \
     sudo systemctl enable --now pokeprice.service pokeprice-backup.timer pokeprice-media-cache.timer pokeprice-audience-purge.timer && \
     sudo systemctl restart pokeprice.service && \

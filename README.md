@@ -3,7 +3,7 @@
 [![Tests](https://github.com/citizenu03bb/lilydex/actions/workflows/tests.yml/badge.svg)](https://github.com/citizenu03bb/lilydex/actions/workflows/tests.yml)
 
 Les cartes de Lily numérise, identifie, estime et met en vente une collection de cartes Pokémon multilingue.
-La boutique est en service : [lilydex.duckdns.org](https://lilydex.duckdns.org).
+La boutique est en service : [lescartesdelily.fr](https://lescartesdelily.fr).
 Le paquet Python et ses commandes s'appellent `pokeprice`, `pokeprice-manage` et `pokeprice-agent` ; le dépôt garde l'ancien nom du produit, `lilydex`.
 
 > **In short.** Les cartes de Lily (Lily's cards) takes a multilingual Pokémon card collection from binder photos to a
