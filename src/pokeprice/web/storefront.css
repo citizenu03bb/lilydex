@@ -501,6 +501,11 @@ fieldset.stack legend {
 .hero-art img { position: absolute; width: 85px; height: 115px; object-fit: contain; top: 8px; left: 43px; border-radius: 5px; transform: rotate(-12deg); }
 .hero-art img + img { left: 117px; top: 15px; transform: rotate(10deg); }
 .catalogue-title { font-size: 27px; font-weight: 400; margin: 0 0 15px; }
+.card-summary { display: flex; gap: 20px; align-items: flex-start; margin: 0 0 30px; }
+.card-summary img { width: 200px; max-width: 40%; height: auto; border-radius: 8px; }
+.card-summary h2 { margin: 0 0 10px; }
+.card-summary p, .card-summary ul { margin: 0 0 8px; }
+.card-summary-price { font-weight: 600; }
 .filters { display: grid; grid-template-columns: minmax(180px, 1.65fr) minmax(130px, 1.2fr) minmax(85px, .8fr) minmax(90px, .8fr) minmax(105px, 1fr) minmax(100px, .9fr); align-items: end; gap: 12px 10px; margin: 0; }
 .search-row, .filter-fields { display: contents; }
 .filters label { align-self: stretch; display: flex; flex-direction: column; justify-content: flex-end; }

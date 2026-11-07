@@ -553,6 +553,8 @@ async function openFromAddress() {
   }
   try {
     show(await call(`/api/public/listings/${match[1]}?view=1`), false, false);
+    // The server's plain copy of the fiche, for robots: the dialog now says it all.
+    document.getElementById("card-summary")?.remove();
   } catch {
     history.replaceState(null, "", HOME + location.hash);
     $("notice").textContent = t("results.card_gone");

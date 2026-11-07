@@ -204,6 +204,13 @@ connue. Ce bloc est une donnée (`application/ld+json`), que la CSP
 `script-src 'self'` n'exécute pas ; `<` y est échappé. Une carte sociale avec
 image est `summary_large_image`, sans image `summary`.
 
+Le corps d'une fiche `/carte/{id}` contient aussi sa version HTML, écrite par le
+serveur à la place de `{{card_summary}}` : photo du recto avec son texte
+alternatif, nom, extension, numéro, état et prix ; pour un lot, son titre, sa
+description et la liste des cartes qu'il contient. Les robots et les lecteurs
+sans JavaScript lisent ainsi la fiche ; `storefront.js` retire ce bloc dès que
+la fiche s'ouvre dans sa fenêtre. Une fiche absente (404) n'en a pas.
+
 La vitrine est ouverte aux moteurs de recherche par défaut. Le réglage
 `POKEPRICE_INDEXING` de l'environnement du serveur la ferme avec `off`, `0`,
 `false`, `no` ou `non` ; toute autre valeur, ou son absence, la laisse ouverte.
