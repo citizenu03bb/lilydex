@@ -733,6 +733,59 @@ def create_app(
         for code in LANGUAGES
     }
 
+    def listing_summary(language, listing):
+        """What a fiche says about itself: its name, price, description and photo."""
+        words = dictionaries[language]
+        first = listing["items"][0]
+        name = listing["title"] or first["name"]
+        price = f"{listing['price_cents'] / 100:,.2f}"
+        price = price.replace(",", "\u202f").replace(".", ",") + "\u00a0€" if language == "fr" else "€" + price
+        condition = (words["item.condition"].format(condition=first["condition"])
+                     if first["condition"] else words["item.condition_unconfirmed"])
+        fields = {
+            "name": first["name"], "title": name, "extension": first["set_name"],
+            "number": first["number"], "price": price, "count": len(listing["items"]),
+            "condition": condition,
+        }
+        template = words["share.lot_description"] if len(listing["items"]) > 1 else words["share.card_description"]
+        image = None
+        photo = first.get("media", {}).get("front")
+        if photo:
+            variants = [v for v in photo["variants"] if v["format"] == "jpeg"]
+            # A public consultation derivative, never the private capture original.
+            if variants:
+                image = max(variants, key=lambda v: v["width"] * v["height"])
+        return {"first": first, "name": name, "price": price, "condition": condition,
+                "description": template.format(**fields), "image": image,
+                "alt": words.get("share.image_alt", "{name}").format(name=first["name"])}
+
+    def card_summary(language, listing):
+        """The fiche in plain HTML, for robots and readers without JavaScript.
+
+        storefront.js removes it once the fiche opens in its dialog.
+        """
+        words = dictionaries[language]
+        summary = listing_summary(language, listing)
+        first, esc = summary["first"], html.escape
+        parts = ['<article id="card-summary" class="card-summary" aria-labelledby="card-summary-title">']
+        if image := summary["image"]:
+            parts.append(f'<img src="{esc(image["url"], quote=True)}" alt="{esc(summary["alt"], quote=True)}"'
+                         f' width="{int(image["width"])}" height="{int(image["height"])}" />')
+        parts.append("<div>")
+        parts.append(f'<h2 id="card-summary-title">{esc(summary["name"])}</h2>')
+        if len(listing["items"]) > 1:
+            parts.append(f"<p>{esc(summary['description'])}</p>")
+            parts.append("<ul>" + "".join(
+                f"<li>{esc(' · '.join(str(v) for v in (item['name'], item['set_name'], item['number']) if v))}</li>"
+                for item in listing["items"]) + "</ul>")
+        else:
+            details = " · ".join(str(v) for v in (first["set_name"], first["number"]) if v)
+            parts.append(f"<p>{esc(details)}</p>")
+            parts.append(f"<p>{esc(summary['condition'])}</p>")
+            parts.append(f'<p class="card-summary-price">{esc(summary["price"])}</p>')
+        parts.append("</div></article>")
+        return "".join(parts)
+
     def public_head(language, rest, listing=None):
         words = dictionaries[language]
         generic_title = f"{SITE_NAME} · {words['meta.title']}"
@@ -741,25 +794,9 @@ def create_app(
         image = None
         first = None
         if listing:
-            first = listing["items"][0]
-            name = listing["title"] or first["name"]
-            title = f"{name} · {SITE_NAME}"
-            price = f"{listing['price_cents'] / 100:,.2f}"
-            price = price.replace(",", "\u202f").replace(".", ",") + "\u00a0€" if language == "fr" else "€" + price
-            fields = {
-                "name": first["name"], "title": name, "extension": first["set_name"],
-                "number": first["number"], "price": price, "count": len(listing["items"]),
-                "condition": words["item.condition"].format(condition=first["condition"])
-                if first["condition"] else words["item.condition_unconfirmed"],
-            }
-            template = words["share.lot_description"] if len(listing["items"]) > 1 else words["share.card_description"]
-            description = template.format(**fields)
-            photo = first.get("media", {}).get("front")
-            if photo:
-                variants = [v for v in photo["variants"] if v["format"] == "jpeg"]
-                # A public consultation derivative, never the private capture original.
-                if variants:
-                    image = max(variants, key=lambda v: v["width"] * v["height"])
+            summary = listing_summary(language, listing)
+            first, image, description = summary["first"], summary["image"], summary["description"]
+            title = f"{summary['name']} · {SITE_NAME}"
 
         def tag(key, value, *, property=False):
             attr = "property" if property else "name"
@@ -777,7 +814,7 @@ def create_app(
             tags.append(tag("og:url", public_origin + LANGUAGES[language][1] + rest, property=True))
             if image:
                 image_url = public_origin + image["url"]
-                alt = words.get("share.image_alt", "{name}").format(name=first["name"])
+                alt = summary["alt"]
                 tags.extend([
                     tag("og:image", image_url, property=True), tag("og:image:type", "image/jpeg", property=True),
                     tag("og:image:width", image["width"], property=True),
@@ -865,6 +902,8 @@ def create_app(
         robots = "" if indexing and public is not None else r"\g<1>" + NOINDEX + "\n"
         rendered = re.sub(r"( *)\{\{robots\}\}\n", robots, rendered, count=1)
         if name == "storefront.html":
+            rendered = re.sub(r"( *)\{\{card_summary\}\}\n", lambda match:
+                              match[1] + card_summary(language, listing) + "\n" if listing else "", rendered, count=1)
             generic, title, metadata = public_head(language, rest if listing else "", listing)
             rendered = re.sub(r"<title>.*?</title>", lambda _: f"<title>{html.escape(title)}</title>", rendered, count=1)
             rendered = re.sub(r"(<html\b[^>]*)(>)", lambda match:

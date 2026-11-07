@@ -1,3 +1,4 @@
+import html
 import json
 
 import pytest
@@ -251,6 +252,24 @@ def test_a_card_has_its_own_address(shop):
     assert gone.status_code == 404 and "/assets/storefront.js" in gone.text
     assert admin.delete(f"/api/copies/{single['items'][0]['id']}/listing").status_code == 200
     assert visitor.get(f"/carte/{single['id']}").status_code == 404
+
+
+def test_a_card_page_shows_its_fiche_without_javascript(shop):
+    _, visitor, _, cards, single, lot = shop
+    page = visitor.get(f"/carte/{single['id']}").text
+    summary = page.split('<article id="card-summary"', 1)[1].split("</article>", 1)[0]
+    item = single["items"][0]
+    assert html.escape(item["name"]) in summary and "1,20\u00a0€" in summary
+    assert "Note privée" not in summary and "{{card_summary}}" not in page
+    english = visitor.get(f"/en/carte/{single['id']}").text
+    assert "€1.20" in english.split('id="card-summary"', 1)[1].split("</article>", 1)[0]
+    # A lot names every card it holds.
+    lot_page = visitor.get(f"/carte/{lot['id']}").text
+    lot_summary = lot_page.split('id="card-summary"', 1)[1].split("</article>", 1)[0]
+    assert "Deux cartes" in lot_summary and lot_summary.count("<li>") == 2
+    for path in ("/", "/carte/absente"):
+        text = visitor.get(path).text
+        assert 'id="card-summary"' not in text and "{{card_summary}}" not in text
 
 
 def test_https_deployments_ask_browsers_to_stay_on_https(shop):
