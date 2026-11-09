@@ -345,13 +345,15 @@ def test_count_copies_sums_reference_prices(assistant):
     """« Combien vaut ma collection ? » : the sum of the cotes, unpriced copies apart."""
     whole = run(assistant, "count_copies", {"group_by": "language", "top": 100})
     value = whole["value"]
-    assert value["priced_copies"] + value["unpriced_copies"] == whole["total_copies"]
+    assert (value["priced_copies"] + value["unpriced_copies"] + value["bulk_copies"]
+            == whole["total_copies"])
     assert value["reference_cents"] == sum(g["reference_cents"] for g in whole["top"])
     gourgeist = run(assistant, "count_copies", {"query": "gourgeist"})
     assert gourgeist["value"]["reference_cents"] == 3 * 300
     assert gourgeist["value"]["prudent_cents"] <= gourgeist["value"]["reference_cents"]
     assert run(assistant, "count_copies", {"stock": "sold"})["value"] == {
-        "reference_cents": 0, "prudent_cents": 0, "priced_copies": 0, "unpriced_copies": 0}
+        "reference_cents": 0, "prudent_cents": 0, "priced_copies": 0, "unpriced_copies": 0,
+        "bulk_copies": 0}
 
 
 def test_priced_filter_lists_unpriced_copies(assistant):
@@ -362,5 +364,18 @@ def test_priced_filter_lists_unpriced_copies(assistant):
     by_set = run(assistant, "count_copies", {"priced": False, "group_by": "set"})
     assert by_set["total_copies"] == 1 and by_set["top"][0]["count"] == 1
     assert by_set["value"] == {"reference_cents": 0, "prudent_cents": 0,
-                               "priced_copies": 0, "unpriced_copies": 1}
+                               "priced_copies": 0, "unpriced_copies": 1, "bulk_copies": 0}
     assert run(assistant, "count_copies", {"priced": True})["value"]["unpriced_copies"] == 0
+
+
+def test_bulk_energies_are_not_unpriced(assistant):
+    """Une énergie de base confirmée part en vrac (0015) : jamais comptée « sans cote »."""
+    add_copy(assistant["store"], 30, name="Énergie Feu", set_name="", number="", price=None,
+             catalog_id=None)
+    whole = run(assistant, "count_copies", {})["value"]
+    assert whole["unpriced_copies"] == 1 and whole["bulk_copies"] == 1
+    unpriced = run(assistant, "search_copies", {"priced": False})
+    assert [c["name"] for c in unpriced["items"]] == ["Pikachu"]
+    bulk = run(assistant, "search_copies", {"bulk": True})
+    assert [c["name"] for c in bulk["items"]] == ["Énergie Feu"]
+    assert run(assistant, "count_copies", {"bulk": False})["value"]["bulk_copies"] == 0
