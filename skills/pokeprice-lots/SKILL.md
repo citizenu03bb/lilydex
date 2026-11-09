@@ -22,6 +22,11 @@ Principes :
   `identity_unconfirmed`, `price_incomplete`, `review_needed`, `valuable_card`).
   Une carte sans prix n'entre jamais en lot : elle figure dans la liste
   `to_price` (« à chiffrer ») du rapport.
+- Seule exception : les énergies de base en vrac (fiche 0015) sont offertes en
+  bonus, au plus 10 par lot et seulement tant que les frais de port du lot ne
+  changent pas ([décision 0041](../../docs/decisions/0041-energies-offertes-dans-les-lots.md)).
+  Le titre annonce « + N énergies offertes » ; le prix et le plancher portent
+  sur les cartes cotées.
 - Un brouillon de vente n'altère pas la vitrine : les cartes y restent à l'unité
   jusqu'à la publication du lot.
 - La publication d'un lot est atomique : toutes les cartes sont vérifiées avant
