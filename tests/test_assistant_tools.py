@@ -352,3 +352,15 @@ def test_count_copies_sums_reference_prices(assistant):
     assert gourgeist["value"]["prudent_cents"] <= gourgeist["value"]["reference_cents"]
     assert run(assistant, "count_copies", {"stock": "sold"})["value"] == {
         "reference_cents": 0, "prudent_cents": 0, "priced_copies": 0, "unpriced_copies": 0}
+
+
+def test_priced_filter_lists_unpriced_copies(assistant):
+    """« Quelles cartes n'ont pas de cote ? » : listées et regroupées sans parcourir les pages."""
+    unpriced = run(assistant, "search_copies", {"priced": False})
+    assert unpriced["total"] == 1 and unpriced["items"][0]["name"] == "Pikachu"
+    assert run(assistant, "search_copies", {"priced": True})["total"] == 3
+    by_set = run(assistant, "count_copies", {"priced": False, "group_by": "set"})
+    assert by_set["total_copies"] == 1 and by_set["top"][0]["count"] == 1
+    assert by_set["value"] == {"reference_cents": 0, "prudent_cents": 0,
+                               "priced_copies": 0, "unpriced_copies": 1}
+    assert run(assistant, "count_copies", {"priced": True})["value"]["unpriced_copies"] == 0

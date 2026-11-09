@@ -4,7 +4,7 @@
   "tools": [
     {
       "name": "search_copies",
-      "description": "Cherche des exemplaires de la collection par nom, numéro, extension, album, statut d'identification, état du stock ou mise en vente. Renvoie au plus 50 résumés par appel, dans l'ordre du classeur, et le nombre total trouvé.",
+      "description": "Cherche des exemplaires de la collection par nom, numéro, extension, album, statut d'identification, état du stock, mise en vente ou présence d'une cote. Renvoie au plus 50 résumés par appel, dans l'ordre du classeur, et le nombre total trouvé.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -57,6 +57,10 @@
           "for_sale": {
             "type": "boolean",
             "description": "Vrai : seulement les exemplaires en vente ; faux : seulement les autres."
+          },
+          "priced": {
+            "type": "boolean",
+            "description": "Vrai : seulement les exemplaires qui ont une cote ; faux : seulement ceux sans cote."
           },
           "limit": {
             "type": "integer",
@@ -259,7 +263,7 @@
     },
     {
       "name": "count_copies",
-      "description": "Compte les exemplaires de toute la collection, sans plafond de page : total, groupes par édition exacte (nom + extension + numéro + langue), par nom, extension, langue, statut, stock ou album, classés du plus nombreux au moins nombreux. duplicates_only : seulement les doublons (au moins 2 exemplaires). Vendus compris, sauf filtre stock. value : somme des cotes, et exemplaires sans cote.",
+      "description": "Compte les exemplaires de toute la collection, sans plafond de page, groupés par édition exacte (nom + extension + numéro + langue), nom, extension, langue, statut, stock ou album, les plus nombreux d’abord. duplicates_only : doublons seuls. Vendus compris, sauf filtre stock. value : somme des cotes et exemplaires sans cote ; priced=false et group_by=set résument les sans-cote par extension.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -329,6 +333,10 @@
           "for_sale": {
             "type": "boolean",
             "description": "Vrai : seulement les exemplaires en vente ; faux : seulement les autres."
+          },
+          "priced": {
+            "type": "boolean",
+            "description": "Vrai : seulement les exemplaires qui ont une cote ; faux : seulement ceux sans cote."
           }
         },
         "required": [],
