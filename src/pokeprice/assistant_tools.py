@@ -258,6 +258,20 @@ def age_days(moment, now):
 # -- Tools --------------------------------------------------------------------
 
 
+def is_bulk(card):
+    """A confirmed basic Energy without a quote: sold by the lot, never « sans cote » (0015)."""
+    return not card["reference_cents"] and bool((card["valuation"] or {}).get("bulk"))
+
+
+def price_filters(card, values):
+    """priced: with a cote, or without one (bulk apart); bulk: the bulk Energies alone, or not."""
+    if "priced" in values and bool(card["reference_cents"]) != values["priced"]:
+        return False
+    if "priced" in values and not values["priced"] and is_bulk(card):
+        return False
+    return "bulk" not in values or is_bulk(card) == values["bulk"]
+
+
 def search_copies(ctx, values):
     terms = normalized(values.get("query", "")).split()
     number = normalized(values.get("number", ""))
@@ -282,7 +296,7 @@ def search_copies(ctx, values):
             and ("status" not in values or card["identification_status"] == values["status"])
             and ("stock" not in values or card["stock_state"] == values["stock"])
             and ("for_sale" not in values or bool(card["published"]) == values["for_sale"])
-            and ("priced" not in values or bool(card["reference_cents"]) == values["priced"])
+            and price_filters(card, values)
         ):
             found.append(card)
     found.sort(key=lambda c: (normalized(c["album"] or ""), c["page"], c["position"], c["id"]))
@@ -566,7 +580,7 @@ def count_copies(ctx, values):
             and ("status" not in values or card["identification_status"] == values["status"])
             and ("stock" not in values or card["stock_state"] == values["stock"])
             and ("for_sale" not in values or bool(card["published"]) == values["for_sale"])
-            and ("priced" not in values or bool(card["reference_cents"]) == values["priced"])
+            and price_filters(card, values)
         ):
             continue
         total += 1
@@ -591,16 +605,19 @@ def count_copies(ctx, values):
     top = shown[: values["top"]]
     counted = [c for g in groups.values() for c in g["cards"]]
     priced = [c for c in counted if c["reference_cents"]]
+    bulk = sum(is_bulk(c) for c in counted)
     return {
         "group_by": values["group_by"],
         "total_copies": total,
         # The collection's worth, as the sum of reference prices (« cotes »): never
-        # a sale price; copies without a reference are counted apart.
+        # a sale price; copies without a reference are counted apart, bulk Energies
+        # apart again (decision 0015).
         "value": {
             "reference_cents": sum(c["reference_cents"] for c in priced),
             "prudent_cents": sum((c["valuation"] or {}).get("prudent_cents") or 0 for c in priced),
             "priced_copies": len(priced),
-            "unpriced_copies": len(counted) - len(priced),
+            "unpriced_copies": len(counted) - len(priced) - bulk,
+            "bulk_copies": bulk,
         },
         "groups_total": len(rows),
         "duplicate_groups": len(duplicates),
@@ -624,7 +641,9 @@ class Tool:
 LIMIT = {"type": "integer", "minimum": 1, "maximum": 50, "default": 20}
 OFFSET = {"type": "integer", "minimum": 0, "maximum": 2000, "default": 0}
 PRICED = {"type": "boolean",
-          "description": "Vrai : seulement les exemplaires qui ont une cote ; faux : seulement ceux sans cote."}
+          "description": "Vrai : seulement les exemplaires cotés ; faux : seulement ceux sans cote, vrac exclu."}
+BULK = {"type": "boolean",
+        "description": "Vrai : seulement les énergies de base en vrac (vendues en lot, jamais cotées) ; faux : les autres."}
 
 TOOLS = {
     tool.name: tool
@@ -648,6 +667,7 @@ TOOLS = {
                           "maxLength": 20, "description": "État du stock."},
                 "for_sale": {"type": "boolean", "description": "Vrai : seulement les exemplaires en vente ; faux : seulement les autres."},
                 "priced": PRICED,
+                "bulk": BULK,
                 "limit": LIMIT,
                 "offset": OFFSET,
             }),
@@ -733,7 +753,7 @@ TOOLS = {
             "Compte les exemplaires de toute la collection, sans plafond de page, groupés par "
             "édition exacte (nom + extension + numéro + langue), nom, extension, langue, statut, "
             "stock ou album, les plus nombreux d’abord. duplicates_only : doublons seuls. "
-            "Vendus compris, sauf filtre stock. value : somme des cotes et exemplaires sans cote ; "
+            "Vendus compris, sauf filtre stock. value : somme des cotes, sans-cote et vrac à part ; "
             "priced=false et group_by=set résument les sans-cote par extension.",
             arguments({
                 "group_by": {"type": "string", "enum": list(GROUPS), "maxLength": 20,
@@ -751,6 +771,7 @@ TOOLS = {
                           "maxLength": 20, "description": "État du stock ; available pour les cartes encore là."},
                 "for_sale": {"type": "boolean", "description": "Vrai : seulement les exemplaires en vente ; faux : seulement les autres."},
                 "priced": PRICED,
+                "bulk": BULK,
             }),
             count_copies,
         ),
