@@ -16,6 +16,7 @@ from pokeprice_lots import (
     LotsEngine,
     ScoringHeuristics,
     ValueIntent,
+    bonus_room,
     categorize_card,
     lot_floor_cents,
     lot_max_margin,
@@ -23,6 +24,7 @@ from pokeprice_lots import (
     normalize_pokemon_name,
     run_remote_command,
 )
+from pokeprice.reservations import shipping_quote
 
 
 def add_copy(store, album, position, *, price=100, **overrides):
@@ -1029,3 +1031,59 @@ def test_remote_command_carries_the_margin(monkeypatch):
     monkeypatch.delenv("POKEPRICE_LOT_MAX_MARGIN")
     run_remote_command("serveur", "/srv/base", "status", [])
     assert "POKEPRICE_LOT_MAX_MARGIN" not in calls[-1][-1]
+
+
+# -- Énergies offertes (décision 0041) ------------------------------------------
+
+
+def add_energy(store, position, **overrides):
+    values = {"name": "Énergie Feu", "catalog_id": "", "number": "", "set_name": ""}
+    return add_copy(store, "b", position, price=None, **{**values, **overrides})
+
+
+@pytest.mark.parametrize("cards, asking_cents, room", [
+    (3, 500, 2),    # 16 g : la lettre suivie ≤ 20 g prend encore 2 cartes
+    (5, 500, 0),    # 20 g : la tranche est pleine
+    (12, 500, 10),  # 34 g : 33 places sous 100 g, plafonnées à 10
+    (3, 6000, 2),   # recommandé ≤ 20 g : même calcul, autre grille
+])
+def test_bonus_room_keeps_the_postal_tier(monkeypatch, cards, asking_cents, room):
+    monkeypatch.delenv("POKEPRICE_PACKING_GRAMS", raising=False)
+    monkeypatch.delenv("POKEPRICE_REGISTERED_THRESHOLD_EUR", raising=False)
+    assert bonus_room(cards, asking_cents) == room
+
+
+def test_lots_offer_bulk_energies_and_publish(test_db, monkeypatch):
+    monkeypatch.delenv("POKEPRICE_PACKING_GRAMS", raising=False)
+    monkeypatch.delenv("POKEPRICE_LOT_MAX_MARGIN", raising=False)
+    db_path, store = test_db
+    energies = [add_energy(store, 80 + i)["id"] for i in range(4)]
+    review = add_energy(store, 90, identification_status="review", variant_confirmed=False)["id"]
+    engine = LotsEngine(db_path)
+    with engine.connect() as db:
+        pool = [c["id"] for c in engine.bulk_bonus_pool(db)]
+    assert pool == energies  # ordre du classeur ; l'énergie à revoir n'est pas en vrac
+    analysis = engine.analyze()
+    lot = next(l for l in analysis["lots"] if l["theme"] == "dp_platine")
+    paid = [c for c in lot["copies"] if not c.get("bonus")]
+    bonus = [c["id"] for c in lot["copies"] if c.get("bonus")]
+    assert len(paid) == 2 and bonus == energies[:3]  # 14 g + 3 × 2 g = 20 g
+    assert lot["bonus_count"] == 3 and lot["title"].endswith(" + 3 énergies offertes")
+    assert lot["total_reference_cents"] == 200
+    tier = lambda n: {k: shipping_quote(n, lot["asking_cents"])[k] for k in ("shipping_cents", "service")}
+    assert tier(len(lot["copies"])) == tier(2)
+    assert review not in pool
+
+    created = engine.rotate(lots_to_add=[lot])["created"]
+    published = engine.publish_to_storefront(created[0]["sale_id"])
+    assert published["copies_count"] == 5
+
+
+def test_a_lot_of_bulk_energies_alone_is_refused(test_db):
+    db_path, store = test_db
+    energies = [add_energy(store, 95 + i)["id"] for i in range(2)]
+    with store.connect(write=True) as db:
+        sale_id = store.create_sale({"title": "Vrac seul", "amount_cents": 500, "asking_cents": 500},
+                                    energies, "tester", _db=db)
+    with pytest.raises(ValueError, match="sans cote"):
+        LotsEngine(db_path).publish_to_storefront(sale_id)

@@ -39,8 +39,12 @@ from pokeprice.pricing import (  # noqa: E402
     lot_floor_cents,
     lot_max_margin,
 )
+from pokeprice.reservations import shipping_quote  # noqa: E402
 
 MAX_ROTATION_DRAFTS = 5
+# Énergies en vrac offertes par lot, au plus : assez pour faire plaisir, et
+# il en reste pour les lots suivants (décision 0041).
+BONUS_MAX_PER_LOT = 10
 DEFAULT_ACTOR = "pokeprice-lots"
 # Seuil de valeur d'une carte au-delà duquel elle ne part pas en lot (centimes),
 # le même que celui de la liste de la collection.
@@ -331,6 +335,30 @@ def prompt_to_recipe(prompt: str, model_name: Optional[str] = None) -> LotCompos
     )
     return LotCompositionRecipe.model_validate_json(response.text)
 
+
+
+def bonus_room(card_count, asking_cents, cap=BONUS_MAX_PER_LOT):
+    """Énergies qu'un lot peut offrir sans changer ses frais de port (décision 0041).
+
+    Le calcul est celui de la réservation (``shipping_quote``) : poids des cartes
+    et de l'emballage, recommandé dès le seuil de valeur. Une énergie de plus ne
+    doit changer ni le tarif ni le service.
+    """
+    base = shipping_quote(card_count, asking_cents)
+    room = 0
+    while room < cap:
+        quote = shipping_quote(card_count + room + 1, asking_cents)
+        if (quote["shipping_cents"], quote["service"]) != (base["shipping_cents"], base["service"]):
+            break
+        room += 1
+    return room
+
+
+def bonus_title(title, count):
+    if not count:
+        return title
+    suffix = " + 1 énergie offerte" if count == 1 else f" + {count} énergies offertes"
+    return (title[: 256 - len(suffix)] + suffix)
 
 
 class _SharedTransaction:
@@ -700,11 +728,74 @@ class LotsEngine:
             "to_price": to_price,
         }
 
+    def bulk_bonus_pool(self, db):
+        """Énergies en vrac libres pour un bonus, dans l'ordre du classeur (décision 0041).
+
+        En vrac (fiche 0015), disponibles, prises dans aucun brouillon ni lot en
+        ligne, et publiables à prix fixé à la main, comme à la publication du lot.
+        """
+        from pokeprice.listings import Listings
+        from pokeprice.pricing import FLOOR_CENTS, display_price
+
+        busy = self.get_busy_copy_ids(db)
+        rows = db.execute("""
+            SELECT id, version, name, set_name, number, language, album_id, page,
+                   position, condition, finish, photo
+            FROM copies
+            WHERE deleted_at = '' AND stock_state = 'available'
+            ORDER BY album_id, page, position, id
+        """).fetchall()
+        free = [dict(r) for r in rows if r["id"] not in busy]
+        cards = Listings(_SharedTransaction(self.store(), db)).cards([c["id"] for c in free])
+        manual = {"amount_cents": FLOOR_CENTS, "mode": "manual", "source": "Prix fixé à la main"}
+        pool = []
+        for c in free:
+            card = cards.get(c["id"])
+            if not card or card["reference_cents"] or not (card["valuation"] or {}).get("bulk"):
+                continue
+            if display_price(card, card["valuation"], manual)["publishable"]:
+                pool.append(c)
+        return pool
+
+    def add_bonus(self, lots, pool=None):
+        """Complète chaque lot d'énergies offertes, sans changer sa tranche postale."""
+        if pool is None:
+            with self.connect(write=False) as db:
+                pool = self.bulk_bonus_pool(db)
+        pool = list(pool)
+        for lot in lots:
+            paid = [c for c in lot["copies"] if not c.get("bonus")]
+            room = min(bonus_room(len(lot["copies"]), lot["asking_cents"]), len(pool))
+            bonus, pool = pool[:room], pool[room:]
+            lot["copies"] = paid + [
+                {
+                    "id": c["id"],
+                    "version": c["version"],
+                    "name": c["name"],
+                    "set_name": c["set_name"],
+                    "number": c["number"],
+                    "finish": c.get("finish") or "",
+                    "reference_cents": 0,
+                    "photo": c.get("photo") or "",
+                    "page": c.get("page"),
+                    "position": c.get("position"),
+                    "from_album": False,
+                    "bonus": True,
+                }
+                for c in bonus
+            ]
+            lot["bonus_count"] = len(bonus)
+            lot["count"] = len(lot["copies"])
+            lot["title"] = bonus_title(lot["title"], len(bonus))
+        return lots
+
     def analyze(self, max_cards_per_lot=20):
         with self.connect(write=False) as db:
             pool = self.classify_pool(db)
+            bonus_pool = self.bulk_bonus_pool(db)
         retained, duplicates = pool["retained"], pool["duplicates"]
         candidate_lots = self.compose_candidate_lots(duplicates, max_cards_per_lot=max_cards_per_lot)
+        self.add_bonus(candidate_lots, bonus_pool)
         total_excess_cents = sum(c["reference_cents"] or 0 for c in duplicates)
 
         return {
@@ -712,6 +803,7 @@ class LotsEngine:
             "total_excess_duplicates": len(duplicates),
             "total_excess_reference_cents": total_excess_cents,
             "total_candidate_lots": len(candidate_lots),
+            "bonus_energies": sum(l["bonus_count"] for l in candidate_lots),
             "lots": candidate_lots,
             **self.pool_report(pool),
         }
@@ -840,6 +932,7 @@ class LotsEngine:
                 {
                     "title": l["title"],
                     "count": l["count"],
+                    "bonus_count": l.get("bonus_count", 0),
                     "asking_cents": l["asking_cents"],
                     "total_reference_cents": l["total_reference_cents"],
                 }
@@ -932,14 +1025,24 @@ class LotsEngine:
         # Plancher anti-bradage, sur les cotes du jour : une baisse de prix ne passe
         # pas en douce si les cotes ont monté depuis le brouillon.
         # Une cote nulle ne vaut pas mieux qu'une cote absente : elle annulerait le plancher.
-        unrated = [it for it in items if not it["reference_cents"]]
+        copy_ids = [it["id"] for it in items]
+        cards = listings.cards(copy_ids)
+
+        def offered(it):
+            # Une énergie en vrac offerte n'a pas de cote à protéger (décision 0041).
+            card = cards.get(it["id"])
+            return bool(card and (card["valuation"] or {}).get("bulk"))
+
+        unrated = [it for it in items if not it["reference_cents"] and not offered(it)]
+        if not any(it["reference_cents"] for it in items):
+            unrated = unrated or items
         if unrated:
             refusals.append(
                 f"{len(unrated)} carte(s) sans cote : impossible de vérifier que le lot n'est pas bradé."
             )
         floor_refusal = None
         if not unrated:
-            floor = lot_floor_cents(sum(it["reference_cents"] for it in items))
+            floor = lot_floor_cents(sum(it["reference_cents"] or 0 for it in items))
             if price_cents < floor:
                 floor_refusal = (
                     f"Prix du lot {euros(price_cents / 100)} sous le plancher anti-bradage de "
@@ -947,8 +1050,6 @@ class LotsEngine:
                 )
                 refusals.append(floor_refusal)
 
-        copy_ids = [it["id"] for it in items]
-        cards = listings.cards(copy_ids)
         to_unpublish = []
         for it in items:
             label = f"{it['name']} ({it['id'][:8]})"
@@ -980,7 +1081,7 @@ class LotsEngine:
                 # Seul le plancher bloque : la décision revient à une personne (décision 0030).
                 from pokeprice.listings import FloorRefusal
 
-                refs = {it["id"]: it["reference_cents"] for it in items}
+                refs = {it["id"]: it["reference_cents"] or 0 for it in items}
                 raise FloorRefusal(
                     message,
                     {
@@ -1323,6 +1424,8 @@ class LotsEngine:
                 for c in selected
             ],
         }
+        if selected:
+            self.add_bonus([lot_data])
         if warning:
             lot_data["warning"] = warning
         elif has_album_copies:

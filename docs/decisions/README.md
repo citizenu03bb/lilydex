@@ -48,6 +48,7 @@ l'ancienne passe au statut « remplacée ».
 | [0038](0038-capture-des-echecs.md) | Le chat garde les réponses signalées, par un 👎 ou par un signal du serveur, pour en tirer des cas du banc sans donnée réelle (proposée) | 2026-11-05 |
 | [0039](0039-alerte-de-cout-du-chat.md) | Le chat prévient une fois par mois quand son coût estimé atteint 30 €, sans plafond dur (proposée) | 2026-11-05 |
 | [0040](0040-preuve-adresse-client.md) | Le lien transmis par le vendeur prouve l'adresse avant changement d'identifiant ou rattachement des demandes invitées | 2026-11-06 |
+| [0041](0041-energies-offertes-dans-les-lots.md) | Les énergies en vrac sont offertes dans les lots, sans changer de tranche postale | 2026-11-09 |
 
 ## Écrire une fiche
 
