@@ -129,6 +129,7 @@
   "results.card_gone": "Cette carte n’est plus en vente : voici les autres.",
 
   "tile.cards": "{count} cartes",
+  "tile.cards_offered": "{count} cartes + {offered} offertes",
   "tile.condition_pending": "État à confirmer",
   "tile.lot_facts": "Lot complet · prix pour l’ensemble",
   "tile.lot_spec": "Voir les cartes du lot",
@@ -150,6 +151,8 @@
 
   "detail.price": "{price} · prix du {date}",
   "detail.no_back": "Verso non photographié : demandez-le dans votre message",
+  "detail.offered_title": { "one": "En cadeau : {count} énergie de base", "other": "En cadeau : {count} énergies de base" },
+  "detail.offered_help": "Offertes avec le lot, sans frais de port en plus.",
   "detail.add": "Ajouter à ma sélection",
   "detail.added": "Ajoutée à ma sélection",
   "detail.in_basket": "Déjà dans ma sélection",
@@ -275,6 +278,7 @@
   "meta.description": "Des cartes Pokémon photographiées, avec leur prix et leur état confirmé lorsqu’il est renseigné. Réservation sans compte.",
   "share.card_description": "{name} · {extension} · {number} · {price}. {condition}",
   "share.lot_description": "Lot de {count} cartes · {price} pour l’ensemble. {title}",
+  "share.offered": "Énergies de base offertes : {count}.",
   "share.image_alt": "Recto de {name}",
   "viewer.zoom_open": "Zoomer la photo",
   "viewer.zoom": "Zoom",

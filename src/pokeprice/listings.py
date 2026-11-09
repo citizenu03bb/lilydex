@@ -433,6 +433,17 @@ def public_condition(card):
     return (card["condition"] or None) if card["condition_confirmed"] else None
 
 
+def offered_energy(card):
+    """A confirmed basic Energy without a cote: a gift in a lot (decisions 0015, 0041)."""
+    from .energy_gate import basic_energy
+
+    return (
+        not card["reference_cents"]
+        and card["identification_status"] == "confirmed"
+        and bool(basic_energy(card["name"] or "")[0])
+    )
+
+
 def public_item(index, card):
     return {
         "index": index,
@@ -530,7 +541,11 @@ class Storefront:
                     "width": description["width"], "height": description["height"],
                     "variants": variants,
                 }
+            # In a lot, an offered Energy is a gift: told apart, and shown last (0041).
+            if len(cards) > 1 and offered_energy(card):
+                item["offered"] = True
             items.append(item)
+        items.sort(key=lambda item: bool(item.get("offered")))
         return {
             "id": row["id"],
             "title": row["title"],

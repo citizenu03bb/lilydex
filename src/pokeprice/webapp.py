@@ -744,10 +744,15 @@ def create_app(
                      if first["condition"] else words["item.condition_unconfirmed"])
         fields = {
             "name": first["name"], "title": name, "extension": first["set_name"],
-            "number": first["number"], "price": price, "count": len(listing["items"]),
+            "number": first["number"], "price": price,
+            "count": sum(not item.get("offered") for item in listing["items"]),
             "condition": condition,
         }
         template = words["share.lot_description"] if len(listing["items"]) > 1 else words["share.card_description"]
+        gifts = sum(bool(item.get("offered")) for item in listing["items"])
+        if gifts:
+            # The offered Energies are a gift, told apart from the lot's cards (0041).
+            template += " " + words["share.offered"].replace("{count}", str(gifts))
         image = None
         photo = first.get("media", {}).get("front")
         if photo:
@@ -777,7 +782,7 @@ def create_app(
             parts.append(f"<p>{esc(summary['description'])}</p>")
             parts.append("<ul>" + "".join(
                 f"<li>{esc(' · '.join(str(v) for v in (item['name'], item['set_name'], item['number']) if v))}</li>"
-                for item in listing["items"]) + "</ul>")
+                for item in listing["items"] if not item.get("offered")) + "</ul>")
         else:
             details = " · ".join(str(v) for v in (first["set_name"], first["number"]) if v)
             parts.append(f"<p>{esc(details)}</p>")

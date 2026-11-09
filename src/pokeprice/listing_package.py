@@ -3,8 +3,14 @@
 import json
 import re
 import zipfile
+from collections import Counter
 
 from .inventory import now
+from .listings import offered_energy
+
+
+def gift_count(count):
+    return "1 énergie de base offerte" if count == 1 else f"{count} énergies de base offertes"
 
 
 def package(store, sale_id, target, *, snapshot=None):
@@ -37,7 +43,12 @@ def package(store, sale_id, target, *, snapshot=None):
                 }
     if any(c["deleted_at"] for c in cards):
         raise ValueError("Un exemplaire de ce lot est dans la corbeille.")
+    # The offered Energies are a gift: apart from the cards, with nothing to check (0041).
+    gifts = [c for c in cards if len(cards) > 1 and offered_energy(c)]
+    cards = [c for c in cards if c not in gifts]
     lines = [sale["title"], "", f"Lot de {len(cards)} carte(s) Pokémon.", ""]
+    if gifts:
+        lines[2] += f" En cadeau : {gift_count(len(gifts))}, sans frais de port en plus."
     checks, manifest = [], []
     if preparation:
         checks.append(
@@ -90,6 +101,19 @@ def package(store, sale_id, target, *, snapshot=None):
                     "photos": files,
                 }
             )
+        if gifts:
+            names = Counter(c["name"] for c in gifts)
+            lines += ["", f"En cadeau : {gift_count(len(gifts))}"]
+            lines += [f"- {name} × {count}" if count > 1 else f"- {name}" for name, count in names.items()]
+            for n, c in enumerate(gifts, 1):
+                slug = re.sub(r"[^a-z0-9]+", "-", c["name"].lower()).strip("-") or "energie"
+                files = []
+                if c["photo"]:
+                    filename = f"photos/cadeau-{n:03d}-{slug[:60]}-recto.jpg"
+                    archive.write(store.photos / c["photo"], filename)
+                    files.append(filename)
+                manifest.append({"name": c["name"], "language": c["language"], "offered": True,
+                                 "photos": files})
         checks += [
             "Compléter les modalités de livraison et de paiement.",
             "Relire le texte et les photos avant toute publication.",
