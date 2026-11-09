@@ -217,9 +217,13 @@ function facts(item) {
   ].filter(Boolean);
 }
 
+// In a lot, the offered Energies are a gift: never counted as the lot's cards (0041).
+const paid = (listing) => listing.items.filter((item) => !item.offered);
+const offered = (listing) => listing.items.filter((item) => item.offered);
+
 function title(listing) {
   return listing.items.length > 1
-    ? listing.title || t("listing.lot", { count: listing.items.length })
+    ? listing.title || t("listing.lot", { count: paid(listing).length })
     : listing.items[0].name;
 }
 
@@ -240,8 +244,12 @@ function tile(listing) {
   if (first.photos.includes("front")) {
     figure.append(adaptivePhoto(listing, first, "front", "grid"));
   }
-  if (listing.items.length > 1)
-    figure.append(el("span", t("tile.cards", { count: listing.items.length }), "badge"));
+  if (listing.items.length > 1) {
+    const gifts = offered(listing).length;
+    const count = paid(listing).length;
+    figure.append(el("span", gifts ? t("tile.cards_offered", { count, offered: gifts })
+      : t("tile.cards", { count }), "badge"));
+  }
   const text = el("div", undefined, "tile-text");
   const head = el("div", undefined, "tile-head");
   head.append(el("p", title(listing), "tile-name"), el("p", euros(listing.price_cents), "price"));
@@ -360,7 +368,7 @@ function show(listing, replace = false, recordView = true) {
   body.append(
     el("p", t("detail.price", { price: euros(listing.price_cents), date: day(listing.price_date) }), "price"),
   );
-  for (const item of listing.items) {
+  for (const item of paid(listing)) {
     const block = el("section", undefined, "detail-item");
     if (listing.items.length > 1) block.append(el("h3", item.name));
     const list = el("ul", undefined, "facts");
@@ -368,6 +376,17 @@ function show(listing, replace = false, recordView = true) {
     if (!item.photos.includes("back"))
       list.append(el("li", t("detail.no_back")));
     block.append(list);
+    body.append(block);
+  }
+  const gifts = offered(listing);
+  if (gifts.length) {
+    const block = el("section", undefined, "detail-item detail-offered");
+    block.append(el("h3", t("detail.offered_title", { count: gifts.length })));
+    const names = new Map();
+    for (const item of gifts) names.set(item.name, (names.get(item.name) || 0) + 1);
+    const list = el("ul", undefined, "facts");
+    for (const [name, count] of names) list.append(el("li", count > 1 ? `${name} × ${count}` : name));
+    block.append(list, el("p", t("detail.offered_help"), "help"));
     body.append(block);
   }
   const action = el("p", undefined, "detail-action");

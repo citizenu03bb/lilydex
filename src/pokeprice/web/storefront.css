@@ -170,6 +170,15 @@ dialog::backdrop {
   border-top: 1px solid var(--line);
   margin-top: 12px;
 }
+/* The offered Energies of a lot: a gift, set apart from the paid cards (0041). */
+.detail-offered {
+  background: var(--gold-soft);
+  border-radius: 8px;
+  padding: 4px 12px;
+}
+.detail-offered h3 {
+  color: var(--gold);
+}
 .account {
   display: flex;
   flex-wrap: wrap;

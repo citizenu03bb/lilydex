@@ -129,6 +129,7 @@
   "results.card_gone": "This card is no longer for sale: here are the others.",
 
   "tile.cards": "{count} cards",
+  "tile.cards_offered": "{count} cards + {offered} free",
   "tile.condition_pending": "Condition to be confirmed",
   "tile.lot_facts": "Complete lot · price for the whole set",
   "tile.lot_spec": "See the cards in the lot",
@@ -150,6 +151,8 @@
 
   "detail.price": "{price} · price as of {date}",
   "detail.no_back": "Back not photographed: ask for it in your message",
+  "detail.offered_title": { "one": "Free gift: {count} basic Energy card", "other": "Free gift: {count} basic Energy cards" },
+  "detail.offered_help": "Included with the lot, at no extra shipping cost.",
   "detail.add": "Add to my selection",
   "detail.added": "Added to my selection",
   "detail.in_basket": "Already in my selection",
@@ -275,6 +278,7 @@
   "meta.description": "Photographed Pokémon cards with their price and confirmed condition when available. Request a reservation without an account.",
   "share.card_description": "{name} · {extension} · {number} · {price}. {condition}",
   "share.lot_description": "Lot of {count} cards · {price} for the whole lot. {title}",
+  "share.offered": "Free basic Energy cards: {count}.",
   "share.image_alt": "Front of {name}",
   "viewer.zoom_open": "Zoom into photo",
   "viewer.zoom": "Zoom",
