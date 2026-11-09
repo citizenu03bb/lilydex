@@ -282,6 +282,7 @@ def search_copies(ctx, values):
             and ("status" not in values or card["identification_status"] == values["status"])
             and ("stock" not in values or card["stock_state"] == values["stock"])
             and ("for_sale" not in values or bool(card["published"]) == values["for_sale"])
+            and ("priced" not in values or bool(card["reference_cents"]) == values["priced"])
         ):
             found.append(card)
     found.sort(key=lambda c: (normalized(c["album"] or ""), c["page"], c["position"], c["id"]))
@@ -565,6 +566,7 @@ def count_copies(ctx, values):
             and ("status" not in values or card["identification_status"] == values["status"])
             and ("stock" not in values or card["stock_state"] == values["stock"])
             and ("for_sale" not in values or bool(card["published"]) == values["for_sale"])
+            and ("priced" not in values or bool(card["reference_cents"]) == values["priced"])
         ):
             continue
         total += 1
@@ -621,6 +623,8 @@ class Tool:
 
 LIMIT = {"type": "integer", "minimum": 1, "maximum": 50, "default": 20}
 OFFSET = {"type": "integer", "minimum": 0, "maximum": 2000, "default": 0}
+PRICED = {"type": "boolean",
+          "description": "Vrai : seulement les exemplaires qui ont une cote ; faux : seulement ceux sans cote."}
 
 TOOLS = {
     tool.name: tool
@@ -628,7 +632,7 @@ TOOLS = {
         Tool(
             "search_copies",
             "Cherche des exemplaires de la collection par nom, numéro, extension, album, "
-            "statut d'identification, état du stock ou mise en vente. Renvoie au plus "
+            "statut d'identification, état du stock, mise en vente ou présence d'une cote. Renvoie au plus "
             "50 résumés par appel, dans l'ordre du classeur, et le nombre total trouvé.",
             arguments({
                 "query": {"type": "string", "maxLength": 120,
@@ -643,6 +647,7 @@ TOOLS = {
                 "stock": {"type": "string", "enum": ["available", "reserved", "sold"],
                           "maxLength": 20, "description": "État du stock."},
                 "for_sale": {"type": "boolean", "description": "Vrai : seulement les exemplaires en vente ; faux : seulement les autres."},
+                "priced": PRICED,
                 "limit": LIMIT,
                 "offset": OFFSET,
             }),
@@ -725,11 +730,11 @@ TOOLS = {
         # V1.1 comptage (decision 0037).
         Tool(
             "count_copies",
-            "Compte les exemplaires de toute la collection, sans plafond de page : total, "
-            "groupes par édition exacte (nom + extension + numéro + langue), par nom, extension, "
-            "langue, statut, stock ou album, classés du plus nombreux au moins nombreux. "
-            "duplicates_only : seulement les doublons (au moins 2 exemplaires). Vendus compris, "
-            "sauf filtre stock. value : somme des cotes, et exemplaires sans cote.",
+            "Compte les exemplaires de toute la collection, sans plafond de page, groupés par "
+            "édition exacte (nom + extension + numéro + langue), nom, extension, langue, statut, "
+            "stock ou album, les plus nombreux d’abord. duplicates_only : doublons seuls. "
+            "Vendus compris, sauf filtre stock. value : somme des cotes et exemplaires sans cote ; "
+            "priced=false et group_by=set résument les sans-cote par extension.",
             arguments({
                 "group_by": {"type": "string", "enum": list(GROUPS), "maxLength": 20,
                              "default": "edition", "description": "Regroupement ; edition pour les doublons exacts."},
@@ -745,6 +750,7 @@ TOOLS = {
                 "stock": {"type": "string", "enum": ["available", "reserved", "sold"],
                           "maxLength": 20, "description": "État du stock ; available pour les cartes encore là."},
                 "for_sale": {"type": "boolean", "description": "Vrai : seulement les exemplaires en vente ; faux : seulement les autres."},
+                "priced": PRICED,
             }),
             count_copies,
         ),
