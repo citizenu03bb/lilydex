@@ -269,6 +269,12 @@ dans **Réglages → Plancher anti-bradage** ; chaque changement est journalisé
 son auteur, sa date, l'ancienne et la nouvelle valeur. Ni une clé d'agent, ni
 l'outil de lots, ni une variable d'environnement ne la desserre
 ([décision 0042](decisions/0042-marge-du-plancher-reglage-administrateur.md)).
+Le même panneau règle l'**âge de rotation des lots en ligne** : un lot en
+ligne composé par l'outil des lots et toujours invendu après ce nombre de jours
+(14 par défaut, entier de 3 à 90) est remplacé à la rotation suivante, sans
+baisse de prix. Ce réglage vit aussi dans la base (`lot_rotation_days` dans
+`src/pokeprice/lots/settings.py`), seul un administrateur connecté le change,
+chaque changement est journalisé, et aucune clé d'agent n'y a accès.
 Pour un lot, ce plancher s'applique à la somme des valeurs de référence de ses
 exemplaires. Une carte dont la variante est à vérifier compte pour la plus basse des cotes
 de ses variantes possibles. Une carte sans référence (ou à 0) garde le seul plancher de 0,50 €,

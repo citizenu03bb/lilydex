@@ -492,6 +492,21 @@
                 <p id="floor-margin-message" role="status"></p>
               </form>
               <ul id="floor-margin-history"></ul>
+              <h3>{{t:lot_rotation.title}}</h3>
+              <p>{{t:lot_rotation.help}}</p>
+              <form id="lot-rotation-form">
+                <label
+                  >{{t:lot_rotation.label}}<input
+                    name="days"
+                    type="number"
+                    min="3"
+                    max="90"
+                    step="1"
+                    required /></label
+                ><button class="primary">{{t:lot_rotation.save}}</button>
+                <p id="lot-rotation-message" role="status"></p>
+              </form>
+              <ul id="lot-rotation-history"></ul>
             </section>
             <section class="panel">
               <h2>Nouvel album</h2>

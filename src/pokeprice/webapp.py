@@ -479,6 +479,10 @@ class FloorMarginSettings(Model):
     margin: int = Field(ge=0, le=50, strict=True)
 
 
+class LotRotationSettings(Model):
+    days: int = Field(ge=3, le=90, strict=True)
+
+
 class ClientPatch(Model):
     status: Literal["active", "refused"]
     disabled: bool = False
@@ -1570,6 +1574,19 @@ def create_app(
         from .pricing import set_lot_max_margin
 
         return set_lot_max_margin(store, values.margin, user["username"])
+
+    # Only a signed-in administrator sets how long an unsold tool-made lot stays online.
+    @app.get("/api/settings/lot-rotation")
+    def lot_rotation_settings(user=Depends(admin)):
+        from .lots.settings import lot_rotation_days, lot_rotation_history
+
+        return {"days": lot_rotation_days(store), "history": lot_rotation_history(store)}
+
+    @app.put("/api/settings/lot-rotation")
+    def lot_rotation_update(values: LotRotationSettings, user=Depends(admin)):
+        from .lots.settings import set_lot_rotation_days
+
+        return set_lot_rotation_days(store, values.days, user["username"])
 
     @app.get("/api/requests")
     def request_index(user=Depends(staff)):
