@@ -69,7 +69,7 @@ régénère la bibliothèque avec les photos restaurées :
 
 ```bash
 # L'environnement Python doit contenir les dépendances du projet.
-uv run python scripts/verify_collection_snapshot.py /tmp/collection-restauree /tmp/controle-restauration
+uv run --extra cli python scripts/verify_collection_snapshot.py /tmp/collection-restauree /tmp/controle-restauration
 ```
 
 Le dossier de résultat doit lui aussi être inexistant. Les assertions du script

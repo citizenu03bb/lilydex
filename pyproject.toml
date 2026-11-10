@@ -5,20 +5,28 @@ description = "Digitise, identify, price and sell a multilingual Pokemon card co
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
+# Socle : ce dont le serveur a besoin quel que soit le point d'entrée
+# (pokeprice-manage, sauvegardes, tâches planifiées).
 dependencies = [
     "pillow>=10.0.0",
-    "pandas>=2.0.0",
-    "openpyxl>=3.1.0",
     "pydantic>=2.0.0",
     "requests>=2.31.0",
-    "tabulate>=0.9.0",
-    "google-genai>=2.28.0",
     "python-dotenv>=1.2.4",
     "pyrage>=1.2",
 ]
 
 [project.optional-dependencies]
+# Pipeline d'albums (`pokeprice scan|report|html|library`) et import de ses
+# rapports (`pokeprice-manage import`) : absent du serveur de production.
+cli = [
+    "pandas>=2.0.0",
+    "openpyxl>=3.1.0",
+    "tabulate>=0.9.0",
+    "google-genai>=2.28.0",
+]
 dev = [
+    # Les tests couvrent aussi le pipeline d'albums.
+    "pokeprice[cli]",
     "pytest>=8.0.0",
     "pytest-cov>=6.0.0",
     "httpx>=0.28.0",
@@ -30,6 +38,8 @@ dev = [
 ]
 web = [
     "fastapi>=0.115.0,<1",
+    # Lecture des photos, contrôles et assistant : Gemini, côté serveur.
+    "google-genai>=2.28.0",
     "pywebpush>=2.0",
     "uvicorn>=0.34.0,<1",
 ]
@@ -171,7 +181,7 @@ disable_error_code = ["assignment"]
 
 # Modules entièrement annotés : toute fonction doit le rester.
 [[tool.mypy.overrides]]
-module = ["pokeprice.brand", "pokeprice.slicer"]
+module = ["pokeprice.brand", "pokeprice.extras", "pokeprice.slicer"]
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
 

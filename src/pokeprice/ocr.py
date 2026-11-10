@@ -271,7 +271,8 @@ class GeminiVisionProvider:
             self.client = genai.Client(http_options=types.HttpOptions(timeout=120_000))
         except ImportError as error:
             raise ImportError(
-                "google-genai is not installed. Run 'uv pip install google-genai python-dotenv' to use cloud backend."
+                "google-genai is not installed: it comes with the 'cli' (scanner) and 'web' extras. "
+                "Run 'uv sync --extra cli' to use the cloud backend."
             ) from error
 
     def extract_card(self, image: Image.Image) -> CardOCRResult:

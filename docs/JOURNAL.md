@@ -7,6 +7,17 @@
 Une page qui décrit le fonctionnement ne porte pas de date : quand un passage
 daté la quitte, il est versé ici dans le même commit.
 
+## 2026-11-10
+
+- Contrôles statiques en CI : `ruff` (lint, sans reformatage), `mypy` avec
+  une base de départ pour les modules historiques, couverture publiée sans
+  seuil, suite lancée sous Python 3.11, 3.12 et 3.13 (`pyproject.toml`,
+  `.github/workflows/tests.yml`).
+- Installation allégée : pandas, openpyxl et tabulate quittent le socle pour
+  l'option `cli` (pipeline d'albums et `pokeprice-manage import`) ;
+  `google-genai` passe dans `web` et `cli`. La commande d'installation du
+  serveur ne change pas (`tests/test_extras.py`).
+
 ## 2026-11-06
 
 - La boutique passe sur son propre domaine, `lescartesdelily.fr` (OVH).

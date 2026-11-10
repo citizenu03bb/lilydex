@@ -3,16 +3,16 @@ revision = 5
 requires-python = ">=3.11"
 resolution-markers = [
     "python_full_version >= '3.15' and platform_machine == 'aarch64' and sys_platform == 'win32'",
-    "python_full_version == '3.14.*' and platform_machine == 'aarch64' and sys_platform == 'win32'",
     "python_full_version >= '3.15' and platform_machine != 'aarch64' and sys_platform == 'win32'",
-    "python_full_version == '3.14.*' and platform_machine != 'aarch64' and sys_platform == 'win32'",
     "python_full_version >= '3.15' and platform_machine == 'aarch64' and sys_platform == 'emscripten'",
-    "python_full_version == '3.14.*' and platform_machine == 'aarch64' and sys_platform == 'emscripten'",
     "python_full_version >= '3.15' and platform_machine != 'aarch64' and sys_platform == 'emscripten'",
-    "python_full_version == '3.14.*' and platform_machine != 'aarch64' and sys_platform == 'emscripten'",
     "python_full_version >= '3.15' and platform_machine == 'aarch64' and sys_platform != 'emscripten' and sys_platform != 'win32'",
-    "python_full_version == '3.14.*' and platform_machine == 'aarch64' and sys_platform != 'emscripten' and sys_platform != 'win32'",
     "python_full_version >= '3.15' and platform_machine != 'aarch64' and sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "python_full_version == '3.14.*' and platform_machine == 'aarch64' and sys_platform == 'win32'",
+    "python_full_version == '3.14.*' and platform_machine != 'aarch64' and sys_platform == 'win32'",
+    "python_full_version == '3.14.*' and platform_machine == 'aarch64' and sys_platform == 'emscripten'",
+    "python_full_version == '3.14.*' and platform_machine != 'aarch64' and sys_platform == 'emscripten'",
+    "python_full_version == '3.14.*' and platform_machine == 'aarch64' and sys_platform != 'emscripten' and sys_platform != 'win32'",
     "python_full_version == '3.14.*' and platform_machine != 'aarch64' and sys_platform != 'emscripten' and sys_platform != 'win32'",
     "python_full_version >= '3.12' and python_full_version < '3.14' and platform_machine == 'aarch64' and sys_platform == 'win32'",
     "python_full_version >= '3.12' and python_full_version < '3.14' and platform_machine != 'aarch64' and sys_platform == 'win32'",
@@ -1739,16 +1739,16 @@ version = "3.7"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.15' and platform_machine == 'aarch64' and sys_platform == 'win32'",
-    "python_full_version == '3.14.*' and platform_machine == 'aarch64' and sys_platform == 'win32'",
     "python_full_version >= '3.15' and platform_machine != 'aarch64' and sys_platform == 'win32'",
-    "python_full_version == '3.14.*' and platform_machine != 'aarch64' and sys_platform == 'win32'",
     "python_full_version >= '3.15' and platform_machine == 'aarch64' and sys_platform == 'emscripten'",
-    "python_full_version == '3.14.*' and platform_machine == 'aarch64' and sys_platform == 'emscripten'",
     "python_full_version >= '3.15' and platform_machine != 'aarch64' and sys_platform == 'emscripten'",
-    "python_full_version == '3.14.*' and platform_machine != 'aarch64' and sys_platform == 'emscripten'",
     "python_full_version >= '3.15' and platform_machine == 'aarch64' and sys_platform != 'emscripten' and sys_platform != 'win32'",
-    "python_full_version == '3.14.*' and platform_machine == 'aarch64' and sys_platform != 'emscripten' and sys_platform != 'win32'",
     "python_full_version >= '3.15' and platform_machine != 'aarch64' and sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "python_full_version == '3.14.*' and platform_machine == 'aarch64' and sys_platform == 'win32'",
+    "python_full_version == '3.14.*' and platform_machine != 'aarch64' and sys_platform == 'win32'",
+    "python_full_version == '3.14.*' and platform_machine == 'aarch64' and sys_platform == 'emscripten'",
+    "python_full_version == '3.14.*' and platform_machine != 'aarch64' and sys_platform == 'emscripten'",
+    "python_full_version == '3.14.*' and platform_machine == 'aarch64' and sys_platform != 'emscripten' and sys_platform != 'win32'",
     "python_full_version == '3.14.*' and platform_machine != 'aarch64' and sys_platform != 'emscripten' and sys_platform != 'win32'",
     "python_full_version >= '3.12' and python_full_version < '3.14' and platform_machine == 'aarch64' and sys_platform == 'win32'",
     "python_full_version >= '3.12' and python_full_version < '3.14' and platform_machine != 'aarch64' and sys_platform == 'win32'",
@@ -1855,16 +1855,16 @@ version = "2.5.3"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.15' and platform_machine == 'aarch64' and sys_platform == 'win32'",
-    "python_full_version == '3.14.*' and platform_machine == 'aarch64' and sys_platform == 'win32'",
     "python_full_version >= '3.15' and platform_machine != 'aarch64' and sys_platform == 'win32'",
-    "python_full_version == '3.14.*' and platform_machine != 'aarch64' and sys_platform == 'win32'",
     "python_full_version >= '3.15' and platform_machine == 'aarch64' and sys_platform == 'emscripten'",
-    "python_full_version == '3.14.*' and platform_machine == 'aarch64' and sys_platform == 'emscripten'",
     "python_full_version >= '3.15' and platform_machine != 'aarch64' and sys_platform == 'emscripten'",
-    "python_full_version == '3.14.*' and platform_machine != 'aarch64' and sys_platform == 'emscripten'",
     "python_full_version >= '3.15' and platform_machine == 'aarch64' and sys_platform != 'emscripten' and sys_platform != 'win32'",
-    "python_full_version == '3.14.*' and platform_machine == 'aarch64' and sys_platform != 'emscripten' and sys_platform != 'win32'",
     "python_full_version >= '3.15' and platform_machine != 'aarch64' and sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "python_full_version == '3.14.*' and platform_machine == 'aarch64' and sys_platform == 'win32'",
+    "python_full_version == '3.14.*' and platform_machine != 'aarch64' and sys_platform == 'win32'",
+    "python_full_version == '3.14.*' and platform_machine == 'aarch64' and sys_platform == 'emscripten'",
+    "python_full_version == '3.14.*' and platform_machine != 'aarch64' and sys_platform == 'emscripten'",
+    "python_full_version == '3.14.*' and platform_machine == 'aarch64' and sys_platform != 'emscripten' and sys_platform != 'win32'",
     "python_full_version == '3.14.*' and platform_machine != 'aarch64' and sys_platform != 'emscripten' and sys_platform != 'win32'",
     "python_full_version >= '3.12' and python_full_version < '3.14' and platform_machine == 'aarch64' and sys_platform == 'win32'",
     "python_full_version >= '3.12' and python_full_version < '3.14' and platform_machine != 'aarch64' and sys_platform == 'win32'",
@@ -2302,25 +2302,31 @@ name = "pokeprice"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "google-genai" },
-    { name = "openpyxl" },
-    { name = "pandas" },
     { name = "pillow" },
     { name = "pydantic" },
     { name = "pyrage" },
     { name = "python-dotenv" },
     { name = "requests" },
-    { name = "tabulate" },
 ]
 
 [package.optional-dependencies]
+cli = [
+    { name = "google-genai" },
+    { name = "openpyxl" },
+    { name = "pandas" },
+    { name = "tabulate" },
+]
 dev = [
     { name = "fastapi" },
+    { name = "google-genai" },
     { name = "httpx" },
     { name = "mypy" },
+    { name = "openpyxl" },
+    { name = "pandas" },
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "ruff" },
+    { name = "tabulate" },
     { name = "types-requests" },
     { name = "types-tabulate" },
 ]
@@ -2331,6 +2337,7 @@ vision = [
 ]
 web = [
     { name = "fastapi" },
+    { name = "google-genai" },
     { name = "pywebpush" },
     { name = "uvicorn" },
 ]
@@ -2339,12 +2346,14 @@ web = [
 requires-dist = [
     { name = "fastapi", marker = "extra == 'dev'", specifier = ">=0.115.0,<1" },
     { name = "fastapi", marker = "extra == 'web'", specifier = ">=0.115.0,<1" },
-    { name = "google-genai", specifier = ">=2.28.0" },
+    { name = "google-genai", marker = "extra == 'cli'", specifier = ">=2.28.0" },
+    { name = "google-genai", marker = "extra == 'web'", specifier = ">=2.28.0" },
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.28.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.18.0" },
-    { name = "openpyxl", specifier = ">=3.1.0" },
-    { name = "pandas", specifier = ">=2.0.0" },
+    { name = "openpyxl", marker = "extra == 'cli'", specifier = ">=3.1.0" },
+    { name = "pandas", marker = "extra == 'cli'", specifier = ">=2.0.0" },
     { name = "pillow", specifier = ">=10.0.0" },
+    { name = "pokeprice", extras = ["cli"], marker = "extra == 'dev'" },
     { name = "pydantic", specifier = ">=2.0.0" },
     { name = "pyrage", specifier = ">=1.2" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0.0" },
@@ -2353,7 +2362,7 @@ requires-dist = [
     { name = "pywebpush", marker = "extra == 'web'", specifier = ">=2.0" },
     { name = "requests", specifier = ">=2.31.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.14.0" },
-    { name = "tabulate", specifier = ">=0.9.0" },
+    { name = "tabulate", marker = "extra == 'cli'", specifier = ">=0.9.0" },
     { name = "torch", marker = "platform_machine == 'aarch64' and extra == 'vision'", specifier = ">=2.4", index = "https://download.pytorch.org/whl/cpu" },
     { name = "torch", marker = "platform_machine != 'aarch64' and extra == 'vision'", specifier = ">=2.4" },
     { name = "transformers", marker = "extra == 'vision'", specifier = ">=4.45" },
@@ -2361,7 +2370,7 @@ requires-dist = [
     { name = "types-tabulate", marker = "extra == 'dev'", specifier = ">=0.9.0" },
     { name = "uvicorn", marker = "extra == 'web'", specifier = ">=0.34.0,<1" },
 ]
-provides-extras = ["dev", "web", "vision"]
+provides-extras = ["cli", "dev", "web", "vision"]
 
 [[package]]
 name = "propcache"
@@ -3108,10 +3117,10 @@ version = "2.14.1"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.15' and platform_machine != 'aarch64' and sys_platform == 'win32'",
-    "python_full_version == '3.14.*' and platform_machine != 'aarch64' and sys_platform == 'win32'",
     "python_full_version >= '3.15' and platform_machine != 'aarch64' and sys_platform == 'emscripten'",
-    "python_full_version == '3.14.*' and platform_machine != 'aarch64' and sys_platform == 'emscripten'",
     "python_full_version >= '3.15' and platform_machine != 'aarch64' and sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "python_full_version == '3.14.*' and platform_machine != 'aarch64' and sys_platform == 'win32'",
+    "python_full_version == '3.14.*' and platform_machine != 'aarch64' and sys_platform == 'emscripten'",
     "python_full_version == '3.14.*' and platform_machine != 'aarch64' and sys_platform != 'emscripten' and sys_platform != 'win32'",
     "python_full_version >= '3.12' and python_full_version < '3.14' and platform_machine != 'aarch64' and sys_platform == 'win32'",
     "python_full_version >= '3.12' and python_full_version < '3.14' and platform_machine != 'aarch64' and sys_platform == 'emscripten'",
@@ -3166,10 +3175,10 @@ version = "2.14.1+cpu"
 source = { registry = "https://download.pytorch.org/whl/cpu" }
 resolution-markers = [
     "python_full_version >= '3.15' and platform_machine == 'aarch64' and sys_platform == 'win32'",
-    "python_full_version == '3.14.*' and platform_machine == 'aarch64' and sys_platform == 'win32'",
     "python_full_version >= '3.15' and platform_machine == 'aarch64' and sys_platform == 'emscripten'",
-    "python_full_version == '3.14.*' and platform_machine == 'aarch64' and sys_platform == 'emscripten'",
     "python_full_version >= '3.15' and platform_machine == 'aarch64' and sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "python_full_version == '3.14.*' and platform_machine == 'aarch64' and sys_platform == 'win32'",
+    "python_full_version == '3.14.*' and platform_machine == 'aarch64' and sys_platform == 'emscripten'",
     "python_full_version == '3.14.*' and platform_machine == 'aarch64' and sys_platform != 'emscripten' and sys_platform != 'win32'",
     "python_full_version >= '3.12' and python_full_version < '3.14' and platform_machine == 'aarch64' and sys_platform == 'win32'",
     "python_full_version >= '3.12' and python_full_version < '3.14' and platform_machine == 'aarch64' and sys_platform == 'emscripten'",
