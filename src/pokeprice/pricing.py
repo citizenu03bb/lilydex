@@ -367,21 +367,160 @@ FLOOR_CENTS = 50  # Below this, a card goes into a lot or is given away.
 HIGH_VALUE_CENTS = 1000  # From here, a trend alone is not a selling price.
 TREND_CONDITIONS = {"MT", "NM", "EX", "NM/EX"}
 DEFAULT_LOT_MAX_MARGIN = 15
+LOT_MAX_MARGIN_LIMIT = 50
+# Read once, by the schema 27 migration, to carry over the value a server ran with.
 LOT_MAX_MARGIN_ENV = "POKEPRICE_LOT_MAX_MARGIN"
+LOT_MAX_MARGIN_KEY = "lot_max_margin"
+LOT_MAX_MARGIN_EVENT = "floor-margin"
 
 
-def lot_max_margin():
-    raw = os.environ.get(LOT_MAX_MARGIN_ENV, "")
+def check_lot_margin(margin):
+    """A margin is a whole percentage from 0 to 50; anything else is refused."""
+    if (
+        isinstance(margin, bool)
+        or not isinstance(margin, int)
+        or not 0 <= margin <= LOT_MAX_MARGIN_LIMIT
+    ):
+        raise ValueError(
+            f"La marge est un pourcentage entier entre 0 et {LOT_MAX_MARGIN_LIMIT}."
+        )
+    return margin
+
+
+def lot_max_margin(source):
+    """The anti-undercut margin, in percent, as the administration stored it.
+
+    ``source`` is a store or an open connection of the collection. The setting
+    lives in the base (decision 0042): no environment variable and no caller's
+    argument loosens it.
+    """
+    if hasattr(source, "connect"):
+        with source.connect() as db:
+            return lot_max_margin(db)
+    row = source.execute(
+        "SELECT value_json FROM settings WHERE key=?", (LOT_MAX_MARGIN_KEY,)
+    ).fetchone()
+    if row is None:
+        return DEFAULT_LOT_MAX_MARGIN
+    return check_lot_margin(json.loads(row[0]))
+
+
+def stricter_margin(stored, asked=None):
+    """The margin a caller may ask for: the stored one, or a smaller one.
+
+    A smaller margin raises the floor, which only protects the seller more. A
+    larger one is refused rather than silently capped: the caller would
+    otherwise believe the floor went down.
+    """
+    if asked is None:
+        return stored
+    check_lot_margin(asked)
+    if asked > stored:
+        raise ValueError(
+            f"La marge demandée ({asked} %) dépasse celle réglée par l’administration "
+            f"({stored} %) : seule une marge plus stricte est acceptée."
+        )
+    return asked
+
+
+def set_lot_max_margin(store, margin, actor):
+    """Store the margin and journal who changed it, when, from what to what."""
+    check_lot_margin(margin)
+    with store.connect(write=True) as db:
+        # Whatever route calls it: an agent key or a tool's name is not an administrator.
+        if not db.execute(
+            "SELECT 1 FROM users WHERE username=? AND role='admin' AND disabled=0 AND status='active'",
+            (actor,),
+        ).fetchone():
+            from .floor_requests import HumanOnly
+
+            raise HumanOnly("Seul un compte administrateur règle la marge du plancher anti-bradage.")
+        before = lot_max_margin(db)
+        _write_lot_max_margin(db, margin, actor, before, "Réglage de la marge du plancher anti-bradage.")
+    return {"margin": margin, "previous": before}
+
+
+def _write_lot_max_margin(db, margin, actor, before, reason, **origin):
+    stamp = now()
+    db.execute(
+        "INSERT INTO settings(key,value_json,updated_by,updated_at) VALUES(?,?,?,?) "
+        "ON CONFLICT(key) DO UPDATE SET value_json=excluded.value_json,"
+        "updated_by=excluded.updated_by,updated_at=excluded.updated_at",
+        (LOT_MAX_MARGIN_KEY, json.dumps(margin), actor, stamp),
+    )
+    db.execute(
+        "INSERT INTO events(copy_id,actor,kind,reason,before_json,after_json,created_at) "
+        "VALUES(NULL,?,?,?,?,?,?)",
+        (
+            actor,
+            LOT_MAX_MARGIN_EVENT,
+            reason,
+            json.dumps({} if before is None else {"margin": before}),
+            json.dumps({"margin": margin, **origin}, ensure_ascii=False),
+            stamp,
+        ),
+    )
+
+
+def lot_margin_history(store, limit=20):
+    with store.connect() as db:
+        rows = db.execute(
+            "SELECT actor,reason,before_json,after_json,created_at FROM events "
+            "WHERE kind=? ORDER BY id DESC LIMIT ?",
+            (LOT_MAX_MARGIN_EVENT, limit),
+        ).fetchall()
+    return [
+        {
+            "actor": r["actor"],
+            "reason": r["reason"],
+            "previous": json.loads(r["before_json"]).get("margin"),
+            "margin": after["margin"],
+            # Only the migration's row says where its value came from.
+            "origin": after.get("origin"),
+            "read": after.get("read"),
+            "at": r["created_at"],
+        }
+        for r in rows
+        for after in [json.loads(r["after_json"])]
+    ]
+
+
+def migrate_lot_max_margin(db, *, seed_from_env):
+    """Schema 27: the anti-undercut margin moves from the environment to the base.
+
+    An existing base keeps the value its server ran with: the variable is read
+    here, once, and never again. A new base starts at the default.
+    """
+    margin, origin = DEFAULT_LOT_MAX_MARGIN, "default"
+    reason = f"valeur par défaut ({LOT_MAX_MARGIN_ENV} absente)" if seed_from_env else "valeur par défaut d’une base neuve"
+    raw = os.environ.get(LOT_MAX_MARGIN_ENV, "").strip() if seed_from_env else ""
+    if raw:
+        try:
+            margin = max(0, min(LOT_MAX_MARGIN_LIMIT, int(raw)))
+            origin = "environment"
+            reason = f"reprise de {LOT_MAX_MARGIN_ENV}={raw}"
+        except ValueError:
+            origin = "unreadable"
+            reason = f"{LOT_MAX_MARGIN_ENV}={raw[:20]} illisible, valeur par défaut"
+    db.execute("BEGIN IMMEDIATE")
     try:
-        margin = int(raw) if raw.strip() else DEFAULT_LOT_MAX_MARGIN
-    except ValueError:
-        raise ValueError(f"{LOT_MAX_MARGIN_ENV} attend un pourcentage entier, pas « {raw} ».")
-    return max(0, min(50, margin))
+        if not db.execute(
+            "SELECT 1 FROM settings WHERE key=?", (LOT_MAX_MARGIN_KEY,)
+        ).fetchone():
+            _write_lot_max_margin(
+                db, margin, "migration", None, f"Schéma 27 : {reason}.",
+                origin=origin, read=raw[:20] or None,
+            )
+        db.execute("PRAGMA user_version=27")
+        db.execute("COMMIT")
+    except Exception:
+        db.execute("ROLLBACK")
+        raise
 
 
-def lot_floor_cents(total_reference_cents):
+def lot_floor_cents(total_reference_cents, margin):
     """Lowest price of a card or lot: the reference less the margin, rounded up to the cent."""
-    keep = 100 - lot_max_margin()
+    keep = 100 - check_lot_margin(margin)
     return -(-total_reference_cents * keep // 100)
 
 

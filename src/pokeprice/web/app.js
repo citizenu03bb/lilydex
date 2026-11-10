@@ -2980,12 +2980,27 @@ async function loadPayment() {
   const form = $("payment-form");
   for (const [name, value] of Object.entries(payment)) form.elements[name].value = value;
 }
+async function loadFloorMargin() {
+  const data = await api("/settings/floor-margin");
+  $("floor-margin-form").elements.margin.value = data.margin;
+  $("floor-margin-history").replaceChildren(
+    ...data.history.map((h) =>
+      el(
+        "li",
+        `${new Date(h.at).toLocaleString("fr-FR")} · ${h.actor} : ${
+          h.previous === null ? "" : `${h.previous} % → `
+        }${h.margin} % — ${h.reason}`,
+      ),
+    ),
+  );
+}
 async function loadUsers() {
   window.lilydexPush?.refresh();
   if (typeof Workflows !== "undefined") await Workflows.backupStatus();
   const users = await api("/users");
   await loadClients();
   await loadPayment();
+  await loadFloorMargin();
   $("users-list").replaceChildren();
   for (const u of users) {
     const row = el("form", undefined, "user-access");
@@ -4004,6 +4019,20 @@ $("payment-form").addEventListener("submit", async (e) => {
     $("payment-message").textContent = "Moyens de paiement enregistrés.";
   } catch (err) {
     $("payment-message").textContent = err.message;
+  }
+});
+$("floor-margin-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  try {
+    await api("/settings/floor-margin", {
+      method: "PUT",
+      body: JSON.stringify({ margin: Number(e.target.elements.margin.value) }),
+    });
+    state.summary = await api("/summary");
+    await loadFloorMargin();
+    $("floor-margin-message").textContent = "Marge enregistrée.";
+  } catch (err) {
+    $("floor-margin-message").textContent = err.message;
   }
 });
 $("album-form").addEventListener("submit", async (e) => {

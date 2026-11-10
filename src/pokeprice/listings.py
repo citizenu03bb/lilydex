@@ -87,7 +87,7 @@ class Listings:
     def __init__(self, store):
         self.store = store
 
-    def refuse(self, message, copy_ids, refs, price_cents, floor, actor, *, lot=False, title="", reason=""):
+    def refuse(self, message, copy_ids, refs, price_cents, floor, margin, actor, *, lot=False, title="", reason=""):
         error = FloorRefusal(
             message,
             {
@@ -98,7 +98,7 @@ class Listings:
                 "floor_cents": floor,
                 "references": [{"copy_id": c, "reference_cents": refs[c]} for c in copy_ids],
                 "total_reference_cents": sum(refs.values()),
-                "margin": lot_max_margin(),
+                "margin": margin,
                 "refusal": message,
                 "reason": reason.strip() or message,
             },
@@ -125,7 +125,9 @@ class Listings:
             return result
         result = display_price(card, card["valuation"])
         ref = reference_cents(card)
-        result["floor_cents"] = max(FLOOR_CENTS, lot_floor_cents(ref)) if ref else FLOOR_CENTS
+        result["floor_cents"] = (
+            max(FLOOR_CENTS, lot_floor_cents(ref, lot_max_margin(self.store))) if ref else FLOOR_CENTS
+        )
         return result
 
     @staticmethod
@@ -208,13 +210,14 @@ class Listings:
                 (f"{cards[copy_ids[0]]['name']} : " if not lot else "")
                 + NO_REFERENCE_FOR_AGENT
             )
+        margin = lot_max_margin(self.store)
         asked = price_cents
         if asked is None and agent:
             # A computed price is checked too when an agent publishes.
             asked = proposals[copy_ids[0]]["price_cents"]
         if lot:
             unrated = sum(r == 0 for r in refs.values())
-            floor = max(FLOOR_CENTS, lot_floor_cents(total_ref))
+            floor = max(FLOOR_CENTS, lot_floor_cents(total_ref, margin))
             if price_cents < FLOOR_CENTS or (price_cents < floor and not waiver_by):
                 if not total_ref:
                     raise ValueError(
@@ -228,13 +231,13 @@ class Listings:
                 note = f", dont {unrated} sans référence" if unrated else ""
                 self.refuse(
                     f"Prix du lot {euros(price_cents / 100)} sous le plancher anti-bradage de "
-                    f"{euros(floor / 100)} (somme des références {euros(total_ref / 100)} moins {lot_max_margin()} %{note}).",
-                    copy_ids, refs, price_cents, floor, actor, lot=True, title=title, reason=reason,
+                    f"{euros(floor / 100)} (somme des références {euros(total_ref / 100)} moins {margin} %{note}).",
+                    copy_ids, refs, price_cents, floor, margin, actor, lot=True, title=title, reason=reason,
                 )
         elif asked is not None:
             card = cards[copy_ids[0]]
             ref = refs[copy_ids[0]]
-            floor = max(FLOOR_CENTS, lot_floor_cents(ref)) if ref else FLOOR_CENTS
+            floor = max(FLOOR_CENTS, lot_floor_cents(ref, margin)) if ref else FLOOR_CENTS
             if asked < FLOOR_CENTS or (asked < floor and not waiver_by):
                 if not ref:
                     raise ValueError(
@@ -248,8 +251,8 @@ class Listings:
                     )
                 self.refuse(
                     f"{card['name']} : Prix {euros(asked / 100)} sous le plancher anti-bradage de "
-                    f"{euros(floor / 100)} (référence {euros(ref / 100)} moins {lot_max_margin()} %).",
-                    copy_ids, refs, asked, floor, actor, title=title, reason=reason,
+                    f"{euros(floor / 100)} (référence {euros(ref / 100)} moins {margin} %).",
+                    copy_ids, refs, asked, floor, margin, actor, title=title, reason=reason,
                 )
             if price_cents is not None:
                 proposals[copy_ids[0]]["price_cents"] = price_cents
@@ -266,6 +269,12 @@ class Listings:
         timestamp = now()
         trace = f" (dérogation accordée par {waiver_by})" if waiver_by else ""
         with self.store.connect(write=True) as db:
+            # The floor above was checked with a margin read before this transaction:
+            # if the administration changed it since, nothing is written on the old one.
+            if lot_max_margin(db) != margin:
+                raise Conflict(
+                    "La marge du plancher anti-bradage a changé entre-temps : recommencez la publication."
+                )
             for copy_id in copy_ids:
                 card = self.store.get(db, copy_id)
                 if card["deleted_at"] or card["stock_state"] != "available":

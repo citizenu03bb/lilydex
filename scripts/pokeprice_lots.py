@@ -33,12 +33,7 @@ _SRC = str(Path(__file__).resolve().parents[1] / "src")
 if _SRC not in sys.path:
     sys.path.insert(0, _SRC)
 
-from pokeprice.pricing import (  # noqa: E402
-    DEFAULT_LOT_MAX_MARGIN,
-    LOT_MAX_MARGIN_ENV,
-    lot_floor_cents,
-    lot_max_margin,
-)
+from pokeprice.pricing import lot_floor_cents, lot_max_margin  # noqa: E402
 from pokeprice.reservations import shipping_quote  # noqa: E402
 
 MAX_ROTATION_DRAFTS = 5
@@ -401,6 +396,10 @@ class LotsEngine:
 
             self._store = Store(str(Path(self.db_path).parent))
         return self._store
+
+    def max_margin(self):
+        """Marge du plancher anti-bradage, telle que l'administration l'a réglée dans la base."""
+        return lot_max_margin(self.store())
 
     def valued_cards(self):
         """Fiches de la collection avec leur valorisation, comme la liste de gestion."""
@@ -1041,12 +1040,13 @@ class LotsEngine:
                 f"{len(unrated)} carte(s) sans cote : impossible de vérifier que le lot n'est pas bradé."
             )
         floor_refusal = None
+        margin = lot_max_margin(db)
         if not unrated:
-            floor = lot_floor_cents(sum(it["reference_cents"] or 0 for it in items))
+            floor = lot_floor_cents(sum(it["reference_cents"] or 0 for it in items), margin)
             if price_cents < floor:
                 floor_refusal = (
                     f"Prix du lot {euros(price_cents / 100)} sous le plancher anti-bradage de "
-                    f"{euros(floor / 100)} (somme des cotes moins {lot_max_margin()} %)."
+                    f"{euros(floor / 100)} (somme des cotes moins {margin} %)."
                 )
                 refusals.append(floor_refusal)
 
@@ -1092,7 +1092,7 @@ class LotsEngine:
                         "floor_cents": floor,
                         "references": [{"copy_id": c, "reference_cents": refs[c]} for c in copy_ids],
                         "total_reference_cents": sum(refs.values()),
-                        "margin": lot_max_margin(),
+                        "margin": margin,
                         "refusal": floor_refusal,
                         "reason": f"Lot « {sale['title']} » composé par l'outil de lots, prix demandé sous le plancher.",
                     },
@@ -1382,7 +1382,7 @@ class LotsEngine:
         total_ref_cents = sum(c.get("reference_cents") or 0 for c in selected)
         # La décote ne descend jamais sous le plancher anti-bradage ; l'arrondi au
         # demi-euro se fait vers le haut pour ne pas repasser dessous.
-        discount = max(0, min(lot_max_margin(), recipe.bundle_rules.target_discount_percent))
+        discount = max(0, min(self.max_margin(), recipe.bundle_rules.target_discount_percent))
         raw_asking = -(-total_ref_cents * (100 - discount) // 100)
         asking_cents = max(200, -(-raw_asking // 50) * 50)
 
@@ -1527,11 +1527,9 @@ def run_remote_command(remote_host, data, subcmd, extra_args):
         subcmd,
     ] + extra_args
     sudo_inner = " ".join(shlex.quote(arg) for arg in remote_cmd)
-    # sudo repart d'un environnement vide : la marge anti-bradage choisie ici suit.
-    margin = os.environ.get(LOT_MAX_MARGIN_ENV, "").strip()
-    margin_env = f" {LOT_MAX_MARGIN_ENV}={shlex.quote(margin)}" if margin else ""
+    # Aucun réglage du poste ne suit : la marge anti-bradage se lit dans la base du serveur.
     full_ssh_cmd = (
-        f"cd /tmp && sudo -u pokeprice env HOME=/srv/pokeprice PYTHONPATH=/opt/pokeprice/src{margin_env} {sudo_inner}"
+        f"cd /tmp && sudo -u pokeprice env HOME=/srv/pokeprice PYTHONPATH=/opt/pokeprice/src {sudo_inner}"
     )
     res = subprocess.run(
         ["ssh", "-o", "BatchMode=yes", remote_host, full_ssh_cmd],
