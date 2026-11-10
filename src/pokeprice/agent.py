@@ -7,6 +7,8 @@ import secrets
 import time
 import uuid
 from collections import Counter, defaultdict
+from collections.abc import Iterable, Mapping
+from typing import Any
 
 from .inventory import Conflict, now
 
@@ -27,12 +29,36 @@ CREATE TABLE IF NOT EXISTS agent_drafts(
 PRAGMA user_version=18;
 COMMIT;
 """
+# Operator lots tool behind the agent API: read the pool and status, compose
+# drafts, publish. Collection-wide whatever album the grant names, so only an
+# active admin may hold them; publishing does not imply composing.
+LOTS_PERMISSIONS = frozenset({"lots:read", "lots:compose", "lots:publish"})
 PERMISSIONS = frozenset(
     {"copies:read", "photos:read", "drafts:create", "corrections:apply", "assistant:read"}
+    | LOTS_PERMISSIONS
 )
 # Read-only tools of the management assistant (decision 0032): collection-wide,
 # so only a management account (editor or admin) may delegate them.
-STAFF_ONLY = ("drafts:create", "corrections:apply", "assistant:read")
+STAFF_ONLY = (
+    "drafts:create",
+    "corrections:apply",
+    "assistant:read",
+    *sorted(LOTS_PERMISSIONS),
+)
+# A lots key does one job: no album drafts, catalogue corrections or assistant.
+LOTS_INCOMPATIBLE = frozenset({"corrections:apply", "drafts:create", "assistant:read"})
+LOTS_DEFAULT_CEILING_CENTS = 1000
+LOTS_MAX_CEILING_CENTS = 2000
+# Operations /capabilities advertises per lots permission (endpoints follow
+# the permission set: reads, then compose, then publish).
+LOTS_OPERATIONS: Mapping[str, tuple[str, ...]] = {
+    "lots:read": ("lots-pool", "lots-status", "lots-plan"),
+    "lots:compose": ("lots-compose", "lots-rotate", "lots-cancel", "lots-raise"),
+    "lots:publish": ("lots-publish", "lots-unpublish"),
+}
+GRANT_CREATED = "agent-grant-create"
+GRANT_REVOKED = "agent-grant-revoke"
+MANAGE_ACTOR = "system:manage"
 MAX_ALBUM_COPIES = 2000
 MAX_DRAFT_COPIES = 20
 CARD_FIELDS = (
@@ -97,12 +123,36 @@ def disable_tokens(db):
         )
 
 
-def permitted(permissions, role):
-    """What a delegation may still do: a reader's account loses the staff-only scopes."""
-    permissions = set(permissions)
+def permitted(permissions: Iterable[str], role: str) -> set[str]:
+    """What a delegation may still do, from the owner's role at the time of the call.
+
+    A reader's account loses the staff-only scopes; any account that is not an
+    admin loses the lots scopes, so a demoted owner's key stops at the next call.
+    """
+    allowed = set(permissions)
     if role == "reader":
-        permissions.difference_update(STAFF_ONLY)
-    return permissions
+        allowed.difference_update(STAFF_ONLY)
+    if role != "admin":
+        allowed.difference_update(LOTS_PERMISSIONS)
+    return allowed
+
+
+def lots_capabilities(grant: Mapping[str, Any]) -> dict[str, Any] | None:
+    """The lots part of /capabilities, or None for a grant without lots scopes."""
+    held = sorted(LOTS_PERMISSIONS & set(grant["permissions"]))
+    if not held:
+        return None
+    return {
+        "scope": "collection",
+        "permissions": held,
+        "operations": [op for p in held for op in LOTS_OPERATIONS[p]],
+        "value_ceiling_cents": lots_ceiling_cents(grant),
+    }
+
+
+def lots_ceiling_cents(grant: Mapping[str, Any]) -> int:
+    """Value ceiling a lots operation applies: the grant's, never above the code maximum."""
+    return min(int(grant["value_ceiling_cents"]), LOTS_MAX_CEILING_CENTS)
 
 
 def require(grant, permission):
@@ -125,11 +175,18 @@ class AgentService:
         days=7,
         client="",
         value_ceiling_cents=1000,
+        actor=MANAGE_ACTOR,
     ):
         permissions = set(permissions) | {"copies:read"}
         if not permissions <= PERMISSIONS or not 1 <= days <= 30:
             raise ValueError(
                 "Permissions ou expiration agent invalides (1 à 30 jours)."
+            )
+        lots = bool(permissions & LOTS_PERMISSIONS)
+        if lots and permissions & LOTS_INCOMPATIBLE:
+            raise ValueError(
+                "Un accès lots ne se combine ni avec les brouillons d’album, "
+                "ni avec les corrections, ni avec l’assistant de gestion."
             )
         if (
             not name.strip()
@@ -140,6 +197,8 @@ class AgentService:
             raise ValueError("Indiquez un nom et le client destinataire des données.")
         if not 1 <= value_ceiling_cents <= 1000000:
             raise ValueError("Plafond de valeur invalide.")
+        if lots:
+            value_ceiling_cents = min(value_ceiling_cents, LOTS_MAX_CEILING_CENTS)
         token = "pp_agent_" + secrets.token_urlsafe(32)
         grant_id = str(uuid.uuid4())
         with self.store.connect(write=True) as db:
@@ -155,8 +214,11 @@ class AgentService:
                 raise ValueError("Un lecteur ne peut pas déléguer des corrections.")
             if "assistant:read" in permissions and user["role"] == "reader":
                 raise ValueError("Un lecteur ne peut pas déléguer l’assistant de gestion.")
+            if lots and user["role"] != "admin":
+                raise ValueError("Seul un administrateur actif peut déléguer l’outil des lots.")
             if not db.execute("SELECT 1 FROM albums WHERE id=?", (album,)).fetchone():
                 raise ValueError("Album inconnu.")
+            expires_at = int(time.time()) + days * 86400
             db.execute(
                 "INSERT INTO agent_grants VALUES(?,?,?,?,?,?,?,?,?,?,?)",
                 (
@@ -168,10 +230,29 @@ class AgentService:
                     canonical(sorted(permissions)),
                     client.strip(),
                     value_ceiling_cents,
-                    int(time.time()) + days * 86400,
+                    expires_at,
                     "",
                     now(),
                 ),
+            )
+            # Never the token nor its hash: the journal is readable by staff.
+            self.store.event(
+                db,
+                None,
+                actor or MANAGE_ACTOR,
+                GRANT_CREATED,
+                "Accès agent délégué : " + name.strip(),
+                {},
+                {
+                    "grant_id": grant_id,
+                    "name": name.strip(),
+                    "owner_id": user["id"],
+                    "album_id": album,
+                    "client": client.strip(),
+                    "permissions": sorted(permissions),
+                    "value_ceiling_cents": value_ceiling_cents,
+                    "expires_at": expires_at,
+                },
             )
         return {
             "id": grant_id,
@@ -179,6 +260,7 @@ class AgentService:
             "album_id": album,
             "permissions": sorted(permissions),
             "expires_in_days": days,
+            "value_ceiling_cents": value_ceiling_cents,
         }
 
     def grants(self):
@@ -192,14 +274,27 @@ class AgentService:
                 )
             ]
 
-    def revoke(self, grant_id):
+    def revoke(self, grant_id, actor=MANAGE_ACTOR):
         with self.store.connect(write=True) as db:
-            changed = db.execute(
-                "UPDATE agent_grants SET revoked_at=?,token_hash=NULL WHERE id=?",
-                (now(), grant_id),
-            ).rowcount
-            if not changed:
+            before = db.execute(
+                "SELECT revoked_at FROM agent_grants WHERE id=?", (grant_id,)
+            ).fetchone()
+            if not before:
                 raise KeyError("Accès agent inconnu.")
+            revoked_at = now()
+            db.execute(
+                "UPDATE agent_grants SET revoked_at=?,token_hash=NULL WHERE id=?",
+                (revoked_at, grant_id),
+            )
+            self.store.event(
+                db,
+                None,
+                actor or MANAGE_ACTOR,
+                GRANT_REVOKED,
+                "Accès agent révoqué.",
+                {"grant_id": grant_id, "revoked_at": before["revoked_at"]},
+                {"grant_id": grant_id, "revoked_at": revoked_at},
+            )
         return {"id": grant_id, "revoked": True}
 
     @staticmethod

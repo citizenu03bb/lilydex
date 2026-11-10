@@ -9,6 +9,15 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-10
 
+- Permissions `lots:read`, `lots:compose` et `lots:publish` sur les accès
+  agent, sans route lots pour l'instant : délivrées par
+  `pokeprice-manage agent-create --lots-*` au seul compte administrateur
+  actif, retirées à l'appel suivant si ce compte perd ce rôle, jamais
+  combinées avec brouillons, corrections ou assistant, plafond ramené à 20 €
+  au plus. `/capabilities` les annonce, portée collection, au seul accès qui
+  les détient. Création et révocation d'un accès sont journalisées ; schéma
+  inchangé ([AGENT_CONTROL](AGENT_CONTROL.md#déléguer-loutil-des-lots),
+  `tests/test_agent_lots_permissions.py`).
 - Le moteur des lots quitte `scripts/pokeprice_lots.py` pour le paquet
   `pokeprice.lots` (gisement, propositions, rotation, publication, recette) ;
   il travaille sur la connexion que lui donne l'appelant, marge du plancher

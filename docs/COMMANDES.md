@@ -160,7 +160,11 @@ Déléguer un album à un agent
 | `--drafts` |  |
 | `--corrections` | Appliquer seulement des corrections préautorisées |
 | `--assistant` | Outils en lecture de l’assistant de gestion, sur toute la collection |
-| `--value-ceiling-eur` `VALUE_CEILING_EUR` | Par défaut : `10`. |
+| `--lots-read` | Outil des lots : lire le stock, l’état et les plans (administrateur seulement) |
+| `--lots-compose` | Outil des lots : composer, faire tourner, annuler des brouillons (administrateur seulement) |
+| `--lots-publish` | Outil des lots : publier et retirer des lots (administrateur seulement) |
+| `--value-ceiling-eur` `VALUE_CEILING_EUR` | Plafond de valeur par carte ; 20 € au plus pour un accès lots. Par défaut : `10`. |
+| `--actor` `ACTOR` | Compte inscrit au journal (system:manage sinon) |
 | `--token-file` `TOKEN_FILE` | Nouveau fichier privé ; aucun secret sur stdout |
 
 ### `pokeprice-manage agent-list`
@@ -174,6 +178,7 @@ Révoquer immédiatement un accès agent
 | Argument | Effet |
 |---|---|
 | `grant_id` |  |
+| `--actor` `ACTOR` | Compte inscrit au journal (system:manage sinon) |
 
 ### `pokeprice-manage agent-approve-corrections`
 

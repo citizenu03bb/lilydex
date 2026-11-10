@@ -13,7 +13,7 @@ from fastapi.responses import FileResponse
 from fastapi.routing import APIRoute
 from pydantic import BaseModel, ConfigDict, Field
 
-from .agent import AgentError, AgentService, digest
+from .agent import AgentError, AgentService, digest, lots_capabilities
 from .library import normalized
 
 PREFIX = "/api/agent/v1"
@@ -129,7 +129,11 @@ def router(service):
             operations.extend(["corrections", "apply-correction"])
         if "assistant:read" in grant["permissions"]:
             operations.extend(["assistant-tools", "call-assistant-tool"])
-        return {
+        lots = lots_capabilities(grant)
+        if lots:
+            # Collection-wide: the album the grant names does not bound lots.
+            operations.extend(lots["operations"])
+        view = {
             "contract_version": "1",
             "agent_id": grant["id"],
             "name": grant["name"],
@@ -146,6 +150,9 @@ def router(service):
             "operations": operations,
             "request_id": request.state.agent_request_id,
         }
+        if lots:
+            view["lots"] = lots
+        return view
 
     @api.get("/copies")
     def copies(
