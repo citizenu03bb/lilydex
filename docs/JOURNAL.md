@@ -9,6 +9,13 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-10
 
+- Le moteur des lots quitte `scripts/pokeprice_lots.py` pour le paquet
+  `pokeprice.lots` (gisement, propositions, rotation, publication, recette) ;
+  il travaille sur la connexion que lui donne l'appelant, marge du plancher
+  comprise. L'interprétation Gemini des prompts passe dans
+  `pokeprice.lots_prompt`, que le serveur n'importe pas. Le script garde ses
+  options et ses sorties (`tests/test_lots_package.py`,
+  `tests/test_pokeprice_lots.py`).
 - Contrôles statiques en CI : `ruff` (lint, sans reformatage), `mypy` avec
   une base de départ pour les modules historiques, couverture publiée sans
   seuil, suite lancée sous Python 3.11, 3.12 et 3.13 (`pyproject.toml`,

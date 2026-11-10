@@ -582,8 +582,10 @@ class Store:
         sort="name",
         review="",
         threshold_cents=1000,
+        *,
+        _db=None,
     ):
-        with self.connect() as db:
+        with self.connect() if _db is None else nullcontext(_db) as db:
             valuation_context = self.valuation_context(db)
             # Latest TCGdex snapshot of each copy, for alert badges and filters.
             snapshots = {
