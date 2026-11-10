@@ -1,7 +1,7 @@
 # Feuille de route
 
 > **Pour qui :** toute personne qui veut savoir où va le projet.
-> **Vous y trouverez :** l'objectif de la première version utilisable (MVP), ses critères de sortie, l'état de chaque jalon, ce qui est prévu ensuite, ce qui est à l'étude et ce qui a été écarté.
+> **Vous y trouverez :** l'objectif de la première version utilisable (MVP), ses critères de sortie, l'état de chaque jalon, les étapes de l'assistant de gestion, ce qui est prévu ensuite, ce qui est à l'étude et ce qui a été écarté.
 > **Statut :** en vigueur. Ce qui a été fait, et quand, est dans le [journal](JOURNAL.md) ; les raisons des choix sont dans les [fiches de décision](decisions/README.md).
 
 ## L'objectif du MVP
@@ -200,6 +200,56 @@ premières ventes.
 
 **Critère :** les critères S6 sont tenus et l'application est accessible de
 façon stable.
+
+## L'assistant de gestion
+
+Un brief du jour, une file « À toi » et un chat dans la gestion, pour que Lily
+n'ait qu'un endroit à ouvrir. Le chat n'a pas plus de droits qu'un agent
+délégué et ne prend jamais une décision humaine à sa place
+([fiche 0029](decisions/0029-assistant-de-gestion.md)).
+
+| Étape | État | Contenu |
+|---|---|---|
+| V0 — Brief et file « À toi » | fait | brief du matin par Web Push, file des actions humaines, dérogations au plancher ([fiches 0030](decisions/0030-derogations-plancher.md), [0033](decisions/0033-notifications-web-push.md)) |
+| V1 — Chat en lecture | fait | Gemini Flash avec sa clé, outils fermés sous `assistant:read`, conversations gardées 30 jours ([fiches 0031](decisions/0031-modele-du-chat.md), [0032](decisions/0032-outils-assistant-lecture.md), [0034](decisions/0034-conversations-du-chat.md)) |
+| V1.1 — Contexte et comptage | fait | carte de la gestion et outil `knowledge`, contexte de l'écran, `count_copies` et règle des nombres, capture des échecs, alerte de coût à 30 € par mois ([fiches 0035 à 0039](decisions/README.md)) |
+| V2 — Commandes | à faire | tout |
+| V3 — Photo, brouillons, plateformes | à faire | tout |
+
+### V2 — Commandes
+
+- Un journal des commandes : une phrase donne une commande, et chaque commande
+  s'annule.
+- Des outils d'écriture dans les droits de la délégation : composer, publier,
+  retirer et faire tourner des lots, changer un prix au-dessus du plancher,
+  déplacer une carte.
+- Le plan s'affiche avant d'agir au-delà de quelques actions.
+- Toute décision réservée à une personne devient une carte de la file « À
+  toi » : « vends tout à moitié prix » produit des demandes de dérogation, pas
+  des ventes.
+- Le fil de la conversation garde un résumé des résultats d'outils du tour
+  précédent (identifiants, comptes), pour qu'une suite (« et en japonais ? »)
+  ne relance pas toutes les recherches.
+- Le modèle connaît le nombre de questions restantes dans la journée et
+  prévient avant la limite.
+- À corriger d'abord au banc : le modèle répond « comment faire » sans appeler
+  `knowledge`, et consulte le guide au lieu de préparer une écriture.
+
+**Critère :** trois passes du banc et une dizaine de cas nouveaux, écrits sans
+avoir vu les réponses d'aucun modèle, réussis sans réponse dangereuse
+([fiche 0031](decisions/0031-modele-du-chat.md)).
+
+### V3 — Photo, brouillons, plateformes
+
+- Une photo envoyée dans le chat répond à une demande de photo ouverte et
+  relance l'examen de la carte ; partage depuis la galerie du téléphone
+  (application installée).
+- Brouillons de réponses aux clients, que Lily envoie elle-même.
+- Les outils Vinted, Leboncoin et Cardmarket, une fois leur publication
+  livrée.
+- Avant que le chat lise des messages de clients : la page de confidentialité
+  et la mention de la vitrine annoncent le transfert vers le fournisseur du
+  modèle.
 
 ## Après le MVP
 
