@@ -80,9 +80,50 @@ Corrigé le 16 octobre :
 - Suppression d'un compte client et de ses données (RGPD) : prévue en
   tranche 5, avec la page de confidentialité.
 - Les limites de débit sont gardées en mémoire du processus : elles repartent
-  de zéro à chaque redémarrage du service.
+  de zéro à chaque redémarrage du service. Depuis le 10 novembre, voir
+  « Limiteurs de débit » ci-dessous pour leur forme et leurs limites connues.
 
 ## Ce qui a changé depuis
+
+### Limiteurs de débit (10 novembre)
+
+Une revue externe a relevé que trois des quatre compteurs (connexion,
+inscription, demande sans compte) ne s'élaguaient jamais, et que tous
+comptaient l'adresse complète : un client IPv6 pouvait changer d'adresse dans
+son /64 pour repartir de zéro. Corrigé dans `src/pokeprice/ratelimit.py` :
+
+- une adresse IPv4 compte telle quelle ; une adresse IPv6 compte pour son /64
+  (une adresse IPv4 transcrite en IPv6, `::ffff:…`, redevient IPv4 avant) ;
+  ce qui n'est pas une adresse est préfixé `raw:` et ne peut donc pas imiter
+  la clé d'une vraie adresse ;
+- chaque compteur garde au plus 4 096 clés ; au-delà, la clé dont le dernier
+  passage accepté est le plus ancien est oubliée. L'oubli rend au plus une
+  fenêtre neuve, ce qu'un attaquant obtient déjà en changeant de clé ;
+- limites, fenêtres, messages et `Retry-After: 60` inchangés ; la connexion
+  réserve toujours la tentative avant le calcul du mot de passe, et une
+  connexion réussie n'efface que les erreurs visant ce compte ;
+- `pokeprice-manage serve` fixe `proxy_headers=True` et
+  `forwarded_allow_ips="127.0.0.1,::1"` : seul le proxy local peut désigner le
+  client, même si `FORWARDED_ALLOW_IPS` est posé dans l'environnement.
+  L'application ne lit jamais `X-Forwarded-For` elle-même
+  (`tests/test_ratelimit.py`, `tests/test_manage.py`).
+
+Risques restants, assumés :
+
+- un attaquant qui dispose d'un /56 ou d'un /48 a 256 à 65 536 clés : le /64
+  atténue la rotation, il ne la borne pas. Correctif possible : un second
+  palier plus large sur les échecs de connexion (par exemple 50 par 5 minutes
+  et par /48) ;
+- aucun plafond global sur les inscriptions : en changeant de /64, on peut
+  encore faire calculer beaucoup d'empreintes de mot de passe ;
+- un /64 réellement partagé (Wi-Fi public, espace de travail) : un voisin peut
+  bloquer la connexion d'un autre pendant 5 minutes, comme déjà derrière une
+  adresse IPv4 partagée ;
+- un CDN devant Caddy demanderait `trusted_proxies` dans Caddy et une liste
+  plus large dans uvicorn ; sans les deux, tous les visiteurs partageraient un
+  seul compteur ;
+- le fichier d'environnement du serveur n'a pas été relu ; le réglage fixé
+  dans `manage.py` l'emporte de toute façon.
 
 - La suppression d'un compte client est en place : espace **Mon compte**,
   commande `forget`, durées de conservation appliquées chaque nuit, registre
