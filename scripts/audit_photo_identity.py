@@ -27,7 +27,6 @@ import argparse
 import csv
 import io
 import json
-import re
 import sqlite3
 import tempfile
 from datetime import datetime, timezone

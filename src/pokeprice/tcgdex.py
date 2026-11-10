@@ -10,7 +10,7 @@ import urllib.parse
 import urllib.request
 import unicodedata
 from dataclasses import dataclass
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any
 
 CACHE_DIR = os.path.expanduser("~/.cache/pokeprice")
 CACHE_FILE = os.path.join(CACHE_DIR, "tcgdex_cache.json")
@@ -138,7 +138,7 @@ class TCGdexClient:
                     self.cache[url] = data
                     self._save_cache()
                 return data
-        except Exception as e:
+        except Exception:
             return None
 
     @staticmethod

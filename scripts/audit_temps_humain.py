@@ -411,7 +411,9 @@ def duration(seconds):
 
 def table(headers, rows):
     widths = [max(len(str(x)) for x in col) for col in zip(headers, *rows)]
-    line = lambda r: "  ".join(str(x).ljust(w) for x, w in zip(r, widths)).rstrip()
+    def line(r):
+        return "  ".join(str(x).ljust(w) for x, w in zip(r, widths)).rstrip()
+
     return "\n".join([line(headers), line(["-" * w for w in widths])] + [line(r) for r in rows])
 
 

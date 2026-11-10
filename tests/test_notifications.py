@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 from test_reservations import shop  # noqa: F401 - the shared fixture.
 
 from pokeprice import notifications
-from pokeprice.notifications import Mail, Notifier, Ntfy, alert_text, channels_from_env
+from pokeprice.notifications import Mail, Ntfy, alert_text, channels_from_env
 
 GUEST = {"email": "sacha+alerte@example.org", "display_name": "Sacha Secret",
          "message": "Mon adresse : 12 rue Privée", "consent": True}

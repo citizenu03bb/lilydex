@@ -4,7 +4,6 @@ import io
 import json
 import uuid
 import warnings
-from datetime import datetime, timezone
 
 from PIL import Image
 

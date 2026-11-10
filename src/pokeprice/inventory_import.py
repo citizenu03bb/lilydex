@@ -4,6 +4,7 @@ import base64
 import hashlib
 import json
 from pathlib import Path
+from typing import Any
 import uuid
 
 from .inventory import Store, cents, now
@@ -22,7 +23,7 @@ def import_collection(store: Store, manifest):
         images[source_key] = store.save_photo(
             base64.b64decode(image.split(",", 1)[1], validate=True)
         )
-    result = {
+    result: dict[str, Any] = {
         "source_copies": len(records),
         "created": 0,
         "unchanged": 0,

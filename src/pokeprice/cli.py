@@ -3,7 +3,6 @@ Command-line interface for pokeprice.
 """
 
 import argparse
-import glob
 import os
 import sys
 import json
@@ -363,7 +362,6 @@ def cmd_scan(args):
 
 def cmd_html(args):
     """Generates an interactive HTML visual report from a CSV/Excel file and album folder."""
-    import pandas as pd
     from pokeprice.report import apply_pricing_and_anomalies
     from pokeprice.html_report import generate_html_report
 
@@ -427,8 +425,6 @@ def cmd_lookup(args):
 
 def cmd_report(args):
     """Displays summary for an existing CSV report."""
-    import pandas as pd
-
     if not os.path.exists(args.csv_file):
         print(f"Fichier introuvable : {args.csv_file}", file=sys.stderr)
         sys.exit(1)

@@ -5,15 +5,12 @@ with opt-in condition simulations and explicit unresolved-card review.
 """
 
 import base64
-import glob
 import io
 import json
-import os
 import math
 from html import escape as html_escape
 from urllib.parse import urlsplit
 from pathlib import Path
-from typing import Optional, Dict, Any, List
 
 import pandas as pd
 from PIL import Image

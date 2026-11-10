@@ -16,7 +16,7 @@ import json
 import uuid
 from contextlib import contextmanager
 
-from .inventory import Conflict, now
+from .inventory import Conflict
 from .listings import Listings, is_agent, reference_cents
 from .pricing import FLOOR_CENTS, euros, lot_floor_cents, lot_max_margin
 

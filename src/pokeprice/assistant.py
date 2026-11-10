@@ -912,10 +912,10 @@ class CostAlert:
                 sent.append(channel.name)
             except Exception as error:  # noqa: BLE001 - one channel down never hides the other.
                 errors.append(type(error).__name__)  # The class only, never an address.
-        error = "" if sent else ", ".join(errors) or "aucun canal"
-        self.journal.alert_done(month, self.clock(), error)
-        if error:
-            logger.warning("assistant cost alert not sent month=%s error=%s", month, error)
+        failure = "" if sent else ", ".join(errors) or "aucun canal"
+        self.journal.alert_done(month, self.clock(), failure)
+        if failure:
+            logger.warning("assistant cost alert not sent month=%s error=%s", month, failure)
         else:
             logger.info("assistant cost alert sent month=%s eur=%.2f channels=%s", month,
                         cost["eur"], ",".join(sent))

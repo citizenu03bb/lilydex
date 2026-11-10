@@ -58,7 +58,7 @@ def detect_grid_layout(
                 raise ValueError("Grid dimensions must be positive.")
             return rows, cols
         except ValueError:
-            raise ValueError("Invalid grid layout.")
+            raise ValueError("Invalid grid layout.") from None
 
     # Auto-detection heuristic based on aspect ratio
     # 3x3 pages are typical standard A4 / Letter format (ratio ~ 0.70 - 0.77)
