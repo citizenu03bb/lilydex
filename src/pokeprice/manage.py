@@ -71,7 +71,29 @@ def main():
         action="store_true",
         help="Outils en lecture de l’assistant de gestion, sur toute la collection",
     )
-    agents.add_argument("--value-ceiling-eur", default="10")
+    agents.add_argument(
+        "--lots-read",
+        action="store_true",
+        help="Outil des lots : lire le stock, l’état et les plans (administrateur seulement)",
+    )
+    agents.add_argument(
+        "--lots-compose",
+        action="store_true",
+        help="Outil des lots : composer, faire tourner, annuler des brouillons (administrateur seulement)",
+    )
+    agents.add_argument(
+        "--lots-publish",
+        action="store_true",
+        help="Outil des lots : publier et retirer des lots (administrateur seulement)",
+    )
+    agents.add_argument(
+        "--value-ceiling-eur",
+        default="10",
+        help="Plafond de valeur par carte ; 20 € au plus pour un accès lots.",
+    )
+    agents.add_argument(
+        "--actor", default="", help="Compte inscrit au journal (system:manage sinon)"
+    )
     agents.add_argument(
         "--token-file",
         required=True,
@@ -82,6 +104,9 @@ def main():
         "agent-revoke", help="Révoquer immédiatement un accès agent"
     )
     revoke.add_argument("grant_id")
+    revoke.add_argument(
+        "--actor", default="", help="Compte inscrit au journal (system:manage sinon)"
+    )
     approve = actions.add_parser(
         "agent-approve-corrections",
         help="Autoriser un plan précis de rattachements catalogue",
@@ -401,7 +426,7 @@ def main():
             if args.action == "agent-list":
                 result = agents.grants()
             elif args.action == "agent-revoke":
-                result = agents.revoke(args.grant_id)
+                result = agents.revoke(args.grant_id, actor=args.actor)
             elif args.action == "agent-approve-corrections":
                 from .agent_corrections import CorrectionService
 
@@ -423,6 +448,13 @@ def main():
                     permissions.append("corrections:apply")
                 if args.assistant:
                     permissions.append("assistant:read")
+                for flag, permission in (
+                    (args.lots_read, "lots:read"),
+                    (args.lots_compose, "lots:compose"),
+                    (args.lots_publish, "lots:publish"),
+                ):
+                    if flag:
+                        permissions.append(permission)
                 path = Path(args.token_file)
                 handle = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
                 grant = None
@@ -436,10 +468,19 @@ def main():
                             days=args.days,
                             client=args.client,
                             value_ceiling_cents=cents(args.value_ceiling_eur),
+                            actor=args.actor,
                         )
                         stream.write(grant["token"] + "\n")
                     result = {k: v for k, v in grant.items() if k != "token"}
                     result["token_file"] = str(path.resolve())
+                    if any(p.startswith("lots:") for p in grant["permissions"]):
+                        print(
+                            "Attention : les permissions lots portent sur toute la "
+                            "collection, quel que soit l’album nommé par l’accès. "
+                            "Plafond appliqué : "
+                            f"{grant['value_ceiling_cents'] / 100:.2f} € par carte.",
+                            file=sys.stderr,
+                        )
                 except BaseException:
                     if grant:
                         agents.revoke(grant["id"])

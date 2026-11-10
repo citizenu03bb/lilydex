@@ -108,7 +108,8 @@ créé automatiquement.
 Sur la machine qui héberge la collection de référence, un opérateur disposant
 de l’accès local crée une délégation. Le compte délégant doit être actif ; un
 lecteur peut déléguer la consultation, un gestionnaire ou administrateur peut
-également déléguer les brouillons et les corrections préautorisées.
+également déléguer les brouillons et les corrections préautorisées. Seul un
+administrateur délègue l’outil des lots (voir plus bas).
 
 ```bash
 uv run pokeprice-manage --data data/inventory agent-create assistant-collection \
@@ -132,7 +133,9 @@ ce destinataire, sans constituer une restriction réseau après transmission.
 Le plafond de valeur est de 10 € par défaut (`--value-ceiling-eur`). L’agent ne
 peut pas l’augmenter. Le jeton expire après 7 jours par défaut, 30 au maximum.
 Un changement de rôle ou la désactivation du délégant s’applique aux requêtes
-suivantes ; le déclassement en lecteur retire immédiatement la création de lots et les corrections.
+suivantes ; le déclassement en lecteur retire immédiatement la création de
+brouillons et les corrections, et tout déclassement sous administrateur retire
+les permissions de l’outil des lots.
 
 ## Préparer un lot depuis le client agent
 
@@ -225,6 +228,48 @@ Les observations physiques et l’état enregistré sont conservés ; le changem
 d’identité invalide la confirmation globale de variante selon les règles de la
 fiche. Le reçu indique qu’aucune confirmation physique n’a été créée.
 
+## Déléguer l’outil des lots
+
+L’outil des lots de doublons passe par l’API agent, avec trois permissions
+distinctes :
+
+| Permission | Option | Opérations annoncées |
+|---|---|---|
+| `lots:read` | `--lots-read` | `lots-pool`, `lots-status`, `lots-plan` |
+| `lots:compose` | `--lots-compose` | `lots-compose`, `lots-rotate`, `lots-cancel`, `lots-raise` |
+| `lots:publish` | `--lots-publish` | `lots-publish`, `lots-unpublish` |
+
+Publier n’emporte pas le droit de composer : chaque permission se demande à
+part. Ces permissions portent sur **toute la collection**, quel que soit
+l’album nommé par l’accès ; `agent-create` le rappelle sur la sortie
+d’erreur et `/capabilities` l’indique (`lots.scope` vaut `collection`). Le
+serveur ne sert aucune route de ces opérations : `/capabilities` les annonce
+seulement à un accès qui détient la permission correspondante ; un accès sans
+permission lots n’en voit aucune trace.
+
+```bash
+uv run pokeprice-manage --data /CHEMIN_COLLECTION agent-create lots-doublons \
+  --owner COMPTE_ADMINISTRATEUR --album IDENTIFIANT_ALBUM \
+  --lots-read --lots-compose --lots-publish \
+  --client "Client agent et fournisseur qui reçoit les données" \
+  --token-file /chemin/prive/lots-doublons.token
+```
+
+Règles vérifiées par le serveur :
+
+- **Administrateur seulement, deux fois.** La création refuse une permission
+  lots si le compte délégant n’est pas un administrateur actif ; chaque appel
+  la retire si ce compte n’est plus administrateur, et refuse tout si le compte
+  est désactivé.
+- **Un accès, un usage.** Un accès lots ne se combine ni avec `--drafts`, ni
+  avec `--corrections`, ni avec `--assistant`.
+- **Plafond de valeur.** 10 € par carte par défaut, 20 € au plus : une valeur
+  plus haute est ramenée à 20 € à la création, et une opération lots n’applique
+  jamais plus de 20 €, même si la base dit autre chose.
+- **Durée.** 7 jours par défaut, comme tout accès agent.
+- **Délivrance locale.** Seul `pokeprice-manage agent-create` crée un accès ;
+  aucune route de l’API ne crée, n’élargit ni ne prolonge une délégation.
+
 ## Outils de l'assistant de gestion
 
 Le chat de gestion et son banc d'essai lisent la collection par des
@@ -286,6 +331,13 @@ uv run pokeprice-manage --data data/inventory agent-list
 uv run pokeprice-manage --data data/inventory agent-revoke IDENTIFIANT_ACCES
 uv run pokeprice-manage agent-schema > /chemin/prive/api-agent.json
 ```
+
+La création et la révocation d’un accès s’inscrivent dans l’historique de la
+collection (`agent-grant-create`, `agent-grant-revoke`), dans la même
+transaction que l’accès lui-même : identifiant de l’accès et du compte
+délégant, album, client, permissions, plafond et expiration, jamais le jeton
+ni son condensat. L’auteur
+est celui que donne `--actor`, `system:manage` sinon.
 
 L’export du contrat est hors ligne : il n’ouvre aucune base et n’expose que les
 routes agent. La documentation HTTP publique reste désactivée. Pour fermer
