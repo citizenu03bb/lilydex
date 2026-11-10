@@ -120,6 +120,73 @@ def test_failed_readings_count_as_wrong_and_unknown_truth_is_ignored():
     assert scores["edition_ok"] is scores["art_holo_ok"] is scores["stamp_ok"] is None
 
 
+def test_every_rate_is_printed_with_its_count_and_interval():
+    entries = [entry(str(i)) for i in range(4)]
+    cards = {str(i): record() for i in range(3)}
+    cards["3"] = record(observation={"number": "13/64", "language": "fr"})
+    _, lines = bench.app_regressions(entries, [{"cards": cards}])
+    number = next(line for line in lines if line.startswith("Numéro"))
+    assert "3/4 (IC 95 % : 30,0–95,5 %)" in number
+    language = next(line for line in lines if line.startswith("Langue (lecture de saisie)"))
+    assert "4/4 (IC 95 % : 47,2–100 %)" in language  # No failure: exact one-sided bound.
+
+
+def test_no_wrong_proposal_is_a_bound_not_a_zero_rate():
+    # Variant verified by a person: confirmed in the collection, or bench truth.
+    entries = [entry("a"), entry("b", verified_variant=True, foil=False), entry("c")]
+    cards = {
+        "a": record(),
+        "b": record(confirmed_variant=None, proposal={"status": "proposed", "foil": False}),
+        "c": record(confirmed_variant=None),  # Nobody verified it: not counted.
+    }
+    failures, lines = bench.app_regressions(entries, [{"cards": cards}])
+    assert failures == []
+    assert any("variantes vérifiées" in line and "0/2 (IC 95 % : 0–77,7 %)" in line for line in lines)
+    cards["b"]["proposal"]["foil"] = True  # Against the verified truth, price unknown.
+    failures, _ = bench.app_regressions(entries, [{"cards": cards}])
+    assert failures and "b" in failures[0]
+
+
+def test_only_a_person_confirmation_is_a_truth():
+    # The review agent confirms variants as "agent:…": a model never supplies the truth.
+    rows = [
+        {"id": "person", "finish": "reverse", "foil": 1, "variant_confirmed": 1, "variant_verified_by": "alice"},
+        {"id": "agent", "finish": "holo", "foil": 1, "variant_confirmed": 1, "variant_verified_by": "agent:revue"},
+        {"id": "system", "finish": "holo", "foil": 0, "variant_confirmed": 1, "variant_verified_by": "system:import"},
+        {"id": "nobody", "finish": "holo", "foil": 0, "variant_confirmed": 1, "variant_verified_by": ""},
+        {"id": "open", "finish": "", "foil": 0, "variant_confirmed": 0, "variant_verified_by": ""},
+    ]
+    assert bench.confirmed_by_person(rows) == {"person": {"finish": "reverse", "foil": True}}
+
+
+def test_strata_keep_blind_and_harvested_truths_apart():
+    entries = [
+        entry("blind", provenance="aveugle"),
+        entry("harvested", provenance="recoltee", language="en"),
+        entry("old", art_holo=False, reverse=True),
+    ]
+    cards = {
+        "blind": record(),
+        "harvested": record(observation={"number": "9/64", "language": "en"}),
+        "old": record(reading={"artwork": "matte", "stamp_text": ""}),
+    }
+    strata = bench.app_strata(entries, [{"cards": cards}])
+    provenance = strata["Provenance de la vérité"]
+    assert set(provenance) == {
+        "vérifiées à l’aveugle",
+        "récoltées (confirmation antérieure)",
+        "banc initial",
+    }
+    number = bench.APP_LABELS["number_ok"]
+    assert provenance["vérifiées à l’aveugle"][number].text().startswith("1/1 ")
+    assert provenance["récoltées (confirmation antérieure)"][number].text().startswith("0/1 ")
+    assert set(strata["Langue"]) == {"en", "fr"} and strata["Langue"]["fr"]["cartes"] == 2
+    assert set(strata["Finition"]) == {"holo", "reverse"}
+    lines = bench.strata_lines(strata)
+    assert "Finition : reverse (1 carte)" in lines
+    assert any(bench.WRONG in line and "0/1" in line for line in lines)
+
+
 @pytest.mark.skipif(
     not bench.app_runs(),
     reason="Aucune lecture de l’application enregistrée.",

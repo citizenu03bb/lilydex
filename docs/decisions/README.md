@@ -50,6 +50,7 @@ l'ancienne passe au statut « remplacée ».
 | [0040](0040-preuve-adresse-client.md) | Le lien transmis par le vendeur prouve l'adresse avant changement d'identifiant ou rattachement des demandes invitées | 2026-11-06 |
 | [0041](0041-energies-offertes-dans-les-lots.md) | Les énergies en vrac sont offertes dans les lots, sans changer de tranche postale | 2026-11-09 |
 | [0042](0042-marge-du-plancher-reglage-administrateur.md) | La marge du plancher anti-bradage est un réglage de la base, réservé à l'administrateur | 2026-11-10 |
+| [0043](0043-banc-provenance-et-intervalles.md) | Le banc d'essai publie ses intervalles et la provenance de sa vérité | 2026-11-10 |
 
 ## Écrire une fiche
 

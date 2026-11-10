@@ -15,9 +15,10 @@ Le paquet Python et ses commandes s'appellent `pokeprice`, `pokeprice-manage` et
 > from the image alone, a person still confirms each reading, and every disagreement lands in a
 > review queue with its evidence; agents apply pre-authorised fixes, and the operator-side lots
 > tool builds and publishes lots, refusing any price below their reference value minus a margin
-> (15 % by default). On 27 to 31 hand-verified cards from one collection, no unsafe variant
-> proposal above the value threshold, 22 of 27 editions confirmed by image alone with one false
-> alarm, and Tesseract rejected after measurement. The interface and detailed docs are in French:
+> (15 % by default). On 24 to 31 hand-verified cards from one collection: 0 unsafe variant
+> proposals above the value threshold out of 24 (95 % CI: 0–11.8 %), 22 of 27 editions confirmed by
+> image alone (63.3–91.9 %) with one false alarm (0.65–18.3 %), and Tesseract rejected after
+> measurement. The bench is being grown towards 200+ cards. The interface and detailed docs are in French:
 > [English overview](README.en.md) · [case study](CASE-STUDY.md) (design, operations, security).
 
 <p align="center">
@@ -61,19 +62,21 @@ Gemini, un modèle vision-langage, lit une photo ; DINOv2 compare des images, sa
 
 | Brique | Modèle | Où ça tourne | Mesure |
 |---|---|---|---|
-| Lecture de la carte à la saisie | Gemini | cloud, appelé par le serveur | numéro juste 23 à 25 fois sur 30 selon le passage ; langue 30 sur 30 |
-| Finition, tampon et langue du texte | Gemini | cloud, après chaque saisie | holo ou mate : aucune erreur sur 21 cartes quand la lecture tranche ; langue 31 sur 31 sans fausse alerte ; aucune variante fausse proposée au-dessus du seuil de valeur |
-| Contrôle d'édition par l'image | DINOv2-small, pré-entraîné | serveur ARM, sans carte graphique | 22 vraies éditions confirmées sur 27, une fausse alerte |
-| Porte énergie (ligne de commande) | DINOv2-small, plus proches voisins avec rejet | portable ou serveur | 166 énergies de base sur 166 admises, une autre carte admise à tort sur 1 601 |
+| Lecture de la carte à la saisie | Gemini | cloud, appelé par le serveur | numéro juste 23/30 au pire passage (IC 95 % : 59,0–88,3 %) ; langue 30/30 (90,4–100 %) |
+| Finition, tampon et langue du texte | Gemini | cloud, après chaque saisie | holo ou mate, quand la lecture tranche : 21/21 (86,7–100 %) ; langue 31/31 sans fausse alerte (90,7–100 %) ; variante fausse proposée au-dessus du seuil de valeur : 0/24 (0–11,8 %) |
+| Contrôle d'édition par l'image | DINOv2-small, pré-entraîné | serveur ARM, sans carte graphique | vraie édition confirmée 22/27 (63,3–91,9 %) ; fausse alerte 1/27 (0,65–18,3 %) |
+| Porte énergie (ligne de commande) | DINOv2-small, plus proches voisins avec rejet | portable ou serveur | énergies de base admises 166/166 (98,2–100 %) ; autre carte admise à tort 1/1 601 (0,01–0,36 %) |
 | Préparation des photos | vision classique (Pillow), sans IA | serveur | non mesurée ; l'original est toujours gardé |
 | Aide à l'état | Gemini | cloud, à la demande | non mesurée : une proposition, jamais une note |
 
-*Conditions de mesure : 31 cartes d'une seule collection vérifiées sur la carte physique (25 FR, 5 EN, 1 IT, aucune japonaise ; 21 à variante vérifiée, dont 2 reverses), gemini-3.8-flash et DINOv2-small, banc rejoué dans l'application, deux passages jugés sur le pire ; porte énergie : 1 767 exemplaires, chaque carte hors de sa propre banque ; octobre 2026. Les lectures enregistrées sont publiées : `scripts/bench_recognition.py app-check` rejoue hors ligne les mesures de lecture et du contrôle d'édition depuis un clone ; les photos restent privées.*
+*Conditions de mesure : 31 cartes d'une seule collection vérifiées sur la carte physique (25 FR, 5 EN, 1 IT, aucune japonaise ; 21 à variante vérifiée, dont 2 reverses ; 24 dont une personne a vérifié la catégorie de prix), aucune vérifiée à l'aveugle ; chaque taux avec son compte et son intervalle de confiance à 95 % (Wilson, borne exacte de Clopper–Pearson quand aucune erreur n'est observée) ; gemini-3.8-flash et DINOv2-small, banc rejoué dans l'application, deux passages jugés sur le pire ; porte énergie : 1 767 exemplaires, chaque carte hors de sa propre banque ; octobre 2026. Les lectures enregistrées sont publiées : `scripts/bench_recognition.py app-check` rejoue hors ligne les mesures de lecture et du contrôle d'édition depuis un clone ; les photos restent privées.*
 
 Le [banc d'essai](docs/BANC-RECONNAISSANCE.md) a aussi mis à l'épreuve Tesseract, CLIP et
 des agents Claude ; ses seuils de sécurité ne baissent jamais. Limites : les
 [reverses](docs/GLOSSAIRE.md#les-variantes) ne se repèrent pas de façon sûre sur une photo de
-classeur, les échantillons sont petits, aucun modèle n'est entraîné. Détail et garde-fous :
+classeur, les échantillons sont petits (zéro erreur sur 24 cartes borne le taux d'erreur sous
+12 %, pas à zéro), aucun modèle n'est entraîné. Le banc s'agrandit vers 200 cartes et plus :
+la vérité reste humaine, le choix des cartes à vérifier et les intervalles sont calculés. Détail et garde-fous :
 [IA et vision](docs/IA-VISION.md).
 
 ## Sous le capot
@@ -98,11 +101,12 @@ conséquences.
   libres essayés, aucun ne gérait des photos propres à chaque exemplaire, leurs corrections et
   le suivi de leur vente.
 - [Tesseract écarté sur mesure](docs/decisions/0005-langue-sans-tesseract.md) : 3 fausses
-  alertes sur 31 cartes, aucune erreur de Gemini rattrapée ; un contrôle de cohérence de la
+  alertes sur 31 cartes (IC 95 % : 3,3–24,9 %), aucune erreur de Gemini rattrapée ; un contrôle de cohérence de la
   langue le remplace.
 - [Une marge DINOv2 de 0,05](docs/decisions/0006-dinov2-marge.md), choisie sur une table de
-  compromis : à 0,02, 3 fausses alertes sur 27 ; à 0,08, 11 éditions voisines signalées sur 26
-  au lieu de 14.
+  compromis : à 0,02, 3 fausses alertes sur 27 (IC 95 % : 3,8–28,1 %) ; à 0,08, 11 éditions
+  voisines signalées sur 26 (25,5–61,1 %) au lieu de 14 (35,4–71,3 %). Les intervalles se recouvrent :
+  la table a orienté le choix, elle ne le prouve pas.
 - [Les reverses vérifiées à la main](docs/decisions/0008-reverses-examen-physique.md) dès que la
   version Foil vaut au moins le seuil de 10 € ou n'a pas de prix : aucun modèle testé ne les
   repère sûrement.

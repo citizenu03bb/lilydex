@@ -124,3 +124,15 @@ Le site est en production sur Oracle Cloud (`docs/DEPLOYMENT.md`). Le serveur
 fait une sauvegarde vérifiée chaque nuit ; le portable la rapatrie et en envoie
 une copie chiffrée sur Google Drive (`docs/DAILY-BACKUPS.md`). Google Drive sert
 seulement aux copies de sauvegarde, pas à l'hébergement.
+
+## Banc d'essai : séance de vérification
+
+- `pokeprice-manage --data <base> bench-harvest` compte les variantes déjà
+  confirmées par une personne, par langue, finition et provenance ;
+  `bench-sample` propose les cartes à vérifier ensuite sur la carte physique,
+  dans l'ordre du classeur (`--format sheet` pour la feuille à remplir). Les
+  deux ouvrent la base en lecture seule et exigent `--data`.
+- La vérité du banc est humaine : ne confirmez jamais une variante à la place
+  de la personne, et ne lui montrez aucune lecture avant qu'elle ait noté ce
+  qu'elle voit. Sa saisie porte un motif qui commence par « Vérification à
+  l'aveugle (banc) ». Détail : [banc d'essai](../../docs/BANC-RECONNAISSANCE.md).

@@ -275,6 +275,23 @@ def main():
         help="Brouillons de cas du banc tirés des échanges signalés du chat (lecture seule)",
     )
     drafts.add_argument("--output", help="Écrire dans ce fichier (jamais écrasé) ; sortie standard sinon")
+    actions.add_parser(
+        "bench-harvest",
+        help="Compter les variantes déjà confirmées par une personne, utilisables au banc d'essai (lecture seule)",
+    )
+    bench = actions.add_parser(
+        "bench-sample",
+        help="Proposer les cartes à vérifier sur la carte physique pour le banc d'essai, dans l'ordre du classeur (lecture seule)",
+    )
+    bench.add_argument("--count", type=int, default=60, help="Cartes proposées pour la séance")
+    bench.add_argument("--target-total", type=int, default=200, help="Cartes vérifiées visées au total")
+    bench.add_argument("--target-stratum", type=int, default=60, help="Cartes vérifiées visées par strate")
+    bench.add_argument("--value-cents", type=int, default=1000, help="Seuil de la strate des cartes de valeur")
+    bench.add_argument("--album", action="append", default=[], help="Limiter à cet album (nom ou identifiant) ; répétable")
+    bench.add_argument("--blind-only", action="store_true", help="Ne compter comme acquises que les vérifications à l'aveugle")
+    bench.add_argument("--format", choices=["json", "sheet"], default="json", help="JSON pour les outils, ou feuille de séance à remplir")
+    bench.add_argument("--names", action="store_true", help="Feuille avec les noms : l'identité n'est alors plus vérifiée à l'aveugle")
+    bench.add_argument("--output", help="Écrire dans ce fichier (jamais écrasé) ; sortie standard sinon")
     exporter = actions.add_parser("export", help="Export de la collection gérée")
     exporter.add_argument("format", choices=["csv", "json", "html"])
     exporter.add_argument("output")
@@ -287,6 +304,14 @@ def main():
         if not any(arg == "--data" or arg.startswith("--data=") for arg in sys.argv[1:]):
             parser.error("assistant-drafts exige --data explicite")
         write_assistant_drafts(args.data, args.output)
+        return
+    if args.action in ("bench-harvest", "bench-sample"):
+        if not any(arg == "--data" or arg.startswith("--data=") for arg in sys.argv[1:]):
+            parser.error(f"{args.action} exige --data explicite")
+        try:
+            write_bench(args)
+        except (ValueError, FileNotFoundError, FileExistsError) as error:
+            parser.error(str(error))
         return
     if args.action == "vapid-keys":
         try:
@@ -464,6 +489,10 @@ def main():
                 ),
                 host=args.host,
                 port=args.port,
+                # Trust X-Forwarded-For from the local reverse proxy only, even
+                # if FORWARDED_ALLOW_IPS is set; the app never reads the header.
+                proxy_headers=True,
+                forwarded_allow_ips="127.0.0.1,::1",
             )
             return
         elif args.action == "backup":
@@ -696,6 +725,41 @@ def write_assistant_drafts(data, output=None, stdout=None):
     with target.open("x", encoding="utf-8") as handle:  # never overwrites
         handle.write(text)
     print(f"{len(result['cases'])} brouillon(s) écrits dans {target}", file=sys.stderr)
+
+
+def write_bench(args, stdout=None):
+    """Bench harvest counts or the next verification session; the base is opened read-only."""
+    from contextlib import closing
+
+    from . import bench_sample
+
+    # Never Store(): it would create or migrate the base it is given.
+    with closing(bench_sample.open_readonly(args.data)) as db:
+        if args.action == "bench-harvest":
+            result = bench_sample.harvest(db, Path(args.data) / "photos")
+            text = json.dumps(result, ensure_ascii=False, indent=1) + "\n"
+        else:
+            copies = bench_sample.load_copies(db)
+            chosen = bench_sample.sample(
+                copies,
+                bench_sample.confirmations(db, copies),
+                count=args.count,
+                target_total=args.target_total,
+                target_stratum=args.target_stratum,
+                value_cents=args.value_cents,
+                blind_only=args.blind_only,
+                albums=args.album,
+            )
+            if args.format == "sheet":
+                text = bench_sample.as_sheet(chosen, names=args.names)
+            else:
+                text = json.dumps(bench_sample.as_json(chosen), ensure_ascii=False, indent=1) + "\n"
+    output = getattr(args, "output", None)
+    if not output:
+        (stdout or sys.stdout).write(text)
+        return
+    with Path(output).open("x", encoding="utf-8") as handle:  # never overwrites
+        handle.write(text)
 
 
 def write_vapid_keys(output=None, subject="", stdout=None):

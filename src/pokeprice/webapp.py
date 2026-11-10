@@ -10,7 +10,6 @@ import os
 import re
 import secrets
 import sqlite3
-import threading
 import time
 import warnings
 from decimal import Decimal
@@ -58,6 +57,7 @@ from .cardmarket_guide import CardmarketGuide
 from .floor_requests import FloorRequests, HumanOnly
 from .listings import Listings, Storefront
 from .privacy import Privacy
+from .ratelimit import SlidingWindow, client_key
 from .notifications import (
     Notifier, WebPush, channels_from_env, euros, subscribe, subscribed, unsubscribe,
 )
@@ -922,8 +922,7 @@ def create_app(
             rendered = rendered.replace("</head>", "  " + links + "\n  </head>", 1)
         return rendered
 
-    failures = {}
-    login_lock = threading.Lock()
+    failures = SlidingWindow(5, 300, tagged=True)
     dummy_hash = password_hash("not-a-valid-user-password")
 
     @app.middleware("http")
@@ -1298,22 +1297,18 @@ def create_app(
         return FileResponse(path, media_type="image/x-icon", headers={"ETag": etag})
 
     storefront = Storefront(store)
-    public_hits = {}
-    public_lock = threading.Lock()
+    public_hits = SlidingWindow(300, 60)
+    app.state.rate_limits = {"public": public_hits, "login": failures}
+
+    def client_of(request: Request) -> str:
+        """The rate-limit key of a client: its IPv4 address or its IPv6 /64."""
+        return client_key(request.client.host if request.client else None)
 
     def public_rate(request: Request):
         """Anonymous storefront reads: at most 300 requests a minute per address."""
-        host = request.client.host if request.client else "local"
-        key = (host, "photo" if request.url.path.endswith("/photo") else "api")
-        timestamp = time.monotonic()
-        with public_lock:
-            recent = [t for t in public_hits.get(key, []) if timestamp - t < 60]
-            if len(recent) >= 300:
-                raise HTTPException(429, "Trop de requêtes. Réessayez dans une minute.", headers={"Retry-After": "60"})
-            public_hits[key] = recent + [timestamp]
-            if len(public_hits) > 10000:  # Forget idle addresses.
-                for address in [a for a, hits in public_hits.items() if timestamp - hits[-1] >= 60]:
-                    del public_hits[address]
+        key = (client_of(request), "photo" if request.url.path.endswith("/photo") else "api")
+        if not public_hits.hit(key):
+            raise HTTPException(429, "Trop de requêtes. Réessayez dans une minute.", headers={"Retry-After": "60"})
 
     @app.get("/vitrine")
     def storefront_page():
@@ -1406,17 +1401,13 @@ def create_app(
     app.state.notifier = notifier
     notifier.start()  # A daemon thread, only when a channel is configured.
     reservations = Reservations(store, storefront, notifier)
-    signups = {}
+    signups = SlidingWindow(5, 3600)
+    app.state.rate_limits["signup"] = signups
 
     @app.post("/api/public/signup", status_code=202)
     def signup(values: Signup, request: Request, _=Depends(public_rate)):
-        key = request.client.host if request.client else "local"
-        timestamp = time.monotonic()
-        with public_lock:
-            recent = [t for t in signups.get(key, []) if timestamp - t < 3600]
-            if len(recent) >= 5:
-                raise HTTPException(429, "Trop d’inscriptions depuis cette adresse. Réessayez plus tard.")
-            signups[key] = recent + [timestamp]
+        if not signups.hit(client_of(request)):
+            raise HTTPException(429, "Trop d’inscriptions depuis cette adresse. Réessayez plus tard.")
         # Same answer and same hashing cost whether the address is known or not.
         reservations.signup(values.email, values.display_name, password_hash(values.password))
         return {
@@ -1428,17 +1419,13 @@ def create_app(
     def basket_quote(values: BasketQuote, _=Depends(public_rate)):
         return reservations.quote(values.listing_ids, values.delivery)
 
-    guests = {}
+    guests = SlidingWindow(5, 3600)
+    app.state.rate_limits["guest"] = guests
 
     @app.post("/api/public/requests", status_code=202)
     def guest_request(values: GuestRequest, request: Request, _=Depends(public_rate)):
-        key = request.client.host if request.client else "local"
-        timestamp = time.monotonic()
-        with public_lock:
-            recent = [t for t in guests.get(key, []) if timestamp - t < 3600]
-            if len(recent) >= 5:
-                raise HTTPException(429, "Trop de demandes depuis cette adresse. Réessayez plus tard.")
-            guests[key] = recent + [timestamp]
+        if not guests.hit(client_of(request)):
+            raise HTTPException(429, "Trop de demandes depuis cette adresse. Réessayez plus tard.")
         # Hashed whether or not the address is known: the delay tells nothing either.
         unusable = password_hash(secrets.token_urlsafe(32))
         reservations.guest(
@@ -1685,17 +1672,13 @@ def create_app(
 
     @app.post("/api/login")
     def login(values: Credentials, request: Request, response: Response):
-        key = request.client.host if request.client else "local"
+        key = client_of(request)
         target = values.username.casefold()
-        timestamp = time.monotonic()
-        with login_lock:
-            attempts = [a for a in failures.get(key, []) if timestamp - a[0] < 300]
-            if len(attempts) >= 5:
-                raise HTTPException(
-                    429, "Trop de tentatives. Réessayez dans cinq minutes."
-                )
-            # Reserve the attempt before hashing to account for simultaneous requests.
-            failures[key] = attempts + [(timestamp, target)]
+        # Reserve the attempt before hashing to account for simultaneous requests.
+        if not failures.hit(key, target):
+            raise HTTPException(
+                429, "Trop de tentatives. Réessayez dans cinq minutes."
+            )
         with store.connect(write=True) as db:
             row = db.execute(
                 "SELECT * FROM users WHERE username=?", (values.username,)
@@ -1716,14 +1699,9 @@ def create_app(
                 )
             user = {k: row[k] for k in ("id", "username", "role")}
             issue_session(db, user, response)
-        with login_lock:
-            # Forgive only this account's typos: logging into one's own account
-            # must not reset guesses aimed at another one from the same address.
-            remaining = [a for a in failures.get(key, []) if a[1] != target]
-            if remaining:
-                failures[key] = remaining
-            else:
-                failures.pop(key, None)
+        # Forgive only this account's typos: logging into one's own account
+        # must not reset guesses aimed at another one from the same address.
+        failures.forgive(key, target)
         return user
 
     @app.get("/api/session")

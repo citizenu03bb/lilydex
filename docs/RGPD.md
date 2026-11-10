@@ -50,7 +50,7 @@ ne prouvent pas à elles seules le destinataire d'une demande invitée.
 | Finalité | Protéger le site contre les abus (inscriptions, connexions, lectures en masse) et diagnostiquer les pannes |
 | Base légale | Intérêt légitime à sécuriser le service (art. 6.1.f) |
 | Personnes | Visiteurs de la vitrine et de la gestion |
-| Données | Adresse IP, date, requête (journal d'accès d'uvicorn dans journald) ; compteurs par adresse en mémoire seulement |
+| Données | Adresse IP, date, requête (journal d'accès d'uvicorn dans journald) ; compteurs en mémoire seulement, par adresse IPv4 ou par préfixe IPv6 /64, 4 096 clés au plus par compteur |
 | Accès | Administrateur du serveur |
 | Durées | Mémoire : quelques minutes à une heure, perdue au redémarrage ; journal systemd : 3 mois (`MaxRetentionSec`, posé par `oci-provision.sh`) |
 
