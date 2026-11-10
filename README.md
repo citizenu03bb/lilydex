@@ -16,8 +16,8 @@ Le paquet Python et ses commandes s'appellent `pokeprice`, `pokeprice-manage` et
 > review queue with its evidence; agents apply pre-authorised fixes, and the operator-side lots
 > tool builds and publishes lots, refusing any price below their reference value minus a margin
 > (15 % by default). On 24 to 31 hand-verified cards from one collection: 0 unsafe variant
-> proposals above the value threshold out of 24 (95 % CI: 0–12 %), 22 of 27 editions confirmed by
-> image alone (63–91.8 %) with one false alarm (0.66–18 %), and Tesseract rejected after
+> proposals above the value threshold out of 24 (95 % CI: 0–11.8 %), 22 of 27 editions confirmed by
+> image alone (63.3–91.9 %) with one false alarm (0.65–18.3 %), and Tesseract rejected after
 > measurement. The bench is being grown towards 200+ cards. The interface and detailed docs are in French:
 > [English overview](README.en.md) · [case study](CASE-STUDY.md) (design, operations, security).
 
@@ -62,10 +62,10 @@ Gemini, un modèle vision-langage, lit une photo ; DINOv2 compare des images, sa
 
 | Brique | Modèle | Où ça tourne | Mesure |
 |---|---|---|---|
-| Lecture de la carte à la saisie | Gemini | cloud, appelé par le serveur | numéro juste 23/30 au pire passage (IC 95 % : 59–88 %) ; langue 30/30 (90,5–100 %) |
-| Finition, tampon et langue du texte | Gemini | cloud, après chaque saisie | holo ou mate, quand la lecture tranche : 21/21 (87–100 %) ; langue 31/31 sans fausse alerte (90,8–100 %) ; variante fausse proposée au-dessus du seuil de valeur : 0/24 (0–12 %) |
-| Contrôle d'édition par l'image | DINOv2-small, pré-entraîné | serveur ARM, sans carte graphique | vraie édition confirmée 22/27 (63–91,8 %) ; fausse alerte 1/27 (0,66–18 %) |
-| Porte énergie (ligne de commande) | DINOv2-small, plus proches voisins avec rejet | portable ou serveur | énergies de base admises 166/166 (98,2–100 %) ; autre carte admise à tort 1/1 601 (0,01–0,35 %) |
+| Lecture de la carte à la saisie | Gemini | cloud, appelé par le serveur | numéro juste 23/30 au pire passage (IC 95 % : 59,0–88,3 %) ; langue 30/30 (90,4–100 %) |
+| Finition, tampon et langue du texte | Gemini | cloud, après chaque saisie | holo ou mate, quand la lecture tranche : 21/21 (86,7–100 %) ; langue 31/31 sans fausse alerte (90,7–100 %) ; variante fausse proposée au-dessus du seuil de valeur : 0/24 (0–11,8 %) |
+| Contrôle d'édition par l'image | DINOv2-small, pré-entraîné | serveur ARM, sans carte graphique | vraie édition confirmée 22/27 (63,3–91,9 %) ; fausse alerte 1/27 (0,65–18,3 %) |
+| Porte énergie (ligne de commande) | DINOv2-small, plus proches voisins avec rejet | portable ou serveur | énergies de base admises 166/166 (98,2–100 %) ; autre carte admise à tort 1/1 601 (0,01–0,36 %) |
 | Préparation des photos | vision classique (Pillow), sans IA | serveur | non mesurée ; l'original est toujours gardé |
 | Aide à l'état | Gemini | cloud, à la demande | non mesurée : une proposition, jamais une note |
 
@@ -101,11 +101,11 @@ conséquences.
   libres essayés, aucun ne gérait des photos propres à chaque exemplaire, leurs corrections et
   le suivi de leur vente.
 - [Tesseract écarté sur mesure](docs/decisions/0005-langue-sans-tesseract.md) : 3 fausses
-  alertes sur 31 cartes (IC 95 % : 3,3–25 %), aucune erreur de Gemini rattrapée ; un contrôle de cohérence de la
+  alertes sur 31 cartes (IC 95 % : 3,3–24,9 %), aucune erreur de Gemini rattrapée ; un contrôle de cohérence de la
   langue le remplace.
 - [Une marge DINOv2 de 0,05](docs/decisions/0006-dinov2-marge.md), choisie sur une table de
-  compromis : à 0,02, 3 fausses alertes sur 27 (IC 95 % : 3,9–28 %) ; à 0,08, 11 éditions
-  voisines signalées sur 26 (26–61 %) au lieu de 14 (35–71 %). Les intervalles se recouvrent :
+  compromis : à 0,02, 3 fausses alertes sur 27 (IC 95 % : 3,8–28,1 %) ; à 0,08, 11 éditions
+  voisines signalées sur 26 (25,5–61,1 %) au lieu de 14 (35,4–71,3 %). Les intervalles se recouvrent :
   la table a orienté le choix, elle ne le prouve pas.
 - [Les reverses vérifiées à la main](docs/decisions/0008-reverses-examen-physique.md) dès que la
   version Foil vaut au moins le seuil de 10 € ou n'a pas de prix : aucun modèle testé ne les

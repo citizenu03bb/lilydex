@@ -26,7 +26,8 @@ déjà confirmées par une personne, dont 106 avec un motif qui dit que la carte
 **Décision.** Option 3.
 
 - Un modèle ne fournit jamais la vérité du banc. Une confirmation faite par un
-  agent ou un automate n'y entre pas.
+  agent ou un automate n'y entre pas, ni celle dont la fiche n'enregistre pas
+  l'auteur.
 - Chaque carte du banc porte la provenance de sa vérité : *vérifiée à
   l'aveugle* (observée sur la carte physique à partir d'une feuille sans
   lecture, enregistrée avec le motif « Vérification à l'aveugle (banc) », sans
@@ -43,7 +44,7 @@ déjà confirmées par une personne, dont 106 avec un motif qui dit que la carte
   deux commandes ouvrent la base en lecture seule.
 
 **Conséquences.**
-- Les chiffres publiés s'écrivent « 22/27 (IC 95 % : 63–91,8 %) » dans le
+- Les chiffres publiés s'écrivent « 22/27 (IC 95 % : 63,3–91,9 %) » dans le
   README, [IA et vision](../IA-VISION.md) et le
   [banc d'essai](../BANC-RECONNAISSANCE.md).
 - La mesure de sécurité « aucune variante fausse proposée au-dessus du seuil »

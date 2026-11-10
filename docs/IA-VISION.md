@@ -36,7 +36,7 @@
 4. **Mesurer avant d'adopter, et dire l'incertitude.** Chaque taux est publié
    avec son compte et son intervalle de confiance à 95 % : sur quelques
    dizaines de cartes, « aucune erreur » ne borne le taux d'erreur que sous
-   12 à 13 %. Chaque brique a été passée au banc d'essai,
+   12 à 14 %. Chaque brique a été passée au banc d'essai,
    face à d'autres solutions. Celles qui n'apportaient rien ont été écartées.
 5. **Une seule file.** Tous les désaccords (finition, langue, édition)
    arrivent dans « À examiner », avec leurs preuves.
@@ -45,10 +45,10 @@
 
 | Brique | Modèle | Où ça tourne | Mesure |
 |---|---|---|---|
-| Lecture de la carte à la saisie | Gemini (vision-langage) | cloud, appelé par le serveur | numéro juste 23/30 au pire passage (IC 95 % : 59–88 %) ; langue 30/30 (90,5–100 %) |
-| Finition, tampon et langue du texte | Gemini | cloud, après chaque saisie avec photo | holo ou mate, quand la lecture tranche : 21/21 (87–100 %) ; variante fausse proposée au-dessus du seuil de valeur : 0/24 (0–12 %) |
-| Contrôle d'édition par l'image | DINOv2-small, pré-entraîné | serveur, processeur seul | vraie édition confirmée 22/27 (63–91,8 %) ; fausse alerte 1/27 (0,66–18 %) |
-| Porte énergie (pipeline d'albums) | DINOv2-small, plus proches voisins avec rejet | portable ou serveur | énergies de base admises 166/166 (98,2–100 %) ; autre carte admise à tort 1/1 601 (0,01–0,35 %) |
+| Lecture de la carte à la saisie | Gemini (vision-langage) | cloud, appelé par le serveur | numéro juste 23/30 au pire passage (IC 95 % : 59,0–88,3 %) ; langue 30/30 (90,4–100 %) |
+| Finition, tampon et langue du texte | Gemini | cloud, après chaque saisie avec photo | holo ou mate, quand la lecture tranche : 21/21 (86,7–100 %) ; variante fausse proposée au-dessus du seuil de valeur : 0/24 (0–11,8 %) |
+| Contrôle d'édition par l'image | DINOv2-small, pré-entraîné | serveur, processeur seul | vraie édition confirmée 22/27 (63,3–91,9 %) ; fausse alerte 1/27 (0,65–18,3 %) |
+| Porte énergie (pipeline d'albums) | DINOv2-small, plus proches voisins avec rejet | portable ou serveur | énergies de base admises 166/166 (98,2–100 %) ; autre carte admise à tort 1/1 601 (0,01–0,36 %) |
 | Lecture des albums (pipeline) | Gemma via Ollama (local, par défaut) ou Gemini | portable | non mesurée pour Gemma |
 | Aide à l'état | Gemini | cloud, seulement à la demande | non mesurée : une proposition, jamais une note |
 | Préparation des photos | vision classique (Pillow), sans IA | serveur | non mesurée ; l'original est toujours gardé |

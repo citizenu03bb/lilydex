@@ -40,10 +40,10 @@ was measured on a bench of hand-verified cards.
 
 | Component | Model | Runs on | Measured |
 |---|---|---|---|
-| Card reading at intake | Gemini (vision-language) | cloud, called by the server | collector number right 23/30 on the worse run (95 % CI: 59–88 %); language 30/30 (90.5–100 %) |
-| Finish, stamp and text language | Gemini | cloud, after each intake | holo vs flat, when the reading decides: 21/21 (87–100 %); language 31/31, no false alarm (90.8–100 %); unsafe variant proposal above the value threshold: 0/24 (0–12 %) |
-| Image edition check | DINOv2-small, pre-trained | ARM server, CPU only | true edition confirmed 22/27 (63–91.8 %); false alarm 1/27 (0.66–18 %) |
-| Energy gate (command line) | DINOv2-small, nearest neighbours with rejection | laptop or server | basic Energy cards admitted 166/166 (98.2–100 %); other card wrongly admitted 1/1,601 (0.01–0.35 %) |
+| Card reading at intake | Gemini (vision-language) | cloud, called by the server | collector number right 23/30 on the worse run (95 % CI: 59.0–88.3 %); language 30/30 (90.4–100 %) |
+| Finish, stamp and text language | Gemini | cloud, after each intake | holo vs flat, when the reading decides: 21/21 (86.7–100 %); language 31/31, no false alarm (90.7–100 %); unsafe variant proposal above the value threshold: 0/24 (0–11.8 %) |
+| Image edition check | DINOv2-small, pre-trained | ARM server, CPU only | true edition confirmed 22/27 (63.3–91.9 %); false alarm 1/27 (0.65–18.3 %) |
+| Energy gate (command line) | DINOv2-small, nearest neighbours with rejection | laptop or server | basic Energy cards admitted 166/166 (98.2–100 %); other card wrongly admitted 1/1,601 (0.01–0.36 %) |
 | Photo preparation | classic computer vision (Pillow), no AI | server | not measured; the original is always kept |
 | Condition help | Gemini | cloud, on demand only | not measured: a proposal, never a grade |
 
@@ -52,9 +52,9 @@ was measured on a bench of hand-verified cards.
 Engineering choices, each backed by a measurement and written up as a decision record (in
 French, [docs/decisions/](docs/decisions/README.md)):
 
-- **Tesseract rejected** as a language checker: 28/31 right (95 % CI: 75–96.7 %), 3 false alarms, and it caught none
+- **Tesseract rejected** as a language checker: 28/31 right (95 % CI: 75.1–96.7 %), 3 false alarms, and it caught none
   of Gemini's errors. A consistency check inside the existing Gemini reading replaced it.
-- **DINOv2 over CLIP** (19/27 vs 13/27 top-1; 95 % CIs 52–84 % and 31–66 %, which overlap), with
+- **DINOv2 over CLIP** (19/27 vs 13/27 top-1; 95 % CIs 51.5–84.2 % and 30.7–66.1 %, which overlap), with
   an abstention margin of 0.05 chosen from a trade-off table (0.02: 3 false alarms out of 27;
   0.08: 11 instead of 14 near-miss editions caught out of 26). At this size the table guided
   the choice; it does not prove it.
