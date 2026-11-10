@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 
 from ..floor_requests import SharedTransaction, record
-from ..listings import FloorRefusal, Listings, is_agent
+from ..listings import FloorRefusal, Listings, is_agent, reference_cents
 from ..pricing import FLOOR_CENTS, display_price, euros, lot_floor_cents, lot_max_margin
 from ..reservations import shipping_quote
 from .recipe import DiversityStrategy, LotCompositionRecipe, ValueIntent
@@ -95,10 +95,17 @@ class LotsEngine:
         rows = self.store.listing(limit=10**9, threshold_cents=self.value_ceiling_cents, _db=db)["items"]
         return {r["id"]: r for r in rows}
 
-    def cards(self, db: sqlite3.Connection, copy_ids: list[str]) -> dict[str, Card]:
-        """Exemplaires avec leur valorisation, comme ``Listings.cards``, sur cette connexion."""
+    def cards(
+        self, db: sqlite3.Connection, copy_ids: list[str], *, threshold_cents: Optional[int] = None
+    ) -> dict[str, Card]:
+        """Exemplaires avec leur valorisation, comme ``Listings.cards``, sur cette connexion.
+
+        ``threshold_cents`` règle le seuil de valeur de la valorisation (celui de
+        ``Listings.cards`` par défaut) : les règles d'un agent prennent son plafond.
+        """
         wanted = set(copy_ids)
-        rows = self.store.listing(limit=10**9, _db=db)["items"]
+        options = {} if threshold_cents is None else {"threshold_cents": threshold_cents}
+        rows = self.store.listing(limit=10**9, _db=db, **options)["items"]
         return {r["id"]: r for r in rows if r["id"] in wanted}
 
     @staticmethod
@@ -130,19 +137,20 @@ class LotsEngine:
 
     # -- Gisement ---------------------------------------------------------------
 
-    def classify_pool(self, db: sqlite3.Connection) -> dict[str, list[Card]]:
+    def classify_pool(self, db: sqlite3.Connection, released: frozenset[str] = frozenset()) -> dict[str, list[Card]]:
         """Répartit les exemplaires disponibles entre album, gisement, exclus et « à chiffrer ».
 
         Règles d'intégrité :
         1. Le meilleur exemplaire (état de conservation le plus neuf, puis plus belle finition)
            est toujours conservé en priorité dans la collection de Lily, qu'il soit chiffré ou non.
         2. Les exemplaires déjà engagés dans un brouillon actif ou un lot en ligne sont exclus
-           du gisement disponible pour éviter tout double-booking.
+           du gisement disponible pour éviter tout double-booking. ``released`` nomme
+           ceux qu'une rotation libère dans la même transaction : ils comptent comme libres.
         3. Une carte n'entre en lot que si son identité est confirmée, son prix connu, sans
            revue en attente et sous le seuil de valeur. Les cartes sans prix vont dans la
            liste « à chiffrer », jamais en lot.
         """
-        busy_ids = self.get_busy_copy_ids(db)
+        busy_ids = self.get_busy_copy_ids(db) - released
         cur = db.cursor()
 
         cur.execute("""
@@ -429,13 +437,13 @@ class LotsEngine:
             "to_price": to_price,
         }
 
-    def bulk_bonus_pool(self, db: sqlite3.Connection) -> list[Card]:
+    def bulk_bonus_pool(self, db: sqlite3.Connection, released: frozenset[str] = frozenset()) -> list[Card]:
         """Énergies en vrac libres pour un bonus, dans l'ordre du classeur (décision 0041).
 
         En vrac (fiche 0015), disponibles, prises dans aucun brouillon ni lot en
         ligne, et publiables à prix fixé à la main, comme à la publication du lot.
         """
-        busy = self.get_busy_copy_ids(db)
+        busy = self.get_busy_copy_ids(db) - released
         rows = db.execute("""
             SELECT id, version, name, set_name, number, language, album_id, page,
                    position, condition, finish, photo
@@ -484,9 +492,11 @@ class LotsEngine:
             lot["title"] = bonus_title(lot["title"], len(bonus))
         return lots
 
-    def analyze(self, db: sqlite3.Connection, max_cards_per_lot: int = 20) -> dict[str, Any]:
-        pool = self.classify_pool(db)
-        bonus_pool = self.bulk_bonus_pool(db)
+    def analyze(
+        self, db: sqlite3.Connection, max_cards_per_lot: int = 20, released: frozenset[str] = frozenset()
+    ) -> dict[str, Any]:
+        pool = self.classify_pool(db, released)
+        bonus_pool = self.bulk_bonus_pool(db, released)
         retained, duplicates = pool["retained"], pool["duplicates"]
         candidate_lots = self.compose_candidate_lots(duplicates, max_cards_per_lot=max_cards_per_lot)
         self.add_bonus(candidate_lots, bonus_pool)
@@ -707,12 +717,20 @@ class LotsEngine:
 
     # -- Publication en vitrine -------------------------------------------------
 
-    def publication_plan(self, db: sqlite3.Connection, sale_id: str) -> tuple[Card, list[str], list[Card], int]:
+    def publication_plan(
+        self, db: sqlite3.Connection, sale_id: str, *, agent_rules: bool = False
+    ) -> tuple[Card, list[str], list[Card], int]:
         """Vérifie qu'un brouillon peut être publié en lot, sans rien écrire.
 
         Mêmes règles que ``Listings.publish(lot=True)`` (``display_price`` avec le
         plancher appliqué au lot entier), vérifiées pour toutes les cartes avant
         toute dépublication. Lève ``ValueError`` avec la liste des refus.
+
+        Avec ``agent_rules`` (publication par l'API agent), chaque carte payante
+        repasse aussi les règles d'entrée en lot avec le plafond de l'accès
+        (identité confirmée, chiffrée, sans revue, sous le seuil), aucune n'est
+        prise par une autre vente, et un prix sous le plancher du jour est relevé
+        au plancher au lieu d'être refusé : le prix rendu ne baisse jamais.
         """
         sale_row = db.execute("SELECT * FROM sales WHERE id=?", (sale_id,)).fetchone()
         if not sale_row:
@@ -744,13 +762,13 @@ class LotsEngine:
         if not price_cents:
             raise ValueError("Fixez le prix du lot avant de le publier.")
         refusals = []
-        if price_cents < FLOOR_CENTS:
+        if price_cents < FLOOR_CENTS and not agent_rules:  # Relevé plus bas pour un agent.
             refusals.append(f"Un lot se vend au moins {euros(FLOOR_CENTS / 100)}.")
         # Plancher anti-bradage, sur les cotes du jour : une baisse de prix ne passe
         # pas en douce si les cotes ont monté depuis le brouillon.
         # Une cote nulle ne vaut pas mieux qu'une cote absente : elle annulerait le plancher.
         copy_ids = [it["id"] for it in items]
-        cards = self.cards(db, copy_ids)
+        cards = self.cards(db, copy_ids, threshold_cents=self.value_ceiling_cents if agent_rules else None)
 
         def offered(it: Card) -> bool:
             # Une énergie en vrac offerte n'a pas de cote à protéger (décision 0041).
@@ -767,7 +785,18 @@ class LotsEngine:
         floor_refusal = None
         floor = 0
         margin = lot_max_margin(db)
-        if not unrated:
+        if not unrated and agent_rules:
+            # Décision du propriétaire : jamais sous le plancher, jamais de dérogation
+            # pour un agent. Le plancher retenu est le plus haut des deux calculs
+            # (cotes enregistrées ici, références de ``Listings.publish``).
+            known = [cards[it["id"]] for it in items if it["id"] in cards]
+            floor = max(
+                FLOOR_CENTS,
+                lot_floor_cents(sum(it["reference_cents"] or 0 for it in items), margin),
+                lot_floor_cents(sum(reference_cents(c) for c in known), margin),
+            )
+            price_cents = max(price_cents, floor)
+        elif not unrated:
             floor = lot_floor_cents(sum(it["reference_cents"] or 0 for it in items), margin)
             if price_cents < floor:
                 floor_refusal = (
@@ -776,6 +805,17 @@ class LotsEngine:
                 )
                 refusals.append(floor_refusal)
 
+        busy_elsewhere: set[str] = set()
+        if agent_rules:
+            marks = ",".join("?" for _ in copy_ids)
+            busy_elsewhere = {
+                r[0]
+                for r in db.execute(
+                    f"SELECT si.copy_id FROM sale_items si JOIN sales s ON s.id = si.sale_id "
+                    f"WHERE s.id != ? AND s.status IN ('draft', 'reserved') AND si.copy_id IN ({marks})",
+                    [sale_id, *copy_ids],
+                )
+            }
         to_unpublish = []
         for it in items:
             label = f"{it['name']} ({it['id'][:8]})"
@@ -783,6 +823,15 @@ class LotsEngine:
             if card is None or it["deleted_at"]:
                 refusals.append(f"{label} : exemplaire supprimé de la collection.")
                 continue
+            if agent_rules:
+                if it["id"] in busy_elsewhere:
+                    refusals.append(f"{label} : déjà pris par une autre vente.")
+                    continue
+                if not offered(it):
+                    reasons = self.lot_exclusions(card)
+                    if reasons:
+                        refusals.append(f"{label} : n'entre plus en lot ({', '.join(reasons)}).")
+                        continue
             proposal = display_price(card, card["valuation"], MANUAL_PRICE)
             if not proposal["publishable"]:
                 refusals.append(f"{label} : " + " ".join(proposal["reasons"]))
@@ -821,7 +870,13 @@ class LotsEngine:
         return sale, copy_ids, to_unpublish, price_cents
 
     def publish_lot(
-        self, db: sqlite3.Connection, sale_id: str, actor: str = DEFAULT_ACTOR, dry_run: bool = False
+        self,
+        db: sqlite3.Connection,
+        sale_id: str,
+        actor: str = DEFAULT_ACTOR,
+        dry_run: bool = False,
+        *,
+        agent_rules: bool = False,
     ) -> dict[str, Any]:
         """Remplace les annonces unitaires des cartes du lot par une annonce de lot.
 
@@ -830,8 +885,11 @@ class LotsEngine:
         et mise à jour de la vente s'y font ensemble, et l'appelant l'annule en
         cas d'erreur. Un refus au seul plancher lève ``FloorRefusal`` : la demande
         de dérogation s'enregistre après l'annulation (``record_floor_refusal``).
+        Avec ``agent_rules``, voir ``publication_plan`` : un prix relevé au
+        plancher est aussi celui de la vente.
         """
-        sale, copy_ids, to_unpublish, price_cents = self.publication_plan(db, sale_id)
+        sale, copy_ids, to_unpublish, price_cents = self.publication_plan(db, sale_id, agent_rules=agent_rules)
+        previous_cents = sale["amount_cents"] or sale["asking_cents"]
         new_listing = None
         if not dry_run:
             listings = Listings(SharedTransaction(self.store, db))
@@ -843,12 +901,15 @@ class LotsEngine:
             new_listing = listings.publish(
                 copy_ids, actor, price_cents=price_cents, title=title, lot=True
             )
+            changes = {
+                "channel": "Vitrine",
+                "notes": ((sale["notes"] or "") + f"\nPublié en vitrine : annonce {new_listing['id']}").strip(),
+            }
+            if price_cents != previous_cents:
+                changes.update(amount_cents=price_cents, asking_cents=price_cents)
             self.store.update_sale(
                 sale_id,
-                {
-                    "channel": "Vitrine",
-                    "notes": ((sale["notes"] or "") + f"\nPublié en vitrine : annonce {new_listing['id']}").strip(),
-                },
+                changes,
                 sale["version"],
                 actor,
                 "Publication du lot en vitrine publique",
@@ -867,6 +928,8 @@ class LotsEngine:
                 for l in to_unpublish
             ],
         }
+        if agent_rules:
+            report["previous_price_cents"] = previous_cents
         if new_listing is not None:
             report["published_listing_id"] = new_listing["id"]
         return report

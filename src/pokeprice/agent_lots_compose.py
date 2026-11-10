@@ -29,7 +29,7 @@ from typing import Annotated, Any, Optional
 from fastapi import APIRouter, Header, Path, Request
 from pydantic import Field
 
-from .agent import AgentError, AgentService, canonical, digest, lots_ceiling_cents
+from .agent import AgentError, AgentService, canonical, digest, lots_ceiling_cents, require
 from .inventory import Conflict, now
 from .lots import MAX_ROTATION_DRAFTS, LotsEngine, RotationPlan
 from .lots.agent_recipe import MAX_CENTS, AgentRecipe, StrictModel, lot_plan_id, safe_text, split_bonus, to_recipe
@@ -37,10 +37,12 @@ from .lots.settings import lot_rotation_days
 from .pricing import FLOOR_CENTS, lot_floor_cents, lot_max_margin
 
 COMPOSE = "lots:compose"
+PUBLISH = "lots:publish"
 OP_EVENT = "lot-op"
 DENIED_EVENT = "lot-denied"
 # Quotas par accès et par jour (UTC).
 DAILY_DRAFTS = 20
+DAILY_PUBLISHES = 10
 DAILY_REFUSALS = 100
 KEY = re.compile(r"[A-Za-z0-9_.:-]{1,120}")
 SALE_ID = r"^[A-Za-z0-9-]{1,64}$"
@@ -48,7 +50,9 @@ SALE_ID = r"^[A-Za-z0-9-]{1,64}$"
 UNJOURNALED = {401, 403, 429}
 
 Card = dict[str, Any]
-Work = Callable[[sqlite3.Connection, Card, LotsEngine], tuple[Card, int]]
+# What a write did, for the daily quotas: ``drafts_created`` and ``published``.
+Counts = dict[str, int]
+Work = Callable[[sqlite3.Connection, Card, LotsEngine], tuple[Card, Counts]]
 
 
 class ComposeRequest(StrictModel):
@@ -89,13 +93,21 @@ def stored_operation(db: sqlite3.Connection, actor: str, key: str) -> Optional[C
     return json.loads(row[0]) if row else None
 
 
-def drafts_created_today(db: sqlite3.Connection, actor: str) -> int:
+def counted_today(db: sqlite3.Connection, actor: str, field: str) -> int:
     row = db.execute(
-        "SELECT coalesce(sum(json_extract(after_json,'$.drafts_created')),0) FROM events "
+        f"SELECT coalesce(sum(json_extract(after_json,'$.{field}')),0) FROM events "
         "WHERE kind=? AND actor=? AND copy_id IS NULL AND created_at>=?",
         (OP_EVENT, actor, today()),
     ).fetchone()
     return int(row[0])
+
+
+def drafts_created_today(db: sqlite3.Connection, actor: str) -> int:
+    return counted_today(db, actor, "drafts_created")
+
+
+def published_today(db: sqlite3.Connection, actor: str) -> int:
+    return counted_today(db, actor, "published")
 
 
 def refusals_today(db: sqlite3.Connection, actor: str) -> int:
@@ -109,6 +121,13 @@ def refusals_today(db: sqlite3.Connection, actor: str) -> int:
 def check_draft_quota(db: sqlite3.Connection, actor: str, wanted: int) -> None:
     if wanted and drafts_created_today(db, actor) + wanted > DAILY_DRAFTS:
         raise AgentError(429, "draft_quota", f"Quota de {DAILY_DRAFTS} lots créés par jour atteint pour cet accès.")
+
+
+def check_publish_quota(db: sqlite3.Connection, actor: str, wanted: int = 1) -> None:
+    if wanted and published_today(db, actor) + wanted > DAILY_PUBLISHES:
+        raise AgentError(
+            429, "publish_quota", f"Quota de {DAILY_PUBLISHES} lots publiés par jour atteint pour cet accès."
+        )
 
 
 def floor_cents(db: sqlite3.Connection, copy_ids: list[str], margin: int) -> int:
@@ -140,6 +159,7 @@ def due_online(db: sqlite3.Connection, days: int) -> list[Card]:
         JOIN listing_items li ON li.copy_id = si.copy_id AND li.active = 1
         JOIN listings l ON l.id = li.listing_id AND l.state = 'online'
         WHERE s.status = 'draft' AND l.published_at < ?
+          AND (l.published_by = 'pokeprice-lots' OR l.published_by LIKE 'agent:%')
           AND (SELECT count(*) FROM listing_items x WHERE x.listing_id = l.id AND x.active = 1) > 1
         ORDER BY l.published_at, s.id
         """,
@@ -222,12 +242,31 @@ class LotsComposer:
                 {"op": op, "code": code, "minute": minute},
             )
 
-    def run(self, token_hash: str, op: str, key: Optional[str], payload: Card, work: Work, *, heavy: bool = False) -> Card:
-        """Autorise, rejoue ou exécute ``work`` et journalise, dans une seule transaction d'écriture."""
-        self.check_key(key)
+    def run(
+        self,
+        token_hash: str,
+        op: str,
+        key: Optional[str],
+        payload: Card,
+        work: Work,
+        *,
+        heavy: bool = False,
+        permissions: tuple[str, ...] = (COMPOSE,),
+        internal_key: bool = False,
+    ) -> Card:
+        """Autorise, rejoue ou exécute ``work`` et journalise, dans une seule transaction d'écriture.
+
+        Chaque permission de ``permissions`` est exigée, relue à cet appel. Une
+        clé interne (``internal_key``), dérivée par le serveur, contient « / » :
+        aucune clé reçue d'un client ne peut la prendre.
+        """
+        if not internal_key:
+            self.check_key(key)
         fingerprint = self.fingerprint(op, payload)
         with self.denials(op) as seen, self.store.connect(write=True) as db:
-            grant = self.service.authorize(db, token_hash, COMPOSE)
+            grant = self.service.authorize(db, token_hash, permissions[0])
+            for permission in permissions[1:]:
+                require(grant, permission)
             seen["grant"] = grant
             if heavy:
                 self.heavy(grant["id"])
@@ -240,17 +279,24 @@ class LotsComposer:
                     429, "refusal_quota", f"Quota de {DAILY_REFUSALS} refus par jour atteint pour cet accès."
                 )
             engine = LotsEngine(self.store, value_ceiling_cents=lots_ceiling_cents(grant))
-            response, created = work(db, grant, engine)
+            response, counts = work(db, grant, engine)
             self.store.event(
                 db, None, actor, OP_EVENT, "Opération de lots par un agent : " + op, {},
-                {"key": key, "op": op, "request_sha256": fingerprint, "response": response, "drafts_created": created},
+                {
+                    "key": key,
+                    "op": op,
+                    "request_sha256": fingerprint,
+                    "response": response,
+                    "drafts_created": counts.get("drafts_created", 0),
+                    "published": counts.get("published", 0),
+                },
             )
             return response
 
     # -- Création ---------------------------------------------------------------
 
     def compose(self, token_hash: str, key: str, values: ComposeRequest, request_id: str) -> Card:
-        def work(db: sqlite3.Connection, grant: Card, engine: LotsEngine) -> tuple[Card, int]:
+        def work(db: sqlite3.Connection, grant: Card, engine: LotsEngine) -> tuple[Card, Counts]:
             # Le plan se recalcule ici, sous le verrou d'écriture : le gisement exclut
             # déjà tout exemplaire pris par un brouillon, une vente réservée ou un lot en ligne.
             result = engine.compose_from_recipe(db, to_recipe(values.recipe), scope="duplicates")
@@ -297,7 +343,7 @@ class LotsComposer:
                 "copies": [{"id": c["id"], "version": c["version"]} for c in paid],
                 "bonus": [{"id": c["id"], "version": c["version"]} for c in bonus],
                 "request_id": request_id,
-            }, 1
+            }, {"drafts_created": 1}
 
         return self.run(token_hash, "compose", key, values.model_dump(mode="json"), work, heavy=True)
 
@@ -335,7 +381,7 @@ class LotsComposer:
         op = "rotate"
         payload = values.model_dump(mode="json")
         fingerprint = self.fingerprint(op, payload)
-        # 1. Le plan se calcule hors du verrou d'écriture, sur un instantané de lecture.
+        # 0. Une clé déjà servie rejoue sa réponse avant tout calcul.
         with self.denials(op) as seen, self.store.connect() as db:
             db.execute("BEGIN")
             grant = self.service.authorize(db, token_hash, COMPOSE)
@@ -344,6 +390,13 @@ class LotsComposer:
             replayed = self.replay(db, actor_of(grant), key, fingerprint)
             if replayed is not None:
                 return replayed
+        # Les lots en ligne échus d'abord, chacun dans sa transaction (``lots:publish``).
+        online = self.rotate_online(token_hash, key, grant, values.dry_run)
+        # 1. Le plan se calcule hors du verrou d'écriture, sur un instantané de lecture.
+        with self.denials(op) as seen, self.store.connect() as db:
+            db.execute("BEGIN")
+            grant = self.service.authorize(db, token_hash, COMPOSE)
+            seen["grant"] = grant
             engine = LotsEngine(self.store, value_ceiling_cents=lots_ceiling_cents(grant))
             plan, versions = self.plan(db, grant, engine, values.limit, values.dry_run)
             days = lot_rotation_days(db)
@@ -351,13 +404,14 @@ class LotsComposer:
                 **self.report(db, plan),
                 "rotation_days": days,
                 "due_online": due_online(db, days),
+                **online,
                 "request_id": request_id,
             }
         if values.dry_run:
             return preview
 
         # 2. Tout se revalide et s'écrit dans une seule transaction d'écriture.
-        def work(db: sqlite3.Connection, grant: Card, engine: LotsEngine) -> tuple[Card, int]:
+        def work(db: sqlite3.Connection, grant: Card, engine: LotsEngine) -> tuple[Card, Counts]:
             for draft in plan.cancel:
                 row = db.execute("SELECT status, version FROM sales WHERE id=?", (draft["id"],)).fetchone()
                 if (
@@ -396,9 +450,13 @@ class LotsComposer:
                 "dry_run": False,
                 "cancelled": [d["id"] for d in plan.cancel],
                 "created": created,
-            }, len(created)
+            }, {"drafts_created": len(created)}
 
         return self.run(token_hash, op, key, payload, work)
+
+    def rotate_online(self, token_hash: str, key: str, grant: Card, dry_run: bool) -> Card:
+        """Remplacement des lots en ligne échus : rien sans ``lots:publish`` (voir ``agent_lots_publish``)."""
+        return {}
 
     # -- Annulation et relèvement -----------------------------------------------
 
@@ -417,7 +475,7 @@ class LotsComposer:
         return row
 
     def cancel(self, token_hash: str, sale_id: str, values: CancelRequest, request_id: str) -> Card:
-        def work(db: sqlite3.Connection, grant: Card, engine: LotsEngine) -> tuple[Card, int]:
+        def work(db: sqlite3.Connection, grant: Card, engine: LotsEngine) -> tuple[Card, Counts]:
             reason = safe_text(values.reason)
             self.own_draft(db, engine, sale_id, values.expected_version)
             self.store.update_sale(
@@ -425,12 +483,12 @@ class LotsComposer:
                 "Annulation par l'agent : " + reason, _db=db,
             )
             version = db.execute("SELECT version FROM sales WHERE id=?", (sale_id,)).fetchone()[0]
-            return {"sale_id": sale_id, "status": "cancelled", "version": version, "request_id": request_id}, 0
+            return {"sale_id": sale_id, "status": "cancelled", "version": version, "request_id": request_id}, {}
 
         return self.run(token_hash, "cancel", None, {"sale_id": sale_id, **values.model_dump(mode="json")}, work)
 
     def raise_price(self, token_hash: str, sale_id: str, values: RaiseRequest, request_id: str) -> Card:
-        def work(db: sqlite3.Connection, grant: Card, engine: LotsEngine) -> tuple[Card, int]:
+        def work(db: sqlite3.Connection, grant: Card, engine: LotsEngine) -> tuple[Card, Counts]:
             row = self.own_draft(db, engine, sale_id, values.expected_version)
             current = row["amount_cents"] or row["asking_cents"] or 0
             if values.asking_cents < current:
@@ -453,14 +511,23 @@ class LotsComposer:
                 "raised_to_floor": price > values.asking_cents,
                 "margin": margin,
                 "request_id": request_id,
-            }, 0
+            }, {}
 
         return self.run(token_hash, "raise", None, {"sale_id": sale_id, **values.model_dump(mode="json")}, work)
 
 
-def install_compose(api: APIRouter, service: AgentService, principal: Any, heavy: Callable[[str], None]) -> None:
-    """Ajoute les routes d'écriture de ``lots:compose`` au routeur agent."""
-    composer = LotsComposer(service, heavy)
+def install_compose(
+    api: APIRouter,
+    service: AgentService,
+    principal: Any,
+    heavy: Callable[[str], None],
+    composer: Optional[LotsComposer] = None,
+) -> None:
+    """Ajoute les routes d'écriture de ``lots:compose`` au routeur agent.
+
+    ``composer`` est celui qui sert aussi ``lots:publish`` (rotation des lots en ligne).
+    """
+    composer = composer or LotsComposer(service, heavy)
     IdempotencyKey = Annotated[str, Header(alias="Idempotency-Key", min_length=1, max_length=120)]
     SaleId = Annotated[str, Path(pattern=SALE_ID)]
 

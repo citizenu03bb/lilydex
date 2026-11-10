@@ -71,6 +71,25 @@ def is_agent(actor):
     return actor.startswith("agent:") or actor == LOTS_ACTOR
 
 
+def agent_lot_refusal(card):
+    """Why an agent may not put this copy in a lot, or "" when it may.
+
+    An offered bulk energy has no reference to protect (decision 0041); any
+    other copy needs a confirmed identity, a stored reference and no pending
+    review. People publishing from the management app are not held to it.
+    """
+    valuation = card.get("valuation") or {}
+    if card.get("identification_status") != "confirmed":
+        return "identité à confirmer : un agent ne la met pas en lot."
+    if valuation.get("bulk"):
+        return ""
+    if not positive_cents(card.get("reference_cents")):
+        return "carte sans cote : un agent ne la met pas en lot."
+    if valuation.get("needs_review"):
+        return "carte à examiner : un agent ne la met pas en lot."
+    return ""
+
+
 class FloorRefusal(ValueError):
     """A price under the anti-undercut floor, with what a waiver request needs.
 
@@ -210,6 +229,12 @@ class Listings:
                 (f"{cards[copy_ids[0]]['name']} : " if not lot else "")
                 + NO_REFERENCE_FOR_AGENT
             )
+        if agent and lot:
+            # Defense in depth: whoever calls, an agent never puts an unchecked card in a lot.
+            for copy_id in copy_ids:
+                refused = agent_lot_refusal(cards[copy_id])
+                if refused:
+                    raise ValueError(f"{cards[copy_id]['name']} : {refused}")
         margin = lot_max_margin(self.store)
         asked = price_cents
         if asked is None and agent:

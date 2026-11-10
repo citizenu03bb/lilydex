@@ -1,7 +1,8 @@
 """Lecture de l'outil des lots par l'API agent : gisement, état, plan et publication.
 
 Aucune de ces routes n'écrit ; les écritures de ``lots:compose`` vivent dans
-``agent_lots_compose`` et sont ajoutées au même routeur. Chacune autorise l'accès et lit sur une seule
+``agent_lots_compose``, celles de ``lots:publish`` dans ``agent_lots_publish``,
+et sont ajoutées au même routeur. Chacune autorise l'accès et lit sur une seule
 connexion, dans une seule transaction de lecture, puis appelle ``LotsEngine``
 avec elle. Le plafond de valeur vient de l'accès (``lots_ceiling_cents``) ; la
 marge et le plancher viennent de la base ; le périmètre est celui des doublons :
@@ -21,6 +22,7 @@ from .floor_requests import events as floor_events
 from .listings import FloorRefusal
 from .lots import MAX_ROTATION_DRAFTS, LotsEngine
 from .agent_lots_compose import install_compose
+from .agent_lots_publish import LotsPublisher, install_publish
 from .lots.agent_recipe import AgentRecipe, StrictModel, lot_plan_id, split_bonus, to_recipe
 from .pricing import FLOOR_CENTS, lot_floor_cents, lot_max_margin
 
@@ -93,7 +95,9 @@ def install_lots(
     heavy: Callable[[str], None],
 ) -> None:
     """Ajoute les routes des lots au routeur agent (``principal`` sur chacune)."""
-    install_compose(api, service, principal, heavy)
+    publisher = LotsPublisher(service, heavy)
+    install_compose(api, service, principal, heavy, publisher)
+    install_publish(api, publisher, principal)
 
     @contextmanager
     def reading(request: Request) -> Iterator[tuple[sqlite3.Connection, LotsEngine, Card]]:

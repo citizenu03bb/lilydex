@@ -3210,6 +3210,26 @@
     "title": "Profile",
     "type": "object"
    },
+   "PublishRequest": {
+    "additionalProperties": false,
+    "properties": {
+     "dry_run": {
+      "default": true,
+      "title": "Dry Run",
+      "type": "boolean"
+     },
+     "expected_version": {
+      "minimum": 1.0,
+      "title": "Expected Version",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "expected_version"
+    ],
+    "title": "PublishRequest",
+    "type": "object"
+   },
    "PushEndpoint": {
     "additionalProperties": false,
     "properties": {
@@ -3915,6 +3935,28 @@
      "consent"
     ],
     "title": "Signup",
+    "type": "object"
+   },
+   "UnpublishRequest": {
+    "additionalProperties": false,
+    "properties": {
+     "expected_version": {
+      "minimum": 1.0,
+      "title": "Expected Version",
+      "type": "integer"
+     },
+     "reason": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Reason",
+      "type": "string"
+     }
+    },
+    "required": [
+     "expected_version",
+     "reason"
+    ],
+    "title": "UnpublishRequest",
     "type": "object"
    },
    "UserCreate": {
@@ -4797,6 +4839,61 @@
     ]
    }
   },
+  "/api/agent/v1/lots/{listing_id}/unpublish": {
+   "post": {
+    "operationId": "lots_unpublish_api_agent_v1_lots__listing_id__unpublish_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "listing_id",
+      "required": true,
+      "schema": {
+       "pattern": "^[A-Za-z0-9-]{1,64}$",
+       "title": "Listing Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/UnpublishRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Lots Unpublish Api Agent V1 Lots  Listing Id  Unpublish Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Lots Unpublish",
+    "tags": [
+     "agent-v1"
+    ]
+   }
+  },
   "/api/agent/v1/lots/{sale_id}/cancel": {
    "post": {
     "operationId": "lots_cancel_api_agent_v1_lots__sale_id__cancel_post",
@@ -4892,6 +4989,72 @@
      }
     },
     "summary": "Lots Publication",
+    "tags": [
+     "agent-v1"
+    ]
+   }
+  },
+  "/api/agent/v1/lots/{sale_id}/publish": {
+   "post": {
+    "operationId": "lots_publish_api_agent_v1_lots__sale_id__publish_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "sale_id",
+      "required": true,
+      "schema": {
+       "pattern": "^[A-Za-z0-9-]{1,64}$",
+       "title": "Sale Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "header",
+      "name": "Idempotency-Key",
+      "required": true,
+      "schema": {
+       "maxLength": 120,
+       "minLength": 1,
+       "title": "Idempotency-Key",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PublishRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Lots Publish Api Agent V1 Lots  Sale Id  Publish Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Lots Publish",
     "tags": [
      "agent-v1"
     ]

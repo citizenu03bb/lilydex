@@ -245,8 +245,9 @@ l’album nommé par l’accès ; `agent-create` le rappelle sur la sortie
 d’erreur et `/capabilities` l’indique (`lots.scope` vaut `collection`).
 `/capabilities` annonce ces opérations seulement à un accès qui détient la
 permission correspondante ; un accès sans permission lots n’en voit aucune
-trace. Les opérations de lecture et de composition ont une route ; la
-publication passe encore par `scripts/pokeprice_lots.py`.
+trace. Chaque opération a sa route ; le client en ligne de commande passe
+encore par `scripts/pokeprice_lots.py` et son accès opérateur ([fiche
+0044](decisions/0044-outil-des-lots-par-l-api-agent.md)).
 
 ```bash
 uv run pokeprice-manage --data /CHEMIN_COLLECTION agent-create lots-doublons \
@@ -345,7 +346,8 @@ de l’accès>`.
   puis le plafond. Un changement entre les deux donne `stale_plan` ; un accès
   révoqué entre les deux, 401. La réponse liste aussi, sous `due_online`, les
   lots en ligne de l’outil invendus depuis plus que l’âge de rotation
-  (`rotation_days`, réglé dans **Réglages → Plancher anti-bradage**) ; la
+  (`rotation_days`, réglé dans **Réglages → Plancher anti-bradage**). Un accès
+  qui détient aussi `lots:publish` les remplace (voir plus bas) ; sans lui, la
   rotation les signale sans y toucher.
 - **Idempotence.** Même clé et même corps : la réponse enregistrée revient,
   avec `replayed: true`, avant toute validation. Même clé et autre corps :
@@ -361,6 +363,61 @@ de l’accès>`.
   vente.
 - **Débit.** `POST /lots` et `POST /lots/rotate` relisent toute la collection
   et partagent les six appels par minute de `pool` et `plan`.
+
+### Publier, retirer et remplacer les lots en ligne
+
+Deux routes d’écriture, sous `/api/agent/v1/lots` et réservées à
+`lots:publish`, dans le même cadre que la composition : une seule transaction
+d’écriture, autorisation, idempotence, quotas, validations, écritures, auteur
+`agent:<identifiant de l’accès>`.
+
+| Route | Opération | Rôle |
+|---|---|---|
+| `POST /lots/{sale_id}/publish` | `lots-publish` | publie en vitrine un brouillon de l’outil : `{expected_version, dry_run}` et un en-tête `Idempotency-Key` obligatoire ; à blanc par défaut ; aucun champ de prix |
+| `POST /lots/{listing_id}/unpublish` | `lots-unpublish` | retire une annonce de lot de l’outil : `{expected_version, reason}` (version de l’annonce) |
+
+- **Vérification dans la transaction.** La publication repasse chaque carte
+  payante aux règles d’entrée en lot avec le plafond de valeur de l’accès :
+  identité confirmée, cote enregistrée, rien à examiner, sous le plafond,
+  disponible, prise par aucune autre vente ni aucun autre lot en ligne. Une
+  carte passée « à examiner » depuis la composition fait refuser le lot
+  (422 `not_publishable`), et rien ne s’écrit. Les annonces unitaires de ses
+  cartes sont retirées, le lot publié et la vente mise à jour sur la même
+  connexion.
+- **Prix.** Un prix sous le plancher du jour est relevé au plancher, celui de
+  la vente compris (`raised_to_floor`) ; aucune demande de dérogation n’est
+  enregistrée pour un agent. Le plancher absolu de 0,50 € tient toujours, et
+  un prix n’est jamais baissé.
+- **Lots de l’outil seulement.** Un brouillon fait à la main répond 404 ; un
+  brouillon déjà en ligne, 409 `online_lot`. `unpublish` ne retire qu’une
+  annonce publiée par l’outil des lots ou un agent et qui porte au moins deux
+  cartes ; une annonce faite à la main ou d’une seule carte répond 404.
+- **Après un retrait.** Le brouillon de l’outil qui porte ces cartes est
+  annulé dans la même transaction : les cartes reviennent au gisement, sans
+  annonce. Les annonces unitaires retirées à la publication ne reviennent pas ;
+  la prochaine composition reprend les cartes. Si une vente faite à la main
+  (409 `hand_made_sale`) ou réservée (409 `sale_in_progress`) porte l’une
+  d’elles, rien n’est retiré.
+- **Rotation des lots en ligne.** Pour un accès qui détient `lots:compose` et
+  `lots:publish`, `POST /lots/rotate` remplace d’abord, du plus ancien au plus
+  récent, les lots en ligne de l’outil invendus depuis plus que l’âge de
+  rotation. Chaque remplacement est une transaction : retrait de l’annonce,
+  annulation du brouillon, composition d’un nouveau lot (les cartes libérées
+  comprises), puis publication avec les règles ci-dessus. Un échec annule ce
+  remplacement seul : le lot reste en ligne tel qu’il était, et la réponse le
+  liste sous `online_rotation.failed`. Sans remplaçant possible, le lot reste
+  en ligne (`skipped`, `no_replacement`). Un remplaçant fait des mêmes cartes
+  payantes ne coûte jamais moins cher que le lot qu’il remplace. Le plafond de
+  5 brouillons et les quotas valent pour chaque remplacement ; une rotation à
+  blanc liste les remplacements prévus sous `online_rotation.planned`.
+- **Quota par accès et par jour.** 10 lots publiés (429 `publish_quota`),
+  remplacements compris ; chaque remplacement compte aussi un lot créé.
+- **Débit.** `publish` relit toute la collection : il partage les six appels
+  par minute de `pool` et `plan`. La transaction d’écriture relit les
+  valorisations du lot comme le script de publication, sans plus.
+- **Ce qui n’existe pas.** Ni publication de tous les brouillons d’un coup, ni
+  route qui touche aux accès, à la marge, à l’âge de rotation ou aux
+  dérogations.
 
 ## Outils de l'assistant de gestion
 
