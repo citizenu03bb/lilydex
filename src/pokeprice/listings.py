@@ -269,6 +269,12 @@ class Listings:
         timestamp = now()
         trace = f" (dérogation accordée par {waiver_by})" if waiver_by else ""
         with self.store.connect(write=True) as db:
+            # The floor above was checked with a margin read before this transaction:
+            # if the administration changed it since, nothing is written on the old one.
+            if lot_max_margin(db) != margin:
+                raise Conflict(
+                    "La marge du plancher anti-bradage a changé entre-temps : recommencez la publication."
+                )
             for copy_id in copy_ids:
                 card = self.store.get(db, copy_id)
                 if card["deleted_at"] or card["stock_state"] != "available":
