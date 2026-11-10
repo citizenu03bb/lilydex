@@ -2989,7 +2989,7 @@ async function loadFloorMargin() {
         "li",
         `${new Date(h.at).toLocaleString("fr-FR")} · ${h.actor} : ${
           h.previous === null ? "" : `${h.previous} % → `
-        }${h.margin} %`,
+        }${h.margin} % — ${h.reason}`,
       ),
     ),
   );

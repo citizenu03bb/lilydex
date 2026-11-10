@@ -440,7 +440,7 @@ def set_lot_max_margin(store, margin, actor):
     return {"margin": margin, "previous": before}
 
 
-def _write_lot_max_margin(db, margin, actor, before, reason):
+def _write_lot_max_margin(db, margin, actor, before, reason, **origin):
     stamp = now()
     db.execute(
         "INSERT INTO settings(key,value_json,updated_by,updated_at) VALUES(?,?,?,?) "
@@ -456,7 +456,7 @@ def _write_lot_max_margin(db, margin, actor, before, reason):
             LOT_MAX_MARGIN_EVENT,
             reason,
             json.dumps({} if before is None else {"margin": before}),
-            json.dumps({"margin": margin}),
+            json.dumps({"margin": margin, **origin}, ensure_ascii=False),
             stamp,
         ),
     )
@@ -474,10 +474,14 @@ def lot_margin_history(store, limit=20):
             "actor": r["actor"],
             "reason": r["reason"],
             "previous": json.loads(r["before_json"]).get("margin"),
-            "margin": json.loads(r["after_json"])["margin"],
+            "margin": after["margin"],
+            # Only the migration's row says where its value came from.
+            "origin": after.get("origin"),
+            "read": after.get("read"),
             "at": r["created_at"],
         }
         for r in rows
+        for after in [json.loads(r["after_json"])]
     ]
 
 
@@ -487,21 +491,25 @@ def migrate_lot_max_margin(db, *, seed_from_env):
     An existing base keeps the value its server ran with: the variable is read
     here, once, and never again. A new base starts at the default.
     """
-    margin, origin = DEFAULT_LOT_MAX_MARGIN, "valeur par défaut"
+    margin, origin = DEFAULT_LOT_MAX_MARGIN, "default"
+    reason = f"valeur par défaut ({LOT_MAX_MARGIN_ENV} absente)" if seed_from_env else "valeur par défaut d’une base neuve"
     raw = os.environ.get(LOT_MAX_MARGIN_ENV, "").strip() if seed_from_env else ""
     if raw:
         try:
             margin = max(0, min(LOT_MAX_MARGIN_LIMIT, int(raw)))
-            origin = f"reprise de {LOT_MAX_MARGIN_ENV}"
+            origin = "environment"
+            reason = f"reprise de {LOT_MAX_MARGIN_ENV}={raw}"
         except ValueError:
-            origin = f"{LOT_MAX_MARGIN_ENV} illisible, valeur par défaut"
+            origin = "unreadable"
+            reason = f"{LOT_MAX_MARGIN_ENV}={raw[:20]} illisible, valeur par défaut"
     db.execute("BEGIN IMMEDIATE")
     try:
         if not db.execute(
             "SELECT 1 FROM settings WHERE key=?", (LOT_MAX_MARGIN_KEY,)
         ).fetchone():
             _write_lot_max_margin(
-                db, margin, "migration", None, f"Schéma 27 : {origin}."
+                db, margin, "migration", None, f"Schéma 27 : {reason}.",
+                origin=origin, read=raw[:20] or None,
             )
         db.execute("PRAGMA user_version=27")
         db.execute("COMMIT")

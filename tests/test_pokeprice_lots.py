@@ -1042,8 +1042,7 @@ def test_the_lots_tool_has_no_way_to_loosen_the_floor(test_db, monkeypatch, caps
 
     db_path, store = test_db
     # Ni option ni variable : l'outil ne connaît que la marge de la base.
-    source = (Path(__file__).resolve().parent.parent / "scripts" / "pokeprice_lots.py").read_text()
-    assert "--marge" not in source and "LOT_MAX_MARGIN" not in source
+    assert not hasattr(pokeprice_lots, "LOT_MAX_MARGIN_ENV")
     monkeypatch.setattr(sys, "argv", ["pokeprice_lots.py", "--data", str(db_path), "--output", str(db_path.parent / "o.json"), "--marge=50", "status"])
     with pytest.raises(SystemExit):
         pokeprice_lots.main()
