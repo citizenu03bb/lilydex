@@ -40,7 +40,12 @@ permettait la même chose pour un export.
 - `POKEPRICE_LOT_MAX_MARGIN` n'est plus lue à l'exécution. La migration vers
   le schéma 27 la lit une seule fois, sur une base existante, pour reprendre la
   valeur avec laquelle le serveur tournait (bornée de 0 à 50, 15 si elle est
-  absente ou illisible), et journalise cette reprise. Une base neuve part à 15.
+  absente ou illisible), et journalise cette reprise : l'événement porte
+  l'origine (variable, valeur par défaut ou variable illisible) et la valeur
+  lue, et l'historique du panneau l'affiche. Une base neuve part à 15.
+- `Listings.publish` relit la marge sur la connexion qui écrit : si elle a
+  changé depuis le contrôle du plancher, rien n'est écrit et la publication
+  est à recommencer.
 - L'outil de lots ne transmet plus rien au serveur et n'a aucune option de
   marge : avec `--remote`, la base du serveur décide.
 - `--marge` de l'export (`scripts/export_annonces.py`) ne peut que resserrer :
@@ -60,9 +65,16 @@ permettait la même chose pour un export.
   service peut toujours modifier le réglage sans passer par la gestion. Cette
   fiche ferme la voie de l'environnement et des options, pas celle-là ; elle se
   referme quand l'outil de lots passe par l'API des agents.
-- Au déploiement, la variable doit être présente dans l'environnement du
-  premier processus qui ouvre la base, si le serveur tournait avec une valeur
-  autre que 15 ; sinon la valeur se règle ensuite dans la gestion. La variable
-  peut ensuite être retirée de la configuration du serveur.
+- La reprise dépend du premier processus qui ouvre une base au schéma 26 :
+  service web, minuterie ou commande. Si le serveur tournait avec une valeur
+  autre que 15, la variable doit être présente dans l'environnement de ce
+  processus-là ; sinon la base part à 15. Il en va de même à la restauration
+  d'une sauvegarde au schéma 26, même longtemps après, quand la variable a
+  quitté la configuration : la marge réglée depuis n'est pas dans cette
+  sauvegarde. Une sauvegarde au schéma 27 ou plus porte son réglage.
+- Après un déploiement ou une restauration, l'administrateur vérifie la marge
+  et la ligne « migration » dans **Réglages → Plancher anti-bradage**, et la
+  corrige là si besoin. La variable peut ensuite être retirée de la
+  configuration du serveur.
 - Les scripts qui appelaient `lot_max_margin()` ou `lot_floor_cents(total)`
   sans base doivent passer la base ou la marge.

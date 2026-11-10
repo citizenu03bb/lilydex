@@ -43,6 +43,11 @@ Principes :
   ou dont une carte n'a pas de cote (une cote nulle compte comme absente), en
   recalculant les cotes du jour. L'outil n'a ni option ni variable pour changer
   la marge ; avec `--remote`, c'est celle de la base du serveur qui s'applique.
+  La variable n'est lue qu'une fois, par le premier processus qui ouvre une
+  base encore au schéma 26 (restauration d'une ancienne sauvegarde comprise) :
+  ne la réglez pas vous-même, et faites vérifier la marge par l'administrateur
+  dans les Réglages après une restauration
+  ([décision 0042](../../docs/decisions/0042-marge-du-plancher-reglage-administrateur.md)).
 
 ## Dependencies
 

@@ -56,6 +56,13 @@ journalisé. Vous ne la modifiez pas : aucune commande, option ou variable
 d'environnement ne desserre le plancher. Sous le plancher, la seule voie est la
 demande de dérogation.
 
+Une seule exception, hors de votre portée : le passage d'une base au schéma 27
+reprend une fois `POKEPRICE_LOT_MAX_MARGIN` dans l'environnement du premier
+processus qui ouvre cette base, restauration d'une ancienne sauvegarde
+comprise. N'ouvrez jamais une telle base avec cette variable réglée par vos
+soins ; après un déploiement ou une restauration, signalez à l'administrateur
+qu'il doit vérifier la marge dans les Réglages.
+
 - Carte seule : le prix affiché est au moins 85 % de son prix de référence.
 - Lot : le prix demandé est au moins 85 % de la somme des prix de référence de
   ses exemplaires, arrondi compris.
