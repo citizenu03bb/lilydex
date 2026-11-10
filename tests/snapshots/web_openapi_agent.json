@@ -471,6 +471,28 @@
     "title": "BoundQuote",
     "type": "object"
    },
+   "CancelRequest": {
+    "additionalProperties": false,
+    "properties": {
+     "expected_version": {
+      "minimum": 1.0,
+      "title": "Expected Version",
+      "type": "integer"
+     },
+     "reason": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Reason",
+      "type": "string"
+     }
+    },
+    "required": [
+     "expected_version",
+     "reason"
+    ],
+    "title": "CancelRequest",
+    "type": "object"
+   },
    "CaptureCreate": {
     "additionalProperties": false,
     "properties": {
@@ -2121,6 +2143,38 @@
     "title": "ClientPatch",
     "type": "object"
    },
+   "ComposeRequest": {
+    "additionalProperties": false,
+    "properties": {
+     "asking_cents": {
+      "anyOf": [
+       {
+        "maximum": 1000000.0,
+        "minimum": 1.0,
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Asking Cents"
+     },
+     "plan_id": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Plan Id",
+      "type": "string"
+     },
+     "recipe": {
+      "$ref": "#/components/schemas/AgentRecipe"
+     }
+    },
+    "required": [
+     "recipe",
+     "plan_id"
+    ],
+    "title": "ComposeRequest",
+    "type": "object"
+   },
    "ConditionConfirmation": {
     "additionalProperties": false,
     "properties": {
@@ -2818,6 +2872,22 @@
     "title": "ListingPrice",
     "type": "object"
    },
+   "LotRotationSettings": {
+    "additionalProperties": false,
+    "properties": {
+     "days": {
+      "maximum": 90.0,
+      "minimum": 3.0,
+      "title": "Days",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "days"
+    ],
+    "title": "LotRotationSettings",
+    "type": "object"
+   },
    "MarketVerdict": {
     "additionalProperties": false,
     "properties": {
@@ -3199,6 +3269,28 @@
     "title": "PushSubscription",
     "type": "object"
    },
+   "RaiseRequest": {
+    "additionalProperties": false,
+    "properties": {
+     "asking_cents": {
+      "maximum": 1000000.0,
+      "minimum": 1.0,
+      "title": "Asking Cents",
+      "type": "integer"
+     },
+     "expected_version": {
+      "minimum": 1.0,
+      "title": "Expected Version",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "expected_version",
+     "asking_cents"
+    ],
+    "title": "RaiseRequest",
+    "type": "object"
+   },
    "ReferenceDispute": {
     "additionalProperties": false,
     "properties": {
@@ -3364,6 +3456,31 @@
      "expected_version"
     ],
     "title": "RequestVersion",
+    "type": "object"
+   },
+   "RotateRequest": {
+    "additionalProperties": false,
+    "properties": {
+     "dry_run": {
+      "default": true,
+      "title": "Dry Run",
+      "type": "boolean"
+     },
+     "limit": {
+      "anyOf": [
+       {
+        "maximum": 5.0,
+        "minimum": 0.0,
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Limit"
+     }
+    },
+    "title": "RotateRequest",
     "type": "object"
    },
    "SaleCreate": {
@@ -4455,6 +4572,62 @@
     ]
    }
   },
+  "/api/agent/v1/lots": {
+   "post": {
+    "operationId": "lots_compose_api_agent_v1_lots_post",
+    "parameters": [
+     {
+      "in": "header",
+      "name": "Idempotency-Key",
+      "required": true,
+      "schema": {
+       "maxLength": 120,
+       "minLength": 1,
+       "title": "Idempotency-Key",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ComposeRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Lots Compose Api Agent V1 Lots Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Lots Compose",
+    "tags": [
+     "agent-v1"
+    ]
+   }
+  },
   "/api/agent/v1/lots/plan": {
    "post": {
     "operationId": "lots_plan_api_agent_v1_lots_plan_post",
@@ -4545,6 +4718,62 @@
     ]
    }
   },
+  "/api/agent/v1/lots/rotate": {
+   "post": {
+    "operationId": "lots_rotate_api_agent_v1_lots_rotate_post",
+    "parameters": [
+     {
+      "in": "header",
+      "name": "Idempotency-Key",
+      "required": true,
+      "schema": {
+       "maxLength": 120,
+       "minLength": 1,
+       "title": "Idempotency-Key",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/RotateRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Lots Rotate Api Agent V1 Lots Rotate Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Lots Rotate",
+    "tags": [
+     "agent-v1"
+    ]
+   }
+  },
   "/api/agent/v1/lots/status": {
    "get": {
     "operationId": "lots_status_api_agent_v1_lots_status_get",
@@ -4563,6 +4792,61 @@
      }
     },
     "summary": "Lots Status",
+    "tags": [
+     "agent-v1"
+    ]
+   }
+  },
+  "/api/agent/v1/lots/{sale_id}/cancel": {
+   "post": {
+    "operationId": "lots_cancel_api_agent_v1_lots__sale_id__cancel_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "sale_id",
+      "required": true,
+      "schema": {
+       "pattern": "^[A-Za-z0-9-]{1,64}$",
+       "title": "Sale Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/CancelRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Lots Cancel Api Agent V1 Lots  Sale Id  Cancel Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Lots Cancel",
     "tags": [
      "agent-v1"
     ]
@@ -4608,6 +4892,61 @@
      }
     },
     "summary": "Lots Publication",
+    "tags": [
+     "agent-v1"
+    ]
+   }
+  },
+  "/api/agent/v1/lots/{sale_id}/raise": {
+   "post": {
+    "operationId": "lots_raise_api_agent_v1_lots__sale_id__raise_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "sale_id",
+      "required": true,
+      "schema": {
+       "pattern": "^[A-Za-z0-9-]{1,64}$",
+       "title": "Sale Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/RaiseRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Lots Raise Api Agent V1 Lots  Sale Id  Raise Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Lots Raise",
     "tags": [
      "agent-v1"
     ]
@@ -9299,6 +9638,56 @@
      }
     },
     "summary": "Floor Margin Update"
+   }
+  },
+  "/api/settings/lot-rotation": {
+   "get": {
+    "operationId": "lot_rotation_settings_api_settings_lot_rotation_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Lot Rotation Settings"
+   },
+   "put": {
+    "operationId": "lot_rotation_update_api_settings_lot_rotation_put",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/LotRotationSettings"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Lot Rotation Update"
    }
   },
   "/api/settings/payment": {

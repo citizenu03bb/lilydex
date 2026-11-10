@@ -588,12 +588,15 @@ class LotsEngine:
         limit_add: Optional[int] = None,
         max_drafts: int = MAX_ROTATION_DRAFTS,
         dry_run: bool = False,
+        tool_made_only: bool = False,
     ) -> RotationPlan:
         """Calcule la rotation FIFO qui maintient au plus ``max_drafts`` brouillons actifs.
 
         Un brouillon dont le lot est en ligne n'est jamais annulé : l'annuler laisserait
         l'annonce en vitrine sans dossier de vente. Il compte dans le plafond ; s'il ne
-        reste pas assez de place, moins de nouveaux lots sont créés.
+        reste pas assez de place, moins de nouveaux lots sont créés. Avec
+        ``tool_made_only``, seuls les brouillons de l'outil des lots sont annulables :
+        ceux d'une personne comptent dans le plafond comme les lots en ligne.
         """
         if max_drafts < 1:
             raise ValueError("Le plafond de brouillons est d'au moins 1.")
@@ -601,7 +604,12 @@ class LotsEngine:
         status = self.status(db, max_drafts)
         existing_drafts = status["active_drafts"]
         online_drafts = [d for d in existing_drafts if d["online_listing_id"]]
-        cancellable = [d for d in existing_drafts if not d["online_listing_id"]]
+        cancellable = [
+            d
+            for d in existing_drafts
+            if not d["online_listing_id"] and (not tool_made_only or self.tool_made(db, d["id"]))
+        ]
+        kept = len(existing_drafts) - len(cancellable)
 
         # Si aucun lot n'est fourni, on analyse pour obtenir les meilleurs candidats
         if lots_to_add is None:
@@ -609,7 +617,7 @@ class LotsEngine:
         else:
             candidate_lots = lots_to_add
 
-        room = max(0, max_drafts - len(online_drafts))
+        room = max(0, max_drafts - kept)
         selected_new_lots = candidate_lots[: min(limit_add, room)]
         skipped_lots = candidate_lots[len(selected_new_lots): limit_add]
 

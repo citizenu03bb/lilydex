@@ -122,3 +122,22 @@ def plan_id(
     }
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
     return hashlib.sha256(canonical.encode()).hexdigest()
+
+
+def split_bonus(lot: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Cartes payantes et énergies offertes d'un lot composé, dans leur ordre."""
+    copies = lot["copies"]
+    return [c for c in copies if not c.get("bonus")], [c for c in copies if c.get("bonus")]
+
+
+def lot_plan_id(recipe: AgentRecipe, lot: dict[str, Any], margin: int, value_ceiling_cents: int) -> str:
+    """``plan_id`` du lot que le moteur vient de composer, comme le renvoie ``/lots/plan``."""
+    paid, bonus = split_bonus(lot)
+    return plan_id(
+        recipe,
+        [(c["id"], c["version"]) for c in paid],
+        [(c["id"], c["version"]) for c in bonus],
+        lot["asking_cents"],
+        margin,
+        value_ceiling_cents,
+    )

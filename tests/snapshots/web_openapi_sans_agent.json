@@ -2550,6 +2550,22 @@
     "title": "ListingPrice",
     "type": "object"
    },
+   "LotRotationSettings": {
+    "additionalProperties": false,
+    "properties": {
+     "days": {
+      "maximum": 90.0,
+      "minimum": 3.0,
+      "title": "Days",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "days"
+    ],
+    "title": "LotRotationSettings",
+    "type": "object"
+   },
    "MarketVerdict": {
     "additionalProperties": false,
     "properties": {
@@ -8290,6 +8306,56 @@
      }
     },
     "summary": "Floor Margin Update"
+   }
+  },
+  "/api/settings/lot-rotation": {
+   "get": {
+    "operationId": "lot_rotation_settings_api_settings_lot_rotation_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Lot Rotation Settings"
+   },
+   "put": {
+    "operationId": "lot_rotation_update_api_settings_lot_rotation_put",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/LotRotationSettings"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Lot Rotation Update"
    }
   },
   "/api/settings/payment": {

@@ -2994,6 +2994,23 @@ async function loadFloorMargin() {
     ),
   );
 }
+async function loadLotRotation() {
+  const data = await api("/settings/lot-rotation");
+  $("lot-rotation-form").elements.days.value = data.days;
+  $("lot-rotation-history").replaceChildren(
+    ...data.history.map((h) =>
+      el(
+        "li",
+        t("lot_rotation.history", {
+          at: new Date(h.at).toLocaleString(),
+          actor: h.actor,
+          previous: h.previous,
+          days: h.days,
+        }),
+      ),
+    ),
+  );
+}
 async function loadUsers() {
   window.lilydexPush?.refresh();
   if (typeof Workflows !== "undefined") await Workflows.backupStatus();
@@ -3001,6 +3018,7 @@ async function loadUsers() {
   await loadClients();
   await loadPayment();
   await loadFloorMargin();
+  await loadLotRotation();
   $("users-list").replaceChildren();
   for (const u of users) {
     const row = el("form", undefined, "user-access");
@@ -4033,6 +4051,19 @@ $("floor-margin-form").addEventListener("submit", async (e) => {
     $("floor-margin-message").textContent = "Marge enregistrée.";
   } catch (err) {
     $("floor-margin-message").textContent = err.message;
+  }
+});
+$("lot-rotation-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  try {
+    await api("/settings/lot-rotation", {
+      method: "PUT",
+      body: JSON.stringify({ days: Number(e.target.elements.days.value) }),
+    });
+    await loadLotRotation();
+    $("lot-rotation-message").textContent = t("lot_rotation.saved");
+  } catch (err) {
+    $("lot-rotation-message").textContent = err.message;
   }
 });
 $("album-form").addEventListener("submit", async (e) => {

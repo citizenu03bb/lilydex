@@ -245,8 +245,8 @@ l’album nommé par l’accès ; `agent-create` le rappelle sur la sortie
 d’erreur et `/capabilities` l’indique (`lots.scope` vaut `collection`).
 `/capabilities` annonce ces opérations seulement à un accès qui détient la
 permission correspondante ; un accès sans permission lots n’en voit aucune
-trace. Seules les opérations de lecture ont une route ; la composition et la
-publication passent par `scripts/pokeprice_lots.py`.
+trace. Les opérations de lecture et de composition ont une route ; la
+publication passe encore par `scripts/pokeprice_lots.py`.
 
 ```bash
 uv run pokeprice-manage --data /CHEMIN_COLLECTION agent-create lots-doublons \
@@ -302,6 +302,65 @@ sur chacune.
   valeur : elle change dès que l’un d’eux change.
 - **Débit.** `pool` et `plan` relisent toute la collection : six appels par
   minute et par accès à eux deux, en plus de la limite générale.
+
+### Composer, faire tourner, annuler et relever
+
+Quatre routes d’écriture, sous `/api/agent/v1/lots` et réservées à
+`lots:compose`. Chacune se fait dans une seule transaction d’écriture, dans cet
+ordre : autorisation, clé d’idempotence, quotas, validations recalculées sur la
+collection du moment, écritures. L’auteur enregistré est `agent:<identifiant
+de l’accès>`.
+
+| Route | Opération | Rôle |
+|---|---|---|
+| `POST /lots` | `lots-compose` | crée le brouillon d’un plan : `{recipe, plan_id, asking_cents?}` et un en-tête `Idempotency-Key` obligatoire ; réponse 201 avec le brouillon, son prix, le plancher et `raised_to_floor` |
+| `POST /lots/rotate` | `lots-rotate` | rotation des brouillons : `{dry_run, limit?}` et un en-tête `Idempotency-Key` obligatoire ; à blanc par défaut |
+| `POST /lots/{sale_id}/cancel` | `lots-cancel` | annule un brouillon de l’outil : `{expected_version, reason}` |
+| `POST /lots/{sale_id}/raise` | `lots-raise` | relève le prix d’un brouillon de l’outil : `{expected_version, asking_cents}` |
+
+- **Le serveur compose.** `POST /lots` recalcule le plan de la recette ; si son
+  `plan_id` diffère de celui reçu, la réponse est 409 `stale_plan` et rien ne
+  s’écrit. Le client ne fournit ni cartes, ni énergies offertes, ni auteur,
+  ni marge, ni périmètre, ni plafond : un tel champ est refusé (422). Une
+  carte gardée dans l’album n’entre jamais dans un lot.
+- **Pas de double réservation.** Une carte déjà prise par un brouillon, une
+  vente réservée ou un lot en ligne n’entre pas dans le plan. Les écritures se
+  suivant une à une, deux compositions concurrentes sur les mêmes cartes ne
+  réussissent jamais toutes les deux : la seconde reçoit `stale_plan`.
+- **Plafond.** 5 brouillons actifs au plus, lots en ligne et brouillons faits à
+  la main compris, vérifiés dans la transaction (409 `draft_cap`). Le `limit`
+  de la rotation ne fait que baisser le nombre de lots créés.
+- **Prix.** Jamais sous le plancher anti-bradage du jour : un prix calculé
+  dessous y est relevé, sans demande de dérogation. `asking_cents` ne peut que
+  relever le prix calculé (422 `price_lowered` sinon). `raise` ne baisse
+  jamais un prix : le nouveau prix vaut au moins l’actuel, et au moins le
+  plancher du jour.
+- **Brouillons de l’outil seulement.** `cancel`, `raise` et la rotation ne
+  touchent qu’un brouillon `tool_made` ; un brouillon fait à la main répond
+  404 et garde sa place dans le plafond. Un brouillon dont le lot est en ligne
+  ne s’annule ni ne se relève (409 `online_lot`).
+- **Rotation.** Elle se calcule sur un instantané de lecture, puis tout se
+  revalide dans la transaction d’écriture : chaque brouillon à annuler (encore
+  brouillon, de l’outil, hors ligne, même version), chaque carte à prendre,
+  puis le plafond. Un changement entre les deux donne `stale_plan` ; un accès
+  révoqué entre les deux, 401. La réponse liste aussi, sous `due_online`, les
+  lots en ligne de l’outil invendus depuis plus que l’âge de rotation
+  (`rotation_days`, réglé dans **Réglages → Plancher anti-bradage**) ; la
+  rotation les signale sans y toucher.
+- **Idempotence.** Même clé et même corps : la réponse enregistrée revient,
+  avec `replayed: true`, avant toute validation. Même clé et autre corps :
+  409 `idempotency_conflict`. Une clé vaut pour un accès : deux accès peuvent
+  utiliser la même. Une rotation à blanc n’enregistre rien.
+- **Quotas par accès et par jour.** 20 lots créés (429 `draft_quota`) et
+  100 refus journalisés (429 `refusal_quota`), un refus au plus par
+  opération, code et minute.
+- **Journal sans table.** Chaque écriture réussie est un événement `lot-op`
+  (clé, opération, empreinte de la requête, réponse) et chaque refus un
+  événement `lot-denied`, sans exemplaire ; le schéma de la base ne change
+  pas. Création, annulation et prix restent aussi dans l’historique de la
+  vente.
+- **Débit.** `POST /lots` et `POST /lots/rotate` relisent toute la collection
+  et partagent les six appels par minute de `pool` et `plan`.
 
 ## Outils de l'assistant de gestion
 

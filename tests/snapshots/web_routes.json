@@ -562,6 +562,40 @@
  },
  {
   "dependencies": [
+   "admin",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "lot_rotation_settings",
+  "only": {},
+  "path": "/api/settings/lot-rotation",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "admin",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "PUT"
+  ],
+  "name": "lot_rotation_update",
+  "only": {},
+  "path": "/api/settings/lot-rotation",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
    "staff",
    "current_user"
   ],
@@ -2446,6 +2480,74 @@
   "path": "/api/agent/v1/drafts/{sale_id}/package",
   "response_class": "JSONResponse",
   "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "agent_principal"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "lots_compose",
+  "only": {
+   "agent_enabled": true
+  },
+  "path": "/api/agent/v1/lots",
+  "response_class": "JSONResponse",
+  "response_model": "dict[str, Any]",
+  "status_code": 201
+ },
+ {
+  "dependencies": [
+   "agent_principal"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "lots_rotate",
+  "only": {
+   "agent_enabled": true
+  },
+  "path": "/api/agent/v1/lots/rotate",
+  "response_class": "JSONResponse",
+  "response_model": "dict[str, Any]",
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "agent_principal"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "lots_cancel",
+  "only": {
+   "agent_enabled": true
+  },
+  "path": "/api/agent/v1/lots/{sale_id}/cancel",
+  "response_class": "JSONResponse",
+  "response_model": "dict[str, Any]",
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "agent_principal"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "lots_raise",
+  "only": {
+   "agent_enabled": true
+  },
+  "path": "/api/agent/v1/lots/{sale_id}/raise",
+  "response_class": "JSONResponse",
+  "response_model": "dict[str, Any]",
   "status_code": null
  },
  {

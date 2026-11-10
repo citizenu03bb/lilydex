@@ -9,6 +9,16 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-10
 
+- Routes d'écriture de l'outil des lots sur l'API agent, réservées à
+  `lots:compose` : créer le brouillon d'un plan recalculé par le serveur
+  (`stale_plan` sinon), faire tourner les brouillons (à blanc par défaut),
+  annuler ou relever un brouillon de l'outil. Prix jamais sous le plancher du
+  jour, plafond de 5 et cartes libres vérifiés dans la transaction ;
+  idempotence, quotas et journal par événements, schéma inchangé. Nouveau
+  réglage administrateur journalisé : âge de rotation des lots en ligne,
+  14 jours ; la rotation signale ces lots (`due_online`) sans y toucher
+  ([AGENT_CONTROL](AGENT_CONTROL.md#composer-faire-tourner-annuler-et-relever),
+  `tests/test_agent_lots_compose.py`).
 - Routes de lecture de l'outil des lots sur l'API agent, sous
   `/api/agent/v1/lots` et réservées à `lots:read` : gisement, état des
   brouillons, plan de composition à blanc avec `plan_id`, vérification de

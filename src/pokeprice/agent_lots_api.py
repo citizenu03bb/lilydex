@@ -1,6 +1,7 @@
 """Lecture de l'outil des lots par l'API agent : gisement, état, plan et publication.
 
-Aucune de ces routes n'écrit. Chacune autorise l'accès et lit sur une seule
+Aucune de ces routes n'écrit ; les écritures de ``lots:compose`` vivent dans
+``agent_lots_compose`` et sont ajoutées au même routeur. Chacune autorise l'accès et lit sur une seule
 connexion, dans une seule transaction de lecture, puis appelle ``LotsEngine``
 avec elle. Le plafond de valeur vient de l'accès (``lots_ceiling_cents``) ; la
 marge et le plancher viennent de la base ; le périmètre est celui des doublons :
@@ -19,7 +20,8 @@ from .agent import AgentError, AgentService, lots_ceiling_cents
 from .floor_requests import events as floor_events
 from .listings import FloorRefusal
 from .lots import MAX_ROTATION_DRAFTS, LotsEngine
-from .lots.agent_recipe import AgentRecipe, StrictModel, plan_id, to_recipe
+from .agent_lots_compose import install_compose
+from .lots.agent_recipe import AgentRecipe, StrictModel, lot_plan_id, split_bonus, to_recipe
 from .pricing import FLOOR_CENTS, lot_floor_cents, lot_max_margin
 
 READ = "lots:read"
@@ -90,7 +92,8 @@ def install_lots(
     principal: Any,
     heavy: Callable[[str], None],
 ) -> None:
-    """Ajoute les routes de lecture des lots au routeur agent (``principal`` sur chacune)."""
+    """Ajoute les routes des lots au routeur agent (``principal`` sur chacune)."""
+    install_compose(api, service, principal, heavy)
 
     @contextmanager
     def reading(request: Request) -> Iterator[tuple[sqlite3.Connection, LotsEngine, Card]]:
@@ -148,19 +151,10 @@ def install_lots(
         lot = result.get("lot")
         identifier = None
         if lot:
-            paid = [c for c in lot["copies"] if not c.get("bonus")]
-            bonus = [c for c in lot["copies"] if c.get("bonus")]
-            lot["copies"], lot["bonus"] = paid, bonus
+            identifier = lot_plan_id(values.recipe, lot, margin, engine.value_ceiling_cents)
+            lot["copies"], lot["bonus"] = split_bonus(lot)
             lot["margin"] = margin
             lot["floor_cents"] = max(FLOOR_CENTS, lot_floor_cents(lot["total_reference_cents"], margin))
-            identifier = plan_id(
-                values.recipe,
-                [(c["id"], c["version"]) for c in paid],
-                [(c["id"], c["version"]) for c in bonus],
-                lot["asking_cents"],
-                margin,
-                engine.value_ceiling_cents,
-            )
         return {
             **result,
             "recipe": values.recipe.model_dump(mode="json"),
