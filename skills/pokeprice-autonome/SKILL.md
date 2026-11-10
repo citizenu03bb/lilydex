@@ -50,7 +50,11 @@ commande à lancer. Puis continuez le reste du travail.
 ## Le plancher anti-bradage
 
 Aucune vente sous le prix de référence diminué de la marge, lots compris. La
-marge vaut 15 % par défaut.
+marge vaut 15 % par défaut. Seul un administrateur connecté à la gestion la
+règle (**Réglages → Plancher anti-bradage**), et chaque changement est
+journalisé. Vous ne la modifiez pas : aucune commande, option ou variable
+d'environnement ne desserre le plancher. Sous le plancher, la seule voie est la
+demande de dérogation.
 
 - Carte seule : le prix affiché est au moins 85 % de son prix de référence.
 - Lot : le prix demandé est au moins 85 % de la somme des prix de référence de
@@ -61,10 +65,11 @@ marge vaut 15 % par défaut.
   de lots compose ses lots à 2 € au moins.
 
 `src/pokeprice/pricing.py` définit la règle (`lot_max_margin` et
-`lot_floor_cents`, `POKEPRICE_LOT_MAX_MARGIN` à 15 % par défaut, borné de 0 à
+`lot_floor_cents`, marge lue dans la base, 15 % par défaut, bornée de 0 à
 50), partagée par `scripts/pokeprice_lots.py`, `src/pokeprice/marketplace_export.py`
 et `src/pokeprice/listings.py`
-([décision 0026](../../docs/decisions/0026-plancher-anti-bradage-gestion.md)).
+([décision 0026](../../docs/decisions/0026-plancher-anti-bradage-gestion.md),
+[décision 0042](../../docs/decisions/0042-marge-du-plancher-reglage-administrateur.md)).
 La publication unitaire ou en lot (`Listings.publish`) et l'interface de
 gestion (« Mode lot », création de brouillon, publication directe et prix de
 vitrine fixé à la main) affichent le minimum autorisé avant validation et
