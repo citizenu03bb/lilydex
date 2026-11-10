@@ -886,8 +886,11 @@ def test_gemini_model_comes_from_a_constant_or_the_environment(monkeypatch):
 
 
 def test_get_duplicates_pool_is_defined_once():
-    source = (Path(__file__).resolve().parent.parent / "scripts" / "pokeprice_lots.py").read_text()
-    assert source.count("def get_duplicates_pool(") == 1
+    root = Path(__file__).resolve().parent.parent
+    engine = (root / "src" / "pokeprice" / "lots" / "engine.py").read_text()
+    script = (root / "scripts" / "pokeprice_lots.py").read_text()
+    assert engine.count("def get_duplicates_pool(") == 1
+    assert "def get_duplicates_pool(" not in script  # l'adaptateur délègue au moteur
 
 
 def set_margin(store, margin):

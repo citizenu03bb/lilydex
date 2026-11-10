@@ -9,6 +9,13 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-10
 
+- Le moteur des lots quitte `scripts/pokeprice_lots.py` pour le paquet
+  `pokeprice.lots` (gisement, propositions, rotation, publication, recette) ;
+  il travaille sur la connexion que lui donne l'appelant, marge du plancher
+  comprise. L'interprétation Gemini des prompts passe dans
+  `pokeprice.lots_prompt`, que le serveur n'importe pas. Le script garde ses
+  options et ses sorties (`tests/test_lots_package.py`,
+  `tests/test_pokeprice_lots.py`).
 - Limiteurs de débit bornés et normalisés : une adresse IPv6 compte pour son
   /64, chaque compteur garde au plus 4 096 clés, et `pokeprice-manage serve`
   ne fait confiance à `X-Forwarded-For` que depuis le proxy local. Limites et

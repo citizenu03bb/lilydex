@@ -104,7 +104,6 @@ ignore = [
 # puis à retirer d'ici.
 "src/pokeprice/webapp.py" = ["B018", "B904", "F401", "F841"]
 "src/pokeprice/listings.py" = ["B904"]
-"scripts/pokeprice_lots.py" = ["B007"]
 "tests/test_basket_quote.py" = ["F841"]
 "tests/test_energies_offertes.py" = ["F401"]
 "tests/test_shipping_and_conditions.py" = ["F401"]
@@ -178,7 +177,10 @@ disable_error_code = ["assignment"]
 
 # Modules entièrement annotés : toute fonction doit le rester.
 [[tool.mypy.overrides]]
-module = ["pokeprice.brand", "pokeprice.extras", "pokeprice.slicer"]
+module = [
+    "pokeprice.brand", "pokeprice.extras", "pokeprice.lots", "pokeprice.lots.*",
+    "pokeprice.lots_prompt", "pokeprice.slicer",
+]
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
 
