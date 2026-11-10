@@ -235,17 +235,18 @@ distinctes :
 
 | Permission | Option | Opérations annoncées |
 |---|---|---|
-| `lots:read` | `--lots-read` | `lots-pool`, `lots-status`, `lots-plan` |
+| `lots:read` | `--lots-read` | `lots-pool`, `lots-status`, `lots-plan`, `lots-publication` |
 | `lots:compose` | `--lots-compose` | `lots-compose`, `lots-rotate`, `lots-cancel`, `lots-raise` |
 | `lots:publish` | `--lots-publish` | `lots-publish`, `lots-unpublish` |
 
 Publier n’emporte pas le droit de composer : chaque permission se demande à
 part. Ces permissions portent sur **toute la collection**, quel que soit
 l’album nommé par l’accès ; `agent-create` le rappelle sur la sortie
-d’erreur et `/capabilities` l’indique (`lots.scope` vaut `collection`). Le
-serveur ne sert aucune route de ces opérations : `/capabilities` les annonce
-seulement à un accès qui détient la permission correspondante ; un accès sans
-permission lots n’en voit aucune trace.
+d’erreur et `/capabilities` l’indique (`lots.scope` vaut `collection`).
+`/capabilities` annonce ces opérations seulement à un accès qui détient la
+permission correspondante ; un accès sans permission lots n’en voit aucune
+trace. Seules les opérations de lecture ont une route ; la composition et la
+publication passent par `scripts/pokeprice_lots.py`.
 
 ```bash
 uv run pokeprice-manage --data /CHEMIN_COLLECTION agent-create lots-doublons \
@@ -269,6 +270,38 @@ Règles vérifiées par le serveur :
 - **Durée.** 7 jours par défaut, comme tout accès agent.
 - **Délivrance locale.** Seul `pokeprice-manage agent-create` crée un accès ;
   aucune route de l’API ne crée, n’élargit ni ne prolonge une délégation.
+
+### Lire le gisement, l’état et un plan
+
+Quatre routes, toutes sous `/api/agent/v1/lots` et toutes réservées à
+`lots:read`. Aucune n’écrit : chacune autorise l’accès et lit la collection
+dans la même transaction de lecture. Un accès sans `lots:read` reçoit 403
+sur chacune.
+
+| Route | Opération | Rôle |
+|---|---|---|
+| `GET /lots/pool?max_per_lot=` | `lots-pool` | gisement des doublons : comptes, lots candidats avec identifiants et versions des cartes, énergies offertes, cartes écartées et « à chiffrer » (200 au plus par liste, totaux exacts, drapeau `*_truncated`) ; `max_per_lot` de 3 à 50, 20 par défaut |
+| `GET /lots/status` | `lots-status` | brouillons actifs, lots en ligne, plafond de 5 brouillons utilisé (`cap_used`), ce qui bloque un nouveau lot (`blocked_by`) ; chaque brouillon porte `tool_made` |
+| `POST /lots/plan` | `lots-plan` | essai de composition à partir d’une recette `{recipe}` : cartes et versions, énergies offertes à part (`bonus`), prix demandé calculé par le serveur, plancher et marge, et `plan_id` |
+| `GET /lots/{sale_id}/publication` | `lots-publication` | vérification de publication d’un brouillon de l’outil : publiable ou non, refus au plancher distingué des autres refus, annonces unitaires à retirer, dernière demande de dérogation |
+
+- **Ce que la requête ne règle pas.** L’auteur, la marge, le plancher, le
+  plafond de brouillons et le périmètre viennent du serveur : la marge de la
+  base, le plafond de valeur de l’accès (20 € au plus), les doublons seuls.
+  Une carte gardée dans l’album n’entre jamais dans un plan.
+- **Recette stricte.** Un champ inconnu est refusé, les types sont stricts,
+  le titre tient en 120 caractères et le résumé en 500, chaque liste en
+  20 éléments, et le texte libre ne porte ni lien, ni adresse, ni balise.
+  Le script garde sa recette telle quelle.
+- **Lot de l’outil.** Un brouillon est `tool_made` quand l’outil des lots ou
+  un agent l’a créé comme lot (auteur et canal « Lot » de l’événement de
+  création). Le titre d’un brouillon fait à la main n’est pas renvoyé, et sa
+  vérification de publication répond 404.
+- **`plan_id`.** Empreinte SHA-256 de la recette, des cartes et de leurs
+  versions, des énergies offertes, du prix, de la marge et du plafond de
+  valeur : elle change dès que l’un d’eux change.
+- **Débit.** `pool` et `plan` relisent toute la collection : six appels par
+  minute et par accès à eux deux, en plus de la limite générale.
 
 ## Outils de l'assistant de gestion
 
