@@ -24,6 +24,9 @@ def serve(tmp_path, monkeypatch, host):
     )
     main()
     assert captured["host"] == host and captured["port"] == 3820
+    # Forwarded headers are trusted from the local proxy only, whatever the env says.
+    assert captured["proxy_headers"] is True
+    assert captured["forwarded_allow_ips"] == "127.0.0.1,::1"
     return captured["app"]
 
 

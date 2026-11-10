@@ -489,6 +489,10 @@ def main():
                 ),
                 host=args.host,
                 port=args.port,
+                # Trust X-Forwarded-For from the local reverse proxy only, even
+                # if FORWARDED_ALLOW_IPS is set; the app never reads the header.
+                proxy_headers=True,
+                forwarded_allow_ips="127.0.0.1,::1",
             )
             return
         elif args.action == "backup":

@@ -9,6 +9,12 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-10
 
+- Limiteurs de débit bornés et normalisés : une adresse IPv6 compte pour son
+  /64, chaque compteur garde au plus 4 096 clés, et `pokeprice-manage serve`
+  ne fait confiance à `X-Forwarded-For` que depuis le proxy local. Limites et
+  messages inchangés ; risques restants dans
+  l'[audit de sécurité](AUDIT-SECURITE.md#limiteurs-de-débit-10-novembre)
+  (`tests/test_ratelimit.py`). Préparé, pas encore déployé.
 - Contrôles statiques en CI : `ruff` (lint, sans reformatage), `mypy` avec
   une base de départ pour les modules historiques, couverture publiée sans
   seuil, suite lancée sous Python 3.11, 3.12 et 3.13 (`pyproject.toml`,
