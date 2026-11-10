@@ -202,20 +202,40 @@ class LotsPublisher(LotsComposer):
     # -- Rotation des lots en ligne ---------------------------------------------
 
     def plan_online(self, db: sqlite3.Connection, engine: LotsEngine, due: list[Card]) -> list[Card]:
-        """Un remplaçant par lot échu, du plus ancien au plus récent, sans carte en commun."""
+        """Un remplaçant par lot échu, du plus ancien au plus récent, sans carte en commun.
+
+        Le remplaçant est une autre proposition : parmi les lots possibles, celui
+        qui reprend le moins de cartes payantes du lot remplacé (à égalité,
+        l'ordre du moteur). Si le seul possible reprend exactement les mêmes
+        cartes payantes, le lot reste en ligne (``no_fresh_replacement``).
+        """
         assigned: set[str] = set()
         plans = []
         for lot in due:
             old_ids = sale_copy_ids(db, lot["sale_id"])
+            old_paid = {
+                r[0]
+                for r in db.execute(
+                    f"SELECT id FROM copies WHERE id IN ({','.join('?' for _ in old_ids)}) "
+                    "AND coalesce(reference_cents, 0) > 0",
+                    old_ids,
+                )
+            }
             candidates = engine.analyze(db, released=frozenset(old_ids))["lots"]
-            choice = None
+            possible = []
             for candidate in candidates:
                 taken = {c["id"] for c in candidate["copies"]} & assigned
-                paid = [c for c in candidate["copies"] if not c.get("bonus")]
+                paid = {c["id"] for c in candidate["copies"] if not c.get("bonus")}
                 if len(paid) >= 2 and not taken:
-                    choice = candidate
-                    break
-            entry = {**lot, "copies": old_ids, "replacement": choice}
+                    possible.append((len(paid & old_paid), paid, candidate))
+            choice, skip = None, "no_replacement"
+            if possible:
+                _, paid, best = min(possible, key=lambda p: p[0])  # min garde le premier à égalité.
+                if paid == old_paid:
+                    skip = "no_fresh_replacement"
+                else:
+                    choice = best
+            entry = {**lot, "copies": old_ids, "replacement": choice, "skip": skip}
             if choice is not None:
                 ids = [c["id"] for c in choice["copies"]]
                 assigned.update(ids)
@@ -236,14 +256,6 @@ class LotsPublisher(LotsComposer):
                         [*ids, *ids],
                     )
                 }
-                entry["old_paid"] = sorted(
-                    r[0]
-                    for r in db.execute(
-                        f"SELECT id FROM copies WHERE id IN ({','.join('?' for _ in old_ids)}) "
-                        "AND coalesce(reference_cents, 0) > 0",
-                        old_ids,
-                    )
-                )
             plans.append(entry)
         return plans
 
@@ -304,12 +316,8 @@ class LotsPublisher(LotsComposer):
                 raise AgentError(
                     409, "draft_cap", f"Plafond de {MAX_ROTATION_DRAFTS} brouillons actifs atteint, lots en ligne compris."
                 )
-            price = max(lot["asking_cents"], floor_cents(db, ids, lot_max_margin(db)))
-            paid = sorted(c["id"] for c in lot["copies"] if not c.get("bonus"))
-            if paid == entry["old_paid"]:
-                # Les mêmes cartes ne reviennent jamais moins cher.
-                price = max(price, entry["price_cents"])
-            lot["asking_cents"] = price
+            # Jamais sous le plancher du jour, relu sous le verrou.
+            lot["asking_cents"] = max(lot["asking_cents"], floor_cents(db, ids, lot_max_margin(db)))
             created = engine.apply_rotation(db, RotationPlan({}, [], [lot]), actor)[0]
             report = self.publish_draft(engine, db, created["sale_id"], actor)
             return {
@@ -350,7 +358,7 @@ class LotsPublisher(LotsComposer):
         for entry in plans:
             where = {"sale_id": entry["sale_id"], "listing_id": entry["listing_id"]}
             if entry["replacement"] is None:
-                report["skipped"].append({**where, "code": "no_replacement"})
+                report["skipped"].append({**where, "code": entry["skip"]})
                 continue
             if stop is not None:
                 report["skipped"].append({**where, "code": stop.code})

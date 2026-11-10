@@ -393,9 +393,10 @@ d’écriture, autorisation, idempotence, quotas, validations, écritures, auteu
   annonce publiée par l’outil des lots ou un agent et qui porte au moins deux
   cartes ; une annonce faite à la main ou d’une seule carte répond 404.
 - **Après un retrait.** Le brouillon de l’outil qui porte ces cartes est
-  annulé dans la même transaction : les cartes reviennent au gisement, sans
-  annonce. Les annonces unitaires retirées à la publication ne reviennent pas ;
-  la prochaine composition reprend les cartes. Si une vente faite à la main
+  annulé dans la même transaction. Les cartes d’un lot retiré ou remplacé
+  reviennent au gisement sans annonce unitaire jusqu’à leur prochaine
+  composition, car les annonces unitaires retirées à la publication ne sont
+  pas rétablies. Si une vente faite à la main
   (409 `hand_made_sale`) ou réservée (409 `sale_in_progress`) porte l’une
   d’elles, rien n’est retiré.
 - **Rotation des lots en ligne.** Pour un accès qui détient `lots:compose` et
@@ -405,9 +406,12 @@ d’écriture, autorisation, idempotence, quotas, validations, écritures, auteu
   annulation du brouillon, composition d’un nouveau lot (les cartes libérées
   comprises), puis publication avec les règles ci-dessus. Un échec annule ce
   remplacement seul : le lot reste en ligne tel qu’il était, et la réponse le
-  liste sous `online_rotation.failed`. Sans remplaçant possible, le lot reste
-  en ligne (`skipped`, `no_replacement`). Un remplaçant fait des mêmes cartes
-  payantes ne coûte jamais moins cher que le lot qu’il remplace. Le plafond de
+  liste sous `online_rotation.failed`. Le remplaçant est, parmi les lots
+  possibles, celui qui reprend le moins de cartes payantes du lot remplacé ;
+  s’il n’y en a aucun (`no_replacement`), ou si le seul possible reprend
+  exactement les mêmes cartes payantes (`no_fresh_replacement`), le lot reste
+  en ligne et la réponse le liste sous `skipped`. Le prix d’un remplaçant
+  n’est jamais sous le plancher du jour. Le plafond de
   5 brouillons et les quotas valent pour chaque remplacement ; une rotation à
   blanc liste les remplacements prévus sous `online_rotation.planned`.
 - **Quota par accès et par jour.** 10 lots publiés (429 `publish_quota`),

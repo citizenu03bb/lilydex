@@ -512,35 +512,75 @@ def test_a_failed_replacement_leaves_its_lot_online(shop, monkeypatch):
     assert [r["replaced_listing_id"] for r in report["replaced"]] == [second_listing]
 
 
-def test_a_replacement_with_the_same_cards_never_costs_less(shop, monkeypatch):
-    client, service, *_ = shop
-    store = service.store
-    old, old_listing = online_lot(store, "Lot cher", DEFAULT_ROTATION_DAYS + 1, 0, price=4000)
+def offer(monkeypatch, store, sale_id, build):
+    """Online planning sees the candidate lots ``build(old_ids, free_ids, versions)`` returns."""
     with store.connect() as db:
-        old_ids = [r[0] for r in db.execute("SELECT copy_id FROM sale_items WHERE sale_id=?", (old,))]
+        old_ids = [r[0] for r in db.execute("SELECT copy_id FROM sale_items WHERE sale_id=?", (sale_id,))]
         versions = {r[0]: r[1] for r in db.execute("SELECT id, version FROM copies")}
+    free_ids = duplicate_ids(store)
     original = LotsEngine.analyze
 
-    def same_cards(self, db, *args, **kwargs):
+    def candidates(self, db, *args, **kwargs):
         result = original(self, db, *args, **kwargs)
-        if not kwargs.get("released"):
-            return result  # The draft rotation keeps the real pool.
-        result["lots"] = [
-            {
-                "theme": "test",
-                "title": "Lot cher, à nouveau",
-                "count": 3,
-                "total_reference_cents": 0,
-                "asking_cents": 60,
-                "copies": [{"id": c, "version": versions[c]} for c in old_ids],
-            }
-        ]
+        if kwargs.get("released"):  # The draft rotation keeps the real pool.
+            result["lots"] = [
+                {
+                    "theme": "test",
+                    "title": title,
+                    "count": len(ids),
+                    "total_reference_cents": 0,
+                    "asking_cents": 60,
+                    "copies": [{"id": c, "version": versions[c]} for c in ids],
+                }
+                for title, ids in build(old_ids, free_ids)
+            ]
         return result
 
-    monkeypatch.setattr(LotsEngine, "analyze", same_cards)
+    monkeypatch.setattr(LotsEngine, "analyze", candidates)
+    return old_ids, free_ids
+
+
+def test_a_lot_whose_only_replacement_is_itself_stays_online(shop, monkeypatch):
+    client, service, *_ = shop
+    store = service.store
+    old, old_listing = online_lot(store, "Lot", DEFAULT_ROTATION_DAYS + 1, 0)
+    offer(monkeypatch, store, old, lambda old_ids, free: [("Le même lot", old_ids)])
+    report = rotate(client).json()["online_rotation"]
+    assert report["replaced"] == [] and report["failed"] == []
+    assert report["skipped"] == [{"sale_id": old, "listing_id": old_listing, "code": "no_fresh_replacement"}]
+    assert listing(store, old_listing)["state"] == "online" and sale(store, old)["status"] == "draft"
+
+
+def test_the_replacement_shares_the_fewest_cards_and_keeps_the_floor(shop, monkeypatch):
+    client, service, *_ = shop
+    store = service.store
+    old, old_listing = online_lot(store, "Lot", DEFAULT_ROTATION_DAYS + 1, 0)
+    old_ids, free = offer(
+        monkeypatch, store, old,
+        lambda old_ids, free: [
+            ("Le même lot", old_ids),
+            ("En partie", [*old_ids[:2], free[0]]),
+        ],
+    )
     (done,) = rotate(client).json()["online_rotation"]["replaced"]
-    assert done["price_cents"] == 4000
-    assert listing(store, done["listing_id"])["price_cents"] == 4000
+    assert done["title"].startswith("En partie")
+    with store.connect() as db:
+        now_ids = [r[0] for r in db.execute("SELECT copy_id FROM sale_items WHERE sale_id=?", (done["sale_id"],))]
+    assert sorted(now_ids) == sorted([*old_ids[:2], free[0]])
+    assert done["price_cents"] == floor_of(store, now_ids) > 60
+    assert listing(store, done["listing_id"])["price_cents"] == done["price_cents"]
+
+
+def test_a_disjoint_replacement_wins_over_an_overlapping_one(shop, monkeypatch):
+    client, service, *_ = shop
+    store = service.store
+    old, _ = online_lot(store, "Lot", DEFAULT_ROTATION_DAYS + 1, 0)
+    offer(
+        monkeypatch, store, old,
+        lambda old_ids, free: [("En partie", [old_ids[0], *free[:2]]), ("Tout neuf", free[2:5])],
+    )
+    (done,) = rotate(client).json()["online_rotation"]["replaced"]
+    assert done["title"].startswith("Tout neuf")
 
 
 def test_the_engine_still_refuses_for_the_script_without_agent_rules(shop):

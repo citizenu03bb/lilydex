@@ -56,7 +56,8 @@ ligne invendus empêchaient tout nouveau lot, et les énergies offertes
 - **Rotation des lots en ligne.** Un lot en ligne de l'outil, invendu depuis
   plus que l'âge de rotation (14 jours par défaut, réglage administrateur
   journalisé), est remplacé : retrait de l'annonce, annulation du brouillon,
-  composition d'un nouveau lot avec les cartes libérées, publication, le tout
+  composition d'un autre lot (celui qui reprend le moins de cartes payantes du
+  lot remplacé ; jamais exactement les mêmes), publication, le tout
   dans une transaction, du plus ancien au plus récent, dans le plafond de
   5 brouillons et les quotas du jour (20 lots créés, 10 publiés). Il faut
   `lots:compose` et `lots:publish` ; sans la seconde, ces lots sont seulement
@@ -77,8 +78,8 @@ ligne invendus empêchaient tout nouveau lot, et les énergies offertes
   rotation à l'autre. C'est accepté pour l'instant, à revoir avec de vraies
   ventes.
 - Les annonces unitaires remplacées par un lot ne reviennent pas quand le lot
-  est retiré : les cartes retournent au gisement sans annonce, et la prochaine
-  composition les reprend.
+  est retiré ou remplacé : les cartes retournent au gisement sans annonce
+  unitaire jusqu'à leur prochaine composition.
 - Tant que le client en ligne de commande et l'identité restreinte ne sont pas
   livrés, l'accès opérateur existe encore : la règle tient par la consigne
   donnée aux agents, pas encore par le serveur.
