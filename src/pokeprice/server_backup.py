@@ -12,7 +12,7 @@ import tarfile
 import tempfile
 from pathlib import Path
 
-from .daily_backup import RESERVE, record_local, serialized, status, tidy_reserve, verify
+from .daily_backup import RESERVE, record_local, serialized, tidy_reserve, verify
 from .drive_backup import transfer_timeout
 from .inventory_backup import (
     PHOTO,

@@ -473,6 +473,27 @@
               </form>
             </section>
             <section class="panel">
+              <h2>Plancher anti-bradage</h2>
+              <p>
+                Aucun prix ne descend sous la valeur de référence diminuée de
+                cette marge, lots compris. Seul un compte administrateur la
+                modifie ; chaque changement est journalisé.
+              </p>
+              <form id="floor-margin-form">
+                <label
+                  >Marge maximale sous la référence (%)<input
+                    name="margin"
+                    type="number"
+                    min="0"
+                    max="50"
+                    step="1"
+                    required /></label
+                ><button class="primary">Enregistrer</button>
+                <p id="floor-margin-message" role="status"></p>
+              </form>
+              <ul id="floor-margin-history"></ul>
+            </section>
+            <section class="panel">
               <h2>Nouvel album</h2>
               <form id="album-form">
                 <label

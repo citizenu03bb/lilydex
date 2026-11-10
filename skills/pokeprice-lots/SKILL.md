@@ -35,14 +35,19 @@ Principes :
   étape échoue, rien n'est écrit et les annonces unitaires restent en ligne.
 - La rotation n'annule jamais un brouillon dont le lot est en ligne.
 - Un lot n'est jamais bradé : son prix ne descend pas sous la somme des cotes de
-  ses cartes moins 15 % (variable d'environnement `POKEPRICE_LOT_MAX_MARGIN`,
-  entre 0 et 50, règle `lot_max_margin` / `lot_floor_cents` définie dans
+  ses cartes moins la marge réglée par l'administrateur dans la gestion (15 %
+  par défaut, entre 0 et 50, lue dans la base ; règle `lot_max_margin` / `lot_floor_cents` définie dans
   `src/pokeprice/pricing.py` et partagée avec `listings.py` et
   `marketplace_export.py`). `compose` plafonne sa décote à cette marge, sans
   décote par défaut, et `publish-to-storefront` refuse un lot sous ce plancher
   ou dont une carte n'a pas de cote (une cote nulle compte comme absente), en
-  recalculant les cotes du jour. Avec `--remote`, la marge réglée sur le poste
-  est transmise au serveur.
+  recalculant les cotes du jour. L'outil n'a ni option ni variable pour changer
+  la marge ; avec `--remote`, c'est celle de la base du serveur qui s'applique.
+  La variable n'est lue qu'une fois, par le premier processus qui ouvre une
+  base encore au schéma 26 (restauration d'une ancienne sauvegarde comprise) :
+  ne la réglez pas vous-même, et faites vérifier la marge par l'administrateur
+  dans les Réglages après une restauration
+  ([décision 0042](../../docs/decisions/0042-marge-du-plancher-reglage-administrateur.md)).
 
 ## Dependencies
 
@@ -145,7 +150,8 @@ Compose un lot sur mesure à partir d'une recette JSON (`LotCompositionRecipe`)
 ou d'un prompt en langage naturel interprété par Gemini (Structured Outputs).
 Le modèle est la constante `DEFAULT_GEMINI_MODEL` du script, remplaçable par la
 variable d'environnement `POKEPRICE_LOTS_GEMINI_MODEL` ; la clé est lue dans
-`GEMINI_API_KEY`. Avec `--remote`, le prompt est interprété sur le poste de
+`GEMINI_API_KEY`. Le paquet `google-genai` vient avec l'option `web` ou `cli`
+(`uv run --extra web python scripts/pokeprice_lots.py … compose`). Avec `--remote`, le prompt est interprété sur le poste de
 travail et seule la recette part sur le serveur.
 
 Les filtres de la recette s'appliquent au gisement éligible : une carte sans

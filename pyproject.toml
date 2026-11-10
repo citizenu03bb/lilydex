@@ -5,26 +5,41 @@ description = "Digitise, identify, price and sell a multilingual Pokemon card co
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
+# Socle : ce dont le serveur a besoin quel que soit le point d'entrée
+# (pokeprice-manage, sauvegardes, tâches planifiées).
 dependencies = [
     "pillow>=10.0.0",
-    "pandas>=2.0.0",
-    "openpyxl>=3.1.0",
     "pydantic>=2.0.0",
     "requests>=2.31.0",
-    "tabulate>=0.9.0",
-    "google-genai>=2.28.0",
     "python-dotenv>=1.2.4",
     "pyrage>=1.2",
 ]
 
 [project.optional-dependencies]
+# Pipeline d'albums (`pokeprice scan|report|html|library`) et import de ses
+# rapports (`pokeprice-manage import`) : absent du serveur de production.
+cli = [
+    "pandas>=2.0.0",
+    "openpyxl>=3.1.0",
+    "tabulate>=0.9.0",
+    "google-genai>=2.28.0",
+]
 dev = [
+    # Les tests couvrent aussi le pipeline d'albums.
+    "pokeprice[cli]",
     "pytest>=8.0.0",
+    "pytest-cov>=6.0.0",
     "httpx>=0.28.0",
     "fastapi>=0.115.0,<1",
+    "ruff>=0.14.0",
+    "mypy>=1.18.0",
+    "types-requests>=2.31.0",
+    "types-tabulate>=0.9.0",
 ]
 web = [
     "fastapi>=0.115.0,<1",
+    # Lecture des photos, contrôles et assistant : Gemini, côté serveur.
+    "google-genai>=2.28.0",
     "pywebpush>=2.0",
     "uvicorn>=0.34.0,<1",
 ]
@@ -50,6 +65,122 @@ packages = ["src/pokeprice"]
 pythonpath = ["src"]
 testpaths = ["tests"]
 markers = ["real_scrypt: keep the production password hashing cost"]
+
+[tool.coverage.run]
+source = ["pokeprice"]
+branch = true
+
+[tool.coverage.report]
+show_missing = false
+skip_covered = false
+# Pas de seuil bloquant pour l'instant : le chiffre est publié par la CI.
+
+# Lint seulement : pas de reformatage en masse (ruff format n'est pas appliqué).
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+extend-exclude = ["data", "outputs"]
+
+[tool.ruff.lint]
+select = [
+    "E4", "E7", "E9",  # pycodestyle : imports, instructions, erreurs de syntaxe
+    "F",               # pyflakes
+    "W",               # pycodestyle : avertissements
+    "B",               # flake8-bugbear
+]
+ignore = [
+    "B008",  # Depends(), Query(), File() en valeur par défaut : idiome FastAPI
+    # Reportés (base de départ) :
+    "E741",  # noms courts « l » : une quarantaine d'occurrences
+    "B905",  # zip() sans strict= : à trancher cas par cas
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Fixtures pytest importées puis reprises en paramètre ; lambdas de test.
+"tests/**" = ["F811", "E731"]
+# Imports après l'ajout de tests/ au chemin : voulu.
+"scripts/evaluate_agent_control.py" = ["E402"]
+# Fichiers gelés pendant une refonte en cours : écarts reportés, à corriger
+# puis à retirer d'ici.
+"src/pokeprice/webapp.py" = ["B018", "B904", "F401", "F841"]
+"src/pokeprice/listings.py" = ["B904"]
+"scripts/pokeprice_lots.py" = ["B007"]
+"tests/test_basket_quote.py" = ["F841"]
+"tests/test_energies_offertes.py" = ["F401"]
+"tests/test_shipping_and_conditions.py" = ["F401"]
+
+# Départ indulgent : tout module est vérifié, corps des fonctions non annotées
+# compris ; les modules historiques de la liste « base de départ » en sont
+# dispensés tant qu'ils ne passent pas. Un nouveau module n'y entre pas.
+[tool.mypy]
+python_version = "3.11"
+files = ["src/pokeprice"]
+check_untyped_defs = true
+warn_redundant_casts = true
+warn_unused_configs = true
+
+# Bibliothèques sans types publiés, ou extras absents de l'environnement dev.
+[[tool.mypy.overrides]]
+module = [
+    "pandas", "openpyxl", "openpyxl.*", "pyrage", "pywebpush", "py_vapid",
+    "torch", "transformers",
+]
+ignore_missing_imports = true
+
+# Base de départ : corps des fonctions non annotées non vérifiés.
+[[tool.mypy.overrides]]
+module = [
+    "pokeprice.agent",
+    "pokeprice.agent_review",
+    "pokeprice.assistant_context",
+    "pokeprice.assistant_knowledge",
+    "pokeprice.assistant_model",
+    "pokeprice.assistant",
+    "pokeprice.assistant_signals",
+    "pokeprice.assistant_tools",
+    "pokeprice.audience",
+    "pokeprice.capture",
+    "pokeprice.cardmarket_guide",
+    "pokeprice.cli",
+    "pokeprice.condition_assessment",
+    "pokeprice.drive_backup",
+    "pokeprice.edition_check",
+    "pokeprice.floor_requests",
+    "pokeprice.intake",
+    "pokeprice.inventory_backup",
+    "pokeprice.inventory",
+    "pokeprice.library",
+    "pokeprice.listings",
+    "pokeprice.manage",
+    "pokeprice.marketplace_export",
+    "pokeprice.media_cache",
+    "pokeprice.move_batches",
+    "pokeprice.names",
+    "pokeprice.notifications",
+    "pokeprice.photo_processing",
+    "pokeprice.pricing",
+    "pokeprice.print_reference",
+    "pokeprice.privacy",
+    "pokeprice.quote_ledger",
+    "pokeprice.reference_service",
+    "pokeprice.server_backup",
+    "pokeprice.todo",
+    "pokeprice.valuation",
+    "pokeprice.verification",
+    "pokeprice.webapp",
+]
+check_untyped_defs = false
+
+# Fichier gelé pendant une refonte en cours : deux affectations reportées.
+[[tool.mypy.overrides]]
+module = ["pokeprice.webapp"]
+disable_error_code = ["assignment"]
+
+# Modules entièrement annotés : toute fonction doit le rester.
+[[tool.mypy.overrides]]
+module = ["pokeprice.brand", "pokeprice.extras", "pokeprice.slicer"]
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
 
 # Le serveur OCI (aarch64, sans GPU) prend torch CPU : la roue PyPI aarch64
 # tire plusieurs Go de bibliothèques CUDA inutiles.

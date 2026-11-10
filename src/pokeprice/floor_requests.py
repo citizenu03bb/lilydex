@@ -16,7 +16,7 @@ import json
 import uuid
 from contextlib import contextmanager
 
-from .inventory import Conflict, now
+from .inventory import Conflict
 from .listings import Listings, is_agent, reference_cents
 from .pricing import FLOOR_CENTS, euros, lot_floor_cents, lot_max_margin
 
@@ -116,6 +116,7 @@ class FloorRequests:
                     row = db.execute("SELECT * FROM listings WHERE id=?", (r["listing_id"],)).fetchone()
                     online[r["listing_id"]] = dict(row) if row else None
         cards = self.listings.cards(list(copies)) if copies else {}
+        margin = lot_max_margin(self.store)
         result = []
         for r in pending:
             items = [copies[c] for c in r["copy_ids"]]
@@ -145,7 +146,7 @@ class FloorRequests:
                     "listing_id": r["listing_id"],
                     "price_cents": r["price_cents"],
                     "floor_cents": r["floor_cents"],
-                    "current_floor_cents": max(FLOOR_CENTS, lot_floor_cents(total)) if total else FLOOR_CENTS,
+                    "current_floor_cents": max(FLOOR_CENTS, lot_floor_cents(total, margin)) if total else FLOOR_CENTS,
                     "total_reference_cents": r["total_reference_cents"],
                     "margin": r["margin"],
                     "reason": r["reason"],
@@ -295,6 +296,7 @@ class FloorRequests:
         online = [l for l in self.listings.all("online") if l["available"]]
         ids = [i["id"] for l in online for i in l["items"]]
         cards = self.listings.cards(ids) if ids else {}
+        margin = lot_max_margin(self.store)
         found = []
         for listing in online:
             if listing["price_source"].startswith(WAIVER_SOURCE):
@@ -306,14 +308,14 @@ class FloorRequests:
             total = sum(refs.values())
             if not total:
                 continue
-            floor = max(FLOOR_CENTS, lot_floor_cents(total))
+            floor = max(FLOOR_CENTS, lot_floor_cents(total, margin))
             if listing["price_cents"] >= floor:
                 continue
             lot = len(copy_ids) > 1
             refusal = (
                 f"{'Lot' if lot else listing['items'][0]['name']} en ligne à "
                 f"{euros(listing['price_cents'] / 100)}, sous le plancher de {euros(floor / 100)} "
-                f"({'somme des références' if lot else 'référence'} {euros(total / 100)} moins {lot_max_margin()} %)."
+                f"({'somme des références' if lot else 'référence'} {euros(total / 100)} moins {margin} %)."
             )
             found.append(
                 {
@@ -327,7 +329,7 @@ class FloorRequests:
                     "raise_to_cents": floor,
                     "references": [{"copy_id": c, "reference_cents": refs[c]} for c in copy_ids],
                     "total_reference_cents": total,
-                    "margin": lot_max_margin(),
+                    "margin": margin,
                     "refusal": refusal,
                 }
             )

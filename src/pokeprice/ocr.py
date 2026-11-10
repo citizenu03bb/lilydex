@@ -5,7 +5,6 @@ Vision OCR engine supporting local Ollama (Gemma 4 E4B) and optional Gemini API 
 import base64
 import io
 import json
-import os
 import re
 from dataclasses import dataclass
 from typing import Optional
@@ -270,10 +269,11 @@ class GeminiVisionProvider:
             # Without a timeout, a stalled upload blocks the scan forever
             # (15 October); a timed-out reading is retried like any failure.
             self.client = genai.Client(http_options=types.HttpOptions(timeout=120_000))
-        except ImportError:
+        except ImportError as error:
             raise ImportError(
-                "google-genai is not installed. Run 'uv pip install google-genai python-dotenv' to use cloud backend."
-            )
+                "google-genai is not installed: it comes with the 'cli' (scanner) and 'web' extras. "
+                "Run 'uv sync --extra cli' to use the cloud backend."
+            ) from error
 
     def extract_card(self, image: Image.Image) -> CardOCRResult:
         from google.genai import types
@@ -283,7 +283,7 @@ class GeminiVisionProvider:
 
         response = self.client.models.generate_content(
             model=self.model,
-            contents=[
+            contents=[  # type: ignore[arg-type]  # Part + str is accepted at run time
                 types.Part.from_bytes(data=buf.getvalue(), mime_type="image/jpeg"),
                 SYSTEM_OCR_PROMPT,
             ],
@@ -311,7 +311,7 @@ class GeminiVisionProvider:
         try:
             resp = self.client.models.generate_content(
                 model=self.model,
-                contents=[
+                contents=[  # type: ignore[arg-type]  # Part + str is accepted at run time
                     types.Part.from_bytes(data=buf.getvalue(), mime_type="image/jpeg"),
                     LAYOUT_PROMPT,
                 ],

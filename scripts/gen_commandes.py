@@ -31,7 +31,9 @@ INTRO = """# Référence des commandes
 > **Statut :** généré par `scripts/gen_commandes.py` depuis le code ; ne pas modifier à la main.
 
 Depuis un clone du dépôt, préfixez chaque commande par `uv run --extra web`
-(par exemple `uv run --extra web pokeprice-manage serve`). Sur le serveur de
+(par exemple `uv run --extra web pokeprice-manage serve`). Le pipeline
+d'albums `pokeprice` et `pokeprice-manage import` demandent l'option `cli`
+(`uv run --extra cli pokeprice scan …`). Sur le serveur de
 production, lancez-les sous l'utilisateur `pokeprice` avec `--data` explicite :
 la forme complète est dans [Héberger le site](DEPLOYMENT.md). Sans `--data`,
 `pokeprice-manage` vise `data/inventory` dans le dossier courant.

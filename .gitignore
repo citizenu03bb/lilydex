@@ -29,7 +29,10 @@ ENV/
 # Caches
 .cache/
 .pytest_cache/
+.mypy_cache/
 .ruff_cache/
+.coverage
+coverage.md
 node_modules/
 /tests/browser/test-results/
 /tests/browser/playwright-report/

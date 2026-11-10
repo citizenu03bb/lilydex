@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import sys
 
+from .extras import MissingExtra
 from .inventory import Store
 
 
@@ -383,7 +384,10 @@ def main():
         if args.action == "import":
             from .inventory_import import import_collection
 
-            result = import_collection(store, args.manifest)
+            try:
+                result = import_collection(store, args.manifest)
+            except MissingExtra as error:  # Reports are read with pandas.
+                raise SystemExit(str(error)) from error
         elif args.action in (
             "agent-create",
             "agent-list",

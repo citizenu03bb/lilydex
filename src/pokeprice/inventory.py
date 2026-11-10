@@ -21,7 +21,7 @@ from .valuation import (
 )
 from .variant_pricing import category, compatible_quote, pricing_issue
 
-SCHEMA_VERSION = 26
+SCHEMA_VERSION = 27
 
 
 def now():
@@ -330,6 +330,11 @@ class Store:
                 from .reservations import migrate_client_identity
 
                 migrate_client_identity(db)
+            if db.execute("PRAGMA user_version").fetchone()[0] == 26:
+                from .pricing import migrate_lot_max_margin
+
+                # Only a base that already served carries its server's value over.
+                migrate_lot_max_margin(db, seed_from_env=version != 0)
             db.execute("PRAGMA journal_mode=WAL")
         from .reference_service import ReferenceService
 
@@ -1016,17 +1021,14 @@ class Store:
                 "available": sum(r["stock_state"] == "available" for r in rows),
                 "albums": albums,
                 "valuation_totals": data["valuation_totals"],
-                "lot_max_margin": self._lot_max_margin(),
+                "lot_max_margin": self._lot_max_margin(db),
             }
 
     @staticmethod
-    def _lot_max_margin():
-        from .pricing import DEFAULT_LOT_MAX_MARGIN, lot_max_margin
+    def _lot_max_margin(db):
+        from .pricing import lot_max_margin
 
-        try:
-            return lot_max_margin()
-        except ValueError:
-            return DEFAULT_LOT_MAX_MARGIN
+        return lot_max_margin(db)
 
     def set_deleted(self, copy_id, deleted, version, actor, reason, *, _db=None):
         """Move an available copy to/from trash, retaining all sources and history."""

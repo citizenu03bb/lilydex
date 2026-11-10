@@ -134,7 +134,8 @@ La lecture des photos est facultative. Elle demande une clé `GEMINI_API_KEY` ou
 `GOOGLE_API_KEY` dans `~/.env` ou dans un `.env` du dossier de lancement ; la clé reste sur le
 serveur, jamais dans le navigateur. Sans clé, saisissez l'identité à la main ;
 `serve --no-auto-checks` coupe les lectures lancées après chaque saisie. Pour le contrôle
-d'édition par l'image, ajoutez `--extra vision`.
+d'édition par l'image, ajoutez `--extra vision` ; pour numériser des classeurs en ligne de
+commande (`pokeprice scan`) et importer leurs rapports, `--extra cli`.
 
 ## Limites connues
 

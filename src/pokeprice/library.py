@@ -6,10 +6,11 @@ import os
 import unicodedata
 from pathlib import Path
 
-import pandas as pd
+from .extras import require
 
-from .html_report import build_report_cards, text_value
-from .report import apply_pricing_and_anomalies, export_csv, read_report
+# pandas and the report modules are scanner dependencies (extra « cli ») and
+# are imported inside the functions that need them: the server imports this
+# module for `normalized` alone and must not load them.
 
 
 def normalized(value):
@@ -21,6 +22,10 @@ def normalized(value):
 
 
 def edition_key(row, copy_id):
+    pd = require("pandas", "cli")
+
+    from .html_report import text_value
+
     # An unresolved name cannot establish that two pockets contain the same edition.
     if row.get("Statut_Identification") != "confirmed":
         return "unresolved:" + copy_id
@@ -83,6 +88,11 @@ def load_manifest(path):
 
 
 def consolidate(albums, output_dir, *, include_images=True):
+    pd = require("pandas", "cli")
+
+    from .html_report import build_report_cards, text_value
+    from .report import apply_pricing_and_anomalies, read_report
+
     output_dir = Path(output_dir).resolve()
     frames, groups = [], {}
     for album in albums:
@@ -175,6 +185,8 @@ def consolidate(albums, output_dir, *, include_images=True):
 
 
 def build_library(manifest_path, output_stem):
+    from .report import export_csv
+
     stem = Path(output_stem).resolve()
     stem.parent.mkdir(parents=True, exist_ok=True)
     albums = load_manifest(manifest_path)

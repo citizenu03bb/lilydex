@@ -9,8 +9,27 @@ permissions:
   contents: read
 
 jobs:
-  tests:
+  lint:
+    name: lint and types
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1, node24
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3, node24
+        with:
+          python-version: "3.13"
+      - run: uv sync --frozen --extra web --extra dev
+      # Lint only: the code base is not reformatted. Rules and the deferred
+      # baseline are in pyproject.toml.
+      - run: uv run --frozen --extra web --extra dev ruff check .
+      - run: uv run --frozen --extra web --extra dev mypy
+
+  tests:
+    name: tests (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1, node24
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0, node24
@@ -18,10 +37,17 @@ jobs:
           node-version: "22"
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3, node24
         with:
-          python-version: "3.13"
+          python-version: ${{ matrix.python }}
       # Python and JavaScript tests, documentation check included. Models and
       # services are injected fakes: no network call, no API key.
-      - run: uv run --extra web --extra dev pytest -q
+      - if: ${{ matrix.python != '3.13' }}
+        run: uv run --extra web --extra dev pytest -q
+      # Coverage is measured once and published in the job summary; there is
+      # no failing threshold yet.
+      - if: ${{ matrix.python == '3.13' }}
+        run: uv run --extra web --extra dev pytest -q --cov --cov-report=term --cov-report=markdown:coverage.md
+      - if: ${{ matrix.python == '3.13' }}
+        run: cat coverage.md >> "$GITHUB_STEP_SUMMARY"
 
   browsers:
     name: browser (${{ matrix.browser }})

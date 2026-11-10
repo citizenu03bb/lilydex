@@ -19,8 +19,9 @@ SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
 
 
 @pytest.fixture(autouse=True)
-def default_margin(monkeypatch):
-    monkeypatch.delenv(mx.LOT_MAX_MARGIN_ENV, raising=False)
+def loosened_environment(monkeypatch):
+    # The variable asks for the loosest floor in every test: nothing may follow it.
+    monkeypatch.setenv("POKEPRICE_LOT_MAX_MARGIN", "50")
 
 
 @pytest.fixture
@@ -78,12 +79,13 @@ def test_prices_never_go_under_the_floor(base, tmp_path):
     assert lot.floor_cents == 190  # (1.23 + 1.00) less 15 %, rounded up.
     assert mx.platform_price(lot.price_cents, lot.floor_cents, "leboncoin") == 200
     assert mx.platform_price(lot.price_cents, lot.floor_cents, "vinted") == 190
-    assert mx.collect(mx.ReadOnlyStore(store.root), margin=50).annonces[0].floor_cents >= 50
     assert mx.floor_price(200, 0) == 200 and mx.floor_price(10, 10) == 50
-    assert mx.floor_price(200) == 170
+    assert mx.floor_price(200, 15) == 170
     for bad in (51, -1, 0.1, 15.0, "15", True):
         with pytest.raises(ValueError):
             mx.floor_price(200, bad)
+        with pytest.raises(ValueError):
+            mx.collect(mx.ReadOnlyStore(store.root), margin=bad)
     written, _ = mx.run(store.root, "leboncoin", tmp_path / "lbc", site=SITE)
     assert all(w["price_cents"] % 100 == 0 for w in written)
     texts = folders(tmp_path / "lbc")
@@ -213,7 +215,9 @@ def test_the_command_reports_what_it_wrote(base, tmp_path, capsys, monkeypatch):
     spec.loader.exec_module(module)
     target = tmp_path / "sortie"
     args = ["--data", str(store.root), "--plateforme", "vinted", "--sortie", str(target)]
-    assert module.main(args + ["--marge", "20"]) == 0
+    assert module.main(args + ["--marge", "20"]) == 1  # looser than the stored 15 %
+    assert "plus stricte" in capsys.readouterr().err and not target.exists()
+    assert module.main(args + ["--marge", "10"]) == 0
     out = capsys.readouterr().out
     assert "4 annonce(s)" in out and "exclues.txt" in out and "--site" in out
     assert module.main(args) == 1
@@ -228,31 +232,27 @@ def lots_script():
     return pokeprice_lots
 
 
-def test_the_floor_follows_the_rule_of_the_lots(monkeypatch):
-    lots = lots_script()
-    assert (mx.DEFAULT_LOT_MAX_MARGIN, mx.LOT_MAX_MARGIN_ENV) == (
-        lots.DEFAULT_LOT_MAX_MARGIN, lots.LOT_MAX_MARGIN_ENV)
-    for raw in (None, "", " ", "0", "10", "15", "33", "50", "80", "-5"):
-        if raw is None:
-            monkeypatch.delenv(mx.LOT_MAX_MARGIN_ENV, raising=False)
-        else:
-            monkeypatch.setenv(mx.LOT_MAX_MARGIN_ENV, raw)
-        assert mx.lot_max_margin() == lots.lot_max_margin()
-        for cents in (0, 1, 99, 123, 223, 1999, 12345):
-            assert mx.lot_floor_cents(cents) == lots.lot_floor_cents(cents)
-            assert mx.floor_price(cents) == max(50, lots.lot_floor_cents(cents))
-    monkeypatch.setenv(mx.LOT_MAX_MARGIN_ENV, "quinze")
-    with pytest.raises(ValueError):
-        mx.lot_max_margin()
-    with pytest.raises(ValueError):
-        lots.lot_max_margin()
-
-
-def test_the_variable_sets_the_margin_and_the_option_overrides_it(base, monkeypatch):
+def test_the_floor_follows_the_rule_of_the_lots(base):
     store, _ = base
-    monkeypatch.setenv(mx.LOT_MAX_MARGIN_ENV, "30")
+    lots = lots_script()
+    assert mx.lot_max_margin is lots.lot_max_margin and mx.lot_floor_cents is lots.lot_floor_cents
+    assert mx.lot_max_margin(mx.ReadOnlyStore(store.root)) == lots.lot_max_margin(store) == 15
+    for margin in (0, 10, 15, 33, 50):
+        for cents in (0, 1, 99, 123, 223, 1999, 12345):
+            assert mx.floor_price(cents, margin) == max(50, lots.lot_floor_cents(cents, margin))
+
+
+def test_the_base_sets_the_margin_and_the_option_only_tightens_it(base):
+    store, _ = base
+    with store.connect(write=True) as db:
+        db.execute("UPDATE settings SET value_json='30' WHERE key='lot_max_margin'")
     lot = next(a for a in mx.collect(mx.ReadOnlyStore(store.root)).annonces if a.kind == "lot")
     assert lot.floor_cents == 157  # 2.23 less 30 %, rounded up.
     lot = next(a for a in mx.collect(mx.ReadOnlyStore(store.root), margin=10).annonces
                if a.kind == "lot")
     assert lot.floor_cents == 201
+    # Equal is allowed; looser is refused, never silently capped.
+    assert mx.collect(mx.ReadOnlyStore(store.root), margin=30).annonces
+    for looser in (31, 50):
+        with pytest.raises(ValueError, match="plus stricte"):
+            mx.collect(mx.ReadOnlyStore(store.root), margin=looser)
