@@ -3,9 +3,10 @@ import subprocess
 from pathlib import Path
 
 import pytest
+from web_scripts import app_source
 
 
-def test_registration_client_handles_empty_and_invalid_responses():
+def test_registration_client_handles_empty_and_invalid_responses(tmp_path):
     node = shutil.which("node")
     if not node:
         pytest.skip("Node.js is required to exercise the web API client")
@@ -14,7 +15,7 @@ def test_registration_client_handles_empty_and_invalid_responses():
         [
             node,
             str(root / "tests/web_api_runtime.cjs"),
-            str(root / "src/pokeprice/web/app.js"),
+            app_source(tmp_path),
         ],
         check=True,
         capture_output=True,
@@ -69,7 +70,7 @@ def test_storefront_filters_survive_urls_pages_races_and_mobile_editing():
     assert result.returncode == 0, result.stderr
 
 
-def test_filter_urls_survive_reload_and_reject_invalid_values():
+def test_filter_urls_survive_reload_and_reject_invalid_values(tmp_path):
     node = shutil.which("node")
     if not node:
         pytest.skip("Node.js is required")
@@ -78,7 +79,7 @@ def test_filter_urls_survive_reload_and_reject_invalid_values():
         [
             node,
             str(root / "tests/web_navigation_runtime.cjs"),
-            str(root / "src/pokeprice/web/app.js"),
+            app_source(tmp_path),
         ],
         check=True,
         capture_output=True,
@@ -86,7 +87,7 @@ def test_filter_urls_survive_reload_and_reject_invalid_values():
     )
 
 
-def test_clear_selection_updates_cards_and_lot_without_waiting_for_server():
+def test_clear_selection_updates_cards_and_lot_without_waiting_for_server(tmp_path):
     node = shutil.which("node")
     if not node:
         pytest.skip("Node.js is required")
@@ -95,7 +96,7 @@ def test_clear_selection_updates_cards_and_lot_without_waiting_for_server():
         [
             node,
             str(root / "tests/web_selection_runtime.cjs"),
-            str(root / "src/pokeprice/web/app.js"),
+            app_source(tmp_path),
         ],
         check=True,
         capture_output=True,
@@ -120,7 +121,7 @@ def test_capture_preserves_disabled_fields_and_retries_lost_save_response():
     )
 
 
-def test_alert_link_opens_its_request_after_the_address_is_rewritten():
+def test_alert_link_opens_its_request_after_the_address_is_rewritten(tmp_path):
     node = shutil.which("node")
     if not node:
         pytest.skip("Node.js is required")
@@ -129,7 +130,7 @@ def test_alert_link_opens_its_request_after_the_address_is_rewritten():
         [
             node,
             str(root / "tests/web_request_link_runtime.cjs"),
-            str(root / "src/pokeprice/web/app.js"),
+            app_source(tmp_path),
         ],
         check=True,
         capture_output=True,
@@ -137,7 +138,7 @@ def test_alert_link_opens_its_request_after_the_address_is_rewritten():
     )
 
 
-def test_summary_refresh_keeps_the_album_of_a_capture_series():
+def test_summary_refresh_keeps_the_album_of_a_capture_series(tmp_path):
     node = shutil.which("node")
     if not node:
         pytest.skip("Node.js is required")
@@ -146,7 +147,7 @@ def test_summary_refresh_keeps_the_album_of_a_capture_series():
         [
             node,
             str(root / "tests/web_summary_runtime.cjs"),
-            str(root / "src/pokeprice/web/app.js"),
+            app_source(tmp_path),
         ],
         check=True,
         capture_output=True,
@@ -154,7 +155,7 @@ def test_summary_refresh_keeps_the_album_of_a_capture_series():
     )
 
 
-def test_bulk_price_refresh_skips_unconfirmed_and_continues_after_failures():
+def test_bulk_price_refresh_skips_unconfirmed_and_continues_after_failures(tmp_path):
     node = shutil.which("node")
     if not node:
         pytest.skip("Node.js is required")
@@ -163,7 +164,7 @@ def test_bulk_price_refresh_skips_unconfirmed_and_continues_after_failures():
         [
             node,
             str(root / "tests/web_price_runtime.cjs"),
-            str(root / "src/pokeprice/web/app.js"),
+            app_source(tmp_path),
         ],
         check=True,
         capture_output=True,
@@ -171,7 +172,7 @@ def test_bulk_price_refresh_skips_unconfirmed_and_continues_after_failures():
     )
 
 
-def test_valuation_totals_show_coverage_and_keep_missing_prices_unknown():
+def test_valuation_totals_show_coverage_and_keep_missing_prices_unknown(tmp_path):
     node = shutil.which("node")
     if not node:
         pytest.skip("Node.js is required")
@@ -180,7 +181,7 @@ def test_valuation_totals_show_coverage_and_keep_missing_prices_unknown():
         [
             node,
             str(root / "tests/web_valuation_runtime.cjs"),
-            str(root / "src/pokeprice/web/app.js"),
+            app_source(tmp_path),
         ],
         check=True,
         capture_output=True,
@@ -205,7 +206,7 @@ def test_gallery_keys_find_the_card_below_and_the_page_of_a_position():
     )
 
 
-def test_sales_status_filter_hides_cancelled_lots_by_default():
+def test_sales_status_filter_hides_cancelled_lots_by_default(tmp_path):
     node = shutil.which("node")
     if not node:
         pytest.skip("Node.js is required")
@@ -214,7 +215,7 @@ def test_sales_status_filter_hides_cancelled_lots_by_default():
         [
             node,
             str(root / "tests/web_sales_filter_runtime.cjs"),
-            str(root / "src/pokeprice/web/app.js"),
+            app_source(tmp_path),
         ],
         check=True,
         capture_output=True,
@@ -223,7 +224,7 @@ def test_sales_status_filter_hides_cancelled_lots_by_default():
 
 
 
-def test_intake_reading_keeps_entry_preselects_exact_edition_and_proposes_notes():
+def test_intake_reading_keeps_entry_preselects_exact_edition_and_proposes_notes(tmp_path):
     node = shutil.which("node")
     if not node:
         pytest.skip("Node.js is required")
@@ -232,7 +233,7 @@ def test_intake_reading_keeps_entry_preselects_exact_edition_and_proposes_notes(
         [
             node,
             str(root / "tests/web_intake_runtime.cjs"),
-            str(root / "src/pokeprice/web/app.js"),
+            app_source(tmp_path),
         ],
         check=True,
         capture_output=True,
@@ -268,7 +269,7 @@ def test_storefront_submissions_ignore_repeated_activation_and_allow_retry():
                    capture_output=True, text=True)
 
 
-def test_move_selection_dialog_previews_collisions_applies_and_undoes():
+def test_move_selection_dialog_previews_collisions_applies_and_undoes(tmp_path):
     node = shutil.which("node")
     if not node:
         pytest.skip("Node.js is required")
@@ -277,7 +278,7 @@ def test_move_selection_dialog_previews_collisions_applies_and_undoes():
         [
             node,
             str(root / "tests/web_move_runtime.cjs"),
-            str(root / "src/pokeprice/web/app.js"),
+            app_source(tmp_path),
             str(root / "src/pokeprice/web/messages/fr.json"),
         ],
         check=True,

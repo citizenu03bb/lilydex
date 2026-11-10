@@ -1,0 +1,2451 @@
+[
+ {
+  "dependencies": [],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "home",
+  "only": {},
+  "path": "/",
+  "response_class": "HTMLResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [],
+  "include_in_schema": false,
+  "methods": [
+   "GET"
+  ],
+  "name": "home_en_slash",
+  "only": {},
+  "path": "/en",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "home_en",
+  "only": {},
+  "path": "/en/",
+  "response_class": "HTMLResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "about",
+  "only": {},
+  "path": "/a-propos",
+  "response_class": "HTMLResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "about_en",
+  "only": {},
+  "path": "/en/a-propos",
+  "response_class": "HTMLResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "conditions_fr",
+  "only": {},
+  "path": "/conditions",
+  "response_class": "HTMLResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "conditions_en",
+  "only": {},
+  "path": "/en/conditions",
+  "response_class": "HTMLResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "index",
+  "only": {},
+  "path": "/gestion",
+  "response_class": "HTMLResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [],
+  "include_in_schema": false,
+  "methods": [
+   "GET"
+  ],
+  "name": "app_manifest",
+  "only": {},
+  "path": "/gestion/manifest.webmanifest",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [],
+  "include_in_schema": false,
+  "methods": [
+   "GET"
+  ],
+  "name": "service_worker",
+  "only": {},
+  "path": "/gestion/sw.js",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [],
+  "include_in_schema": false,
+  "methods": [
+   "GET"
+  ],
+  "name": "offline_page",
+  "only": {},
+  "path": "/gestion/hors-ligne",
+  "response_class": "HTMLResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "assets",
+  "only": {},
+  "path": "/assets/{name}",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [],
+  "include_in_schema": false,
+  "methods": [
+   "GET"
+  ],
+  "name": "favicon",
+  "only": {},
+  "path": "/favicon.ico",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "storefront_page",
+  "only": {},
+  "path": "/vitrine",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "public_rate"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "card_page",
+  "only": {},
+  "path": "/carte/{listing_id}",
+  "response_class": "HTMLResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "public_rate"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "card_page_en",
+  "only": {},
+  "path": "/en/carte/{listing_id}",
+  "response_class": "HTMLResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [],
+  "include_in_schema": false,
+  "methods": [
+   "GET"
+  ],
+  "name": "robots",
+  "only": {
+   "indexing": true
+  },
+  "path": "/robots.txt",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [],
+  "include_in_schema": false,
+  "methods": [
+   "GET"
+  ],
+  "name": "sitemap",
+  "only": {
+   "indexing": true
+  },
+  "path": "/sitemap.xml",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "public_rate"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "public_listings",
+  "only": {},
+  "path": "/api/public/listings",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "public_rate"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "signup",
+  "only": {},
+  "path": "/api/public/signup",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": 202
+ },
+ {
+  "dependencies": [
+   "public_rate"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "basket_quote",
+  "only": {},
+  "path": "/api/public/quote",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "public_rate"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "guest_request",
+  "only": {},
+  "path": "/api/public/requests",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": 202
+ },
+ {
+  "dependencies": [],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "public_shipping",
+  "only": {},
+  "path": "/api/public/shipping",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "public_rate"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "password_set",
+  "only": {},
+  "path": "/api/public/password",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "client",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "me",
+  "only": {},
+  "path": "/api/me",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "client",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "PATCH"
+  ],
+  "name": "me_update",
+  "only": {},
+  "path": "/api/me",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "client",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "me_export",
+  "only": {},
+  "path": "/api/me/export",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "client",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "me_delete",
+  "only": {},
+  "path": "/api/me/delete",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "client",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "my_requests",
+  "only": {},
+  "path": "/api/me/requests",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "client",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "request_create",
+  "only": {},
+  "path": "/api/me/requests",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": 201
+ },
+ {
+  "dependencies": [
+   "client",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "request_cancel",
+  "only": {},
+  "path": "/api/me/requests/{request_id}/cancel",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "admin",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "client_index",
+  "only": {},
+  "path": "/api/clients",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "admin",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "PATCH"
+  ],
+  "name": "client_patch",
+  "only": {},
+  "path": "/api/clients/{client_id}",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "admin",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "client_password_link",
+  "only": {},
+  "path": "/api/clients/{client_id}/password-link",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": 201
+ },
+ {
+  "dependencies": [
+   "admin",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "payment_settings",
+  "only": {},
+  "path": "/api/settings/payment",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "admin",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "PUT"
+  ],
+  "name": "payment_update",
+  "only": {},
+  "path": "/api/settings/payment",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "admin",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "floor_margin_settings",
+  "only": {},
+  "path": "/api/settings/floor-margin",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "admin",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "PUT"
+  ],
+  "name": "floor_margin_update",
+  "only": {},
+  "path": "/api/settings/floor-margin",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "request_index",
+  "only": {},
+  "path": "/api/requests",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "request_accept",
+  "only": {},
+  "path": "/api/requests/{request_id}/accept",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "admin",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "PATCH"
+  ],
+  "name": "request_contact",
+  "only": {},
+  "path": "/api/requests/{request_id}/contact",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "request_refuse",
+  "only": {},
+  "path": "/api/requests/{request_id}/refuse",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "public_rate"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "public_listing",
+  "only": {},
+  "path": "/api/public/listings/{listing_id}",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "public_rate"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "public_photo",
+  "only": {},
+  "path": "/api/public/listings/{listing_id}/photo",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "admin",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "audience_report",
+  "only": {},
+  "path": "/api/audience",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "setup_state",
+  "only": {},
+  "path": "/api/setup",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "health",
+  "only": {},
+  "path": "/health",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "setup",
+  "only": {},
+  "path": "/api/setup",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "login",
+  "only": {},
+  "path": "/api/login",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "session",
+  "only": {},
+  "path": "/api/session",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "push_settings",
+  "only": {},
+  "path": "/api/push",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "push_subscribe",
+  "only": {},
+  "path": "/api/push/subscriptions",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": 201
+ },
+ {
+  "dependencies": [
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "push_check",
+  "only": {},
+  "path": "/api/push/subscriptions/check",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "DELETE"
+  ],
+  "name": "push_unsubscribe",
+  "only": {},
+  "path": "/api/push/subscriptions",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "logout",
+  "only": {},
+  "path": "/api/logout",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "admin",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "users",
+  "only": {},
+  "path": "/api/users",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "admin",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "user_create",
+  "only": {},
+  "path": "/api/users",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": 201
+ },
+ {
+  "dependencies": [
+   "admin",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "PATCH"
+  ],
+  "name": "user_patch",
+  "only": {},
+  "path": "/api/users/{user_id}",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "summary",
+  "only": {},
+  "path": "/api/summary",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "album_create",
+  "only": {},
+  "path": "/api/albums",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": 201
+ },
+ {
+  "dependencies": [
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "copies",
+  "only": {},
+  "path": "/api/copies",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "admin",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "DELETE"
+  ],
+  "name": "copy_remove",
+  "only": {},
+  "path": "/api/copies/{copy_id}",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "admin",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "copy_restore",
+  "only": {},
+  "path": "/api/copies/{copy_id}/restore",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "detail",
+  "only": {},
+  "path": "/api/copies/{copy_id}",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "variant_preview",
+  "only": {},
+  "path": "/api/copies/{copy_id}/variant-preview",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "reference_audit",
+  "only": {},
+  "path": "/api/reference-audit",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "reference_decision",
+  "only": {},
+  "path": "/api/copies/{copy_id}/reference-decision",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": 201
+ },
+ {
+  "dependencies": [
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "reference_replay",
+  "only": {},
+  "path": "/api/reference-decisions/{decision_id}/replay",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "reference_dispute",
+  "only": {},
+  "path": "/api/copies/{copy_id}/reference-dispute",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "market_product",
+  "only": {},
+  "path": "/api/copies/{copy_id}/market-product",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "bound_quote",
+  "only": {},
+  "path": "/api/copies/{copy_id}/bound-quote",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": 201
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "sale_estimate",
+  "only": {},
+  "path": "/api/copies/{copy_id}/sale-estimate",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": 201
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "price_refresh",
+  "only": {},
+  "path": "/api/copies/{copy_id}/price-refresh",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "PATCH"
+  ],
+  "name": "correct",
+  "only": {},
+  "path": "/api/copies/{copy_id}",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "copy_create",
+  "only": {},
+  "path": "/api/copies",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": 201
+ },
+ {
+  "dependencies": [
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "editions",
+  "only": {},
+  "path": "/api/editions",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "capture_list",
+  "only": {},
+  "path": "/api/capture-sessions",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "capture_create",
+  "only": {},
+  "path": "/api/capture-sessions",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": 201
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "capture_get",
+  "only": {},
+  "path": "/api/capture-sessions/{sid}",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "PATCH"
+  ],
+  "name": "capture_patch",
+  "only": {},
+  "path": "/api/capture-sessions/{sid}",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "capture_save",
+  "only": {},
+  "path": "/api/capture-sessions/{sid}/save",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": 201
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "batch_preview",
+  "only": {},
+  "path": "/api/photo-batches",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": 201
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "batch_page_preview",
+  "only": {},
+  "path": "/api/photo-batches/page",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": 201
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "batch_list",
+  "only": {},
+  "path": "/api/photo-batches",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "batch_get",
+  "only": {},
+  "path": "/api/photo-batches/{jid}",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "batch_photo",
+  "only": {},
+  "path": "/api/photo-batches/{jid}/photo/{copy_id}/{view}",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "batch_apply",
+  "only": {},
+  "path": "/api/photo-batches/{jid}/apply",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "batch_undo",
+  "only": {},
+  "path": "/api/photo-batches/{jid}/undo",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "move_batch_preview",
+  "only": {},
+  "path": "/api/move-batches",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": 201
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "move_batch_list",
+  "only": {},
+  "path": "/api/move-batches",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "move_batch_get",
+  "only": {},
+  "path": "/api/move-batches/{jid}",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "move_batch_apply",
+  "only": {},
+  "path": "/api/move-batches/{jid}/apply",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "move_batch_undo",
+  "only": {},
+  "path": "/api/move-batches/{jid}/undo",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "intake_draft",
+  "only": {},
+  "path": "/api/intake/drafts",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": 201
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "intake_photo",
+  "only": {},
+  "path": "/api/intake/photo",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": 201
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "intake_existing",
+  "only": {},
+  "path": "/api/copies/{copy_id}/intake",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": 201
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "intake_metadata",
+  "only": {},
+  "path": "/api/intake/{token}",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "intake_preview",
+  "only": {},
+  "path": "/api/intake/{token}/photo",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "intake_photo_options",
+  "only": {},
+  "path": "/api/intake/{token}/photo-options",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "attach_prepared_photo",
+  "only": {},
+  "path": "/api/copies/{copy_id}/photo-from-intake",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "DELETE"
+  ],
+  "name": "intake_discard",
+  "only": {},
+  "path": "/api/intake/{token}",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "intake_analyze",
+  "only": {},
+  "path": "/api/intake/{token}/analyze",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "intake_catalogue",
+  "only": {},
+  "path": "/api/intake/{token}/catalogue",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "intake_save",
+  "only": {},
+  "path": "/api/intake/{token}/save",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": 201
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "intake_duplicates",
+  "only": {},
+  "path": "/api/intake/{token}/duplicates",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "catalogue",
+  "only": {},
+  "path": "/api/copies/{copy_id}/catalogue",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "photo",
+  "only": {},
+  "path": "/api/copies/{copy_id}/photo",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "PUT"
+  ],
+  "name": "upload",
+  "only": {},
+  "path": "/api/copies/{copy_id}/photo",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "assess_condition",
+  "only": {},
+  "path": "/api/copies/{copy_id}/condition-assessments",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": 201
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "confirm_condition",
+  "only": {},
+  "path": "/api/copies/{copy_id}/condition-assessments/{assessment_id}/confirm",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "photo_requests",
+  "only": {},
+  "path": "/api/photo-requests",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "check_variant",
+  "only": {},
+  "path": "/api/copies/{copy_id}/variant-checks",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": 201
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "confirm_variant",
+  "only": {},
+  "path": "/api/copies/{copy_id}/variant-checks/{check_id}/confirm",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "keep_language",
+  "only": {},
+  "path": "/api/copies/{copy_id}/variant-checks/{check_id}/keep-language",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "check_edition",
+  "only": {},
+  "path": "/api/copies/{copy_id}/edition-checks",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": 201
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "keep_edition",
+  "only": {},
+  "path": "/api/copies/{copy_id}/edition-checks/{check_id}/keep",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "listing_index",
+  "only": {},
+  "path": "/api/listings",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "listing_create",
+  "only": {},
+  "path": "/api/listings",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": 201
+ },
+ {
+  "dependencies": [
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "copy_listing",
+  "only": {},
+  "path": "/api/copies/{copy_id}/listing",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "PUT"
+  ],
+  "name": "copy_publish",
+  "only": {},
+  "path": "/api/copies/{copy_id}/listing",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "DELETE"
+  ],
+  "name": "copy_unpublish",
+  "only": {},
+  "path": "/api/copies/{copy_id}/listing",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "listing_unpublish",
+  "only": {},
+  "path": "/api/listings/{listing_id}/unpublish",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "floor_request_index",
+  "only": {},
+  "path": "/api/floor-requests",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "floor_request_accept",
+  "only": {},
+  "path": "/api/floor-requests/{request_id}/accept",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "floor_request_raise",
+  "only": {},
+  "path": "/api/floor-requests/{request_id}/raise",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "floor_request_refuse",
+  "only": {},
+  "path": "/api/floor-requests/{request_id}/refuse",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "sales",
+  "only": {},
+  "path": "/api/sales",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "sale_create",
+  "only": {},
+  "path": "/api/sales",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": 201
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "PATCH"
+  ],
+  "name": "sale_patch",
+  "only": {},
+  "path": "/api/sales/{sale_id}",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "listing_package",
+  "only": {},
+  "path": "/api/sales/{sale_id}/listing-package",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "export",
+  "only": {},
+  "path": "/api/export/{kind}",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "admin",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "backup_status",
+  "only": {},
+  "path": "/api/backup/status",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "admin",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "backup_daily",
+  "only": {},
+  "path": "/api/backup/daily",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "admin",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "download_backup",
+  "only": {},
+  "path": "/api/backup",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "editor",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "todo_index",
+  "only": {},
+  "path": "/api/todo",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "assistant_state",
+  "only": {},
+  "path": "/api/assistant",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "assistant_ask",
+  "only": {},
+  "path": "/api/assistant",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "DELETE"
+  ],
+  "name": "assistant_forget_all",
+  "only": {},
+  "path": "/api/assistant/conversations",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "DELETE"
+  ],
+  "name": "assistant_forget",
+  "only": {},
+  "path": "/api/assistant/conversations/{conversation_id}",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "assistant_flag",
+  "only": {},
+  "path": "/api/assistant/answers/{message_id}/flag",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "agent_principal"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "capabilities",
+  "only": {
+   "agent_enabled": true
+  },
+  "path": "/api/agent/v1/capabilities",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "agent_principal"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "copies",
+  "only": {
+   "agent_enabled": true
+  },
+  "path": "/api/agent/v1/copies",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "agent_principal"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "copy_detail",
+  "only": {
+   "agent_enabled": true
+  },
+  "path": "/api/agent/v1/copies/{copy_id}",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "agent_principal"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "photo",
+  "only": {
+   "agent_enabled": true
+  },
+  "path": "/api/agent/v1/copies/{copy_id}/photo",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "agent_principal"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "prepare_lot",
+  "only": {
+   "agent_enabled": true
+  },
+  "path": "/api/agent/v1/prepare-lot",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "agent_principal"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "create_draft",
+  "only": {
+   "agent_enabled": true
+  },
+  "path": "/api/agent/v1/drafts",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": 201
+ },
+ {
+  "dependencies": [
+   "agent_principal"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "approved_corrections",
+  "only": {
+   "agent_enabled": true
+  },
+  "path": "/api/agent/v1/corrections",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "agent_principal"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "apply_correction",
+  "only": {
+   "agent_enabled": true
+  },
+  "path": "/api/agent/v1/copies/{copy_id}/apply-correction",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "agent_principal"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "assistant_tools",
+  "only": {
+   "agent_enabled": true
+  },
+  "path": "/api/agent/v1/assistant-tools",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "agent_principal"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "call_assistant_tool",
+  "only": {
+   "agent_enabled": true
+  },
+  "path": "/api/agent/v1/assistant-tools/{name}",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "agent_principal"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "get_draft",
+  "only": {
+   "agent_enabled": true
+  },
+  "path": "/api/agent/v1/drafts/{sale_id}",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "agent_principal"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "draft_package",
+  "only": {
+   "agent_enabled": true
+  },
+  "path": "/api/agent/v1/drafts/{sale_id}/package",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ }
+]

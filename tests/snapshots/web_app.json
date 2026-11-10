@@ -1,0 +1,141 @@
+{
+ "agent": {
+  "exception_handlers": [
+   {
+    "exception": "starlette.exceptions.HTTPException",
+    "handler": "http_exception_handler"
+   },
+   {
+    "exception": "fastapi.exceptions.RequestValidationError",
+    "handler": "invalid_parameters"
+   },
+   {
+    "exception": "fastapi.exceptions.WebSocketRequestValidationError",
+    "handler": "websocket_request_validation_exception_handler"
+   },
+   {
+    "exception": "fastapi.exceptions.HTTPException",
+    "handler": "refused"
+   },
+   {
+    "exception": "pokeprice.inventory.Conflict",
+    "falls_back_to": "conflict",
+    "handler": "domain_error"
+   },
+   {
+    "exception": "builtins.KeyError",
+    "handler": "missing"
+   },
+   {
+    "exception": "builtins.ValueError",
+    "falls_back_to": "invalid",
+    "handler": "domain_error"
+   },
+   {
+    "exception": "pokeprice.floor_requests.HumanOnly",
+    "handler": "human_only"
+   },
+   {
+    "exception": "pokeprice.agent.AgentError",
+    "handler": "agent_error"
+   }
+  ],
+  "middleware": [
+   {
+    "class": "BaseHTTPMiddleware",
+    "dispatch": "protect"
+   },
+   {
+    "allowed_hosts": [
+     "127.0.0.1",
+     "localhost",
+     "testserver"
+    ],
+    "class": "TrustedHostMiddleware"
+   }
+  ],
+  "state": [
+   "agent_review",
+   "agents",
+   "assistant",
+   "conditions",
+   "edition_checks",
+   "intake",
+   "market",
+   "moves",
+   "notifier",
+   "pricing",
+   "rate_limits",
+   "store",
+   "todo",
+   "variant_catalogue",
+   "variant_checks"
+  ]
+ },
+ "sans_agent": {
+  "exception_handlers": [
+   {
+    "exception": "starlette.exceptions.HTTPException",
+    "handler": "http_exception_handler"
+   },
+   {
+    "exception": "fastapi.exceptions.RequestValidationError",
+    "handler": "request_validation_exception_handler"
+   },
+   {
+    "exception": "fastapi.exceptions.WebSocketRequestValidationError",
+    "handler": "websocket_request_validation_exception_handler"
+   },
+   {
+    "exception": "fastapi.exceptions.HTTPException",
+    "handler": "refused"
+   },
+   {
+    "exception": "pokeprice.inventory.Conflict",
+    "handler": "conflict"
+   },
+   {
+    "exception": "builtins.KeyError",
+    "handler": "missing"
+   },
+   {
+    "exception": "builtins.ValueError",
+    "handler": "invalid"
+   },
+   {
+    "exception": "pokeprice.floor_requests.HumanOnly",
+    "handler": "human_only"
+   }
+  ],
+  "middleware": [
+   {
+    "class": "BaseHTTPMiddleware",
+    "dispatch": "protect"
+   },
+   {
+    "allowed_hosts": [
+     "127.0.0.1",
+     "localhost",
+     "testserver"
+    ],
+    "class": "TrustedHostMiddleware"
+   }
+  ],
+  "state": [
+   "agent_review",
+   "assistant",
+   "conditions",
+   "edition_checks",
+   "intake",
+   "market",
+   "moves",
+   "notifier",
+   "pricing",
+   "rate_limits",
+   "store",
+   "todo",
+   "variant_catalogue",
+   "variant_checks"
+  ]
+ }
+}

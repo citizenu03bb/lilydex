@@ -115,3 +115,12 @@ def card(cid, name, number, count, hp=80, **extras):
         },
         **extras,
     }
+
+
+def pytest_addoption(parser):
+    # Stored expectations (tests/snapshots/) are rewritten only on purpose:
+    # a change that alters a route, a header or the schema updates them in the same diff.
+    parser.addoption(
+        "--update-snapshots", action="store_true", default=False,
+        help="Rewrite the stored expectations of tests/snapshots/ instead of comparing.",
+    )

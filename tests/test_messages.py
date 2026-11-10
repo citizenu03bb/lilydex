@@ -8,13 +8,16 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
+from web_scripts import management_scripts
+
 from pokeprice.inventory import Store
 from pokeprice.webapp import ERROR_CODES, TEXT_KEY, create_app
 
 SOURCE = Path(__file__).resolve().parents[1] / "src/pokeprice"
 WEB = SOURCE / "web"
 PAGES = ("storefront.html", "index.html", "about.html", "about.en.html", "conditions.html", "conditions.en.html", "offline.html")
-SCRIPTS = ("storefront.js", "components.js", "app.js", "workflows.js", "pwa.js", "assistant.js")
+# The storefront script, then the management scripts in the order of index.html.
+SCRIPTS = ("storefront.js", *management_scripts())
 LITERAL = re.compile(r"""\bt\(\s*["']([\w.]+)["']""")
 # A key built at run time, such as t(`language.${code}`): every key under it counts as used.
 FAMILY = re.compile(r"\bt\(\s*`([\w.]*)\$\{")

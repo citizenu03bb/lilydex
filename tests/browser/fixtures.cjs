@@ -15,7 +15,10 @@ const test = base.extend({
     expect(fixture.synthetic_only).toBe(true);
     await use(fixture);
   },
-  audit: [async ({ context, page }, use, info) => {
+  // Writes a spec may make on purpose, as "METHOD /path" regular expressions.
+  // Every other write is still refused and fails the spec.
+  allowedWrites: [[], { option: true }],
+  audit: [async ({ context, page, allowedWrites }, use, info) => {
     const audit = { external: [], writes: [], pageErrors: [], photos: [], views: [] };
     await context.addInitScript(() => {
       window.qaTouches = [];
@@ -32,7 +35,8 @@ const test = base.extend({
         return route.abort();
       }
       const quote = request.method() === 'POST' && url.pathname === '/api/public/quote';
-      if (!['GET', 'HEAD'].includes(request.method()) && !quote) {
+      const allowed = allowedWrites.some(rule => new RegExp(`^${rule}$`).test(`${request.method()} ${url.pathname}`));
+      if (!['GET', 'HEAD'].includes(request.method()) && !quote && !allowed) {
         audit.writes.push(`${request.method()} ${url.pathname}`);
         return route.abort();
       }
