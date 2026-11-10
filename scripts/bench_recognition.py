@@ -710,10 +710,19 @@ def app_scores(entries, run):
         proposal = record.get("proposal") or {}
         valuation = record.get("valuation") or {}
         premium = foil_value(valuation)
+        # The price category verified by a person: the variant confirmed in the
+        # collection, else the truth of a card verified for the bench.
+        known = (
+            confirmed["foil"]
+            if confirmed is not None
+            else truth.get("foil")
+            if truth.get("verified_variant")
+            else None
+        )
         contrary = (
             proposal.get("status") == "proposed"
-            and confirmed is not None
-            and proposal.get("foil") != confirmed["foil"]
+            and known is not None
+            and proposal.get("foil") != known
         )
         costly = premium is None or premium >= valuation.get("threshold_cents", 1000)
         refuse = (entry["name"], entry["number"]) in REFUSE
@@ -745,6 +754,7 @@ def app_scores(entries, run):
             "language_quiet": None
             if "text_language" not in (reading or {})
             else reading["text_language"] in (truth["language"], "unknown"),
+            "variant_known": known is not None,
             "wrong_proposal": contrary and costly,
             "wrong_low_stakes": contrary and not costly,
             "status": proposal.get("status", "échec"),
@@ -771,24 +781,58 @@ def edition_scores(truth, edition, propose):
     }
 
 
+def measure_shares(all_scores, key, ids=None):
+    """(good, counted) of one measure for each run, over the cards that have a truth."""
+    shares = []
+    for scores in all_scores:
+        values = [
+            s[key]
+            for copy_id, s in scores.items()
+            if s[key] is not None and (ids is None or copy_id in ids)
+        ]
+        if values:
+            shares.append((sum(values), len(values)))
+    return shares
+
+
+def worst(shares):
+    return min(shares, key=lambda share: share[0] / share[1])
+
+
+def interval(good, total):
+    sys.path.insert(0, str(ROOT / "src"))
+    from pokeprice.bench_stats import interval as compute
+
+    return compute(good, total)
+
+
+def wrong_proposals(all_scores, ids=None):
+    """Worst run: costly contrary proposals, out of the cards whose variant a person verified."""
+    worst_run = (0, 0)
+    for scores in all_scores:
+        known = [
+            s for copy_id, s in scores.items() if s["variant_known"] and (ids is None or copy_id in ids)
+        ]
+        wrong = sum(s["wrong_proposal"] for s in known)
+        if not worst_run[1] or wrong * worst_run[1] > worst_run[0] * len(known):
+            worst_run = (wrong, len(known))
+    return worst_run
+
+
 def app_regressions(entries, runs):
     """Measures whose worst run is below the minimum share; empty when all pass."""
     all_scores = [app_scores(entries, run) for run in runs]
     lines, failures = [], []
     for key, (done, total) in APP_THRESHOLDS.items():
-        shares = []
-        for scores in all_scores:
-            values = [s[key] for s in scores.values() if s[key] is not None]
-            if values:
-                shares.append((sum(values), len(values)))
+        shares = measure_shares(all_scores, key)
         if not shares:  # No card of that kind in the truth set.
             lines.append(f"{APP_LABELS[key]:<50} non mesuré")
             continue
-        got, count = min(shares, key=lambda share: share[0] / share[1])
+        got, count = worst(shares)
         ok = got * total >= done * count
         each = "  [" + ", ".join(f"{g}/{n}" for g, n in shares) + "]" if len(shares) > 1 else ""
         lines.append(
-            f"{APP_LABELS[key]:<50} {got}/{count}  (minimum {done}/{total})  {'ok' if ok else 'RÉGRESSION'}{each}"
+            f"{APP_LABELS[key]:<50} {interval(got, count).text()}  (minimum {done}/{total})  {'ok' if ok else 'RÉGRESSION'}{each}"
         )
         if not ok:
             failures.append(lines[-1])
@@ -803,6 +847,11 @@ def app_regressions(entries, runs):
     )
     if len(wrong) > MAX_WRONG_PROPOSALS:
         failures.append(lines[-1])
+    bad, confirmed = wrong_proposals(all_scores)
+    if confirmed:
+        lines.append(
+            f"{'  taux sur les variantes vérifiées (pire passage)':<50} {interval(bad, confirmed).text()}"
+        )
     cheap = labels("wrong_low_stakes")
     lines.append(
         f"{'  dont sous le seuil (tolérées, Foil peu chère)':<50} {len(cheap)}"
@@ -815,6 +864,76 @@ def app_regressions(entries, runs):
             + ", ".join(f"{status} {statuses.count(status)}" for status in sorted(set(statuses)))
         )
     return failures, lines
+
+
+# --- Strata: who verified the truth, language, finish --------------------------
+
+# How the truth of a card was established. A model never supplies it; a person
+# who confirmed after seeing a reading is anchored by it, so those cards are
+# reported apart from the blind verifications (docs/decisions/0043).
+PROVENANCES = {
+    "aveugle": "vérifiées à l’aveugle",
+    "recoltee": "récoltées (confirmation antérieure)",
+    "initiale": "banc initial",
+}
+WRONG = "Proposition contraire, Foil au seuil ou sans prix"
+
+
+def provenance_of(entry):
+    return entry["truth"].get("provenance") or "initiale"
+
+
+def finish_of(entry):
+    truth = entry["truth"]
+    if truth.get("reverse"):
+        return "reverse"
+    if truth.get("art_holo") is None:
+        return "finition non vérifiée"
+    return "holo" if truth["art_holo"] else "mate"
+
+
+STRATA = {
+    "Provenance de la vérité": lambda e: PROVENANCES.get(provenance_of(e), provenance_of(e)),
+    "Langue": lambda e: e["truth"]["language"],
+    "Finition": finish_of,
+}
+
+
+def app_strata(entries, runs):
+    """Every measure per stratum, worst run: {dimension: {group: {label: Interval}}}."""
+    all_scores = [app_scores(entries, run) for run in runs]
+    result = {}
+    for dimension, group_of in STRATA.items():
+        groups = {}
+        for entry in entries:
+            groups.setdefault(group_of(entry), set()).add(entry["copy_id"])
+        result[dimension] = {}
+        for group, ids in sorted(groups.items()):
+            measures = {"cartes": len(ids)}
+            for key in APP_THRESHOLDS:
+                shares = measure_shares(all_scores, key, ids)
+                if shares:
+                    measures[APP_LABELS[key]] = interval(*worst(shares))
+            bad, confirmed = wrong_proposals(all_scores, ids)
+            if confirmed:
+                measures[WRONG] = interval(bad, confirmed)
+            result[dimension][group] = measures
+    return result
+
+
+def strata_lines(strata):
+    lines = []
+    for dimension, groups in strata.items():
+        for group, measures in groups.items():
+            count = measures["cartes"]
+            plural = "s" if count > 1 else ""
+            lines.append(f"{dimension} : {group} ({count} carte{plural})")
+            lines += [
+                f"  {label:<50} {value.text()}"
+                for label, value in measures.items()
+                if label != "cartes"
+            ]
+    return lines
 
 
 def run_app_check(live):
@@ -838,6 +957,8 @@ def run_app_check(live):
         + f" ({runs[0]['model']}, {runs[0]['protocol']}) : pire passage par mesure"
     )
     print("\n".join(lines))
+    print("\nPar strate (pire passage, intervalle à 95 %) :")
+    print("\n".join(strata_lines(app_strata(entries, runs))))
     if tokens:
         print(f"Lecture de finition : {sum(tokens) / len(tokens):.0f} jetons par carte en moyenne")
     sys.exit(1 if failures else 0)

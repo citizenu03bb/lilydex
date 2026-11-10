@@ -1,7 +1,7 @@
 # Banc d'essai de reconnaissance
 
 > **Pour qui :** toute personne qui veut savoir ce que valent les lecteurs de l'application, chiffres à l'appui.
-> **Vous y trouverez :** la méthode, les résultats par question, les décisions qu'ils ont motivées et leurs limites.
+> **Vous y trouverez :** la méthode, les résultats par question avec leur intervalle de confiance, les décisions qu'ils ont motivées, leurs limites et la façon d'agrandir le banc.
 > **Statut :** rapport de mesure. Chaque tableau porte ses conditions de mesure ; la présentation d'ensemble est dans [IA et vision](IA-VISION.md).
 
 ## À quoi sert le banc
@@ -28,6 +28,19 @@ compromis. Ces choix ont chacun leur [fiche de décision](decisions/README.md).
   bon résultat est de refuser la photo, pas de deviner le nom.
 - **La galerie** : pour chaque carte, toutes les éditions TCGdex de même nom
   servent de leurres, dans la langue de la carte et en anglais.
+- **Un intervalle à côté de chaque taux** : un résultat s'écrit « 22/27
+  (IC 95 % : 63–91,8 %) ». L'intervalle dit entre quelles valeurs le vrai taux
+  se trouve vraisemblablement, compte tenu du nombre de cartes. C'est
+  l'intervalle de Wilson ; quand aucune erreur n'est observée, c'est la borne
+  exacte de Clopper–Pearson à 95 % : zéro erreur sur 21 cartes établit « moins
+  de 13 % d'erreurs », pas « aucune erreur » (`src/pokeprice/bench_stats.py`).
+- **Une vérité toujours humaine, et sa provenance** : un modèle ne fournit
+  jamais la vérité. Chaque carte porte la façon dont sa vérité a été établie,
+  et les résultats sont donnés à part pour chacune
+  ([fiche 0043](decisions/0043-banc-provenance-et-intervalles.md)) :
+  *vérifiée à l'aveugle* (observée sur la carte physique sans voir de lecture),
+  *récoltée* (confirmation déjà enregistrée dans la collection, faite sans
+  protocole de banc) ou *banc initial* (les 31 cartes d'origine).
 - **Une notation commune** : chaque lecteur est noté sur les mêmes mesures.
   Les agents Claude (Haiku et Sonnet) ont lu les cartes à l'aveugle.
 - **Dans l'application** : `bench_recognition.py app` rejoue le banc à travers
@@ -37,7 +50,8 @@ compromis. Ces choix ont chacun leur [fiche de décision](decisions/README.md).
   pas masquer une régression.
 - **Hors ligne** : `bench_recognition.py app-check` recalcule les propositions
   avec les règles actuelles à partir des lectures enregistrées, sans nouvel
-  appel.
+  appel. Il affiche chaque mesure avec son compte et son intervalle, puis le
+  détail par strate : provenance de la vérité, langue, finition.
 
 ```bash
 uv run --extra web --extra vision python scripts/bench_recognition.py app        # passage réel (Gemini, TCGdex)
@@ -61,40 +75,50 @@ présentés ici qu'en résumé.
 
 ## Le premier banc : comparer les lecteurs
 
-| Question | Meilleure source | Résultat | Autres lecteurs |
+| Question | Meilleure source | Résultat (IC 95 %) | Autres lecteurs |
 |---|---|---|---|
-| Numéro de carte | Gemini | 25/31 | agent Sonnet 24/31 ; agent Haiku 5/31 ; Tesseract 4/31 |
-| Langue | Gemini | 31/31 | Tesseract 28/31 |
-| Édition | Gemini et catalogue | 21/30 | DINOv2 retrouve la bonne édition parmi les cartes de même nom dans 24/27 cas |
-| Illustration holo ou mate | Gemini | 21/21 | |
-| Tampon | Gemini | 21/21 | 3 cartes tamponnées seulement : le score mesure surtout l'absence de fausse détection |
-| Reverse | aucune | 0 à 1 sur 2 | Gemini 0/2, agent Sonnet 1/2 : angle mort de tous les lecteurs sur photo de classeur |
-| Contrefaçon | aucune seule | 1 contrefaçon au banc | Gemini la signale avec 2 fausses alertes sur 30 vraies cartes ; Sonnet sans fausse alerte ; Haiku la manque |
+| Numéro de carte | Gemini | 25/31 (64–90,8 %) | agent Sonnet 24/31 (60–89 %) ; agent Haiku 5/31 (7,1–33 %) ; Tesseract 4/31 (5,1–29 %) |
+| Langue | Gemini | 31/31 (90,8–100 %) | Tesseract 28/31 (75–96,7 %) |
+| Édition | Gemini et catalogue | 21/30 (52–83 %) | DINOv2 retrouve la bonne édition parmi les cartes de même nom dans 24/27 cas (72–96,1 %) |
+| Illustration holo ou mate | Gemini | 21/21 (87–100 %) | |
+| Tampon | Gemini | 21/21 (87–100 %) | 3 cartes tamponnées seulement : le score mesure surtout l'absence de fausse détection |
+| Reverse | aucune | 0 à 1 sur 2 | Gemini 0/2 (0–78 %), agent Sonnet 1/2 (9,5–90,5 %) : angle mort de tous les lecteurs sur photo de classeur |
+| Contrefaçon | aucune seule | 1 contrefaçon au banc | Gemini la signale avec 2 fausses alertes sur 30 vraies cartes (1,8–21 %) ; Sonnet sans fausse alerte ; Haiku la manque |
 
 Recherche d'images, sur une galerie de 473 images de référence (3 promos sans
 image TCGdex, donc 27 cartes évaluables) :
 
-| Modèle | Bonne édition en tête | Parmi les 3 premières |
+| Modèle | Bonne édition en tête (IC 95 %) | Parmi les 3 premières (IC 95 %) |
 |---|---|---|
-| DINOv2-small | 19/27 | 24/27 |
-| CLIP ViT-B/32 | 13/27 | 14/27 |
+| DINOv2-small | 19/27 (52–84 %) | 24/27 (72–96,1 %) |
+| CLIP ViT-B/32 | 13/27 (31–66 %) | 14/27 (34–69 %) |
+
+Les deux intervalles de la première colonne se recouvrent : sur 27 cartes,
+l'écart entre DINOv2 et CLIP est une indication, pas une preuve.
 
 *Conditions de mesure : 31 cartes d'une seule collection (25 FR, 5 EN, 1 IT, aucune japonaise), dont 21 à variante vérifiée sur la carte et 2 reverses ; gemini-3.8-flash ; Tesseract fra+eng+ita+deu+spa ; agents Claude Haiku et Sonnet lancés à la main ; octobre 2026.*
 
 ## Le banc dans l'application : lecture à la saisie
 
-| Mesure | Seuil | 1er passage | 2e passage |
-|---|---|---|---|
-| Numéro | 24/30 | 24/30 | 24/30 |
-| Langue | 30/30 | 30/30 | 30/30 |
-| Édition en tête | 20/29 | 20/29 | 21/29 |
-| Photo inexploitable refusée | 1/1 | 1/1 | 1/1 |
-| Holo ou mate, quand la lecture tranche | 21/21 | 18/18 | 21/21 |
-| Lecture tranchée (sinon examen) | 18/21 | 18/21 | 21/21 |
-| Tampon | 21/21 | 21/21 | 21/21 |
-| **Proposition de variante fausse, Foil au seuil ou sans prix** | **0** | **0** | **0** |
+| Mesure | Seuil | 1er passage | 2e passage | Pire passage (IC 95 %) |
+|---|---|---|---|---|
+| Numéro | 23/30 | 24/30 | 23/30 | 23/30 (59–88 %) |
+| Langue | 30/30 | 30/30 | 30/30 | 30/30 (90,5–100 %) |
+| Édition en tête | 18/29 | 21/29 | 20/29 | 20/29 (51–83 %) |
+| Photo inexploitable refusée | 1/1 | 1/1 | 1/1 | 1/1 (5,0–100 %) |
+| Holo ou mate, quand la lecture tranche | 21/21 | 21/21 | 21/21 | 21/21 (87–100 %) |
+| Lecture tranchée (sinon examen) | 18/21 | 21/21 | 21/21 | 21/21 (87–100 %) |
+| Tampon | 21/21 | 21/21 | 21/21 | 21/21 (87–100 %) |
+| **Proposition de variante fausse, Foil au seuil ou sans prix** | **0** | **0/24** | **0/24** | **0/24 (0–12 %)** |
 
-*Conditions de mesure : banc rejoué à travers l'application, deux passages réels, gemini-3.8-flash, 30 cartes (la photo à refuser exclue des mesures de lecture), octobre 2026.*
+*Conditions de mesure : banc rejoué à travers l'application, deux passages réels publiés (ceux que `app-check` rejoue), gemini-3.8-flash, 30 cartes (la photo à refuser exclue des mesures de lecture), 24 cartes dont une personne a vérifié la variante, toutes du banc initial, octobre 2026.*
+
+La dernière ligne est celle qui protège l'argent, et c'est la moins établie :
+aucune proposition fausse et coûteuse sur 24 cartes signifie seulement que le
+taux réel est sous 12 %. Deux propositions contraires sur ces 24 (2,3–26 %)
+sont tolérées par la règle : des reverses sous le seuil de valeur proposées
+Standard. Descendre la borne à 5 % demande 59 cartes vérifiées sans une seule
+proposition fausse, à 2 % il en faut 149.
 
 Quatre passages ont montré un bruit plus large que prévu : numéro de 23 à
 25/30, édition de 18 à 22/29. Les erreurs qui changent d'un passage à l'autre :
@@ -122,11 +146,11 @@ raisonnement compris.
 
 ## Le contrôle d'édition par l'image
 
-| Mesure | Résultat |
+| Mesure | Résultat (IC 95 %) |
 |---|---|
-| Vraie édition confirmée par l'image | 22/27 |
-| Vraie édition sans fausse alerte | 26/27 (une fausse alerte : Solochi) |
-| Impression voisine la plus ressemblante signalée (fausse édition simulée) | 14/26 |
+| Vraie édition confirmée par l'image | 22/27 (63–91,8 %) |
+| Vraie édition sans fausse alerte | 26/27 (82–99,34 %) ; une fausse alerte : Solochi |
+| Impression voisine la plus ressemblante signalée (fausse édition simulée) | 14/26 (35–71 %) |
 
 Le calcul est déterministe : les deux passages donnent les mêmes chiffres.
 Le premier banc donnait 24/27 sur une galerie sans les réimpressions à
@@ -136,11 +160,14 @@ les départage pas, le contrôle reste alors indécis.
 **Choix de la marge**, l'écart de similarité sous lequel deux éditions sont
 jugées trop proches pour trancher :
 
-| Marge | Fausses alertes sur 27 vraies éditions | Éditions voisines signalées sur 26 |
+| Marge | Fausses alertes sur 27 vraies éditions (IC 95 %) | Éditions voisines signalées sur 26 (IC 95 %) |
 |---|---|---|
-| 0,02 | 3 | 17 |
-| **0,05 (retenue)** | **1** | **14** |
-| 0,08 | 0 | 11 |
+| 0,02 | 3/27 (3,9–28 %) | 17/26 (46–81 %) |
+| **0,05 (retenue)** | **1/27 (0,66–18 %)** | **14/26 (35–71 %)** |
+| 0,08 | 0/27 (0–11 %) | 11/26 (26–61 %) |
+
+Les intervalles des trois marges se recouvrent largement : la table a orienté
+le choix, 27 cartes ne suffisent pas à départager les marges.
 
 *Conditions de mesure : banc rejoué à travers l'application, DINOv2-small (facebook/dinov2-small) sur processeur, galerie des éditions TCGdex de même nom, environ 1 s par carte une fois les images en cache, octobre 2026.*
 
@@ -155,8 +182,8 @@ deux passages :
 
 | Règle | Cartes sans résultat catalogue (6, puis 8) | Toutes les cartes (58 lectures) |
 |---|---|---|
-| Nom seul, écart ≥ 0,05 | 6/6 puis 6/8 justes, aucune fausse | 30 justes, **4 fausses**, 24 sans proposition |
-| Nom puis filtre par numéro, écart ≥ 0,05 | 6/6 puis **7/8** justes, aucune fausse | **48 justes**, 1 fausse, 9 sans proposition |
+| Nom seul, écart ≥ 0,05 | 6/6 puis 6/8 justes, aucune fausse | 30 justes, **4 fausses**, 24 sans proposition (30/34 propositions justes, IC 95 % : 73–95,3 %) |
+| Nom puis filtre par numéro, écart ≥ 0,05 | 6/6 puis **7/8** justes, aucune fausse | **48 justes**, 1 fausse, 9 sans proposition (48/49, IC 95 % : 89–99,64 %) |
 
 *Conditions de mesure : lectures enregistrées des deux passages applicatifs, DINOv2-small rejoué hors ligne, octobre 2026.*
 
@@ -180,7 +207,7 @@ impressions de ce nom qui n'ont pas d'image.
 
 | Mesure | Tesseract | Contrôle de cohérence (Gemini) |
 |---|---|---|
-| Langue juste | 28/31 | 31/31, aux deux passages |
+| Langue juste | 28/31 (IC 95 % : 75–96,7 %) | 31/31, aux deux passages (IC 95 % : 90,8–100 %) |
 | Cartes envoyées en examen sans raison | 3 (Clic, Octillery, Transfert) | 0 |
 | Erreurs de Gemini rattrapées | 0 | sans objet |
 
@@ -202,9 +229,9 @@ banque toutes les lignes qui partagent sa photo, puis on lui applique la règle.
 
 | Mesure | Résultat |
 |---|---|
-| Énergies de base admises | 166/166 |
-| Autres cartes admises à tort | 1 sur 1 601 : la seule Double Énergie Incolore de la collection, qui n'a aucun autre exemplaire dans la banque pour la retenir |
-| Type proposé, quand il est comparable | 96 justes, 3 faux (67 sans type enregistré ou sans proposition) |
+| Énergies de base admises | 166/166 (IC 95 % : 98,2–100 %) |
+| Autres cartes admises à tort | 1/1 601 (IC 95 % : 0,01–0,35 %) : la seule Double Énergie Incolore de la collection, qui n'a aucun autre exemplaire dans la banque pour la retenir |
+| Type proposé, quand il est comparable | 96/99 justes (IC 95 % : 91,5–99,0 %), 3 faux (67 sans type enregistré ou sans proposition) |
 | Effet de la marge entre 0,05 et 0,12 | aucun sur cette mesure |
 
 *Conditions de mesure : 1 767 exemplaires d'une seule collection, photos préparées de la collection, étiquettes tirées des noms enregistrés, DINOv2-small, marges 0,05 à 0,12, octobre 2026.*
@@ -217,19 +244,83 @@ Une carte admise à tort n'est jamais confirmée ni cotée : elle arrive
 « Énergie de base », type à confirmer, et reste à examiner.
 
 **La mesure sur les pochettes de classeur, plus fragile.** Sur six classeurs
-numérisés (1 305 pochettes), 162 énergies de base sur 164 sont passées, et
+numérisés (1 305 pochettes), 162 énergies de base sur 164 sont passées
+(IC 95 % : 95,7–99,66 %), et
 aucune autre carte ; à la marge de 0,08, une Double Énergie Incolore passait
 encore. Le protocole exact de cette mesure n'a pas été consigné : on ne sait
 pas si les photos de ces pochettes étaient déjà dans la banque. C'est elle qui
 a fixé la marge à 0,10 ; elle n'est pas citée comme résultat principal.
 
+## Agrandir le banc
+
+Le banc vise au moins 200 cartes vérifiées, dont 60 par strate qui compte :
+reverses, holos, autres langues que le français, éditions voisines (même nom,
+autre impression), cartes de valeur. À 60 cartes sans erreur, la borne passe
+sous 5 % ; à 200 cartes, un taux de 80 % est connu à ± 6 points.
+
+Deux commandes préparent le travail. Elles ouvrent la base en lecture seule,
+exigent `--data` et n'écrivent rien dans la collection :
+
+```bash
+pokeprice-manage --data <base> bench-harvest                    # ce que la collection contient déjà
+pokeprice-manage --data <base> bench-sample --format sheet      # la prochaine séance, à remplir devant le classeur
+```
+
+- **`bench-harvest`** compte les variantes déjà confirmées par une personne :
+  par langue, par finition, par provenance, et selon que le motif enregistré
+  dit ou non que la carte a été observée en main. Il ne nomme aucune carte.
+- **`bench-sample`** propose les cartes à vérifier ensuite, les strates les
+  plus loin de leur cible d'abord, une seule carte par impression, dans l'ordre
+  du classeur. Avant l'observation, une carte n'est qu'une reverse *possible*
+  (le catalogue en liste une) : elle compte pour la part de ces cartes qui se
+  sont révélées reverses jusqu'ici. La feuille de séance ne montre ni lecture
+  ni nom : la personne note le nom, le numéro, la langue, la finition et le
+  tampon qu'elle voit. `--names` affiche les noms, et l'identité n'est alors
+  plus vérifiée à l'aveugle. La sortie JSON porte l'identifiant et la version
+  de chaque exemplaire, pour un outil.
+- **L'enregistrement reste humain.** La personne saisit ce qu'elle a noté dans
+  les fiches, avec un motif qui commence par « Vérification à l'aveugle
+  (banc) ». C'est ce motif, et l'absence de lecture de finition antérieure, qui
+  classent la confirmation « à l'aveugle ».
+
+Une séance préparée par un agent avec le guide `pokeprice-agent` peut partir
+de la sortie JSON (identifiant, version, album, page, pochette), mais ce guide
+fait examiner la photo et formuler une question : la vérification qui en sort
+est ancrée par cette lecture, donc *récoltée*, pas à l'aveugle.
+
+*Conditions de mesure : comptage en lecture seule sur la collection de référence, novembre 2026.*
+
+| Ce que la collection contient | Cartes |
+|---|---|
+| Variantes confirmées par une personne, photo conservée | 301 (237 impressions distinctes) |
+| dont le motif dit « observée en main » | 106 |
+| dont le motif ne permet pas de savoir (carte ou photo) | 195 |
+| Par langue | 257 FR, 41 EN, 2 JA, 1 IT |
+| Par finition | 200 mates ou autres, 55 reverses, 46 holos |
+| Confirmées après avoir vu une lecture de finition | 0 : aucune lecture n'existait encore |
+| Vérifiées à l'aveugle selon le protocole | 0 |
+| Avec une édition du catalogue (contrôle d'édition rejouable) | 250 |
+| Lecture de finition enregistrée | 0 ; un passage réel de Gemini est nécessaire |
+
+Ces 301 cartes sont *récoltées* : leur finition a été confirmée sans qu'une
+lecture de finition existe, mais leur identité vient de la proposition du
+pipeline d'albums, que la personne avait sous les yeux. Elles n'entrent dans
+les mesures qu'après un passage réel, et leurs résultats restent séparés de
+ceux des vérifications à l'aveugle.
+
 ## Les limites
 
 - **Petits échantillons d'une seule collection** : 21 à 31 cartes selon la
-  question, choisies en partie parmi les cas difficiles. Aucun pourcentage
+  question, choisies en partie parmi les cas difficiles. Les intervalles
+  mesurent l'incertitude du compte, pas ce biais de choix : aucun pourcentage
   n'est à généraliser.
-- **Aucune carte japonaise** au banc, alors que la collection en contient :
-  rien n'est établi pour le japonais.
+- **Une vérité en partie ancrée** : les cartes du banc initial et les cartes
+  récoltées ont été confirmées par une personne qui voyait l'identité proposée.
+  Seules les vérifications à l'aveugle mesurent sans ce biais, et il n'y en a
+  aucune.
+- **Aucune carte japonaise** au banc, et deux seulement dans la collection :
+  rien n'est établi pour le japonais, et cette collection ne permet pas de
+  l'établir.
 - **Deux reverses seulement** : leur détection sur photo n'est pas fiable, d'où
   l'examen physique au-dessus du seuil de valeur ([fiche 0008](decisions/0008-reverses-examen-physique.md)).
 - **Lecture locale non mesurée** : le pipeline d'albums lit par défaut avec

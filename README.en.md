@@ -40,22 +40,24 @@ was measured on a bench of hand-verified cards.
 
 | Component | Model | Runs on | Measured |
 |---|---|---|---|
-| Card reading at intake | Gemini (vision-language) | cloud, called by the server | collector number right 23 to 25 times out of 30 depending on the run; language 30/30 |
-| Finish, stamp and text language | Gemini | cloud, after each intake | holo vs flat: no error on 21 cards when the reading decides; language 31/31, no false alarm; no unsafe variant proposal above the value threshold |
-| Image edition check | DINOv2-small, pre-trained | ARM server, CPU only | 22 of 27 true editions confirmed, one false alarm |
-| Energy gate (command line) | DINOv2-small, nearest neighbours with rejection | laptop or server | 166/166 basic Energy cards admitted, one other card wrongly admitted out of 1,601 |
+| Card reading at intake | Gemini (vision-language) | cloud, called by the server | collector number right 23/30 on the worse run (95 % CI: 59–88 %); language 30/30 (90.5–100 %) |
+| Finish, stamp and text language | Gemini | cloud, after each intake | holo vs flat, when the reading decides: 21/21 (87–100 %); language 31/31, no false alarm (90.8–100 %); unsafe variant proposal above the value threshold: 0/24 (0–12 %) |
+| Image edition check | DINOv2-small, pre-trained | ARM server, CPU only | true edition confirmed 22/27 (63–91.8 %); false alarm 1/27 (0.66–18 %) |
+| Energy gate (command line) | DINOv2-small, nearest neighbours with rejection | laptop or server | basic Energy cards admitted 166/166 (98.2–100 %); other card wrongly admitted 1/1,601 (0.01–0.35 %) |
 | Photo preparation | classic computer vision (Pillow), no AI | server | not measured; the original is always kept |
 | Condition help | Gemini | cloud, on demand only | not measured: a proposal, never a grade |
 
-*Measurement conditions: 31 cards from a single collection checked against the physical cards (25 FR, 5 EN, 1 IT, no Japanese; 21 with a verified variant, 2 of them reverse holos), gemini-3.8-flash and DINOv2-small, bench replayed through the app, two runs judged on the worse; energy gate: 1,767 copies, each card left out of its own bank; October 2026. The recorded runs are published: `scripts/bench_recognition.py app-check` replays the reading and edition-check figures offline from a clone; the card photos stay private.*
+*Measurement conditions: 31 cards from a single collection checked against the physical cards (25 FR, 5 EN, 1 IT, no Japanese; 21 with a verified variant, 2 of them reverse holos; 24 whose price category a person verified), none verified blind; every rate with its count and 95 % confidence interval (Wilson, exact Clopper–Pearson bound when no error is observed); gemini-3.8-flash and DINOv2-small, bench replayed through the app, two runs judged on the worse; energy gate: 1,767 copies, each card left out of its own bank; October 2026. The recorded runs are published: `scripts/bench_recognition.py app-check` replays the reading and edition-check figures offline from a clone; the card photos stay private.*
 
 Engineering choices, each backed by a measurement and written up as a decision record (in
 French, [docs/decisions/](docs/decisions/README.md)):
 
-- **Tesseract rejected** as a language checker: 28/31 right, 3 false alarms, and it caught none
+- **Tesseract rejected** as a language checker: 28/31 right (95 % CI: 75–96.7 %), 3 false alarms, and it caught none
   of Gemini's errors. A consistency check inside the existing Gemini reading replaced it.
-- **DINOv2 over CLIP** (19/27 vs 13/27 top-1), with an abstention margin of 0.05 chosen from a
-  trade-off table (0.02: 3 false alarms; 0.08: 11 instead of 14 near-miss editions caught).
+- **DINOv2 over CLIP** (19/27 vs 13/27 top-1; 95 % CIs 52–84 % and 31–66 %, which overlap), with
+  an abstention margin of 0.05 chosen from a trade-off table (0.02: 3 false alarms out of 27;
+  0.08: 11 instead of 14 near-miss editions caught out of 26). At this size the table guided
+  the choice; it does not prove it.
 - **Comfort thresholds vs safety thresholds**: number and edition floors follow the observed
   noise, but thresholds that keep a valuable card from being sold as bulk are never lowered.
 - **Reverse holos are checked by hand** above the value threshold: no model tested spots them
@@ -105,7 +107,10 @@ retained.
 
 - One collection per installation; hosting several collections is under study.
 - Interface internationalisation and an installable web app (PWA) are planned, not built.
-- Measurements cover 21 to 31 cards from one collection, with no Japanese card.
+- Measurements cover 21 to 31 cards from one collection, with no Japanese card: zero errors on
+  24 cards only bounds the error rate below 12 %. The bench is being grown towards 200+ cards;
+  the truth label stays human, card selection and intervals are computed
+  ([bench report](docs/BANC-RECONNAISSANCE.md), in French).
 - Maintained by one person, with no guaranteed response time.
 
 ## Licence
