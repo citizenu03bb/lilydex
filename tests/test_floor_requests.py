@@ -27,8 +27,9 @@ def human(test_db):  # noqa: F811
 
 
 @pytest.fixture(autouse=True)
-def default_margin(monkeypatch):
-    monkeypatch.delenv("POKEPRICE_LOT_MAX_MARGIN", raising=False)
+def loosened_environment(monkeypatch):
+    # Every floor below is the stored 15 %: the variable no longer loosens anything.
+    monkeypatch.setenv("POKEPRICE_LOT_MAX_MARGIN", "50")
 
 
 def undercut_lot(store, first_position, price_cents=200):
@@ -143,6 +144,35 @@ def test_an_agent_key_never_decides_a_waiver(test_db, human):  # noqa: F811
             decide(request_id, "pokeprice-lots")
     assert [r["id"] for r in human.get("/api/floor-requests").json()] == [request_id]
     assert not lot_listings(store)
+
+
+def test_an_agent_key_never_loosens_the_floor(test_db, human):  # noqa: F811
+    from pokeprice.pricing import lot_max_margin, set_lot_max_margin
+
+    db_path, store = test_db
+    with store.connect(write=True) as db:
+        db.execute("INSERT INTO albums VALUES('c','Album C')")
+    grant = AgentService(store).issue(
+        "Assistant", "pat", "b", client="Synthetic HTTP client",
+        permissions=["copies:read", "drafts:create", "photos:read"],
+    )
+    with TestClient(human.app) as agent:
+        agent.headers["Authorization"] = "Bearer " + grant["token"]
+        assert agent.get("/api/settings/floor-margin").status_code == 401
+        assert agent.put("/api/settings/floor-margin", json={"margin": 50}).status_code == 401
+    for actor in ("agent:" + grant["id"], "pokeprice-lots"):
+        with pytest.raises(HumanOnly):
+            set_lot_max_margin(store, 50, actor)
+    assert lot_max_margin(store) == 15
+    # The lot the agent's tool tries to sell at half its reference is still refused.
+    sale_id, _, _ = undercut_lot(store, 60, price_cents=150)
+    with pytest.raises(FloorRefusal, match="moins 15 %"):
+        LotsEngine(db_path).publish_to_storefront(sale_id)
+    # A person tightens the floor; the tool follows at once.
+    assert human.put("/api/settings/floor-margin", json={"margin": 0}).status_code == 200
+    tight, _, _ = undercut_lot(store, 70, price_cents=299)
+    with pytest.raises(FloorRefusal, match="moins 0 %"):
+        LotsEngine(db_path).publish_to_storefront(tight)
 
 
 def test_a_person_refuses_or_raises_to_the_floor(test_db, human):  # noqa: F811

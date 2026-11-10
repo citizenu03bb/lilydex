@@ -208,6 +208,8 @@ def test_manual_unit_and_lot_prices_enforce_reference_floor_and_margin_bounds(sh
     client, store, cards = shop
     from pokeprice.pricing import LOT_MAX_MARGIN_ENV
 
+    # The variable no longer rules anything: whatever it holds, the base decides.
+    monkeypatch.setenv(LOT_MAX_MARGIN_ENV, "50")
     first, second, third = confirmed(cards)[:3]
     with store.connect(write=True) as db:
         db.execute("UPDATE copies SET reference_cents=200 WHERE id=?", (first,))
@@ -224,7 +226,8 @@ def test_manual_unit_and_lot_prices_enforce_reference_floor_and_margin_bounds(sh
     client.delete(f"/api/copies/{first}/listing")
 
     # Margin 0 %: floor equals the exact reference (2.00 €).
-    monkeypatch.setenv(LOT_MAX_MARGIN_ENV, "0")
+    changed = client.put("/api/settings/floor-margin", json={"margin": 0})
+    assert changed.status_code == 200 and changed.json() == {"margin": 0, "previous": 15}
     assert client.get("/api/summary").json()["lot_max_margin"] == 0
     assert client.get(f"/api/copies/{first}/listing").json()["proposal"]["floor_cents"] == 200
     assert client.put(f"/api/copies/{first}/listing", json={"price_eur": "1.99"}).status_code == 422
@@ -232,11 +235,10 @@ def test_manual_unit_and_lot_prices_enforce_reference_floor_and_margin_bounds(sh
     assert exact.status_code == 200 and exact.json()["price_cents"] == 200
     client.delete(f"/api/copies/{first}/listing")
 
-    # Invalid environment variable is rejected with a clear error.
+    # An unreadable variable changes nothing either; the default comes back by the setting.
     monkeypatch.setenv(LOT_MAX_MARGIN_ENV, "quinze")
-    bad_env = client.put(f"/api/copies/{first}/listing", json={"price_eur": "2.00"})
-    assert bad_env.status_code == 422 and LOT_MAX_MARGIN_ENV in bad_env.json()["detail"]
-    monkeypatch.delenv(LOT_MAX_MARGIN_ENV, raising=False)
+    assert client.get(f"/api/copies/{first}/listing").json()["proposal"]["floor_cents"] == 200
+    assert client.put("/api/settings/floor-margin", json={"margin": 15}).status_code == 200
 
     # Card without reference (None) or with reference 0 keeps FLOOR_CENTS = 50 and says so.
     for empty_ref in (None, 0):
@@ -286,3 +288,109 @@ def test_a_variant_to_check_takes_the_lowest_possible_quote_as_reference():
     # Nothing known at all: only the absolute floor applies.
     assert reference_cents({"reference_cents": None, "valuation": {**issue, "hypotheses": []}}) == 0
     assert reference_cents({"reference_cents": 10000, "valuation": {"trend_cents": 20}}) == 10000
+
+
+def test_only_an_administrator_sets_the_floor_margin_and_it_is_journaled(shop):
+    client, store, cards = shop
+    from pokeprice.floor_requests import HumanOnly
+    from pokeprice.pricing import lot_max_margin, set_lot_max_margin
+
+    first = client.get("/api/settings/floor-margin").json()
+    assert first["margin"] == 15
+    assert [(h["actor"], h["previous"], h["margin"], h["origin"]) for h in first["history"]] == [
+        ("migration", None, 15, "default")
+    ]
+    assert "base neuve" in first["history"][0]["reason"]
+    for bad in (51, -1, 12.5, "20", True, None):
+        assert client.put("/api/settings/floor-margin", json={"margin": bad}).status_code == 422
+    assert client.put("/api/settings/floor-margin", json={"margin": 10}).json() == {"margin": 10, "previous": 15}
+    history = client.get("/api/settings/floor-margin").json()["history"]
+    assert (history[0]["actor"], history[0]["previous"], history[0]["margin"]) == ("pat", 15, 10)
+    assert history[0]["at"]
+    with store.connect() as db:
+        row = db.execute("SELECT value_json,updated_by FROM settings WHERE key='lot_max_margin'").fetchone()
+        events = db.execute("SELECT count(*) FROM events WHERE kind='floor-margin' AND copy_id IS NULL").fetchone()[0]
+    assert (row["value_json"], row["updated_by"], events) == ("10", "pat", 2)
+
+    for username, role in (("vendeuse", "editor"), ("lecteur", "reader")):
+        password = "Gestion-test-2026!"
+        assert client.post("/api/users", json={"username": username, "password": password, "role": role}).status_code == 201
+        with TestClient(create_app(store.root)) as visitor:
+            assert visitor.post("/api/login", json={"username": username, "password": password}).status_code == 200
+            assert visitor.get("/api/settings/floor-margin").status_code == 403
+            assert visitor.put("/api/settings/floor-margin", json={"margin": 50}).status_code == 403
+        # The service checks the account too, whatever route calls it.
+        with pytest.raises(HumanOnly):
+            set_lot_max_margin(store, 50, username)
+    with TestClient(create_app(store.root)) as anonymous:
+        assert anonymous.put("/api/settings/floor-margin", json={"margin": 50}).status_code == 401
+    for actor in ("agent:abc", "pokeprice-lots", "inconnu", ""):
+        with pytest.raises(HumanOnly):
+            set_lot_max_margin(store, 50, actor)
+    assert lot_max_margin(store) == 10
+
+
+def test_schema_27_carries_the_server_margin_over_once(tmp_path, monkeypatch):
+    from pokeprice.pricing import LOT_MAX_MARGIN_ENV, lot_margin_history, lot_max_margin
+
+    # A new base starts at the default, whatever the environment says.
+    monkeypatch.setenv(LOT_MAX_MARGIN_ENV, "40")
+    store = Store(tmp_path / "inventory")
+    assert lot_max_margin(store) == 15
+
+    def back_to_26():
+        with sqlite3.connect(store.database) as db:
+            db.execute("DELETE FROM settings WHERE key='lot_max_margin'")
+            db.execute("DELETE FROM events WHERE kind='floor-margin'")
+            db.execute("PRAGMA user_version=26")
+
+    for raw, expected, origin, said in (
+        ("10", 10, "environment", "reprise de POKEPRICE_LOT_MAX_MARGIN=10"),
+        ("90", 50, "environment", "reprise de POKEPRICE_LOT_MAX_MARGIN=90"),
+        ("quinze", 15, "unreadable", "illisible"),
+        ("", 15, "default", "absente"),
+    ):
+        back_to_26()
+        monkeypatch.setenv(LOT_MAX_MARGIN_ENV, raw)
+        migrated = Store(store.root)
+        assert lot_max_margin(migrated) == expected
+        entry = lot_margin_history(migrated)[0]
+        assert (entry["actor"], entry["previous"], entry["margin"]) == ("migration", None, expected)
+        # The history shown to the administrator says where the value came from.
+        assert (entry["origin"], entry["read"]) == (origin, raw or None)
+        assert said in entry["reason"]
+    # Once migrated, the variable is never read again.
+    monkeypatch.setenv(LOT_MAX_MARGIN_ENV, "50")
+    assert lot_max_margin(Store(store.root)) == 15
+
+
+def test_publishing_never_writes_on_a_margin_changed_meanwhile(shop, monkeypatch):
+    client, store, cards = shop
+    from pokeprice import listings as listings_module
+    from pokeprice.inventory import Conflict
+    from pokeprice.listings import Listings
+
+    copy_id = confirmed(cards)[0]
+    with store.connect(write=True) as db:
+        db.execute("UPDATE copies SET reference_cents=200 WHERE id=?", (copy_id,))
+    real = listings_module.lot_max_margin
+    seen = []
+
+    def tightened_after_the_check(source):
+        seen.append(source)
+        if len(seen) == 1:  # the check before the transaction still reads 15 %
+            value = real(source)
+            with store.connect(write=True) as db:
+                db.execute("UPDATE settings SET value_json='0' WHERE key='lot_max_margin'")
+            return value
+        return real(source)
+
+    monkeypatch.setattr(listings_module, "lot_max_margin", tightened_after_the_check)
+    with pytest.raises(Conflict, match="marge"):
+        Listings(store).publish([copy_id], "pat", price_cents=170)  # allowed at 15 %, not at 0 %
+    assert isinstance(seen[1], sqlite3.Connection)  # read again on the writing connection
+    with store.connect() as db:
+        assert not db.execute("SELECT count(*) FROM listings").fetchone()[0]
+    monkeypatch.setattr(listings_module, "lot_max_margin", real)
+    with pytest.raises(ValueError, match="moins 0 %"):
+        Listings(store).publish([copy_id], "pat", price_cents=170)

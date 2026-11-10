@@ -25,7 +25,7 @@ uv run python scripts/export_annonces.py --data /srv/pokeprice/inventory --plate
 | `--data` | Dossier de la collection. Il est ouvert en lecture seule. |
 | `--plateforme` | `vinted`, `leboncoin` ou `cardmarket`. |
 | `--sortie` | Dossier où écrire les annonces. Il doit être neuf ou vide : rien n'est écrasé. |
-| `--marge` | Dérogation : pourcentage entier, de 0 à 50, sous la cote de référence. Sans elle, la variable `POKEPRICE_LOT_MAX_MARGIN` (15 par défaut) s'applique. Voir [Prix](#prix). |
+| `--marge` | Plancher plus strict pour cet export : pourcentage entier sous la cote de référence, au plus la marge réglée par l'administrateur. Une marge plus large est refusée. Sans l'option, la marge réglée s'applique. Voir [Prix](#prix). |
 | `--site` | Adresse publique de la vitrine, pour le lien vers la fiche. Par défaut, celle du serveur (`POKEPRICE_HOST`). |
 
 À la fin, la commande affiche le nombre d'annonces et renvoie vers
@@ -108,14 +108,18 @@ Ce prix ne descend **jamais sous le plancher anti-bradage** : la cote de
 référence diminuée de la marge, et jamais moins de 0,50 €. La règle
 (`lot_max_margin` et `lot_floor_cents`) est définie une seule fois dans
 `src/pokeprice/pricing.py` et partagée avec la vitrine (`listings.py`) et
-l'outil de lots (`scripts/pokeprice_lots.py`) : `POKEPRICE_LOT_MAX_MARGIN`,
-15 % par défaut, entier borné de 0 à 50, arrondi au centime supérieur
-([décision 0026](decisions/0026-plancher-anti-bradage-gestion.md)). `--marge` y
-déroge pour un export, dans les mêmes bornes. Pour un lot, la cote est la somme
+l'outil de lots (`scripts/pokeprice_lots.py`) : 15 % par défaut, entier borné
+de 0 à 50, arrondi au centime supérieur
+([décision 0026](decisions/0026-plancher-anti-bradage-gestion.md)). La marge se
+lit dans la base, où seul un administrateur la règle depuis la gestion
+([décision 0042](decisions/0042-marge-du-plancher-reglage-administrateur.md)).
+`--marge` demande un plancher plus strict pour un export : une valeur
+inférieure ou égale à la marge réglée est suivie, une valeur supérieure arrête
+l'export avec une erreur, sans rien écrire. Pour un lot, la cote est la somme
 des cotes de ses cartes. Un prix trop bas est relevé au plancher, puis arrondi
 vers le haut au format de la plateforme.
 
-Exemple avec la marge par défaut de 15 % : une carte cotée 2,00 € et publiée en
+Exemple avec la marge de 15 % : une carte cotée 2,00 € et publiée en
 vitrine à 0,60 € part à 1,70 € sur Vinted et à 2 € sur Leboncoin.
 
 La cote de référence est la tendance Cardmarket relevée, ou à défaut le relevé

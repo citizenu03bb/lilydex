@@ -27,8 +27,8 @@ def main(argv=None):
     parser.add_argument("--sortie", required=True, help="dossier neuf où écrire les annonces")
     parser.add_argument(
         "--marge", type=int, default=None,
-        help="dérogation : pourcentage entier (0 à 50) sous la cote de référence ; "
-        "sans elle, POKEPRICE_LOT_MAX_MARGIN (15 par défaut)",
+        help="plancher plus strict : pourcentage entier sous la cote de référence, au plus "
+        "la marge réglée par l'administration dans la base ; sans elle, cette marge s'applique",
     )
     host = os.environ.get("POKEPRICE_HOST", "")
     parser.add_argument(

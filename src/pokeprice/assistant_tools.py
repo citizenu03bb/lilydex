@@ -220,9 +220,9 @@ def active_sale(db, copy_id):
     )
 
 
-def floor_of(card):
+def floor_of(card, margin):
     ref = reference_cents(card)
-    return ref, max(FLOOR_CENTS, lot_floor_cents(ref)) if ref else FLOOR_CENTS
+    return ref, max(FLOOR_CENTS, lot_floor_cents(ref, margin)) if ref else FLOOR_CENTS
 
 
 def held_quote(store, copy_id):
@@ -343,7 +343,8 @@ def explain_price(ctx, values):
     card = ctx.card(values["copy_id"])
     value = card["valuation"]
     proposal = display_price(card, value)
-    ref, floor = floor_of(card)
+    margin = lot_max_margin(ctx.store)
+    ref, floor = floor_of(card, margin)
     codes = [r["code"] for r in value.get("reasons", [])]
     with ctx.store.connect() as db:
         listing = active_listing(db, card["id"])
@@ -366,7 +367,7 @@ def explain_price(ctx, values):
         "floor": {
             "cents": floor,
             "absolute_cents": FLOOR_CENTS,
-            "margin_percent": lot_max_margin(),
+            "margin_percent": margin,
             "rule": "Plancher = référence moins la marge, arrondi au centime supérieur, "
             "jamais sous 0,50 €. Sous le plancher, un agent demande une dérogation.",
         },

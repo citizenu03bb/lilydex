@@ -17,6 +17,15 @@ daté la quitte, il est versé ici dans le même commit.
   l'option `cli` (pipeline d'albums et `pokeprice-manage import`) ;
   `google-genai` passe dans `web` et `cli`. La commande d'installation du
   serveur ne change pas (`tests/test_extras.py`).
+- La marge du plancher anti-bradage quitte la variable
+  `POKEPRICE_LOT_MAX_MARGIN` pour un réglage de la base (schéma 27), modifiable
+  par un administrateur connecté dans **Réglages → Plancher anti-bradage** et
+  journalisé (auteur, date, ancienne et nouvelle valeur). L'outil de lots ne
+  transmet plus la variable au serveur ; `--marge` de l'export n'accepte qu'une
+  marge plus stricte. La migration reprend une fois la valeur de la variable du
+  serveur ([décision 0042](decisions/0042-marge-du-plancher-reglage-administrateur.md),
+  `tests/test_listings.py`, `tests/test_floor_requests.py`,
+  `tests/test_pokeprice_lots.py`). Préparé, pas encore déployé.
 
 ## 2026-11-06
 

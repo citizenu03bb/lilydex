@@ -100,14 +100,11 @@ ignore = [
 "tests/**" = ["F811", "E731"]
 # Imports après l'ajout de tests/ au chemin : voulu.
 "scripts/evaluate_agent_control.py" = ["E402"]
-# Noms de pricing réexportés : les tests les lisent à travers ce module.
-"src/pokeprice/marketplace_export.py" = ["F401"]
 # Fichiers gelés pendant une refonte en cours : écarts reportés, à corriger
 # puis à retirer d'ici.
 "src/pokeprice/webapp.py" = ["B018", "B904", "F401", "F841"]
-"src/pokeprice/pricing.py" = ["B904"]
 "src/pokeprice/listings.py" = ["B904"]
-"scripts/pokeprice_lots.py" = ["B007", "F401"]
+"scripts/pokeprice_lots.py" = ["B007"]
 "tests/test_basket_quote.py" = ["F841"]
 "tests/test_energies_offertes.py" = ["F401"]
 "tests/test_shipping_and_conditions.py" = ["F401"]

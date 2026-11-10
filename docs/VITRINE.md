@@ -45,7 +45,7 @@ aucune demande. Cette règle s’applique avec ou sans compte.
 | Sujet | Règle |
 |---|---|
 | Visibilité | Vitrine ouverte, sans compte ; un compte sert seulement à suivre ses demandes |
-| Prix affiché | Voir [le prix affiché](#le-prix-affiché) ; plancher absolu 0,50 € et plancher anti-bradage (référence moins `POKEPRICE_LOT_MAX_MARGIN`, 15 % par défaut) ; sous le plancher, lots ou cadeaux |
+| Prix affiché | Voir [le prix affiché](#le-prix-affiché) ; plancher absolu 0,50 € et plancher anti-bradage (référence moins la marge réglée par l'administrateur, 15 % par défaut) ; sous le plancher, lots ou cadeaux |
 | Comptes clients | Identité invitée isolée pour une demande sans adresse prouvée, ou compte par inscription ; l'approbation du vendeur ne prouve pas l'adresse |
 | Mot de passe | Choisi par un lien à usage unique que le vendeur colle dans son e-mail ; le même lien sert en cas d'oubli |
 | Réservation | Une demande ne bloque rien ; les cartes sont réservées à l'**acceptation** |
@@ -262,8 +262,13 @@ au montant avant l'arrondi : une carte à 0,41 € va dans un lot ou se donne.
 Un prix fixé à la main depuis la gestion (`Listings.publish`, `src/pokeprice/listings.py`)
 ne descend jamais sous le **plancher anti-bradage** (`lot_floor_cents` dans
 `src/pokeprice/pricing.py`) : la valeur de référence diminuée de la marge
-`POKEPRICE_LOT_MAX_MARGIN` (15 % par défaut, entier borné de 0 à 50, arrondi au
-centime supérieur), ni sous 0,50 € ([décision 0026](decisions/0026-plancher-anti-bradage-gestion.md)).
+(15 % par défaut, entier borné de 0 à 50, arrondi au centime supérieur), ni sous
+0,50 € ([décision 0026](decisions/0026-plancher-anti-bradage-gestion.md)).
+La marge est un réglage de la base, que seul un administrateur connecté modifie
+dans **Réglages → Plancher anti-bradage** ; chaque changement est journalisé avec
+son auteur, sa date, l'ancienne et la nouvelle valeur. Ni une clé d'agent, ni
+l'outil de lots, ni une variable d'environnement ne la desserre
+([décision 0042](decisions/0042-marge-du-plancher-reglage-administrateur.md)).
 Pour un lot, ce plancher s'applique à la somme des valeurs de référence de ses
 exemplaires. Une carte dont la variante est à vérifier compte pour la plus basse des cotes
 de ses variantes possibles. Une carte sans référence (ou à 0) garde le seul plancher de 0,50 €,
@@ -399,6 +404,9 @@ minute et par adresse :
   rôle gestion publie ; la consultation voit seulement.
 - `GET`, `PUT /api/settings/payment` (administrateur) : les moyens de
   paiement ; un IBAN sans titulaire ou à la clé fausse est refusé.
+- `GET`, `PUT /api/settings/floor-margin` (administrateur) : la marge du
+  plancher anti-bradage et ses derniers changements ; une clé d'agent est
+  refusée.
 - `GET /api/requests`, `POST /api/requests/{id}/accept` (les cartes retenues),
   `POST /api/requests/{id}/refuse` (avec un motif). L'acceptation est une
   transaction unique : elle crée le lot, le réserve, valide un client en
