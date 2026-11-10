@@ -91,7 +91,8 @@ uv run --extra web pokeprice-manage serve
 
 Open <http://127.0.0.1:3820/gestion> and create the administrator account. Card reading needs a
 `GEMINI_API_KEY` in `~/.env`; without it, enter cards by hand. Add `--extra vision` for the
-image edition check.
+image edition check, and `--extra cli` for the album scanner (`pokeprice scan`) and the import
+of its reports.
 
 ## How it is built
 

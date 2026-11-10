@@ -203,7 +203,7 @@ class Dinov2EditionReader:
     """DINOv2 image embeddings, cosine similarity; reference vectors are cached."""
 
     source, model, protocol = "dinov2", "facebook/dinov2-small", PROTOCOL
-    _loaded = {}
+    _loaded: dict = {}
     _load_lock = threading.Lock()
 
     def __init__(self, cache):

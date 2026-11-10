@@ -318,6 +318,17 @@ Sa sortie liste les canaux joints dans `notified` et les échecs dans
 `errors`. Une nouvelle paire coupe tous les abonnements : chaque téléphone
 doit alors retoucher l'interrupteur. Ne la régénérez qu'en cas de fuite.
 
+## Les dépendances installées
+
+`oci-deploy.sh` installe l'environnement avec
+`uv sync --frozen --extra web --extra vision`. Le socle et l'option `web`
+couvrent l'application, l'assistant, les sauvegardes et les tâches
+planifiées (cotation, brief). L'option `cli` (pandas, openpyxl, tabulate)
+sert au pipeline d'albums `pokeprice` et à `pokeprice-manage import` : le
+serveur ne l'installe pas, et ces commandes s'y arrêtent en nommant l'option
+manquante. Numérisez et importez depuis un poste de travail, ou ajoutez
+`--extra cli` à la commande d'installation si le serveur doit importer.
+
 ## L'option vision
 
 

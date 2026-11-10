@@ -9,6 +9,14 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-10
 
+- Contrôles statiques en CI : `ruff` (lint, sans reformatage), `mypy` avec
+  une base de départ pour les modules historiques, couverture publiée sans
+  seuil, suite lancée sous Python 3.11, 3.12 et 3.13 (`pyproject.toml`,
+  `.github/workflows/tests.yml`).
+- Installation allégée : pandas, openpyxl et tabulate quittent le socle pour
+  l'option `cli` (pipeline d'albums et `pokeprice-manage import`) ;
+  `google-genai` passe dans `web` et `cli`. La commande d'installation du
+  serveur ne change pas (`tests/test_extras.py`).
 - La marge du plancher anti-bradage quitte la variable
   `POKEPRICE_LOT_MAX_MARGIN` pour un réglage de la base (schéma 27), modifiable
   par un administrateur connecté dans **Réglages → Plancher anti-bradage** et

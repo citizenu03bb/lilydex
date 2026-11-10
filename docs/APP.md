@@ -1359,7 +1359,7 @@ réactive pas un exemplaire supprimé.
 Photographiez chaque page du classeur, puis lancez :
 
 ```bash
-uv run pokeprice scan <dossier-photos> --grid 3x3 -o <album.csv>
+uv run --extra cli pokeprice scan <dossier-photos> --grid 3x3 -o <album.csv>
 ```
 
 La commande découpe chaque page en pochettes, lit chaque carte et la rapproche
@@ -1368,8 +1368,12 @@ du catalogue TCGdex ; ses options sont dans la
 au manifeste et importez-le :
 
 ```bash
-uv run --extra web pokeprice-manage import <manifeste.json>
+uv run --extra web --extra cli pokeprice-manage import <manifeste.json>
 ```
+
+La numérisation et l'import lisent les rapports avec pandas : ils demandent
+l'option `cli`, que le serveur de production n'installe pas. Sans elle, la
+commande s'arrête en nommant l'option à installer.
 
 - Un identifiant durable est attribué à chaque pochette importée et gardé
   ensuite, même si l'exemplaire change d'album ou d'emplacement. La clé

@@ -2,7 +2,6 @@ from contextlib import closing
 import fcntl
 import json
 import os
-from pathlib import Path
 import sqlite3
 import sys
 import time

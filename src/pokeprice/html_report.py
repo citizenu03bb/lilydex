@@ -5,18 +5,21 @@ with opt-in condition simulations and explicit unresolved-card review.
 """
 
 import base64
-import glob
 import io
 import json
-import os
 import math
 from html import escape as html_escape
 from urllib.parse import urlsplit
 from pathlib import Path
-from typing import Optional, Dict, Any, List
 
-import pandas as pd
 from PIL import Image
+
+from pokeprice.extras import missing_extra
+
+try:
+    import pandas as pd
+except ImportError as error:  # Scanner-only dependency: the server does without.
+    raise missing_extra("pandas", "cli") from error
 
 from pokeprice.slicer import normalize_orientation, slice_grid
 from pokeprice.report import (

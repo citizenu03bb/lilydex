@@ -150,7 +150,8 @@ Compose un lot sur mesure à partir d'une recette JSON (`LotCompositionRecipe`)
 ou d'un prompt en langage naturel interprété par Gemini (Structured Outputs).
 Le modèle est la constante `DEFAULT_GEMINI_MODEL` du script, remplaçable par la
 variable d'environnement `POKEPRICE_LOTS_GEMINI_MODEL` ; la clé est lue dans
-`GEMINI_API_KEY`. Avec `--remote`, le prompt est interprété sur le poste de
+`GEMINI_API_KEY`. Le paquet `google-genai` vient avec l'option `web` ou `cli`
+(`uv run --extra web python scripts/pokeprice_lots.py … compose`). Avec `--remote`, le prompt est interprété sur le poste de
 travail et seule la recette part sur le serveur.
 
 Les filtres de la recette s'appliquent au gisement éligible : une carte sans

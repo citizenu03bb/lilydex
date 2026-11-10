@@ -379,8 +379,8 @@ class CheckService:
     the front photo it read, a stored proposal, never a change to the copy."""
 
     kind = ""
-    card_fields = ("catalog_id", "language", "identification_status")
-    labels = {}
+    card_fields: tuple[str, ...] = ("catalog_id", "language", "identification_status")
+    labels: dict[str, str] = {}
 
     def __init__(self, store, reader):
         self.store, self.reader = store, reader

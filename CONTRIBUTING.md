@@ -19,6 +19,23 @@ uv run --extra web --extra dev pytest
 Ajoutez `--extra vision` pour installer torch et lancer aussi les tests du
 contrôle par l'image ; sans cette option, ils sont ignorés.
 
+### Lint, types et couverture
+
+```bash
+uv run --extra web --extra dev ruff check .
+uv run --extra web --extra dev mypy
+uv run --extra web --extra dev pytest --cov
+```
+
+`ruff` ne fait que le lint : le code n'est pas reformaté en masse. `mypy`
+vérifie tout module, y compris le corps des fonctions non annotées ; les
+modules historiques qui ne passent pas encore figurent dans une base de départ.
+Les règles, les exceptions par fichier et cette base de départ sont dans
+[pyproject.toml](pyproject.toml) : un nouveau module n'y entre pas, et une
+exception se retire dès que le fichier est corrigé. La CI lance ces contrôles,
+exécute la suite sous Python 3.11, 3.12 et 3.13 et publie la couverture dans
+le résumé du job, sans seuil bloquant.
+
 Les tests n'appellent aucun service : Gemini, DINOv2 et TCGdex y sont remplacés
 par des imitations. Ils ne lisent pas vos clés d'API. N'écrivez jamais un test
 qui touche une vraie collection : utilisez un dossier temporaire (`tmp_path`).

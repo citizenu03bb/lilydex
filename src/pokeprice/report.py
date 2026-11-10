@@ -3,8 +3,13 @@ Report generation module: CSV, Excel (.xlsx), and CLI terminal summaries.
 """
 
 from typing import List, Dict, Any
-import pandas as pd
-from tabulate import tabulate
+from pokeprice.extras import missing_extra
+
+try:
+    import pandas as pd
+    from tabulate import tabulate
+except ImportError as error:  # Scanner-only dependencies: the server does without.
+    raise missing_extra(error.name or "pandas", "cli") from error
 
 
 import re
