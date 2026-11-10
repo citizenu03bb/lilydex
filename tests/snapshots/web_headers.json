@@ -1,0 +1,494 @@
+{
+ "indexing=off,secure_cookie=off": {
+  "api_anonymous": {
+   "cache-control": "no-store",
+   "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://assets.tcgdex.net; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+   "content-type": "application/json",
+   "referrer-policy": "no-referrer",
+   "status": 401,
+   "strict-transport-security": null,
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY",
+   "x-robots-tag": "noindex, nofollow"
+  },
+  "api_read": {
+   "cache-control": "no-store",
+   "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://assets.tcgdex.net; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+   "content-type": "application/json",
+   "referrer-policy": "no-referrer",
+   "status": 200,
+   "strict-transport-security": null,
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY",
+   "x-robots-tag": "noindex, nofollow"
+  },
+  "asset": {
+   "cache-control": "public, no-cache",
+   "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://assets.tcgdex.net; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+   "content-type": "text/javascript; charset=utf-8",
+   "referrer-policy": "no-referrer",
+   "status": 200,
+   "strict-transport-security": null,
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY",
+   "x-robots-tag": null
+  },
+  "favicon": {
+   "cache-control": "public, max-age=86400",
+   "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://assets.tcgdex.net; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+   "content-type": "image/x-icon",
+   "referrer-policy": "no-referrer",
+   "status": 200,
+   "strict-transport-security": null,
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY",
+   "x-robots-tag": null
+  },
+  "gestion": {
+   "cache-control": "no-store",
+   "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://assets.tcgdex.net; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+   "content-type": "text/html; charset=utf-8",
+   "referrer-policy": "no-referrer",
+   "status": 200,
+   "strict-transport-security": null,
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY",
+   "x-robots-tag": "noindex, nofollow"
+  },
+  "public_photo": {
+   "cache-control": "no-store",
+   "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://assets.tcgdex.net; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+   "content-type": "image/jpeg",
+   "referrer-policy": "no-referrer",
+   "status": 200,
+   "strict-transport-security": null,
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY",
+   "x-robots-tag": "noindex, nofollow"
+  },
+  "rejected_host": {
+   "cache-control": "no-store",
+   "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://assets.tcgdex.net; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+   "content-type": "text/plain; charset=utf-8",
+   "referrer-policy": "no-referrer",
+   "status": 400,
+   "strict-transport-security": null,
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY",
+   "x-robots-tag": "noindex, nofollow"
+  },
+  "robots": {
+   "cache-control": "no-store",
+   "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://assets.tcgdex.net; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+   "content-type": "application/json",
+   "referrer-policy": "no-referrer",
+   "status": 404,
+   "strict-transport-security": null,
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY",
+   "x-robots-tag": null
+  },
+  "service_worker": {
+   "cache-control": "no-cache",
+   "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://assets.tcgdex.net; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+   "content-type": "text/javascript; charset=utf-8",
+   "referrer-policy": "no-referrer",
+   "status": 200,
+   "strict-transport-security": null,
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY",
+   "x-robots-tag": "noindex, nofollow"
+  },
+  "sitemap": {
+   "cache-control": "no-store",
+   "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://assets.tcgdex.net; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+   "content-type": "application/json",
+   "referrer-policy": "no-referrer",
+   "status": 404,
+   "strict-transport-security": null,
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY",
+   "x-robots-tag": null
+  },
+  "storefront": {
+   "cache-control": "no-store",
+   "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://assets.tcgdex.net; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+   "content-type": "text/html; charset=utf-8",
+   "referrer-policy": "no-referrer",
+   "status": 200,
+   "strict-transport-security": null,
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY",
+   "x-robots-tag": null
+  }
+ },
+ "indexing=off,secure_cookie=on": {
+  "api_anonymous": {
+   "cache-control": "no-store",
+   "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://assets.tcgdex.net; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+   "content-type": "application/json",
+   "referrer-policy": "no-referrer",
+   "status": 401,
+   "strict-transport-security": "max-age=31536000",
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY",
+   "x-robots-tag": "noindex, nofollow"
+  },
+  "api_read": {
+   "cache-control": "no-store",
+   "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://assets.tcgdex.net; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+   "content-type": "application/json",
+   "referrer-policy": "no-referrer",
+   "status": 200,
+   "strict-transport-security": "max-age=31536000",
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY",
+   "x-robots-tag": "noindex, nofollow"
+  },
+  "asset": {
+   "cache-control": "public, no-cache",
+   "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://assets.tcgdex.net; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+   "content-type": "text/javascript; charset=utf-8",
+   "referrer-policy": "no-referrer",
+   "status": 200,
+   "strict-transport-security": "max-age=31536000",
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY",
+   "x-robots-tag": null
+  },
+  "favicon": {
+   "cache-control": "public, max-age=86400",
+   "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://assets.tcgdex.net; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+   "content-type": "image/x-icon",
+   "referrer-policy": "no-referrer",
+   "status": 200,
+   "strict-transport-security": "max-age=31536000",
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY",
+   "x-robots-tag": null
+  },
+  "gestion": {
+   "cache-control": "no-store",
+   "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://assets.tcgdex.net; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+   "content-type": "text/html; charset=utf-8",
+   "referrer-policy": "no-referrer",
+   "status": 200,
+   "strict-transport-security": "max-age=31536000",
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY",
+   "x-robots-tag": "noindex, nofollow"
+  },
+  "public_photo": {
+   "cache-control": "no-store",
+   "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://assets.tcgdex.net; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+   "content-type": "image/jpeg",
+   "referrer-policy": "no-referrer",
+   "status": 200,
+   "strict-transport-security": "max-age=31536000",
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY",
+   "x-robots-tag": "noindex, nofollow"
+  },
+  "rejected_host": {
+   "cache-control": "no-store",
+   "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://assets.tcgdex.net; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+   "content-type": "text/plain; charset=utf-8",
+   "referrer-policy": "no-referrer",
+   "status": 400,
+   "strict-transport-security": "max-age=31536000",
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY",
+   "x-robots-tag": "noindex, nofollow"
+  },
+  "robots": {
+   "cache-control": "no-store",
+   "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://assets.tcgdex.net; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+   "content-type": "application/json",
+   "referrer-policy": "no-referrer",
+   "status": 404,
+   "strict-transport-security": "max-age=31536000",
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY",
+   "x-robots-tag": null
+  },
+  "service_worker": {
+   "cache-control": "no-cache",
+   "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://assets.tcgdex.net; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+   "content-type": "text/javascript; charset=utf-8",
+   "referrer-policy": "no-referrer",
+   "status": 200,
+   "strict-transport-security": "max-age=31536000",
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY",
+   "x-robots-tag": "noindex, nofollow"
+  },
+  "sitemap": {
+   "cache-control": "no-store",
+   "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://assets.tcgdex.net; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+   "content-type": "application/json",
+   "referrer-policy": "no-referrer",
+   "status": 404,
+   "strict-transport-security": "max-age=31536000",
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY",
+   "x-robots-tag": null
+  },
+  "storefront": {
+   "cache-control": "no-store",
+   "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://assets.tcgdex.net; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+   "content-type": "text/html; charset=utf-8",
+   "referrer-policy": "no-referrer",
+   "status": 200,
+   "strict-transport-security": "max-age=31536000",
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY",
+   "x-robots-tag": null
+  }
+ },
+ "indexing=on,secure_cookie=off": {
+  "api_anonymous": {
+   "cache-control": "no-store",
+   "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://assets.tcgdex.net; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+   "content-type": "application/json",
+   "referrer-policy": "no-referrer",
+   "status": 401,
+   "strict-transport-security": null,
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY",
+   "x-robots-tag": "noindex, nofollow"
+  },
+  "api_read": {
+   "cache-control": "no-store",
+   "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://assets.tcgdex.net; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+   "content-type": "application/json",
+   "referrer-policy": "no-referrer",
+   "status": 200,
+   "strict-transport-security": null,
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY",
+   "x-robots-tag": "noindex, nofollow"
+  },
+  "asset": {
+   "cache-control": "public, no-cache",
+   "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://assets.tcgdex.net; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+   "content-type": "text/javascript; charset=utf-8",
+   "referrer-policy": "no-referrer",
+   "status": 200,
+   "strict-transport-security": null,
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY",
+   "x-robots-tag": null
+  },
+  "favicon": {
+   "cache-control": "public, max-age=86400",
+   "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://assets.tcgdex.net; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+   "content-type": "image/x-icon",
+   "referrer-policy": "no-referrer",
+   "status": 200,
+   "strict-transport-security": null,
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY",
+   "x-robots-tag": null
+  },
+  "gestion": {
+   "cache-control": "no-store",
+   "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://assets.tcgdex.net; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+   "content-type": "text/html; charset=utf-8",
+   "referrer-policy": "no-referrer",
+   "status": 200,
+   "strict-transport-security": null,
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY",
+   "x-robots-tag": "noindex, nofollow"
+  },
+  "public_photo": {
+   "cache-control": "no-store",
+   "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://assets.tcgdex.net; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+   "content-type": "image/jpeg",
+   "referrer-policy": "no-referrer",
+   "status": 200,
+   "strict-transport-security": null,
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY",
+   "x-robots-tag": null
+  },
+  "rejected_host": {
+   "cache-control": "no-store",
+   "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://assets.tcgdex.net; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+   "content-type": "text/plain; charset=utf-8",
+   "referrer-policy": "no-referrer",
+   "status": 400,
+   "strict-transport-security": null,
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY",
+   "x-robots-tag": "noindex, nofollow"
+  },
+  "robots": {
+   "cache-control": "no-store",
+   "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://assets.tcgdex.net; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+   "content-type": "text/plain; charset=utf-8",
+   "referrer-policy": "no-referrer",
+   "status": 200,
+   "strict-transport-security": null,
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY",
+   "x-robots-tag": null
+  },
+  "service_worker": {
+   "cache-control": "no-cache",
+   "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://assets.tcgdex.net; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+   "content-type": "text/javascript; charset=utf-8",
+   "referrer-policy": "no-referrer",
+   "status": 200,
+   "strict-transport-security": null,
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY",
+   "x-robots-tag": "noindex, nofollow"
+  },
+  "sitemap": {
+   "cache-control": "no-store",
+   "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://assets.tcgdex.net; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+   "content-type": "application/xml",
+   "referrer-policy": "no-referrer",
+   "status": 200,
+   "strict-transport-security": null,
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY",
+   "x-robots-tag": null
+  },
+  "storefront": {
+   "cache-control": "no-store",
+   "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://assets.tcgdex.net; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+   "content-type": "text/html; charset=utf-8",
+   "referrer-policy": "no-referrer",
+   "status": 200,
+   "strict-transport-security": null,
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY",
+   "x-robots-tag": null
+  }
+ },
+ "indexing=on,secure_cookie=on": {
+  "api_anonymous": {
+   "cache-control": "no-store",
+   "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://assets.tcgdex.net; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+   "content-type": "application/json",
+   "referrer-policy": "no-referrer",
+   "status": 401,
+   "strict-transport-security": "max-age=31536000",
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY",
+   "x-robots-tag": "noindex, nofollow"
+  },
+  "api_read": {
+   "cache-control": "no-store",
+   "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://assets.tcgdex.net; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+   "content-type": "application/json",
+   "referrer-policy": "no-referrer",
+   "status": 200,
+   "strict-transport-security": "max-age=31536000",
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY",
+   "x-robots-tag": "noindex, nofollow"
+  },
+  "asset": {
+   "cache-control": "public, no-cache",
+   "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://assets.tcgdex.net; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+   "content-type": "text/javascript; charset=utf-8",
+   "referrer-policy": "no-referrer",
+   "status": 200,
+   "strict-transport-security": "max-age=31536000",
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY",
+   "x-robots-tag": null
+  },
+  "favicon": {
+   "cache-control": "public, max-age=86400",
+   "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://assets.tcgdex.net; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+   "content-type": "image/x-icon",
+   "referrer-policy": "no-referrer",
+   "status": 200,
+   "strict-transport-security": "max-age=31536000",
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY",
+   "x-robots-tag": null
+  },
+  "gestion": {
+   "cache-control": "no-store",
+   "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://assets.tcgdex.net; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+   "content-type": "text/html; charset=utf-8",
+   "referrer-policy": "no-referrer",
+   "status": 200,
+   "strict-transport-security": "max-age=31536000",
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY",
+   "x-robots-tag": "noindex, nofollow"
+  },
+  "public_photo": {
+   "cache-control": "no-store",
+   "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://assets.tcgdex.net; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+   "content-type": "image/jpeg",
+   "referrer-policy": "no-referrer",
+   "status": 200,
+   "strict-transport-security": "max-age=31536000",
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY",
+   "x-robots-tag": null
+  },
+  "rejected_host": {
+   "cache-control": "no-store",
+   "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://assets.tcgdex.net; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+   "content-type": "text/plain; charset=utf-8",
+   "referrer-policy": "no-referrer",
+   "status": 400,
+   "strict-transport-security": "max-age=31536000",
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY",
+   "x-robots-tag": "noindex, nofollow"
+  },
+  "robots": {
+   "cache-control": "no-store",
+   "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://assets.tcgdex.net; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+   "content-type": "text/plain; charset=utf-8",
+   "referrer-policy": "no-referrer",
+   "status": 200,
+   "strict-transport-security": "max-age=31536000",
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY",
+   "x-robots-tag": null
+  },
+  "service_worker": {
+   "cache-control": "no-cache",
+   "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://assets.tcgdex.net; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+   "content-type": "text/javascript; charset=utf-8",
+   "referrer-policy": "no-referrer",
+   "status": 200,
+   "strict-transport-security": "max-age=31536000",
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY",
+   "x-robots-tag": "noindex, nofollow"
+  },
+  "sitemap": {
+   "cache-control": "no-store",
+   "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://assets.tcgdex.net; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+   "content-type": "application/xml",
+   "referrer-policy": "no-referrer",
+   "status": 200,
+   "strict-transport-security": "max-age=31536000",
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY",
+   "x-robots-tag": null
+  },
+  "storefront": {
+   "cache-control": "no-store",
+   "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://assets.tcgdex.net; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+   "content-type": "text/html; charset=utf-8",
+   "referrer-policy": "no-referrer",
+   "status": 200,
+   "strict-transport-security": "max-age=31536000",
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY",
+   "x-robots-tag": null
+  }
+ }
+}
