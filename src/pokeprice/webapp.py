@@ -475,6 +475,10 @@ class PaymentSettings(Model):
     paypal: str = Field("", max_length=254)
 
 
+class FloorMarginSettings(Model):
+    margin: int = Field(ge=0, le=50, strict=True)
+
+
 class ClientPatch(Model):
     status: Literal["active", "refused"]
     disabled: bool = False
@@ -1566,6 +1570,19 @@ def create_app(
     @app.put("/api/settings/payment")
     def payment_update(values: PaymentSettings, user=Depends(admin)):
         return reservations.set_payment(values.model_dump(), user["username"])
+
+    # Decision 0042: only a signed-in administrator moves the anti-undercut margin.
+    @app.get("/api/settings/floor-margin")
+    def floor_margin_settings(user=Depends(admin)):
+        from .pricing import lot_margin_history, lot_max_margin
+
+        return {"margin": lot_max_margin(store), "history": lot_margin_history(store)}
+
+    @app.put("/api/settings/floor-margin")
+    def floor_margin_update(values: FloorMarginSettings, user=Depends(admin)):
+        from .pricing import set_lot_max_margin
+
+        return set_lot_max_margin(store, values.margin, user["username"])
 
     @app.get("/api/requests")
     def request_index(user=Depends(staff)):

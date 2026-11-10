@@ -890,22 +890,33 @@ def test_get_duplicates_pool_is_defined_once():
     assert source.count("def get_duplicates_pool(") == 1
 
 
-def test_lot_floor_follows_the_configured_margin(monkeypatch):
-    monkeypatch.delenv("POKEPRICE_LOT_MAX_MARGIN", raising=False)
-    assert lot_max_margin() == 15
-    assert lot_floor_cents(1000) == 850
-    assert lot_floor_cents(333) == 284  # arrondi au centime supérieur
-    monkeypatch.setenv("POKEPRICE_LOT_MAX_MARGIN", "0")
-    assert lot_floor_cents(1000) == 1000
-    monkeypatch.setenv("POKEPRICE_LOT_MAX_MARGIN", "90")
-    assert lot_max_margin() == 50
-    monkeypatch.setenv("POKEPRICE_LOT_MAX_MARGIN", "beaucoup")
+def set_margin(store, margin):
+    """What the administration's setting leaves in the base."""
+    with store.connect(write=True) as db:
+        db.execute("UPDATE settings SET value_json=? WHERE key='lot_max_margin'", (json.dumps(margin),))
+
+
+@pytest.fixture(autouse=True)
+def loosened_environment(monkeypatch):
+    # The variable asks for the loosest floor in every test: nothing may follow it.
+    monkeypatch.setenv("POKEPRICE_LOT_MAX_MARGIN", "50")
+
+
+def test_lot_floor_follows_the_stored_margin(test_db):
+    _, store = test_db
+    assert lot_max_margin(store) == 15
+    assert lot_floor_cents(1000, 15) == 850
+    assert lot_floor_cents(333, 15) == 284  # arrondi au centime supérieur
+    assert lot_floor_cents(1000, 0) == 1000
+    for bad in (51, -1, 15.0, "15", True, None):
+        with pytest.raises(ValueError, match="pourcentage entier"):
+            lot_floor_cents(1000, bad)
+    set_margin(store, 90)  # une valeur hors bornes dans la base ne desserre rien
     with pytest.raises(ValueError, match="pourcentage entier"):
-        lot_max_margin()
+        lot_max_margin(store)
 
 
 def test_compose_never_discounts_below_the_floor(test_db, monkeypatch):
-    monkeypatch.delenv("POKEPRICE_LOT_MAX_MARGIN", raising=False)
     db_path, _ = test_db
     engine = LotsEngine(db_path)
     assert BundleRules().target_discount_percent == 0
@@ -916,11 +927,10 @@ def test_compose_never_discounts_below_the_floor(test_db, monkeypatch):
     )
     lot = engine.compose_from_recipe(recipe)["lot"]
     assert lot["discount_percent"] == 15
-    assert lot["asking_cents"] >= lot_floor_cents(lot["total_reference_cents"])
+    assert lot["asking_cents"] >= lot_floor_cents(lot["total_reference_cents"], 15)
 
 
 def test_publish_refuses_a_lot_priced_under_the_floor(test_db, monkeypatch):
-    monkeypatch.delenv("POKEPRICE_LOT_MAX_MARGIN", raising=False)
     db_path, store = test_db
     engine = LotsEngine(db_path)
     cards = [add_copy(store, "b", 10 + i, price=100)["id"] for i in range(3)]
@@ -962,7 +972,6 @@ def three_card_draft(store, first_position, price_cents):
 
 @pytest.mark.parametrize("price_cents, published", [(254, False), (255, True)])
 def test_publish_floor_boundary(test_db, monkeypatch, price_cents, published):
-    monkeypatch.delenv("POKEPRICE_LOT_MAX_MARGIN", raising=False)
     db_path, store = test_db
     sale_id, _, _ = three_card_draft(store, 30, price_cents)
     engine = LotsEngine(db_path)
@@ -975,7 +984,6 @@ def test_publish_floor_boundary(test_db, monkeypatch, price_cents, published):
 
 
 def test_publish_checks_the_cotes_of_the_day(test_db, monkeypatch):
-    monkeypatch.delenv("POKEPRICE_LOT_MAX_MARGIN", raising=False)
     db_path, store = test_db
     sale_id, cards, _ = three_card_draft(store, 40, 300)
     with store.connect(write=True) as db:
@@ -985,7 +993,6 @@ def test_publish_checks_the_cotes_of_the_day(test_db, monkeypatch):
 
 
 def test_publish_all_refuses_an_undercut_lot_and_keeps_its_cards_online(test_db, monkeypatch):
-    monkeypatch.delenv("POKEPRICE_LOT_MAX_MARGIN", raising=False)
     db_path, store = test_db
     sale_id, _, units = three_card_draft(store, 50, 200)
     report = LotsEngine(db_path).publish_all()
@@ -1006,9 +1013,9 @@ def test_a_zero_cote_counts_as_no_cote(test_db):
         LotsEngine(db_path).publish_to_storefront(sale_id)
 
 
-def test_compose_follows_a_stricter_margin(test_db, monkeypatch):
-    monkeypatch.setenv("POKEPRICE_LOT_MAX_MARGIN", "0")
-    db_path, _ = test_db
+def test_compose_follows_a_stricter_margin(test_db):
+    db_path, store = test_db
+    set_margin(store, 0)
     recipe = LotCompositionRecipe(
         title="Lot sans décote", summary="Marge nulle",
         bundle_rules=BundleRules(target_count=3, target_discount_percent=30),
@@ -1018,19 +1025,33 @@ def test_compose_follows_a_stricter_margin(test_db, monkeypatch):
     assert lot["asking_cents"] >= lot["total_reference_cents"]
 
 
-def test_remote_command_carries_the_margin(monkeypatch):
+def test_remote_command_carries_no_margin(monkeypatch):
     calls = []
 
     class Done:
         returncode, stdout, stderr = 0, "", ""
 
     monkeypatch.setattr("pokeprice_lots.subprocess.run", lambda cmd, **_: calls.append(cmd) or Done())
-    monkeypatch.setenv("POKEPRICE_LOT_MAX_MARGIN", "10")
-    run_remote_command("serveur", "/srv/base", "status", [])
-    assert "POKEPRICE_LOT_MAX_MARGIN=10 " in calls[-1][-1]
-    monkeypatch.delenv("POKEPRICE_LOT_MAX_MARGIN")
     run_remote_command("serveur", "/srv/base", "status", [])
     assert "POKEPRICE_LOT_MAX_MARGIN" not in calls[-1][-1]
+    assert "MARGIN" not in calls[-1][-1] and "marge" not in calls[-1][-1]
+
+
+def test_the_lots_tool_has_no_way_to_loosen_the_floor(test_db, monkeypatch, capsys):
+    import pokeprice_lots
+
+    db_path, store = test_db
+    # Ni option ni variable : l'outil ne connaît que la marge de la base.
+    source = (Path(__file__).resolve().parent.parent / "scripts" / "pokeprice_lots.py").read_text()
+    assert "--marge" not in source and "LOT_MAX_MARGIN" not in source
+    monkeypatch.setattr(sys, "argv", ["pokeprice_lots.py", "--data", str(db_path), "--output", str(db_path.parent / "o.json"), "--marge=50", "status"])
+    with pytest.raises(SystemExit):
+        pokeprice_lots.main()
+    assert "--marge" in capsys.readouterr().err
+    sale_id, _, units = three_card_draft(store, 70, 150)  # moitié de la cote : 50 % demandés par la variable
+    with pytest.raises(ValueError, match="moins 15 %"):
+        LotsEngine(db_path).publish_to_storefront(sale_id)
+    assert not lot_listings(store)
 
 
 # -- Énergies offertes (décision 0041) ------------------------------------------
@@ -1055,7 +1076,6 @@ def test_bonus_room_keeps_the_postal_tier(monkeypatch, cards, asking_cents, room
 
 def test_lots_offer_bulk_energies_and_publish(test_db, monkeypatch):
     monkeypatch.delenv("POKEPRICE_PACKING_GRAMS", raising=False)
-    monkeypatch.delenv("POKEPRICE_LOT_MAX_MARGIN", raising=False)
     db_path, store = test_db
     energies = [add_energy(store, 80 + i)["id"] for i in range(4)]
     review = add_energy(store, 90, identification_status="review", variant_confirmed=False)["id"]

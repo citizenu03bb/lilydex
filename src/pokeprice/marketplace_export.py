@@ -6,7 +6,7 @@ person copies, pastes or imports it. See docs/VENTE-PLATEFORMES.md.
 
 A price is never below the anti-bargain floor: the reference price (the
 Cardmarket trend, or the dated manual quote that stands in for it) less a
-margin of POKEPRICE_LOT_MAX_MARGIN percent (15 by default), the same rule as the
+margin stored in the base by the administration (15 % by default), the same rule as the
 lot floor of scripts/pokeprice_lots.py. A copy whose identity, condition or variant is not confirmed,
 or that has no price, is left out and listed apart with the reason.
 """
@@ -24,13 +24,12 @@ from .inventory import SCHEMA_VERSION, Store
 from .listings import Listings, public_condition
 from .pricing import (
     CARDMARKET_LANGUAGES,
-    DEFAULT_LOT_MAX_MARGIN,
     FLOOR_CENTS,
-    LOT_MAX_MARGIN_ENV,
     display_price,
     euros,
     lot_floor_cents,
     lot_max_margin,
+    stricter_margin,
 )
 
 PLATFORMS = ("vinted", "leboncoin", "cardmarket")
@@ -155,22 +154,9 @@ def round_up(amount_cents, step):
     return -(-amount_cents // step) * step
 
 
-def check_margin(margin):
-    """An explicit margin override: a whole percentage from 0 to 50."""
-    if isinstance(margin, bool) or not isinstance(margin, int) or not 0 <= margin <= 50:
-        raise ValueError("La marge est un pourcentage entier entre 0 et 50.")
-
-
-def floor_price(reference_cents, margin=None):
-    """Lowest acceptable price: the reference less the margin, never under 0.50 €.
-
-    Without ``margin``, the rule of the lots applies (POKEPRICE_LOT_MAX_MARGIN,
-    15 % by default); an explicit whole percentage overrides it.
-    """
-    if margin is None:
-        return max(FLOOR_CENTS, lot_floor_cents(reference_cents))
-    check_margin(margin)
-    return max(FLOOR_CENTS, -(-reference_cents * (100 - margin) // 100))
+def floor_price(reference_cents, margin):
+    """Lowest acceptable price: the reference less the margin, never under 0.50 €."""
+    return max(FLOOR_CENTS, lot_floor_cents(reference_cents, margin))
 
 
 def platform_price(price_cents, floor_cents, platform):
@@ -201,7 +187,8 @@ def blockers(card):
 
 def collect(store, margin=None):
     """Every available copy and published lot, priced, or excluded with a reason."""
-    floor_price(0, margin)  # Validates the margin before reading anything.
+    # The stored margin rules; a caller only ever asks for a stricter one.
+    margin = stricter_margin(lot_max_margin(store), margin)
     cards = {c["id"]: c for c in store.listing(limit=10**9)["items"]}
     listings = Listings(store)
     with store.connect() as db:
