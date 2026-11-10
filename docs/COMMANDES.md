@@ -398,6 +398,26 @@ Brouillons de cas du banc tirés des échanges signalés du chat (lecture seule)
 |---|---|
 | `--output` `OUTPUT` | Écrire dans ce fichier (jamais écrasé) ; sortie standard sinon |
 
+### `pokeprice-manage bench-harvest`
+
+Compter les variantes déjà confirmées par une personne, utilisables au banc d'essai (lecture seule)
+
+### `pokeprice-manage bench-sample`
+
+Proposer les cartes à vérifier sur la carte physique pour le banc d'essai, dans l'ordre du classeur (lecture seule)
+
+| Argument | Effet |
+|---|---|
+| `--count` `COUNT` | Cartes proposées pour la séance Par défaut : `60`. |
+| `--target-total` `TARGET_TOTAL` | Cartes vérifiées visées au total Par défaut : `200`. |
+| `--target-stratum` `TARGET_STRATUM` | Cartes vérifiées visées par strate Par défaut : `60`. |
+| `--value-cents` `VALUE_CENTS` | Seuil de la strate des cartes de valeur Par défaut : `1000`. |
+| `--album` `ALBUM` | Limiter à cet album (nom ou identifiant) ; répétable |
+| `--blind-only` | Ne compter comme acquises que les vérifications à l'aveugle |
+| `--format` `FORMAT` | JSON pour les outils, ou feuille de séance à remplir Valeurs : `json`, `sheet`. Par défaut : `json`. |
+| `--names` | Feuille avec les noms : l'identité n'est alors plus vérifiée à l'aveugle |
+| `--output` `OUTPUT` | Écrire dans ce fichier (jamais écrasé) ; sortie standard sinon |
+
 ### `pokeprice-manage export`
 
 Export de la collection gérée

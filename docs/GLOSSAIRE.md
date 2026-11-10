@@ -63,7 +63,10 @@
 | **Lecture (Gemini)** | reading | Gemini, un modèle vision-langage, lit la photo. Le résultat est une proposition, jamais une valeur confirmée. |
 | **Contrôle d'édition par l'image** | image edition check | DINOv2 compare la photo aux images des éditions de même nom. Il signale un doute ; il ne modifie jamais la fiche. |
 | **Porte énergie** | energy gate | Dans le pipeline d'albums, reconnaît par l'image les énergies de base pour éviter un appel à Gemini. |
-| **Banc d'essai** | recognition bench | Des cartes vérifiées sur la carte physique, qui servent à mesurer les lecteurs et de test de non-régression. |
+| **Banc d'essai** | recognition bench | Des cartes vérifiées sur la carte physique, qui servent à mesurer les lecteurs et de test de non-régression. Chaque taux y est publié avec son compte et son intervalle de confiance. |
+| **Vérification à l'aveugle** | blind verification | Une personne observe la carte physique sans voir aucune lecture, et l'enregistre avec le motif « Vérification à l'aveugle (banc) ». La seule vérité du banc sans biais d'ancrage. |
+| **Confirmation récoltée** | harvested confirmation | Une variante déjà confirmée par une personne dans la collection, hors protocole de banc. Elle sert de vérité, comptée à part des vérifications à l'aveugle. |
+| **Intervalle de confiance** | confidence interval | Les valeurs entre lesquelles le vrai taux se trouve vraisemblablement (à 95 %), vu le nombre de cartes : 22/27 donne 63,3 à 91,9 %. |
 | **Référentiel des impressions** | print reference | Des règles appuyées sur des preuves : quelles impressions existent et quel produit Cardmarket leur correspond. |
 | **Mode audit** | audit mode | Le référentiel s'affiche et se contrôle, sans encore remplacer l'ancien calcul de prix. |
 | **Preuve, pièce scellée** | evidence | Un document source archivé sous son empreinte SHA-256, qui change si un seul octet change. |

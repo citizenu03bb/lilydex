@@ -38,6 +38,7 @@ PAGES_VIVANTES = {
     "docs/AGENT_PRICE_EVALUATION.md",
     "docs/APP.md",
     "docs/AUDIT-PHOTOS.md",
+    "docs/BANC-RECONNAISSANCE.md",
     "docs/COMMANDES.md",
     "docs/CONDITION-ASSESSMENT.md",
     "docs/DAILY-BACKUPS.md",

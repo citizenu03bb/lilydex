@@ -26,6 +26,16 @@ daté la quitte, il est versé ici dans le même commit.
   serveur ([décision 0042](decisions/0042-marge-du-plancher-reglage-administrateur.md),
   `tests/test_listings.py`, `tests/test_floor_requests.py`,
   `tests/test_pokeprice_lots.py`). Préparé, pas encore déployé.
+- Le banc d'essai publie chaque taux avec son compte et son intervalle de
+  confiance à 95 %, et sépare les vérités selon leur provenance (à l'aveugle,
+  récoltée, banc initial). Deux commandes en lecture seule préparent son
+  agrandissement vers 200 cartes : `bench-harvest` et `bench-sample`
+  ([fiche 0043](decisions/0043-banc-provenance-et-intervalles.md)). Comptage
+  sur la collection de référence : 301 variantes confirmées par une personne,
+  dont 106 déclarées observées en main, aucune vérifiée à l'aveugle.
+- La mesure « aucune variante fausse proposée au-dessus du seuil » compte les
+  24 cartes du banc dont une personne a vérifié la catégorie de prix, au lieu
+  des 14 confirmées dans la base au moment du passage : 0/24, taux sous 12 %.
 
 ## 2026-11-06
 
