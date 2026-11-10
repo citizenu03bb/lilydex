@@ -359,6 +359,12 @@ def router(service):
             background=BackgroundTask(shutil.rmtree, folder),
         )
 
+    from .agent_lots_api import HEAVY_PER_MINUTE, install_lots
+
+    def heavy(grant_id):
+        limiter.check("lots-heavy:" + grant_id, HEAVY_PER_MINUTE)
+
+    install_lots(api, service, principal, heavy)
     return api
 
 

@@ -2447,5 +2447,73 @@
   "response_class": "JSONResponse",
   "response_model": null,
   "status_code": null
+ },
+ {
+  "dependencies": [
+   "agent_principal"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "lots_pool",
+  "only": {
+   "agent_enabled": true
+  },
+  "path": "/api/agent/v1/lots/pool",
+  "response_class": "JSONResponse",
+  "response_model": "dict[str, Any]",
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "agent_principal"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "lots_status",
+  "only": {
+   "agent_enabled": true
+  },
+  "path": "/api/agent/v1/lots/status",
+  "response_class": "JSONResponse",
+  "response_model": "dict[str, Any]",
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "agent_principal"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "lots_plan",
+  "only": {
+   "agent_enabled": true
+  },
+  "path": "/api/agent/v1/lots/plan",
+  "response_class": "JSONResponse",
+  "response_model": "dict[str, Any]",
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "agent_principal"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "lots_publication",
+  "only": {
+   "agent_enabled": true
+  },
+  "path": "/api/agent/v1/lots/{sale_id}/publication",
+  "response_class": "JSONResponse",
+  "response_model": "dict[str, Any]",
+  "status_code": null
  }
 ]

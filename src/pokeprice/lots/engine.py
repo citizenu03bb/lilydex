@@ -10,6 +10,7 @@ attente et sous le seuil de valeur (mêmes règles que ``AgentService``). Les
 cartes sans prix sont listées « à chiffrer » dans le rapport.
 """
 
+import json
 import re
 import sqlite3
 from collections import defaultdict
@@ -518,6 +519,25 @@ class LotsEngine:
             (sale_id,),
         ).fetchone()
         return dict(row) if row else None
+
+    @staticmethod
+    def tool_made(db: sqlite3.Connection, sale_id: str) -> bool:
+        """Vente créée comme lot par l'outil des lots ou par un agent, pas par une personne.
+
+        Le canal passe de « Lot » à « Vitrine » à la publication : c'est donc l'événement
+        de création qui fait foi (auteur et canal d'origine), pas la ligne actuelle.
+        """
+        row = db.execute(
+            "SELECT actor, after_json FROM sale_events WHERE sale_id=? ORDER BY id LIMIT 1",
+            (sale_id,),
+        ).fetchone()
+        if not row or not is_agent(row["actor"]):
+            return False
+        try:
+            created = json.loads(row["after_json"])
+        except ValueError:
+            return False
+        return isinstance(created, dict) and created.get("channel") == "Lot"
 
     def status(self, db: sqlite3.Connection, max_drafts: int = MAX_ROTATION_DRAFTS) -> dict[str, Any]:
         cur = db.cursor()

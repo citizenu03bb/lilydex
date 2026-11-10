@@ -1,6 +1,231 @@
 {
  "components": {
   "schemas": {
+   "AgentBundleRules": {
+    "additionalProperties": false,
+    "properties": {
+     "diversity": {
+      "default": "maximize_species",
+      "enum": [
+       "maximize_species",
+       "maximize_sets",
+       "any"
+      ],
+      "title": "Diversity",
+      "type": "string"
+     },
+     "target_count": {
+      "default": 10,
+      "maximum": 50.0,
+      "minimum": 1.0,
+      "title": "Target Count",
+      "type": "integer"
+     },
+     "target_discount_percent": {
+      "default": 0,
+      "maximum": 100.0,
+      "minimum": 0.0,
+      "title": "Target Discount Percent",
+      "type": "integer"
+     }
+    },
+    "title": "AgentBundleRules",
+    "type": "object"
+   },
+   "AgentFilters": {
+    "additionalProperties": false,
+    "properties": {
+     "eras": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "maxItems": 20,
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Eras"
+     },
+     "exclude_energies": {
+      "default": true,
+      "title": "Exclude Energies",
+      "type": "boolean"
+     },
+     "exclude_trainers": {
+      "default": false,
+      "title": "Exclude Trainers",
+      "type": "boolean"
+     },
+     "finishes": {
+      "anyOf": [
+       {
+        "items": {
+         "enum": [
+          "normal",
+          "non_holo",
+          "holo",
+          "reverse",
+          "holo_border"
+         ],
+         "type": "string"
+        },
+        "maxItems": 20,
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Finishes"
+     },
+     "generation": {
+      "anyOf": [
+       {
+        "maximum": 9.0,
+        "minimum": 1.0,
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Generation"
+     },
+     "max_cents": {
+      "anyOf": [
+       {
+        "maximum": 1000000.0,
+        "minimum": 0.0,
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Cents"
+     },
+     "min_cents": {
+      "anyOf": [
+       {
+        "maximum": 1000000.0,
+        "minimum": 0.0,
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Min Cents"
+     },
+     "min_condition": {
+      "anyOf": [
+       {
+        "enum": [
+         "M",
+         "MT",
+         "NM",
+         "EX",
+         "GD",
+         "LP",
+         "PL",
+         "PO"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": "GD",
+      "title": "Min Condition"
+     },
+     "only_trainers": {
+      "default": false,
+      "title": "Only Trainers",
+      "type": "boolean"
+     },
+     "pokemon_names": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "maxItems": 20,
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Pokemon Names"
+     }
+    },
+    "title": "AgentFilters",
+    "type": "object"
+   },
+   "AgentRecipe": {
+    "additionalProperties": false,
+    "properties": {
+     "bundle_rules": {
+      "$ref": "#/components/schemas/AgentBundleRules"
+     },
+     "filters": {
+      "$ref": "#/components/schemas/AgentFilters"
+     },
+     "scoring": {
+      "$ref": "#/components/schemas/AgentScoring"
+     },
+     "summary": {
+      "default": "",
+      "maxLength": 500,
+      "title": "Summary",
+      "type": "string"
+     },
+     "title": {
+      "maxLength": 120,
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+     }
+    },
+    "required": [
+     "title"
+    ],
+    "title": "AgentRecipe",
+    "type": "object"
+   },
+   "AgentScoring": {
+    "additionalProperties": false,
+    "properties": {
+     "favor_holos_and_reverses": {
+      "default": false,
+      "title": "Favor Holos And Reverses",
+      "type": "boolean"
+     },
+     "prioritize_iconic_pokemon": {
+      "default": false,
+      "title": "Prioritize Iconic Pokemon",
+      "type": "boolean"
+     },
+     "value_intent": {
+      "default": "balanced",
+      "enum": [
+       "undervalued_gems",
+       "premium_collector",
+       "affordable_bulk",
+       "balanced"
+      ],
+      "title": "Value Intent",
+      "type": "string"
+     }
+    },
+    "title": "AgentScoring",
+    "type": "object"
+   },
    "AlbumCreate": {
     "additionalProperties": false,
     "properties": {
@@ -2872,6 +3097,19 @@
     "title": "PhotoOptions",
     "type": "object"
    },
+   "PlanRequest": {
+    "additionalProperties": false,
+    "properties": {
+     "recipe": {
+      "$ref": "#/components/schemas/AgentRecipe"
+     }
+    },
+    "required": [
+     "recipe"
+    ],
+    "title": "PlanRequest",
+    "type": "object"
+   },
    "Profile": {
     "additionalProperties": false,
     "properties": {
@@ -4212,6 +4450,164 @@
      }
     },
     "summary": "Draft Package",
+    "tags": [
+     "agent-v1"
+    ]
+   }
+  },
+  "/api/agent/v1/lots/plan": {
+   "post": {
+    "operationId": "lots_plan_api_agent_v1_lots_plan_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PlanRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Lots Plan Api Agent V1 Lots Plan Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Lots Plan",
+    "tags": [
+     "agent-v1"
+    ]
+   }
+  },
+  "/api/agent/v1/lots/pool": {
+   "get": {
+    "operationId": "lots_pool_api_agent_v1_lots_pool_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "max_per_lot",
+      "required": false,
+      "schema": {
+       "default": 20,
+       "maximum": 50,
+       "minimum": 3,
+       "title": "Max Per Lot",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Lots Pool Api Agent V1 Lots Pool Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Lots Pool",
+    "tags": [
+     "agent-v1"
+    ]
+   }
+  },
+  "/api/agent/v1/lots/status": {
+   "get": {
+    "operationId": "lots_status_api_agent_v1_lots_status_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Lots Status Api Agent V1 Lots Status Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Lots Status",
+    "tags": [
+     "agent-v1"
+    ]
+   }
+  },
+  "/api/agent/v1/lots/{sale_id}/publication": {
+   "get": {
+    "operationId": "lots_publication_api_agent_v1_lots__sale_id__publication_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "sale_id",
+      "required": true,
+      "schema": {
+       "pattern": "^[A-Za-z0-9-]{1,64}$",
+       "title": "Sale Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Lots Publication Api Agent V1 Lots  Sale Id  Publication Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Lots Publication",
     "tags": [
      "agent-v1"
     ]

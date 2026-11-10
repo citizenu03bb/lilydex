@@ -204,6 +204,7 @@ def test_capabilities_list_lots_operations_per_permission_collection_wide(shop):
             "lots-pool",
             "lots-status",
             "lots-plan",
+            "lots-publication",
         ],
         "value_ceiling_cents": 1000,
     }

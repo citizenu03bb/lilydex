@@ -9,6 +9,13 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-10
 
+- Routes de lecture de l'outil des lots sur l'API agent, sous
+  `/api/agent/v1/lots` et réservées à `lots:read` : gisement, état des
+  brouillons, plan de composition à blanc avec `plan_id`, vérification de
+  publication d'un brouillon de l'outil. Aucune n'écrit ; recette stricte,
+  doublons seuls, six appels par minute pour le gisement et le plan
+  ([AGENT_CONTROL](AGENT_CONTROL.md#lire-le-gisement-létat-et-un-plan),
+  `tests/test_agent_lots_api.py`).
 - Permissions `lots:read`, `lots:compose` et `lots:publish` sur les accès
   agent, sans route lots pour l'instant : délivrées par
   `pokeprice-manage agent-create --lots-*` au seul compte administrateur

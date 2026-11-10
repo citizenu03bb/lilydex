@@ -52,7 +52,7 @@ LOTS_MAX_CEILING_CENTS = 2000
 # Operations /capabilities advertises per lots permission (endpoints follow
 # the permission set: reads, then compose, then publish).
 LOTS_OPERATIONS: Mapping[str, tuple[str, ...]] = {
-    "lots:read": ("lots-pool", "lots-status", "lots-plan"),
+    "lots:read": ("lots-pool", "lots-status", "lots-plan", "lots-publication"),
     "lots:compose": ("lots-compose", "lots-rotate", "lots-cancel", "lots-raise"),
     "lots:publish": ("lots-publish", "lots-unpublish"),
 }
