@@ -42,15 +42,27 @@ def test_no_failure_gives_an_exact_one_sided_bound():
 
 def test_mixed_results_use_wilson_and_nothing_measured_says_so():
     assert interval(22, 27).method == "wilson"
-    assert interval(22, 27).text() == "22/27 (IC 95 % : 63–91,8 %)"
-    assert interval(0, 21).text() == "0/21 (IC 95 % : 0–13 %)"
+    assert interval(22, 27).text() == "22/27 (IC 95 % : 63,3–91,9 %)"
+    assert interval(0, 21).text() == "0/21 (IC 95 % : 0–13,3 %)"
     assert interval(0, 0).text() == "non mesuré" and interval(0, 0).rate is None
 
 
-def test_percent_keeps_a_decimal_only_near_the_edges():
-    assert percent(0.633) == "63" and percent(0.0495) == "5,0"
-    assert percent(0.9926) == "99,26" and percent(1.0) == "100" and percent(0.0) == "0"
-    assert percent(0.00011) == "0,01" and percent(0.918) == "91,8"
+def test_published_bounds_are_never_tighter_than_computed():
+    # A lower bound goes down, an upper bound goes up: 63.37 % is not "63,4".
+    assert percent(0.6337, upper=False) == "63,3" and percent(0.6331, upper=True) == "63,4"
+    assert percent(0.9182, upper=True) == "91,9" and percent(0.9189, upper=False) == "91,8"
+    # Two decimals where they matter, same direction.
+    assert percent(0.99341, upper=True) == "99,35" and percent(0.00019, upper=False) == "0,01"
+    # An exact value stays itself despite the float product, and the ends are plain.
+    assert percent(0.05, upper=True) == "5,0" and percent(0.07, upper=False) == "7,0"
+    assert percent(1.0, upper=True) == "100" and percent(0.0, upper=False) == "0"
+    for good, total in ((22, 27), (1, 27), (14, 26), (0, 24), (30, 30), (1, 1601)):
+        shown = interval(good, total)
+        low, high = (
+            float(part.replace(",", "."))
+            for part in shown.text().split(": ")[1].removesuffix(" %)").split("–")
+        )
+        assert low <= shown.low * 100 + 1e-9 and high >= shown.high * 100 - 1e-9
 
 
 def test_impossible_counts_are_refused():

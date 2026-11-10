@@ -29,6 +29,9 @@ BLIND_REASON = "Vérification à l’aveugle (banc)"
 # Reasons that state the card was observed in hand; any other is undetermined.
 PHYSICAL = re.compile(r"physique|en main|observation du propriétaire", re.IGNORECASE)
 
+# Provenances that make a bench truth: a person confirmed the variant.
+TRUTHS = ("aveugle", "recoltee")
+
 EVERYTHING = "ensemble"
 STRATA: dict[str, str] = {
     EVERYTHING: "Toutes les cartes",
@@ -61,6 +64,7 @@ class Copy:
     position: int
     reference_cents: int | None
     confirmed: bool
+    verified_by: str
     available: bool
     photo: str | None
     variants: Mapping[str, bool] = field(default_factory=dict)
@@ -80,7 +84,9 @@ class Confirmation:
     """How the variant of a copy came to be confirmed, read from the journal."""
 
     copy: Copy
-    provenance: str  # "aveugle", "recoltee" or "automate" (never a truth label)
+    # "aveugle" or "recoltee": confirmed by a person. "automate" (an agent or a
+    # maintenance run) and "indeterminee" (no author recorded) are never a truth.
+    provenance: str
     method: str  # "physique" when the reason says so, else "indeterminee"
     reading_seen: bool  # a finish reading existed before the confirmation
     confirmed_at: str
@@ -106,14 +112,26 @@ class Sample:
 
 
 def open_readonly(data: str | Path) -> sqlite3.Connection:
-    """Open the base of a ``--data`` folder without creating or migrating it."""
+    """Open the base of a ``--data`` folder without creating or migrating it.
+
+    A base at rest (no ``-wal``, ``-shm`` or ``-journal`` beside it) is opened
+    immutable: SQLite then takes no lock and creates no side file. A base in
+    use already has its side files; it is opened read-only, and SQLite only
+    registers this reader in the ``-shm`` coordination file, as it does for
+    any reader. Neither the base nor its ``-wal`` journal is ever written.
+    """
     database = Path(data).resolve() / "collection.sqlite3"
     if not database.is_file():
         raise FileNotFoundError(f"Base introuvable : {database}")
-    db = sqlite3.connect(f"{database.as_uri()}?mode=ro", uri=True)
+    in_use = any(
+        database.with_name(database.name + suffix).exists()
+        for suffix in ("-wal", "-shm", "-journal")
+    )
+    uri = f"{database.as_uri()}?mode=ro" + ("" if in_use else "&immutable=1")
+    db = sqlite3.connect(uri, uri=True)
     db.row_factory = sqlite3.Row
     columns = {row[1] for row in db.execute("PRAGMA table_info(copies)")}
-    if not {"variant_confirmed", "finish", "deleted_at"} <= columns:
+    if not {"variant_confirmed", "variant_verified_by", "finish", "deleted_at"} <= columns:
         db.close()
         raise ValueError("Base trop ancienne : la variante confirmée n’y existe pas.")
     return db
@@ -156,6 +174,7 @@ def load_copies(db: sqlite3.Connection) -> list[Copy]:
             position=row["position"],
             reference_cents=row["reference_cents"],
             confirmed=bool(row["variant_confirmed"]),
+            verified_by=row["variant_verified_by"],
             available=row["stock_state"] == "available",
             photo=row["photo"],
             variants=variants.get(row["catalog_id"] or "", {}),
@@ -202,8 +221,12 @@ def confirmations(db: sqlite3.Connection, copies: Iterable[Copy]) -> list[Confir
         seen = any(read <= moment for read in readings.get(copy_id, [])) if moment else bool(
             readings.get(copy_id)
         )
-        if not moment or automated(actor):
-            provenance = "automate" if moment else "recoltee"
+        # The copy records who confirmed its variant; the journal must not
+        # contradict it. Without a recorded author, nobody can be credited.
+        if automated(copy.verified_by) or automated(actor):
+            provenance = "automate"
+        elif not copy.verified_by:
+            provenance = "indeterminee"
         elif declared_blind(reason) and not seen:
             provenance = "aveugle"
         else:
@@ -279,7 +302,7 @@ def harvest(db: sqlite3.Connection, photos: Path | None = None) -> dict[str, Any
     """Counts of the confirmed copies usable as bench truth. No card is named."""
     copies = load_copies(db)
     found = confirmations(db, copies)
-    human = [c for c in found if c.provenance != "automate"]
+    human = [c for c in found if c.provenance in TRUTHS]
     ids = {c.copy.id for c in human}
 
     def table(rows: Iterable[tuple[str, ...]]) -> dict[str, int]:
@@ -296,7 +319,12 @@ def harvest(db: sqlite3.Connection, photos: Path | None = None) -> dict[str, Any
     )
     result: dict[str, Any] = {
         "confirmees_par_une_personne": len(human),
-        "confirmees_par_un_automate_exclues": len(found) - len(human),
+        "confirmees_par_un_automate_exclues": sum(
+            c.provenance == "automate" for c in found
+        ),
+        "confirmees_sans_auteur_etabli_exclues": sum(
+            c.provenance == "indeterminee" for c in found
+        ),
         "impressions_distinctes": len({c.copy.print_key for c in human}),
         "par_langue": table((c.copy.language,) for c in human),
         "par_finition": table((finish_class(c.copy.finish),) for c in human),
@@ -340,7 +368,7 @@ def sample(
     if count < 1:
         raise ValueError("Demandez au moins une carte.")
     neighbours = neighbour_names(copies)
-    truths = [c for c in found if c.provenance != "automate"]
+    truths = [c for c in found if c.provenance in TRUTHS]
     targets = {key: target_stratum for key in STRATA}
     targets[EVERYTHING] = target_total
     verified: Counter[str] = Counter()

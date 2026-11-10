@@ -2,11 +2,11 @@
 
 A bench rate is ``k`` good answers out of ``n`` cards. With a few dozen cards the
 rate alone says little: 22/27 is compatible with a true rate anywhere between
-63 % and 92 %. Every published figure therefore carries a 95 % interval:
+63 % and 92 %. Published bounds are rounded away from the rate, never towards it. Every published figure therefore carries a 95 % interval:
 
 - Wilson's score interval when both good and bad answers were observed;
 - Clopper–Pearson (exact) when all answers agree, as a one-sided 95 % bound:
-  0 error out of 21 says "under 13 %", not "0 %".
+  0 error out of 21 says "under 13.3 %", not "0 %".
 
 Standard library only, so that the offline bench replay needs no extra.
 """
@@ -36,22 +36,28 @@ class Interval:
         return self.good / self.total if self.total else None
 
     def text(self) -> str:
-        """``22/27 (IC 95 % : 63–92 %)``, the form used in reports and docs."""
+        """``22/27 (IC 95 % : 63,3–91,9 %)``, the form used in reports and docs."""
         if not self.total:
             return "non mesuré"
         return (
             f"{self.good}/{self.total} "
-            f"(IC 95 % : {percent(self.low)}–{percent(self.high)} %)"
+            f"(IC 95 % : {percent(self.low, upper=False)}–{percent(self.high, upper=True)} %)"
         )
 
 
-def percent(share: float) -> str:
-    """A share as a percentage: more decimals near 0 % and 100 %, where they matter."""
-    value = share * 100
-    if value in (0.0, 100.0) or 10 <= value <= 90:
+def percent(share: float, *, upper: bool) -> str:
+    """A bound as a percentage, rounded away from the rate: never tighter than computed.
+
+    A lower bound is rounded down and an upper bound up, to one decimal (two
+    under 1 % and over 99 %, where they matter).
+    """
+    value = round(share * 100, 9)  # Absorbs the noise of the float product.
+    if value in (0.0, 100.0):
         return f"{value:.0f}"
     digits = 2 if value < 1 or value > 99 else 1
-    return f"{value:.{digits}f}".replace(".", ",")
+    scale = 10**digits
+    rounded = (math.ceil if upper else math.floor)(round(value * scale, 6)) / scale
+    return f"{rounded:.{digits}f}".replace(".", ",")
 
 
 def check(good: int, total: int) -> None:

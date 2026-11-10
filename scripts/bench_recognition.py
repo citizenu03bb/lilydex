@@ -572,6 +572,22 @@ BLANK_VARIANT = {
 }
 
 
+def confirmed_by_person(rows):
+    """Variants a person confirmed: {copy id: finish and price category}.
+
+    The review agent confirms variants too (``agent:…``), and maintenance runs
+    as ``system:…``: a model never supplies the truth, so those are left out,
+    as is a confirmation whose author was not recorded.
+    """
+    return {
+        r["id"]: {"finish": r["finish"], "foil": bool(r["foil"])}
+        for r in rows
+        if r["variant_confirmed"]
+        and r["variant_verified_by"]
+        and not r["variant_verified_by"].startswith(("agent:", "system:"))
+    }
+
+
 def app_store(folder):
     """A throwaway copy of the collection, as freshly entered: no observed variant."""
     from pokeprice.inventory import Store
@@ -584,10 +600,11 @@ def app_store(folder):
     store = Store(folder)
     store.photos = PHOTOS  # Read only: readings are written to the copy's database.
     with store.connect(write=True) as db:
-        confirmed = {
-            r["id"]: {"finish": r["finish"], "foil": bool(r["foil"])}
-            for r in db.execute("SELECT id,finish,foil FROM copies WHERE variant_confirmed=1")
-        }
+        confirmed = confirmed_by_person(
+            db.execute(
+                "SELECT id,finish,foil,variant_confirmed,variant_verified_by FROM copies"
+            )
+        )
         db.execute(
             "UPDATE copies SET " + ",".join(f"{k}=?" for k in BLANK_VARIANT),
             tuple(BLANK_VARIANT.values()),

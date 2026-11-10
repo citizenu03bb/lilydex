@@ -126,9 +126,9 @@ def test_every_rate_is_printed_with_its_count_and_interval():
     cards["3"] = record(observation={"number": "13/64", "language": "fr"})
     _, lines = bench.app_regressions(entries, [{"cards": cards}])
     number = next(line for line in lines if line.startswith("Numéro"))
-    assert "3/4 (IC 95 % : 30–95,4 %)" in number
+    assert "3/4 (IC 95 % : 30,0–95,5 %)" in number
     language = next(line for line in lines if line.startswith("Langue (lecture de saisie)"))
-    assert "4/4 (IC 95 % : 47–100 %)" in language  # No failure: exact one-sided bound.
+    assert "4/4 (IC 95 % : 47,2–100 %)" in language  # No failure: exact one-sided bound.
 
 
 def test_no_wrong_proposal_is_a_bound_not_a_zero_rate():
@@ -141,10 +141,22 @@ def test_no_wrong_proposal_is_a_bound_not_a_zero_rate():
     }
     failures, lines = bench.app_regressions(entries, [{"cards": cards}])
     assert failures == []
-    assert any("variantes vérifiées" in line and "0/2 (IC 95 % : 0–78 %)" in line for line in lines)
+    assert any("variantes vérifiées" in line and "0/2 (IC 95 % : 0–77,7 %)" in line for line in lines)
     cards["b"]["proposal"]["foil"] = True  # Against the verified truth, price unknown.
     failures, _ = bench.app_regressions(entries, [{"cards": cards}])
     assert failures and "b" in failures[0]
+
+
+def test_only_a_person_confirmation_is_a_truth():
+    # The review agent confirms variants as "agent:…": a model never supplies the truth.
+    rows = [
+        {"id": "person", "finish": "reverse", "foil": 1, "variant_confirmed": 1, "variant_verified_by": "alice"},
+        {"id": "agent", "finish": "holo", "foil": 1, "variant_confirmed": 1, "variant_verified_by": "agent:revue"},
+        {"id": "system", "finish": "holo", "foil": 0, "variant_confirmed": 1, "variant_verified_by": "system:import"},
+        {"id": "nobody", "finish": "holo", "foil": 0, "variant_confirmed": 1, "variant_verified_by": ""},
+        {"id": "open", "finish": "", "foil": 0, "variant_confirmed": 0, "variant_verified_by": ""},
+    ]
+    assert bench.confirmed_by_person(rows) == {"person": {"finish": "reverse", "foil": True}}
 
 
 def test_strata_keep_blind_and_harvested_truths_apart():
