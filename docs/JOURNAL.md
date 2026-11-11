@@ -9,6 +9,14 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-11
 
+- Renouvellement automatique de la clé des lots, côté opérateur : un minuteur
+  quotidien délivre une nouvelle clé 48 h avant l'échéance, la dépose pour
+  l'utilisateur des lots (0640) et révoque l'ancienne aussitôt ; l'agent ne
+  renouvelle jamais son propre accès. Le lanceur de l'agent met à jour son
+  clone avant chaque lancement
+  ([AGENT_CONTROL](AGENT_CONTROL.md#renouvellement-automatique-de-la-clé-des-lots),
+  `deploy/lots-key-renew.sh`, `deploy/lots-agent-run.sh`,
+  `tests/test_lots_key_renewal.py`).
 - La production des lots passe par l'API agent : l'identité restreinte des
   agents des lots est en place, un utilisateur local distinct du poste de
   l'opérateur qui ne détient que le jeton des lots (ni clé `ssh`, ni `sudo`,
