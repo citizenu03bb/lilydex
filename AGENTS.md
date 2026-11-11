@@ -35,7 +35,8 @@ par les clients agents (Pi, Codex, Antigravity) :
   des cartes sans prix et application des corrections catalogue préautorisées
   (`pokeprice-agent apply-correction`) ;
 - [`pokeprice-lots`](skills/pokeprice-lots/SKILL.md) : composition, rotation
-  et publication de lots de doublons (`scripts/pokeprice_lots.py`).
+  et publication de lots de doublons, par l'API agent (`pokeprice-agent lots-*`) ;
+  `scripts/pokeprice_lots.py` reste le repli de l'opérateur.
 
 Pour accélérer le traitement des cartes « À identifier », « À vérifier » et
 « À examiner », suivez le parcours décrit dans

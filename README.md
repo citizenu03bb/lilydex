@@ -13,8 +13,8 @@ Le paquet Python et ses commandes s'appellent `pokeprice`, `pokeprice-manage` et
 > encrypted with age. **The target is agents that act, with a person keeping money and
 > irreversible steps.** Today Gemini reads the card and DINOv2 (CPU only) checks the edition
 > from the image alone, a person still confirms each reading, and every disagreement lands in a
-> review queue with its evidence; agents apply pre-authorised fixes, and the operator-side lots
-> tool builds and publishes lots, refusing any price below their reference value minus a margin
+> review queue with its evidence; agents apply pre-authorised fixes, and the lots
+> tool (agent API, operator access as fallback) builds and publishes lots, refusing any price below their reference value minus a margin
 > (15 % by default). On 24 to 31 hand-verified cards from one collection: 0 unsafe variant
 > proposals above the value threshold out of 24 (95 % CI: 0–11.8 %), 22 of 27 editions confirmed by
 > image alone (63.3–91.9 %) with one false alarm (0.65–18.3 %), and Tesseract rejected after
@@ -45,8 +45,10 @@ messagerie ; s'il accepte, la demande devient un lot et le client est validé.
 
 **Déléguer à un agent.** Un agent IA travaille sur un album avec sa propre clé d'accès,
 révocable à tout moment : il prépare des brouillons de lots et applique les corrections de
-catalogue préautorisées. Avec un accès opérateur, un agent compose les lots de doublons, fait
-tourner les brouillons et publie un lot en vitrine. Réservations, paiements et messages aux
+catalogue préautorisées. Avec les trois permissions des lots, qu'un administrateur délègue, un agent
+compose les lots de doublons, fait tourner les brouillons et publie un lot en
+vitrine par ce même client, sans accès au serveur ; l'accès opérateur reste le
+repli de la production tant que l'identité restreinte des agents n'y existe pas. Réservations, paiements et messages aux
 clients restent humains ([pilote agent](docs/AGENT_CONTROL.md)).
 
 ## IA et vision : l'IA agit, l'humain garde l'argent et l'irréversible

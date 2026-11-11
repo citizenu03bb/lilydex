@@ -7,6 +7,17 @@
 Une page qui décrit le fonctionnement ne porte pas de date : quand un passage
 daté la quitte, il est versé ici dans le même commit.
 
+## 2026-11-11
+
+- Les guides des agents passent par le client de l'API agent pour l'outil des
+  lots : `pokeprice-lots` décrit le parcours plan, composition, vérification et
+  publication, la rotation, les quotas, la clé d'idempotence et le sens de
+  chaque code d'erreur ; `--remote` et `--local` n'y figurent plus que comme
+  chemin opérateur, qui reste celui de la production tant que l'identité
+  restreinte des agents n'y existe pas
+  ([fiche 0044](decisions/0044-outil-des-lots-par-l-api-agent.md),
+  [guide](../skills/pokeprice-lots/SKILL.md)).
+
 ## 2026-11-10
 
 - Routes de publication de l'outil des lots sur l'API agent, réservées à

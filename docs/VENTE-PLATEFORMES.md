@@ -108,7 +108,7 @@ Ce prix ne descend **jamais sous le plancher anti-bradage** : la cote de
 référence diminuée de la marge, et jamais moins de 0,50 €. La règle
 (`lot_max_margin` et `lot_floor_cents`) est définie une seule fois dans
 `src/pokeprice/pricing.py` et partagée avec la vitrine (`listings.py`) et
-l'outil de lots (`scripts/pokeprice_lots.py`) : 15 % par défaut, entier borné
+l'outil de lots (`scripts/pokeprice_lots.py` et ses routes d'API agent) : 15 % par défaut, entier borné
 de 0 à 50, arrondi au centime supérieur
 ([décision 0026](decisions/0026-plancher-anti-bradage-gestion.md)). La marge se
 lit dans la base, où seul un administrateur la règle depuis la gestion
