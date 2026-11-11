@@ -1,6 +1,6 @@
 # 0044 — L'outil des lots passe par l'API agent, sous trois permissions réservées à l'administrateur
 
-> **Statut :** en vigueur, amende la [décision 0021](0021-autonomie-maximale.md) · **Date :** 2026-11-10
+> **Statut :** en vigueur, amende la [décision 0021](0021-autonomie-maximale.md), amendée par la [décision 0045](0045-cartes-sorties-d-un-lot-en-annonce-unitaire.md) · **Date :** 2026-11-10
 
 **Contexte.** La [décision 0021](0021-autonomie-maximale.md) laisse les agents
 composer, publier et faire tourner les lots de doublons sans attendre de clic.
@@ -79,7 +79,10 @@ ligne invendus empêchaient tout nouveau lot, et les énergies offertes
   ventes.
 - Les annonces unitaires remplacées par un lot ne reviennent pas quand le lot
   est retiré ou remplacé : les cartes retournent au gisement sans annonce
-  unitaire jusqu'à leur prochaine composition.
+  unitaire jusqu'à leur prochaine composition. Amendé par la
+  [décision 0045](0045-cartes-sorties-d-un-lot-en-annonce-unitaire.md) : une
+  carte d'au moins 1 € au prix du jour relevé au plancher revient seule en
+  vitrine.
 - Tant que le client en ligne de commande et l'identité restreinte ne sont pas
   livrés, l'accès opérateur existe encore : la règle tient par la consigne
   donnée aux agents, pas encore par le serveur.

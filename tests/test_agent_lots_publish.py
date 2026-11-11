@@ -387,7 +387,10 @@ def test_unpublish_returns_the_cards_to_the_pool(shop):
     assert sorted(body["released_copies"]) == sorted(free)
     assert sale(store, sale_id)["status"] == "cancelled"
     assert set(free) <= set(duplicate_ids(store))
-    assert all(active_listing(store, c) is None for c in free)
+    # From 1 € up, a card comes back alone in the storefront (decision 0045).
+    relisted = {r["copy_id"]: r["listing_id"] for r in body["relisted"]}
+    assert set(relisted) | {r["copy_id"] for r in body["not_relisted"]} == set(free)
+    assert all((active_listing(store, c) or {}).get("id") == relisted.get(c) for c in free)
 
 
 def test_unpublish_never_touches_a_hand_made_or_single_card_listing(shop):

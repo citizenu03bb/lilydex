@@ -67,6 +67,11 @@ NO_REFERENCE_FOR_AGENT = (
 )
 
 
+def single_floor_cents(reference, margin):
+    """Floor of one copy alone: its reference less the margin, never under 0,50 €."""
+    return max(FLOOR_CENTS, lot_floor_cents(reference, margin)) if reference else FLOOR_CENTS
+
+
 def is_agent(actor):
     return actor.startswith("agent:") or actor == LOTS_ACTOR
 
@@ -144,9 +149,7 @@ class Listings:
             return result
         result = display_price(card, card["valuation"])
         ref = reference_cents(card)
-        result["floor_cents"] = (
-            max(FLOOR_CENTS, lot_floor_cents(ref, lot_max_margin(self.store))) if ref else FLOOR_CENTS
-        )
+        result["floor_cents"] = single_floor_cents(ref, lot_max_margin(self.store))
         return result
 
     @staticmethod
@@ -262,7 +265,7 @@ class Listings:
         elif asked is not None:
             card = cards[copy_ids[0]]
             ref = refs[copy_ids[0]]
-            floor = max(FLOOR_CENTS, lot_floor_cents(ref, margin)) if ref else FLOOR_CENTS
+            floor = single_floor_cents(ref, margin)
             if asked < FLOOR_CENTS or (asked < floor and not waiver_by):
                 if not ref:
                     raise ValueError(

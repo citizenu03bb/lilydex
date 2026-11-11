@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 
 from ..floor_requests import SharedTransaction, record
-from ..listings import FloorRefusal, Listings, is_agent, reference_cents
+from ..listings import FloorRefusal, Listings, is_agent, positive_cents, reference_cents, single_floor_cents
 from ..pricing import FLOOR_CENTS, display_price, euros, lot_floor_cents, lot_max_margin
 from ..reservations import shipping_quote
 from .recipe import DiversityStrategy, LotCompositionRecipe, ValueIntent
@@ -47,6 +47,8 @@ VALUE_CEILING_CENTS = 1000
 # « already_published » n'en fait pas partie : la publication du lot retire
 # elle-même les annonces unitaires ; les lots en ligne sont exclus à part.
 LOT_EXCLUSIONS = ("identity_unconfirmed", "price_incomplete", "review_needed", "valuable_card")
+# Une carte qui quitte un lot revient seule en vitrine à partir de ce prix (décision 0045).
+RELIST_MIN_CENTS = 100
 MANUAL_PRICE = {"amount_cents": FLOOR_CENTS, "mode": "manual", "source": "Prix fixé à la main"}
 
 
@@ -933,6 +935,73 @@ class LotsEngine:
         if new_listing is not None:
             report["published_listing_id"] = new_listing["id"]
         return report
+
+    def relist_released(
+        self, db: sqlite3.Connection, copy_ids: list[str], actor: str, *, kept: frozenset[str] = frozenset()
+    ) -> dict[str, list[Card]]:
+        """Remet en annonce unitaire les cartes qui quittent un lot, quand elles valent 1 € au moins.
+
+        Décision 0045 : le prix est celui d'une carte seule aujourd'hui
+        (``display_price``), relevé au plancher anti-bradage du jour ; sans prix
+        automatique, le plancher seul. Jamais le prix d'avant le lot. Restent
+        sans annonce, pour le prochain lot : les cartes reprises par le
+        remplaçant (``kept``), sans cote, à l'identité à confirmer, à examiner,
+        ou sous 1 €. ``db`` est la transaction d'écriture du retrait : chaque
+        carte s'écrit dans un point de sauvegarde, et un refus de la publication
+        n'en laisse rien.
+        """
+        relisted: list[Card] = []
+        not_relisted: list[Card] = []
+        margin = lot_max_margin(db)
+        cards = self.cards(db, copy_ids)
+        listings = Listings(SharedTransaction(self.store, db))
+        for copy_id in copy_ids:
+            card = cards.get(copy_id)
+            valuation = (card or {}).get("valuation") or {}
+            ref = reference_cents(card) if card else 0
+            code = ""
+            if copy_id in kept:
+                code = "in_replacement"
+            elif card is None or card["deleted_at"] or card["stock_state"] != "available":
+                code = "stock_unavailable"
+            elif Listings.active(db, copy_id):
+                code = "already_listed"
+            elif card.get("identification_status") != "confirmed":
+                code = "identity_unconfirmed"
+            elif valuation.get("needs_review"):
+                code = "review_needed"
+            elif not positive_cents(card.get("reference_cents")) or not ref:
+                code = "no_price"
+            if code:
+                not_relisted.append({"copy_id": copy_id, "code": code})
+                continue
+            floor = single_floor_cents(ref, margin)
+            today = display_price(card, valuation)
+            alone = today["price_cents"] if today["publishable"] else None
+            price = max(alone or 0, floor)
+            if price < RELIST_MIN_CENTS:
+                not_relisted.append({"copy_id": copy_id, "code": "below_minimum", "price_cents": price})
+                continue
+            if alone == price:
+                mode, source = today["mode"], today["source"]
+            else:
+                mode, source = "manual", f"Plancher anti-bradage (référence moins {margin} %)"
+            db.execute("SAVEPOINT relist")
+            try:
+                created = listings.publish(
+                    [copy_id], actor, price_cents=price, price_mode=mode, price_source=source,
+                    reason="Carte sortie d'un lot, remise en annonce unitaire",
+                )
+            except (ValueError, KeyError) as refused:  # FloorRefusal compris : jamais attendu.
+                db.execute("ROLLBACK TO relist")
+                db.execute("RELEASE relist")
+                not_relisted.append({"copy_id": copy_id, "code": "refused", "detail": str(refused)})
+                continue
+            db.execute("RELEASE relist")
+            relisted.append(
+                {"copy_id": copy_id, "listing_id": created["id"], "price_cents": price, "floor_cents": floor}
+            )
+        return {"relisted": relisted, "not_relisted": not_relisted}
 
     def record_floor_refusal(self, refusal: FloorRefusal, actor: str, sale_id: str) -> None:
         """Enregistre la demande de dérogation d'un agent, une fois la transaction annulée."""

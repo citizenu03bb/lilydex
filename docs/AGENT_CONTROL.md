@@ -403,12 +403,27 @@ d’écriture, autorisation, idempotence, quotas, validations, écritures, auteu
   annonce publiée par l’outil des lots ou un agent et qui porte au moins deux
   cartes ; une annonce faite à la main ou d’une seule carte répond 404.
 - **Après un retrait.** Le brouillon de l’outil qui porte ces cartes est
-  annulé dans la même transaction. Les cartes d’un lot retiré ou remplacé
-  reviennent au gisement sans annonce unitaire jusqu’à leur prochaine
-  composition, car les annonces unitaires retirées à la publication ne sont
-  pas rétablies. Si une vente faite à la main
+  annulé dans la même transaction. Si une vente faite à la main
   (409 `hand_made_sale`) ou réservée (409 `sale_in_progress`) porte l’une
   d’elles, rien n’est retiré.
+- **Cartes qui quittent un lot.** Au retrait, et au remplacement d’un lot en
+  ligne pour les cartes que le remplaçant ne reprend pas, chaque carte revient
+  seule en vitrine, dans la même transaction, si son prix du jour relevé au
+  plancher atteint 1 € ([décision 0045](decisions/0045-cartes-sorties-d-un-lot-en-annonce-unitaire.md)).
+  Le prix est celui d’une carte seule aujourd’hui (`display_price`), relevé au
+  plancher du jour ; sans prix automatique, le plancher seul ; jamais le prix
+  d’avant le lot. L’annonce est publiée par `agent:<accès>`, en vitrine
+  seulement, et ne compte pas dans le quota des lots publiés. La réponse
+  liste `relisted` (`copy_id`, `listing_id`, `price_cents`, `floor_cents`) et
+  `not_relisted` (`copy_id`, `code`) : `in_replacement` (reprise par le
+  remplaçant), `stock_unavailable`, `already_listed`, `identity_unconfirmed`,
+  `review_needed`, `no_price`, `below_minimum` (avec `price_cents`), `refused`
+  (avec `detail`, la publication l’a refusée sans rien écrire). Ces cartes-là
+  restent au gisement sans annonce jusqu’à leur prochaine composition ; une
+  carte remise en annonce y reste aussi, et le lot qui la reprend retire son
+  annonce unitaire. Tout autre échec annule le retrait entier. Dans
+  `online_rotation.replaced`, chaque remplacement porte ses propres
+  `relisted` et `not_relisted`.
 - **Rotation des lots en ligne.** Pour un accès qui détient `lots:compose` et
   `lots:publish`, `POST /lots/rotate` remplace d’abord, du plus ancien au plus
   récent, les lots en ligne de l’outil invendus depuis plus que l’âge de

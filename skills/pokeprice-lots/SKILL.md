@@ -122,7 +122,10 @@ entrent dans un lot) ; `--data` n'y sert pas.
    `--apply` écrit. Les annonces unitaires des cartes sont retirées et le lot
    publié ensemble ; un refus n'écrit rien.
 6. **Retirer** : `lots-unpublish LISTING_ID --expected-version N --reason …`
-   retire une annonce de lot de l'outil ; `lots-cancel` et `lots-raise`
+   retire une annonce de lot de l'outil. Ses cartes d'au moins 1 € au prix du
+   jour relevé au plancher reviennent seules en vitrine dans la même
+   transaction (`relisted`) ; les autres (`not_relisted`, avec un motif)
+   retournent au gisement pour le prochain lot. `lots-cancel` et `lots-raise`
    annulent ou relèvent un brouillon de l'outil. Ils ne touchent jamais un
    brouillon fait à la main, ni une annonce d'une seule carte (404).
 
@@ -139,7 +142,11 @@ réglage de l'administrateur), du plus ancien au plus récent : retrait de
 l'annonce, annulation du brouillon, nouvelle composition, publication, un lot
 par transaction. Le remplaçant reprend le moins possible de cartes payantes du
 lot remplacé et n'est jamais exactement le même (`no_fresh_replacement`,
-`no_replacement` : le lot reste en ligne). Sans `lots:publish`, la rotation
+`no_replacement` : le lot reste en ligne). Les cartes du lot remplacé que le
+remplaçant ne reprend pas suivent la règle du retrait : seules en vitrine à
+partir de 1 € au prix du jour relevé au plancher, sinon au gisement ; chaque
+remplacement liste ses `relisted` et `not_relisted`. Ces annonces unitaires ne
+comptent pas dans le quota des lots publiés. Sans `lots:publish`, la rotation
 signale ces lots sous `due_online` sans y toucher. Elle ne baisse jamais un
 prix.
 
