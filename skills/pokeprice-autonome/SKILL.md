@@ -23,7 +23,9 @@ Dans les droits de votre accès, sans demander de confirmation :
 - identifier une carte, choisir sa variante et évaluer son état, sur photo ;
 - relever et corriger un prix, appliquer une correction préautorisée ;
 - ranger : album, page, pochette, file de travail ;
-- composer des lots, les créer, les faire tourner, les publier et les dépublier.
+- composer des lots, les créer, les faire tourner, les publier et les dépublier,
+  par l'API agent et le guide [pokeprice-lots](../pokeprice-lots/SKILL.md), sans
+  accès au serveur.
 
 Certaines de ces actions attendent leur outil : voir
 [ce qui est livré, ce qui est visé](#ce-qui-est-livré-ce-qui-est-visé).
@@ -122,7 +124,9 @@ Outils livrés :
 - [`pokeprice-agent-prix`](../pokeprice-agent-prix/SKILL.md) : prix manquants
   et corrections préautorisées (`apply-correction`) ;
 - [`pokeprice-lots`](../pokeprice-lots/SKILL.md) : composition, rotation et
-  publication de lots en vitrine (`scripts/pokeprice_lots.py`) ;
+  publication de lots en vitrine, par l'API agent (`pokeprice-agent lots-*`) ;
+  l'accès opérateur au serveur (`scripts/pokeprice_lots.py`) reste le repli
+  de la production tant que l'identité restreinte des agents n'y existe pas ;
 - [`pokeprice-collection`](../pokeprice-collection/SKILL.md) : exploitation du
   serveur par l'opérateur ;
 - [docs/RESOLUTION_CARTES.md](../../docs/RESOLUTION_CARTES.md) : cartes
