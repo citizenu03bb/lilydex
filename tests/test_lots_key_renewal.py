@@ -78,7 +78,10 @@ elif action == "agent-create":
     state["tokens"][grant_id] = token
     save()
     print("Attention : les permissions lots portent sur toute la collection.", file=sys.stderr)
-    print(json.dumps(dict(grant, token_file=option("--token-file")), indent=2))
+    # Same shape as pokeprice-manage agent-create: a lifetime in days, no expires_at.
+    print(json.dumps({"id": grant_id, "album_id": "album", "permissions": grant["permissions"],
+                      "expires_in_days": 7, "value_ceiling_cents": 1000,
+                      "token_file": option("--token-file")}, indent=2))
 elif action == "agent-revoke":
     if state.get("fail_revoke"):
         save()
