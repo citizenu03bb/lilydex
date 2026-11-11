@@ -404,6 +404,14 @@ def test_without_api_the_script_still_needs_data(monkeypatch, tmp_path, capsys):
     with pytest.raises(SystemExit) as missing:
         pokeprice_lots.main(["--output", "o.json", "status"])
     assert missing.value.code == 2 and "--data" in capsys.readouterr().err
-    with pytest.raises(SystemExit) as both:
-        pokeprice_lots.main(["--api", "--remote", "--output", "o.json", "status"])
-    assert both.value.code == 2
+
+
+@pytest.mark.parametrize("gone", ["--remote", "--local"])
+def test_the_ssh_modes_are_gone(monkeypatch, tmp_path, capsys, gone):
+    """Plus de chemin ssh : seuls --api (agents) et --data (opérateur) restent."""
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(SystemExit) as refused:
+        pokeprice_lots.main([gone, "--data", str(tmp_path), "--output", "o.json", "status"])
+    assert refused.value.code == 2 and gone in capsys.readouterr().err
+    assert not hasattr(pokeprice_lots, "run_remote_command")
+    assert not hasattr(pokeprice_lots, "subprocess")

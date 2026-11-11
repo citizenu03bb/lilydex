@@ -23,8 +23,10 @@ run and secured: [case study](CASE-STUDY.md).
   account, and a reservation request only needs an e-mail address. The seller replies from
   their own mailbox; an accepted request becomes a lot and validates the customer.
 - **Delegate to an agent**: an AI agent works on one album with its own revocable key; it
-  prepares draft lots and applies pre-authorised catalogue fixes. With operator access, an
-  agent builds lots of duplicates, rotates the drafts and publishes a lot on the storefront.
+  prepares draft lots and applies pre-authorised catalogue fixes. With the three lots
+  permissions an admin delegates, an agent builds lots of duplicates, rotates the drafts and
+  publishes a lot on the storefront through the agent API, without server access; production
+  lots run that way, and operator access stays with the operator.
   Reservations, payments and messages to customers stay with a person.
 
 ## AI and vision: agents act, a person keeps money and irreversible steps

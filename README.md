@@ -47,8 +47,8 @@ messagerie ; s'il accepte, la demande devient un lot et le client est validé.
 révocable à tout moment : il prépare des brouillons de lots et applique les corrections de
 catalogue préautorisées. Avec les trois permissions des lots, qu'un administrateur délègue, un agent
 compose les lots de doublons, fait tourner les brouillons et publie un lot en
-vitrine par ce même client, sans accès au serveur ; l'accès opérateur reste le
-repli de la production tant que l'identité restreinte des agents n'y existe pas. Réservations, paiements et messages aux
+vitrine par ce même client, sans accès au serveur ; la production des lots
+passe par l'API, l'accès opérateur étant réservé à l'opérateur. Réservations, paiements et messages aux
 clients restent humains ([pilote agent](docs/AGENT_CONTROL.md)).
 
 ## IA et vision : l'IA agit, l'humain garde l'argent et l'irréversible

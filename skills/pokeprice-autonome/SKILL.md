@@ -125,8 +125,8 @@ Outils livrés :
   et corrections préautorisées (`apply-correction`) ;
 - [`pokeprice-lots`](../pokeprice-lots/SKILL.md) : composition, rotation et
   publication de lots en vitrine, par l'API agent (`pokeprice-agent lots-*`) ;
-  l'accès opérateur au serveur (`scripts/pokeprice_lots.py`) reste le repli
-  de la production tant que l'identité restreinte des agents n'y existe pas ;
+  la production des lots passe par l'API ; `scripts/pokeprice_lots.py --data`
+  sur le serveur reste le repli de l'opérateur seul ;
 - [`pokeprice-collection`](../pokeprice-collection/SKILL.md) : exploitation du
   serveur par l'opérateur ;
 - [docs/RESOLUTION_CARTES.md](../../docs/RESOLUTION_CARTES.md) : cartes

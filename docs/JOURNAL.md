@@ -9,6 +9,14 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-11
 
+- La production des lots passe par l'API agent : l'identité restreinte des
+  agents des lots est en place, un utilisateur local distinct du poste de
+  l'opérateur qui ne détient que le jeton des lots (ni clé `ssh`, ni `sudo`,
+  ni compte sur le serveur), avec une clé lots déléguée par un administrateur
+  pour 7 jours. `scripts/pokeprice_lots.py` perd `--remote` et `--local` :
+  restent `--api` pour les agents et `--data` pour l'opérateur, là où vit la
+  base ([AGENT_CONTROL](AGENT_CONTROL.md#déléguer-loutil-des-lots),
+  [guide](../skills/pokeprice-lots/SKILL.md), `tests/test_agent_lots_client.py`).
 - Les guides des agents passent par le client de l'API agent pour l'outil des
   lots : `pokeprice-lots` décrit le parcours plan, composition, vérification et
   publication, la rotation, les quotas, la clé d'idempotence et le sens de

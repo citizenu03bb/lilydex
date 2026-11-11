@@ -22,7 +22,6 @@ from pokeprice_lots import (
     lot_max_margin,
     main,
     normalize_pokemon_name,
-    run_remote_command,
 )
 from pokeprice.reservations import shipping_quote
 
@@ -1026,18 +1025,6 @@ def test_compose_follows_a_stricter_margin(test_db):
     lot = LotsEngine(db_path).compose_from_recipe(recipe)["lot"]
     assert lot["discount_percent"] == 0
     assert lot["asking_cents"] >= lot["total_reference_cents"]
-
-
-def test_remote_command_carries_no_margin(monkeypatch):
-    calls = []
-
-    class Done:
-        returncode, stdout, stderr = 0, "", ""
-
-    monkeypatch.setattr("pokeprice_lots.subprocess.run", lambda cmd, **_: calls.append(cmd) or Done())
-    run_remote_command("serveur", "/srv/base", "status", [])
-    assert "POKEPRICE_LOT_MAX_MARGIN" not in calls[-1][-1]
-    assert "MARGIN" not in calls[-1][-1] and "marge" not in calls[-1][-1]
 
 
 def test_the_lots_tool_has_no_way_to_loosen_the_floor(test_db, monkeypatch, capsys):
