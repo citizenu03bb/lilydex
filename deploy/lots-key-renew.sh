@@ -146,7 +146,7 @@ remote "$CREATE" "$LOTS_NAME" "$LOTS_OWNER" "$LOTS_ALBUM" "$CLIENT" "$ACTOR" \
 
 # Extract the id and expiry; on success also store the token (0640, atomic).
 if ! NEW="$(python3 - "$WORK/created" "$LOTS_TOKEN_DIR" "$CREATED" <<'PY'
-import json, os, sys, tempfile
+import json, os, sys, tempfile, time
 raw = open(sys.argv[1]).read()
 head, sep, tail = raw.partition("\n@@TOKEN@@\n")
 try:
@@ -154,21 +154,28 @@ try:
 except ValueError:
     sys.exit(1)
 token = tail.strip()
-if sys.argv[3] != "0" or not sep or not token or any(c.isspace() for c in token):
-    print(grant.get("id", ""), "-")
-    sys.exit(3)
-fd, tmp = tempfile.mkstemp(dir=sys.argv[2], prefix=".token.")
+grant_id = str(grant.get("id", "")) if isinstance(grant, dict) else ""
 try:
-    os.fchmod(fd, 0o640)
-    with os.fdopen(fd, "w") as stream:
-        stream.write(token + "\n")
-        stream.flush()
-        os.fsync(stream.fileno())
-    os.replace(tmp, os.path.join(sys.argv[2], "token"))
-except BaseException:
-    os.unlink(tmp)
-    raise
-print(grant["id"], int(grant["expires_at"]))
+    if sys.argv[3] != "0" or not sep or not grant_id or not token or any(c.isspace() for c in token):
+        raise ValueError("création incomplète")
+    # agent-create reports the lifetime in days; agent-list gives expires_at.
+    expires = int(grant.get("expires_at") or time.time() + int(grant["expires_in_days"]) * 86400)
+    fd, tmp = tempfile.mkstemp(dir=sys.argv[2], prefix=".token.")
+    try:
+        os.fchmod(fd, 0o640)
+        with os.fdopen(fd, "w") as stream:
+            stream.write(token + "\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(tmp, os.path.join(sys.argv[2], "token"))
+    except BaseException:
+        os.unlink(tmp)
+        raise
+except Exception:
+    # The access exists on the server: hand its id back so the caller revokes it.
+    print(grant_id, "-")
+    sys.exit(3)
+print(grant_id, expires)
 PY
 )"; then
     read -r ORPHAN _ <<<"${NEW:-}"
