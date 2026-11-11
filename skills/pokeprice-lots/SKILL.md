@@ -72,10 +72,14 @@ crée, n'élargit ni ne prolonge jamais un accès, et aucune route ne touche à 
 marge, à l'âge de rotation ni aux dérogations.
 
 > **Production.** Les lots de production passent par l'API. L'agent des lots
-> tourne sous un utilisateur local dédié du poste de l'opérateur, qui ne détient
-> que le jeton des lots : ni clé `ssh`, ni `sudo`, ni compte sur le serveur.
-> L'accès opérateur est réservé à l'opérateur. La clé lots expire au bout de
-> 7 jours ; seul un administrateur la renouvelle.
+> tourne sur le serveur, sous le compte restreint `lilydex-lots`, qui ne détient
+> que le jeton des lots : ni shell, ni `sudo`, ni clé `ssh`, ni accès à la
+> collection. Chaque matin vers 10 h, `pokeprice-lots-rotate.timer` lance
+> `pokeprice-agent lots-rotate --apply` vers l'interface locale du serveur,
+> sans fournisseur d'IA. La clé lots expire au bout de 7 jours ; le compte de
+> service la renouvelle sur le serveur vers 9 h 30, jamais l'agent. L'accès
+> opérateur est réservé à l'opérateur. Un agent d'IA ajouté plus tard sous le
+> même compte restera tenu par les mêmes règles du serveur.
 
 Deux façons équivalentes d'appeler les mêmes routes, avec la même URL et le
 même fichier de jeton (mode 0600) :
@@ -178,7 +182,7 @@ donnent 409 `idempotency_conflict`.
 | 422 `not_publishable` | une carte a changé (à examiner, sans cote, non confirmée) | `lots-publication` pour le motif ; la corriger dans le parcours de revue, puis recomposer |
 | 422 `price_lowered` | `--asking-cents` sous le prix calculé | relever, jamais baisser |
 | 404 | brouillon ou annonce absent, fait à la main, ou d'une seule carte | ne pas insister : hors du périmètre de l'outil |
-| 429 `draft_quota`, `publish_quota` | quota du jour atteint | s'arrêter jusqu'au lendemain |
+| 429 `draft_quota`, `publish_quota` | quota du jour atteint | s'arrêter jusqu'au lendemain ; la rotation du serveur sort alors en échec, sans gravité |
 | 429 `refusal_quota` | trop de refus journalisés | s'arrêter et lire les refus au lieu de relancer |
 | 429 avec `Retry-After` | débit dépassé | attendre ce délai (le client l'affiche), puis relancer avec la même clé |
 | 401, 403 | accès révoqué, expiré, ou permission manquante | s'arrêter : seul l'administrateur délègue ou renouvelle |

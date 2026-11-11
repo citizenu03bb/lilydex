@@ -1,0 +1,52 @@
+[Unit]
+Description=Poképrice - rotation quotidienne des lots de doublons
+Wants=pokeprice.service
+After=pokeprice.service pokeprice-lots-key.service
+
+[Service]
+Type=oneshot
+# Restricted account: no shell, no sudo, no access to the collection or the
+# secrets. It only reads the lots token dropped by pokeprice-lots-key.service
+# and calls the agent API on the loopback, bound by the server's rules
+# (floor, ceiling per card, quotas). No AI provider, no other secret.
+User=lilydex-lots
+Group=lilydex-lots
+WorkingDirectory=/
+RuntimeDirectory=lilydex-lots
+RuntimeDirectoryMode=0700
+UMask=0077
+Environment=HOME=/run/lilydex-lots
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=POKEPRICE_AGENT_URL=http://127.0.0.1:3820
+Environment=POKEPRICE_AGENT_TOKEN_FILE=/run/lilydex-lots/token
+# The drop folder is group-readable (0640); the client wants a private file.
+ExecStartPre=/usr/bin/install -m 0600 /var/lib/lilydex-lots/token /run/lilydex-lots/token
+# JSON result on stdout, into the journal; the token never appears in it.
+# A refusal (429 quota, 401 expired key...) exits 1 and the unit fails.
+ExecStart=/opt/pokeprice/.venv/bin/pokeprice-agent lots-rotate --apply
+Nice=10
+TimeoutStartSec=10min
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+ProtectProc=invisible
+InaccessiblePaths=/srv/pokeprice /etc/pokeprice
+ReadOnlyPaths=/var/lib/lilydex-lots
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+IPAddressDeny=any
+IPAddressAllow=localhost
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+CapabilityBoundingSet=
+SystemCallArchitectures=native
+SystemCallFilter=@system-service

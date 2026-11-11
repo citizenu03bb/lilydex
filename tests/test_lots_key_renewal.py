@@ -1,11 +1,15 @@
 """Automatic renewal of the lots agent key and the lots agent launcher.
 
-The renewal script runs against a fake `ssh` that runs the remote script
-locally, a fake `sudo` that drops the account switch, and a fake
-`pokeprice.manage` that keeps its delegations in a JSON file: no server, no
-real key, no network.
+The renewal script runs in its two modes. Over ssh (workstation fallback): a
+fake `ssh` runs the remote script locally and a fake `sudo` drops the account
+switch. Locally (server unit, LOTS_RENEW_LOCAL=1): a fake `id` says the script
+already runs as the service account, and a fake deployment Python on PATH
+routes `-m pokeprice.manage`; `ssh` and `sudo` must not be called. Both reach a
+fake `pokeprice.manage` that keeps its delegations in a JSON file: no server,
+no real key, no network. The server units are checked as text.
 """
 
+import configparser
 import json
 import os
 import shutil
@@ -45,10 +49,33 @@ done
 exec "$@"
 """
 
+FAKE_SERVICE_PYTHON = f"""#!/usr/bin/env bash
+# fake deployment Python: route pokeprice.manage to the fake, the rest to Python.
+for ((i = 1; i <= $#; i++)); do
+    if [ "${{!i}}" = pokeprice.manage ]; then
+        shift "$i"
+        exec {sys.executable} "$FAKE_MANAGE" "$@"
+    fi
+done
+exec {sys.executable} "$@"
+"""
+
+FAKE_ID = """#!/usr/bin/env bash
+# fake id: the local mode runs as the service account.
+if [ "$1" = -un ]; then echo pokeprice; else exec /usr/bin/env -i id "$@"; fi
+"""
+
+FORBIDDEN = """#!/usr/bin/env bash
+echo "$(basename "$0") $*" >>"$FAKE_STATE.forbidden"
+exit 97
+"""
+
 FAKE_MANAGE = """
 import json, os, sys, time
 state_path = os.environ["FAKE_STATE"]
 state = json.load(open(state_path))
+if state.get("down"):
+    sys.exit("Erreur simulée : service indisponible.")
 args = sys.argv[1:]
 assert args[:2] == ["--data", "/srv/pokeprice/inventory"], args
 action, rest = args[2], args[3:]
@@ -99,21 +126,27 @@ def executable(path, text):
     path.chmod(0o755)
 
 
-@pytest.fixture
-def world(tmp_path):
+@pytest.fixture(params=["ssh", "local"])
+def world(tmp_path, request):
+    mode = request.param
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
-    executable(bin_dir / "ssh", FAKE_SSH)
-    executable(bin_dir / "sudo", FAKE_SUDO)
+    if mode == "ssh":
+        executable(bin_dir / "ssh", FAKE_SSH)
+        executable(bin_dir / "sudo", FAKE_SUDO)
+    else:
+        executable(bin_dir / "ssh", FORBIDDEN)
+        executable(bin_dir / "sudo", FORBIDDEN)
+        executable(bin_dir / "id", FAKE_ID)
+        executable(bin_dir / "fake-service-python", FAKE_SERVICE_PYTHON)
     (tmp_path / "fake_manage.py").write_text(FAKE_MANAGE)
     drop = tmp_path / "drop"
     drop.mkdir()
     scratch = tmp_path / "scratch"
     scratch.mkdir()
     config = tmp_path / "lots-key.env"
-    config.write_text(
-        f"POKEPRICE_OCI_HOST=operator@server.invalid\nLOTS_OWNER=admin\nLOTS_ALBUM=album-1\nLOTS_TOKEN_DIR={drop}\n"
-    )
+    host = "POKEPRICE_OCI_HOST=operator@server.invalid\n" if mode == "ssh" else ""
+    config.write_text(f"{host}LOTS_OWNER=admin\nLOTS_ALBUM=album-1\nLOTS_TOKEN_DIR={drop}\n")
     state = tmp_path / "state.json"
 
     class World:
@@ -138,12 +171,19 @@ def world(tmp_path):
                 "FAKE_STATE": str(state),
                 "FAKE_MANAGE": str(tmp_path / "fake_manage.py"),
             }
+            if mode == "local":
+                env.update(LOTS_RENEW_LOCAL="1", LOTS_SERVICE_PYTHON="fake-service-python")
             return subprocess.run(["bash", str(RENEW)], env=env, capture_output=True, text=True, timeout=60)
 
         def leftovers(self):
             return sorted(p.name for p in scratch.iterdir())
 
+        def forbidden_calls(self):
+            path = Path(str(state) + ".forbidden")
+            return path.read_text().splitlines() if path.exists() else []
+
     world = World()
+    world.mode = mode
     world.set_state()
     return world
 
@@ -158,6 +198,7 @@ def install_old(world, grant_id="old-1", token="pp_agent_old_token"):
 
 
 def assert_secret_free(world, result):
+    assert world.forbidden_calls() == []
     for token in world.state()["tokens"].values():
         assert token not in result.stdout
         assert token not in result.stderr
@@ -175,6 +216,8 @@ def test_first_run_creates_the_key_and_drops_the_token_mode_0640(world):
     assert create[create.index("--owner") + 1] == "admin"
     assert create[create.index("--album") + 1] == "album-1"
     assert create[create.index("--actor") + 1] == "system:lots-key-renew"
+    client = create[create.index("--client") + 1]
+    assert ("compte restreint du serveur" if world.mode == "local" else "poste de l'opérateur") in client
     assert "--value-ceiling-eur" not in create
     token = world.token_dir / "token"
     assert token.read_text().strip() == world.state()["tokens"]["grant-1"]
@@ -197,6 +240,7 @@ def test_fresh_key_is_left_alone(world):
     assert "rien à faire" in result.stdout
     assert (world.token_dir / "token").read_text().strip() == "pp_agent_old_token"
     assert world.leftovers() == []
+    assert world.forbidden_calls() == []
 
 
 def test_key_near_expiry_is_renewed_then_the_old_one_revoked(world):
@@ -264,8 +308,11 @@ def test_revoked_or_unknown_key_is_replaced_without_revoking(world, old):
 
 def test_unreachable_server_changes_nothing(world):
     install_old(world)
-    world.set_state([grant("old-1", 3600)])
-    executable(world.root / "bin" / "ssh", "#!/usr/bin/env bash\nexit 255\n")
+    if world.mode == "ssh":
+        world.set_state([grant("old-1", 3600)])
+        executable(world.root / "bin" / "ssh", "#!/usr/bin/env bash\nexit 255\n")
+    else:
+        world.set_state([grant("old-1", 3600)], down=True)
 
     result = world.run()
 
@@ -349,6 +396,79 @@ def test_launcher_stops_when_uv_sync_fails(lots_home):
 
     assert result.returncode != 0
     assert "pwd=" not in result.stdout
+
+
+def test_local_mode_needs_no_server_address(world):
+    if world.mode != "local":
+        pytest.skip("mode local seulement")
+    (world.root / ".config" / "pokeprice").mkdir(parents=True)
+    (world.root / ".config" / "pokeprice" / "backup.env").write_text("POKEPRICE_OCI_HOST=other@server.invalid\n")
+
+    result = world.run()
+
+    assert result.returncode == 0, result.stderr
+    assert world.forbidden_calls() == []
+    assert not Path(str(world.root / "state.json") + ".hosts").exists()
+
+
+def unit(name):
+    parser = configparser.ConfigParser(strict=False, interpolation=None)
+    parser.optionxform = str
+    parser.read(ROOT / "deploy" / name, encoding="utf-8")
+    return parser
+
+
+def test_server_renewal_unit_runs_locally_as_the_service_account():
+    service = unit("pokeprice-lots-key.service")["Service"]
+    assert service["User"] == "pokeprice"
+    assert service["UMask"] == "0027"
+    assert service["ExecStart"] == "/bin/bash /opt/pokeprice/deploy/lots-key-renew.sh"
+    environment = (ROOT / "deploy" / "pokeprice-lots-key.service").read_text()
+    assert "Environment=LOTS_RENEW_LOCAL=1" in environment
+    assert "Environment=LOTS_KEY_ENV=/etc/pokeprice/lots-key.env" in environment
+    assert "/var/lib/lilydex-lots" in service["ReadWritePaths"]
+    timer = unit("pokeprice-lots-key.timer")["Timer"]
+    assert timer["Persistent"] == "true"
+
+
+def test_rotation_unit_is_restricted_and_runs_after_the_renewal():
+    text = (ROOT / "deploy" / "pokeprice-lots-rotate.service").read_text()
+    service = unit("pokeprice-lots-rotate.service")["Service"]
+    assert service["User"] == service["Group"] == "lilydex-lots"
+    assert service["ExecStart"] == "/opt/pokeprice/.venv/bin/pokeprice-agent lots-rotate --apply"
+    assert service["ExecStartPre"] == "/usr/bin/install -m 0600 /var/lib/lilydex-lots/token /run/lilydex-lots/token"
+    assert service["RuntimeDirectory"] == "lilydex-lots" and service["RuntimeDirectoryMode"] == "0700"
+    assert "Environment=POKEPRICE_AGENT_URL=http://127.0.0.1:3820" in text
+    assert "Environment=POKEPRICE_AGENT_TOKEN_FILE=/run/lilydex-lots/token" in text
+    assert "/srv/pokeprice" in service["InaccessiblePaths"].split()
+    assert "/etc/pokeprice" in service["InaccessiblePaths"].split()
+    for key in ("NoNewPrivileges", "PrivateTmp", "ProtectHome"):
+        assert service[key] == "true"
+    assert service["ProtectSystem"] == "strict"
+    assert service["CapabilityBoundingSet"] == ""
+    assert "EnvironmentFile" not in service
+    assert "pokeprice-lots-key.service" in unit("pokeprice-lots-rotate.service")["Unit"]["After"]
+    key_timer = unit("pokeprice-lots-key.timer")["Timer"]
+    rotate_timer = unit("pokeprice-lots-rotate.timer")["Timer"]
+    assert rotate_timer["Persistent"] == "true"
+    # Renewal at 09:30 plus at most 15 min, rotation at 10:00.
+    assert key_timer["OnCalendar"].split()[1] == "09:30:00" and key_timer["RandomizedDelaySec"] == "15min"
+    assert rotate_timer["OnCalendar"].split()[1] == "10:00:00"
+
+
+def test_provisioning_keeps_the_lots_account_out_of_the_collection():
+    script = (ROOT / "deploy" / "oci-provision.sh").read_text()
+    assert "--shell /usr/sbin/nologin lilydex-lots" in script
+    assert "install -d -m 2750 -o pokeprice -g lilydex-lots /var/lib/lilydex-lots" in script
+    # The collection and the secrets stay closed to anyone outside the service.
+    assert "install -d -m 0700 -o pokeprice -g pokeprice /srv/pokeprice\n" in script
+    assert "install -d -m 0750 -o root -g pokeprice /etc/pokeprice\n" in script
+    assert "usermod" not in script and "sudoers" not in script
+    assert "gpasswd -d lilydex-lots pokeprice" in script
+    # The interpreter of the venv lives with the code, readable without /srv.
+    deploy = (ROOT / "deploy" / "oci-deploy.sh").read_text()
+    assert "UV_PYTHON_INSTALL_DIR=/opt/pokeprice/.python" in deploy
+    assert "/srv/pokeprice/.local/share/uv/python" not in deploy
 
 
 @pytest.mark.skipif(shutil.which("shellcheck") is None, reason="shellcheck absent")

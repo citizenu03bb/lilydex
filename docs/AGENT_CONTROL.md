@@ -251,11 +251,13 @@ trace. Chaque opération a sa route et sa sous-commande de `pokeprice-agent`
 (voir [Client en ligne de commande](#client-en-ligne-de-commande-des-lots)).
 La production des lots passe par ces routes ([fiche
 0044](decisions/0044-outil-des-lots-par-l-api-agent.md)). L’agent des lots
-tourne sous un utilisateur local dédié du poste de l’opérateur, qui ne détient
-que le fichier du jeton des lots : ni clé `ssh`, ni `sudo`, ni compte sur le
-serveur. La clé lots de production est déléguée pour 7 jours
-(`--days 7`, la valeur par défaut d’`agent-create`) et renouvelée
-automatiquement côté opérateur (voir [Renouvellement automatique de la clé
+tourne sur le serveur, sous le compte restreint `lilydex-lots`, qui ne détient
+que le fichier du jeton des lots : ni shell, ni `sudo`, ni clé `ssh`, ni accès
+à la collection ou aux secrets (voir [Agent des lots sur le
+serveur](#agent-des-lots-sur-le-serveur)). La clé lots de production est
+déléguée pour 7 jours (`--days 7`, la valeur par défaut d’`agent-create`) et
+renouvelée automatiquement sur le serveur, sous le compte de service (voir
+[Renouvellement automatique de la clé
 des lots](#renouvellement-automatique-de-la-clé-des-lots)) ; l’agent ne
 renouvelle jamais son propre accès.
 
@@ -506,25 +508,73 @@ python scripts/pokeprice_lots.py --api --token-file /chemin/prive/lots-doublons.
   --output /tmp/lots-status.json status
 ```
 
+### Agent des lots sur le serveur
+
+L’agent des lots est un compte système du serveur, `lilydex-lots`, créé par
+`deploy/oci-provision.sh` : sans shell (`nologin`), sans mot de passe, sans
+`sudo`, sans clé `ssh`, hors du groupe `pokeprice`. La collection
+(`/srv/pokeprice`, mode 0700) et les secrets (`/etc/pokeprice`, mode 0750,
+groupe `pokeprice`) lui restent fermés. Il ne lit que le dossier de dépôt
+`/var/lib/lilydex-lots`, qui appartient à `pokeprice`, groupe `lilydex-lots`,
+en mode 2750 : `pokeprice` y écrit le jeton (0640), le groupe le lit, personne
+d’autre. L’interpréteur du déploiement vit avec le code, dans
+`/opt/pokeprice/.python`, lisible par tous : le client tourne sans rien lire
+sous `/srv/pokeprice`.
+
+- **Rotation quotidienne.** `deploy/pokeprice-lots-rotate.timer` lance vers
+  10 h, heure de Paris, `pokeprice-lots-rotate.service`, sous `lilydex-lots`.
+  L’unité copie le jeton déposé dans un fichier privé (`/run/lilydex-lots/token`,
+  mode 0600, comme l’exige le client, effacé à la fin), puis lance le client
+  du déploiement :
+  `/opt/pokeprice/.venv/bin/pokeprice-agent lots-rotate --apply`, vers
+  `http://127.0.0.1:3820`. La rotation remplace d’abord les lots en ligne
+  invendus depuis plus que l’âge de rotation, puis comble les brouillons,
+  avec les règles du serveur ci-dessus. Un passage manqué est rattrapé au
+  démarrage.
+- **Aucun autre secret.** Ni fournisseur d’IA, ni clé d’API, ni fichier
+  d’environnement : la rotation est déterministe.
+- **Durcissement.** `NoNewPrivileges`, `ProtectSystem=strict`, `ProtectHome`,
+  `PrivateTmp`, `PrivateDevices`, aucune capacité, `/srv/pokeprice` et
+  `/etc/pokeprice` inaccessibles, le dossier de dépôt en lecture seule, le
+  réseau limité à l’interface locale de boucle.
+- **Journal.** La réponse JSON du serveur (lots remplacés, ignorés, cartes
+  remises en annonce, brouillons créés) arrive dans le journal ; le jeton n’y
+  figure jamais.
+- **Échec visible.** Un refus sort en code 1 et l’unité passe en échec, avec
+  le statut et le code d’erreur du serveur : 429 `publish_quota` ou
+  `draft_quota` quand le quota du jour est atteint, 401 si la clé a expiré
+  sans renouvellement. Le passage du lendemain reprend normalement.
+
+```bash
+systemctl list-timers 'pokeprice-lots-*'
+journalctl -u pokeprice-lots-rotate.service -u pokeprice-lots-key.service
+```
+
+Une étape ultérieure peut ajouter un agent d’IA sous le même compte. Il reste
+tenu par les règles du serveur : plancher du jour, plafond de 10 € par carte,
+quotas de brouillons et de publications, aucune route qui touche aux accès.
+
 ### Renouvellement automatique de la clé des lots
 
-La clé lots se renouvelle côté opérateur, jamais par l’agent : la [fiche
-0044](decisions/0044-outil-des-lots-par-l-api-agent.md) tient, seul
-`agent-create`, lancé par un compte qui a accès au serveur, délivre un accès.
+La clé lots se renouvelle sous le compte de service, jamais par l’agent : la
+[fiche 0044](decisions/0044-outil-des-lots-par-l-api-agent.md) tient, seul
+`agent-create`, lancé par un compte qui a accès à la base, délivre un accès.
 
-- **Vérification quotidienne.** Le minuteur utilisateur
-  `deploy/pokeprice-lots-key.timer` lance chaque jour, sous le compte de
-  l’opérateur, `deploy/lots-key-renew.sh`. Le script lit l’identifiant de
-  l’accès en cours dans le dossier de dépôt (`access-id`), puis son échéance
-  par `agent-list` sur le serveur, sous le compte de service et avec
-  `--data /srv/pokeprice/inventory`.
+- **Vérification quotidienne.** `deploy/pokeprice-lots-key.timer` lance vers
+  9 h 30, heure de Paris (avec au plus 15 minutes de délai aléatoire, donc
+  avant la rotation), `pokeprice-lots-key.service`, sous `pokeprice`. L’unité
+  lance `deploy/lots-key-renew.sh` en mode local (`LOTS_RENEW_LOCAL=1`) : les
+  commandes `pokeprice.manage` tournent sur place, avec
+  `--data /srv/pokeprice/inventory`, sans `ssh` ni `sudo`. Le script lit
+  l’identifiant de l’accès en cours dans le dossier de dépôt (`access-id`),
+  puis son échéance par `agent-list`.
 - **Nouvelle clé 48 h avant l’échéance.** Tant que l’accès vaut plus de
   48 heures (`LOTS_RENEW_BEFORE_HOURS`) et n’est pas révoqué, rien ne change.
   Sinon, `agent-create` délivre un accès de même nom, même compte délégant et
   même album, avec les trois permissions lots. Le jeton passe par un dossier
-  temporaire du compte de service, supprimé dans tous les cas, puis arrive dans
-  le dossier de dépôt (`token`, mode 0640, remplacé d’un bloc), suivi de
-  `access-id`.
+  temporaire privé du compte de service, supprimé dans tous les cas, puis
+  arrive dans le dossier de dépôt (`token`, mode 0640, remplacé d’un bloc),
+  suivi de `access-id`.
 - **Ancienne clé révoquée juste après.** Une fois le nouveau jeton en place,
   `agent-revoke` révoque l’ancien accès (auteur `system:lots-key-renew`). Si la
   création échoue, l’ancienne clé reste en place ; si la révocation échoue, le
@@ -533,29 +583,42 @@ La clé lots se renouvelle côté opérateur, jamais par l’agent : la [fiche
 - **Aucun secret affiché.** Le journal ne porte que les identifiants et les
   échéances.
 
-La configuration vit dans `~/.config/pokeprice/lots-key.env` (mode 0600, hors
-dépôt) : `POKEPRICE_OCI_HOST` (sinon lu dans `backup.env`), `LOTS_OWNER`,
-`LOTS_ALBUM`, `LOTS_TOKEN_DIR`, et en option `LOTS_RENEW_BEFORE_HOURS`,
-`LOTS_NAME` (`lots-doublons` par défaut) et `LOTS_VALUE_CEILING_EUR`. Le
-dossier de dépôt appartient à l’opérateur, au groupe de l’utilisateur des
-lots, en mode 2750 : le groupe lit le jeton, personne d’autre.
+La configuration du serveur vit dans `/etc/pokeprice/lots-key.env`, hors
+dépôt, propriété de `root`, groupe `pokeprice`, mode 0640 : `LOTS_OWNER`,
+`LOTS_ALBUM`, `LOTS_TOKEN_DIR=/var/lib/lilydex-lots`, et en option
+`LOTS_RENEW_BEFORE_HOURS`, `LOTS_NAME` (`lots-doublons` par défaut) et
+`LOTS_VALUE_CEILING_EUR`. Aucune de ces valeurs n’est secrète.
 
 ```bash
-install -d -m 2750 -g GROUPE_DES_LOTS /chemin/depot-lots
-cp deploy/pokeprice-lots-key.service deploy/pokeprice-lots-key.timer ~/.config/systemd/user/
-systemctl --user daemon-reload
-systemctl --user enable --now pokeprice-lots-key.timer
-systemctl --user start pokeprice-lots-key.service
+sudo install -m 0640 -o root -g pokeprice /dev/stdin /etc/pokeprice/lots-key.env <<'ENV'
+LOTS_OWNER=COMPTE_ADMINISTRATEUR
+LOTS_ALBUM=IDENTIFIANT_ALBUM
+LOTS_TOKEN_DIR=/var/lib/lilydex-lots
+ENV
+sudo cp /opt/pokeprice/deploy/pokeprice-lots-key.service /opt/pokeprice/deploy/pokeprice-lots-key.timer \
+  /opt/pokeprice/deploy/pokeprice-lots-rotate.service /opt/pokeprice/deploy/pokeprice-lots-rotate.timer \
+  /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl start pokeprice-lots-key.service
+sudo systemctl enable --now pokeprice-lots-key.timer pokeprice-lots-rotate.timer
 ```
 
-L’agent des lots se lance par `deploy/lots-agent-run.sh`, sous son utilisateur
-dédié. Avant chaque lancement, le lanceur met à jour son clone du dépôt public
-(`git pull --ff-only`, la copie actuelle sert si le réseau manque), puis
-`uv sync`, qui arrête tout s’il échoue. Il copie le jeton du dossier de dépôt
-dans un fichier privé (0600, comme l’exige le client), exporte
-`POKEPRICE_AGENT_TOKEN_FILE` et `POKEPRICE_AGENT_URL` (lu dans
-`~/.config/pokeprice/agent.env`, avec `LOTS_TOKEN_DIR`), et lance la commande
-dans le clone.
+**Repli sur le poste de l’opérateur.** Le même script renouvelle la clé par
+`ssh`, sous le compte de service du serveur, quand il tourne sur le poste
+sans `LOTS_RENEW_LOCAL`. Les unités utilisateur `deploy/user/pokeprice-lots-key.service`
+et `.timer` le lancent chaque jour ; la configuration vit alors dans
+`~/.config/pokeprice/lots-key.env` (mode 0600), avec `POKEPRICE_OCI_HOST` (sinon
+lu dans `backup.env`) et un dossier de dépôt local. Ce repli ne sert que si le
+serveur ne peut pas renouveler sa clé ; une seule des deux voies tourne à la
+fois, sinon deux clés lots vivent en même temps.
+
+Un agent qui tourne sur un poste, sous un utilisateur local dédié, se lance
+par `deploy/lots-agent-run.sh` : le lanceur met à jour son clone du dépôt
+public (`git pull --ff-only`, la copie actuelle sert si le réseau manque),
+puis `uv sync`, qui arrête tout s’il échoue, copie le jeton dans un fichier
+privé (0600), exporte `POKEPRICE_AGENT_TOKEN_FILE` et `POKEPRICE_AGENT_URL`
+(lu dans `~/.config/pokeprice/agent.env`, avec `LOTS_TOKEN_DIR`) et lance la
+commande dans le clone. Le serveur ne s’en sert pas.
 
 ```bash
 deploy/lots-agent-run.sh uv run scripts/pokeprice_lots.py --api status

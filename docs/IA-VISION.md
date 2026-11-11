@@ -214,7 +214,7 @@ défaut), lots compris.
   l'administrateur ([fiche 0044](decisions/0044-outil-des-lots-par-l-api-agent.md)) ;
   le client `pokeprice-agent lots-*` (ou `scripts/pokeprice_lots.py --api`) les
   appelle sans accès au serveur ; la production des lots passe par
-  là, sous un utilisateur local dédié qui ne détient que le jeton des lots. Aucun lot ne se vend sous le plancher anti-bradage.
+  là : une rotation quotidienne tourne sur le serveur, sous un compte restreint qui ne détient que le jeton des lots. Aucun lot ne se vend sous le plancher anti-bradage.
 
 **Ce qui est visé, pas livré :**
 

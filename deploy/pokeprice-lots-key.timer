@@ -3,7 +3,7 @@ Description=Poképrice - vérification quotidienne de la clé de l'agent des lot
 
 [Timer]
 # Daily check; a new key is issued 48 h before expiry, so a missed day or two
-# (workstation off) still leaves a valid key.
+# still leaves a valid key. Before the rotation (10:00).
 OnCalendar=*-*-* 09:30:00 Europe/Paris
 RandomizedDelaySec=15min
 Persistent=true

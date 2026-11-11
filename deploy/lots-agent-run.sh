@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
-# Lanceur de l'agent des lots, sous l'utilisateur local dédié.
+# Lanceur de l'agent des lots, sous un utilisateur local dédié d'un poste.
+#
+# Le serveur ne s'en sert pas : pokeprice-lots-rotate.service lance le client
+# du déploiement (/opt/pokeprice/.venv), sans clone ni uv. Ce lanceur reste
+# pour un agent qui tourne sur un poste, avec son propre clone du dépôt.
 #
 # Met à jour le clone public (git pull --ff-only), synchronise son
 # environnement (uv sync), copie le jeton déposé par l'opérateur dans un

@@ -116,6 +116,14 @@ Procédure et outils : `docs/AUDIT-PHOTOS.md` (`scripts/audit_photo_crops.py`,
 - Un brouillon ne réserve pas et ne vend pas. Réserver les exemplaires ensemble
   par une transaction. Une vente, annulation ou retour doit garder le stock et
   l'historique cohérents ; renseigner séparément les paiements, frais et remboursements.
+- Les lots de doublons tournent seuls sur le serveur : rotation quotidienne
+  sous le compte restreint `lilydex-lots` (`pokeprice-lots-rotate.timer`),
+  clé lots renouvelée sous `pokeprice` (`pokeprice-lots-key.timer`). Lire
+  `journalctl -u pokeprice-lots-rotate.service` ; une sortie en échec sur un
+  429 de quota attend le lendemain, un 401 demande de relancer le
+  renouvellement (`systemctl start pokeprice-lots-key.service`). Le
+  renouvellement depuis le poste n'est qu'un repli, jamais en même temps
+  (`docs/AGENT_CONTROL.md#agent-des-lots-sur-le-serveur`).
 - Préparer les annonces et les lots localement. L'autorisation de gestion ne
   vaut pas publication d'annonce, message à un acheteur, transaction ou achat
   de service. Respecter les autorisations explicites de la session pour ces actions.

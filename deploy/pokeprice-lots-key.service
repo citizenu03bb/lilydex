@@ -1,15 +1,28 @@
 [Unit]
 Description=Poképrice - renouvellement de la clé de l'agent des lots
-Wants=network-online.target
-After=network-online.target
+After=pokeprice.service
 
 [Service]
 Type=oneshot
-# Private settings, kept out of the public repository (mode 0600):
-# POKEPRICE_OCI_HOST (or backup.env), LOTS_OWNER, LOTS_ALBUM, LOTS_TOKEN_DIR.
-# The script reads %h/.config/pokeprice/lots-key.env itself.
-WorkingDirectory=%h/Projects/pokeprice
-ExecStart=%h/Projects/pokeprice/deploy/lots-key-renew.sh
-# Token and access id are 0640: readable by the drop folder's group only.
+# Runs as the service account, on this server: pokeprice.manage is called
+# directly, without ssh or sudo. The agent never renews its own access.
+User=pokeprice
+Group=pokeprice
+WorkingDirectory=/opt/pokeprice
+Environment=HOME=/srv/pokeprice
+Environment=LOTS_RENEW_LOCAL=1
+# Root-owned settings, outside the repository (0640 root:pokeprice):
+# LOTS_OWNER, LOTS_ALBUM, LOTS_TOKEN_DIR=/var/lib/lilydex-lots, and optionally
+# LOTS_RENEW_BEFORE_HOURS, LOTS_NAME, LOTS_VALUE_CEILING_EUR.
+Environment=LOTS_KEY_ENV=/etc/pokeprice/lots-key.env
+# Through bash: under SELinux, the repository files are not executable types.
+ExecStart=/bin/bash /opt/pokeprice/deploy/lots-key-renew.sh
+# Token and access id are 0640: readable by the lilydex-lots group only.
 UMask=0027
+Nice=10
 TimeoutStartSec=10min
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/pokeprice /var/lib/lilydex-lots

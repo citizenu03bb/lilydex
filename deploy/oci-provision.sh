@@ -77,13 +77,27 @@ install -d -m 0700 -o pokeprice -g pokeprice /srv/pokeprice/.config
 install -d -m 0750 -o root -g pokeprice /etc/pokeprice
 install -d -m 0755 -o pokeprice -g pokeprice /opt/pokeprice
 
+# Restricted account of the lots agent: no login shell, no password, no sudo,
+# no ssh key, not in the pokeprice group, so /srv/pokeprice (0700) and
+# /etc/pokeprice (0750 root:pokeprice) stay closed to it. It only reads the
+# token that the renewal (run as pokeprice) drops in /var/lib/lilydex-lots.
+if ! id -u lilydex-lots >/dev/null 2>&1; then
+    useradd --system --user-group --home-dir /var/lib/lilydex-lots --no-create-home \
+        --shell /usr/sbin/nologin lilydex-lots
+fi
+passwd -l lilydex-lots >/dev/null 2>&1 || true
+if id -nG lilydex-lots | tr ' ' '\n' | grep -qx pokeprice; then
+    gpasswd -d lilydex-lots pokeprice >/dev/null
+fi
+install -d -m 2750 -o pokeprice -g lilydex-lots /var/lib/lilydex-lots
+
 echo "[6/7] Installation de uv dans /usr/local/bin..."
 if [ ! -x /usr/local/bin/uv ]; then
     curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR="/usr/local/bin" sh
 fi
 # Contexte SELinux bin_t sur /usr/local/bin/uv si SELinux est actif
 if command -v restorecon >/dev/null 2>&1; then
-    restorecon -Rv /usr/local/bin /opt/pokeprice /srv/pokeprice /etc/pokeprice >/dev/null 2>&1 || true
+    restorecon -Rv /usr/local/bin /opt/pokeprice /srv/pokeprice /etc/pokeprice /var/lib/lilydex-lots >/dev/null 2>&1 || true
 fi
 
 echo "[7/7] Conservation du journal limitée à trois mois (adresses IP des visiteurs)..."

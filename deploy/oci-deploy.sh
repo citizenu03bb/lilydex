@@ -35,13 +35,23 @@ git ls-files -z | rsync -az --no-owner --no-group --rsync-path="sudo rsync" --fr
 ssh "$REMOTE_HOST" "sudo chown -R pokeprice:pokeprice /opt/pokeprice"
 
 echo "[3/6] Installation de Python 3.13 et de l'environnement virtuel (uv sync)..."
+# The interpreter lives in /opt/pokeprice/.python, readable by all like the code,
+# not under /srv/pokeprice (0700): the lots agent account runs the venv client
+# without any access to the collection. A venv built on an interpreter elsewhere
+# (the former home of the service account) is rebuilt once.
+UV_ENV="HOME=/srv/pokeprice UV_PYTHON_INSTALL_DIR=/opt/pokeprice/.python UV_PYTHON_PREFERENCE=only-managed"
 ssh "$REMOTE_HOST" "cd /opt/pokeprice && \
-    sudo -u pokeprice env HOME=/srv/pokeprice /usr/local/bin/uv python install 3.13 && \
-    sudo -u pokeprice env HOME=/srv/pokeprice /usr/local/bin/uv sync --frozen --extra web --extra vision"
+    sudo -u pokeprice env ${UV_ENV} /usr/local/bin/uv python install 3.13 && \
+    case \"\$(readlink -f .venv/bin/python 2>/dev/null)\" in \
+        /opt/pokeprice/.python/*) ;; \
+        *) echo 'Environnement virtuel reconstruit sur /opt/pokeprice/.python.'; sudo -u pokeprice rm -rf -- /opt/pokeprice/.venv ;; \
+    esac && \
+    sudo -u pokeprice env ${UV_ENV} /usr/local/bin/uv sync --frozen --extra web --extra vision && \
+    sudo chmod -R a+rX /opt/pokeprice/.python /opt/pokeprice/.venv"
 
 # Sur Oracle Linux (SELinux), marquer les exécutables du venv et de uv comme bin_t pour que systemd puisse les lancer
 ssh "$REMOTE_HOST" "if command -v chcon >/dev/null 2>&1 && command -v getenforce >/dev/null 2>&1 && [ \"\$(getenforce)\" != 'Disabled' ]; then \
-    sudo chcon -R -t bin_t /srv/pokeprice/.local/share/uv/python /opt/pokeprice/.venv/bin 2>/dev/null || true; \
+    sudo chcon -R -t bin_t /opt/pokeprice/.python /opt/pokeprice/.venv/bin 2>/dev/null || true; \
 fi"
 
 echo "[4/6] Initialisation de la collection si /srv/pokeprice/inventory est vide..."

@@ -1,0 +1,17 @@
+[Unit]
+Description=Poképrice - renouvellement de la clé de l'agent des lots (repli du poste)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+# Workstation fallback, over ssh: the server renews the key itself
+# (deploy/pokeprice-lots-key.service). Run only one of the two.
+# Private settings, kept out of the public repository (mode 0600):
+# POKEPRICE_OCI_HOST (or backup.env), LOTS_OWNER, LOTS_ALBUM, LOTS_TOKEN_DIR.
+# The script reads %h/.config/pokeprice/lots-key.env itself.
+WorkingDirectory=%h/Projects/pokeprice
+ExecStart=%h/Projects/pokeprice/deploy/lots-key-renew.sh
+# Token and access id are 0640: readable by the drop folder's group only.
+UMask=0027
+TimeoutStartSec=10min
