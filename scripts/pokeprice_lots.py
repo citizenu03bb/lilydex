@@ -9,10 +9,15 @@ Sous-commandes CLI :
 - compose : compose un lot sur mesure à partir d'une recette ou d'un prompt.
 - publish-to-storefront : publie un ou tous les brouillons valides en vitrine.
 
-Avec ``--api``, chaque sous-commande passe par les routes ``/api/agent/v1/lots``
+Deux modes, l'un ou l'autre :
+
+- ``--api`` (chemin des agents) : chaque sous-commande passe par les routes ``/api/agent/v1/lots``
 (``pokeprice.agent_client``) au lieu d'ouvrir une base : le serveur compose, fixe
 l'auteur et le prix plancher. L'interprétation d'un prompt par Gemini reste sur
 le poste, qui envoie la recette.
+- ``--data`` (chemin de l'opérateur) : le script ouvre lui-même la base désignée,
+  là où elle vit (sur le serveur, sous le compte de service ; pour un essai, une
+  base temporaire).
 
 Ce script n'est qu'un adaptateur : options, connexions et transactions. Les règles
 vivent dans le paquet ``pokeprice.lots`` (gisement, rotation, publication) et
@@ -22,7 +27,6 @@ l'interprétation d'un prompt par Gemini dans ``pokeprice.lots_prompt``.
 import argparse
 import json
 import os
-import subprocess
 import sys
 from pathlib import Path
 
@@ -104,7 +108,6 @@ __all__ = [
     "prompt_to_recipe",
     "resolve_db_path",
     "run_api_command",
-    "run_remote_command",
 ]
 
 
@@ -264,35 +267,6 @@ def resolve_db_path(args):
     return p
 
 
-def run_remote_command(remote_host, data, subcmd, extra_args):
-    """Exécute la commande distante sur le serveur via SSH, sur la base --data indiquée."""
-    import shlex
-
-    remote_cmd = [
-        "/opt/pokeprice/.venv/bin/python",
-        "/opt/pokeprice/scripts/pokeprice_lots.py",
-        "--data",
-        data,
-        "--output",
-        f"/tmp/pokeprice_lots_{subcmd}.json",
-        subcmd,
-    ] + extra_args
-    sudo_inner = " ".join(shlex.quote(arg) for arg in remote_cmd)
-    # Aucun réglage du poste ne suit : la marge anti-bradage se lit dans la base du serveur.
-    full_ssh_cmd = (
-        f"cd /tmp && sudo -u pokeprice env HOME=/srv/pokeprice PYTHONPATH=/opt/pokeprice/src {sudo_inner}"
-    )
-    res = subprocess.run(
-        ["ssh", "-o", "BatchMode=yes", remote_host, full_ssh_cmd],
-        capture_output=True,
-        text=True,
-    )
-    if res.returncode != 0:
-        sys.stderr.write(f"Erreur d'exécution distante :\n{res.stderr}\n")
-        sys.exit(1)
-    return res.stdout
-
-
 def read_recipe(args):
     """La recette de ``compose`` : un fichier ou du JSON, sinon le prompt interprété par Gemini."""
     if args.recipe:
@@ -365,24 +339,21 @@ def run_api_command(client, args):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(
-        description="Génération et rotation de lots de doublons Pokémon pour Les cartes de Lily"
+        description="Génération et rotation de lots de doublons Pokémon pour Les cartes de Lily",
+        epilog="Deux modes : --api pour les agents (la production passe par l'API agent, "
+        "avec le seul jeton des lots) ; --data pour l'opérateur, lancé là où vit la base "
+        "(sur le serveur, sous le compte de service).",
     )
     parser.add_argument(
         "--data",
-        help="Dossier ou fichier de la base SQLite visée, toujours explicite sans --api "
+        help="Chemin de l'opérateur : dossier ou fichier de la base SQLite visée, toujours explicite sans --api "
         "(sur le serveur : /srv/pokeprice/inventory ; pour un essai : une base temporaire)",
     )
-    mode = parser.add_mutually_exclusive_group()
-    mode.add_argument(
-        "--remote",
-        action="store_true",
-        help="Exécuter sur le serveur distant via SSH (hôte défini dans ~/.config/pokeprice/backup.env), "
-        "sur la base --data du serveur",
-    )
-    mode.add_argument(
+    parser.add_argument(
         "--api",
         action="store_true",
-        help="Passer par l'API agent (routes /api/agent/v1/lots), sans base ni accès au serveur",
+        help="Chemin des agents : passer par l'API agent (routes /api/agent/v1/lots), "
+        "sans base ni accès au serveur ; --data est alors ignoré",
     )
     parser.add_argument(
         "--url",
@@ -522,80 +493,6 @@ def main(argv=None):
             if key:
                 sys.stderr.write(f"Clé d'idempotence de l'essai : {key}\n")
             sys.exit(1)
-    # Si exécution distante demandée
-    elif args.remote:
-        env_file = Path.home() / ".config/pokeprice/backup.env"
-        if not env_file.exists():
-            sys.stderr.write(f"Fichier de configuration introuvable : {env_file}\n")
-            sys.exit(1)
-        remote_host = None
-        for line in env_file.read_text().splitlines():
-            if line.startswith("POKEPRICE_OCI_HOST="):
-                remote_host = line.split("=", 1)[1].strip()
-        if not remote_host:
-            sys.stderr.write("POKEPRICE_OCI_HOST non défini dans backup.env\n")
-            sys.exit(1)
-
-        extra = []
-        if args.subcommand == "analyze" and hasattr(args, "max_per_lot"):
-            extra.extend(["--max-per-lot", str(args.max_per_lot)])
-        elif args.subcommand == "status":
-            extra.extend(["--max-drafts", str(args.max_drafts)])
-        elif args.subcommand == "rotate":
-            extra.extend(["--max-drafts", str(args.max_drafts)])
-            if args.dry_run:
-                extra.append("--dry-run")
-            if args.limit is not None:
-                extra.extend(["--limit", str(args.limit)])
-            if args.actor:
-                extra.extend(["--actor", args.actor])
-        elif args.subcommand == "compose":
-            if args.prompt and not args.recipe:
-                # Interprétation du prompt en local avec GEMINI_API_KEY du poste de pilotage
-                print(f"Interprétation locale du prompt via Gemini : '{args.prompt}'...")
-                local_recipe = prompt_to_recipe(args.prompt)
-                extra.extend(["--recipe", local_recipe.model_dump_json()])
-            elif args.recipe:
-                recipe_raw = args.recipe
-                if not recipe_raw.strip().startswith("{") and len(recipe_raw) < 255:
-                    recipe_path = Path(recipe_raw)
-                    if recipe_path.exists():
-                        recipe_raw = recipe_path.read_text(encoding="utf-8")
-                extra.extend(["--recipe", recipe_raw])
-            else:
-                sys.stderr.write("Erreur: Indiquez --prompt ou --recipe pour compose.\n")
-                sys.exit(1)
-
-            if args.create_draft:
-                extra.append("--create-draft")
-            if args.dry_run:
-                extra.append("--dry-run")
-            if args.actor:
-                extra.extend(["--actor", args.actor])
-            if hasattr(args, "scope") and args.scope:
-                extra.extend(["--scope", args.scope])
-
-        elif args.subcommand == "publish-to-storefront":
-            if args.all:
-                extra.append("--all")
-            else:
-                extra.extend(["--sale-id", args.sale_id])
-            if args.dry_run:
-                extra.append("--dry-run")
-            if args.actor:
-                extra.extend(["--actor", args.actor])
-
-
-        # Exécuter à distance
-        run_remote_command(remote_host, args.data, args.subcommand, extra)
-        # Télécharger ou lire le JSON distant
-        read_cmd = f"ssh -o BatchMode=yes '{remote_host}' 'sudo -u pokeprice cat /tmp/pokeprice_lots_{args.subcommand}.json'"
-        json_res = subprocess.run(read_cmd, shell=True, capture_output=True, text=True)
-        if json_res.returncode == 0 and json_res.stdout.strip():
-            result = json.loads(json_res.stdout)
-        else:
-            sys.stderr.write("Impossible de récupérer le JSON de sortie distant.\n")
-            sys.exit(1)
     else:
         db_path = resolve_db_path(args)
         if not Path(db_path).exists():
@@ -619,18 +516,7 @@ def main(argv=None):
                 sys.stderr.write("Erreur: Indiquez --prompt ou --recipe pour la commande compose.\n")
                 sys.exit(1)
 
-            if args.recipe:
-                recipe_raw = args.recipe
-                if not recipe_raw.strip().startswith("{") and len(recipe_raw) < 255:
-                    recipe_path = Path(recipe_raw)
-                    if recipe_path.exists():
-                        recipe_raw = recipe_path.read_text(encoding="utf-8")
-                recipe_data = json.loads(recipe_raw)
-                recipe = LotCompositionRecipe.model_validate(recipe_data)
-
-            else:
-                recipe = prompt_to_recipe(args.prompt)
-
+            recipe = read_recipe(args)
             try:
                 result = engine.compose(
                     recipe=recipe,

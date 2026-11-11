@@ -36,7 +36,8 @@ par les clients agents (Pi, Codex, Antigravity) :
   (`pokeprice-agent apply-correction`) ;
 - [`pokeprice-lots`](skills/pokeprice-lots/SKILL.md) : composition, rotation
   et publication de lots de doublons, par l'API agent (`pokeprice-agent lots-*`) ;
-  `scripts/pokeprice_lots.py` reste le repli de l'opérateur.
+  la production des lots passe par là ; `scripts/pokeprice_lots.py --data`,
+  lancé sur le serveur, reste le repli de l'opérateur seul.
 
 Pour accélérer le traitement des cartes « À identifier », « À vérifier » et
 « À examiner », suivez le parcours décrit dans

@@ -9,7 +9,7 @@ description: Analyser les doublons de la collection Pokémon, générer des sugg
 
 Ce guide décrit l'outil des lots, en deux chemins : l'API agent, que suit un
 agent ([Chemin agent](#chemin-agent--lapi)), et `scripts/pokeprice_lots.py` avec
-un accès opérateur ([Chemin opérateur](#chemin-opérateur-sur-le-point-de-disparaître)).
+`--data`, réservé à l'opérateur ([Chemin opérateur](#chemin-opérateur-repli)).
 L'outil isole les exemplaires
 excédentaires (doublons) de la collection, compose des regroupements
 thématiques (Vintage Wizards of the Coast, Diamant & Perle / Platine, Dresseurs
@@ -45,7 +45,7 @@ Principes :
   décote par défaut, et `publish-to-storefront` refuse un lot sous ce plancher
   ou dont une carte n'a pas de cote (une cote nulle compte comme absente), en
   recalculant les cotes du jour. L'outil n'a ni option ni variable pour changer
-  la marge ; avec `--remote`, c'est celle de la base du serveur qui s'applique.
+  la marge ; par l'API comme sur le serveur, c'est celle de la base de production qui s'applique.
   La variable n'est lue qu'une fois, par le premier processus qui ouvre une
   base encore au schéma 26 (restauration d'une ancienne sauvegarde comprise) :
   ne la réglez pas vous-même, et faites vérifier la marge par l'administrateur
@@ -71,10 +71,11 @@ vérification), `lots:compose` (créer, faire tourner, annuler, relever),
 crée, n'élargit ni ne prolonge jamais un accès, et aucune route ne touche à la
 marge, à l'âge de rotation ni aux dérogations.
 
-> **Production.** Tant que l'identité restreinte des agents n'existe pas sur le
-> serveur et qu'aucune clé lots n'y est délivrée, la production tourne encore
-> par le chemin opérateur ci-dessous. N'affirmez pas qu'elle passe déjà par
-> l'API.
+> **Production.** Les lots de production passent par l'API. L'agent des lots
+> tourne sous un utilisateur local dédié du poste de l'opérateur, qui ne détient
+> que le jeton des lots : ni clé `ssh`, ni `sudo`, ni compte sur le serveur.
+> L'accès opérateur est réservé à l'opérateur. La clé lots expire au bout de
+> 7 jours ; seul un administrateur la renouvelle.
 
 Deux façons équivalentes d'appeler les mêmes routes, avec la même URL et le
 même fichier de jeton (mode 0600) :
@@ -178,24 +179,21 @@ donnent 409 `idempotency_conflict`.
 Un refus d'un lot sous le plancher ne devient jamais une demande pour une
 personne : l'agent relève le prix ou laisse le lot.
 
-## Chemin opérateur (sur le point de disparaître)
+## Chemin opérateur (repli)
 
-`scripts/pokeprice_lots.py` avec `--data`, éventuellement `--remote`, passe par
-un accès opérateur au serveur (`ssh`, puis le compte du service). Ce chemin,
-qui peut tout faire sur la base, est celui de la production **tant que
-l'identité restreinte des agents n'existe pas** ; les options `--remote` et
-`--local` seront retirées ensuite. Un agent n'en dépend pas : il suit le chemin
-ci-dessus. Les sous-commandes et leurs paramètres ci-dessous valent pour ce
-chemin ; avec `--api`, les mêmes noms appellent les routes décrites plus haut.
+`scripts/pokeprice_lots.py` avec `--data` ouvre lui-même la base : il se lance
+là où elle vit, sur le serveur sous le compte du service, ou sur une base
+d'essai. Ce chemin, qui peut tout faire sur la base, est réservé à l'opérateur ;
+un agent n'en dépend pas et suit le chemin ci-dessus. Le script n'a pas de mode
+`ssh` : `--api` et `--data` sont ses deux seuls modes. Les sous-commandes et
+leurs paramètres ci-dessous valent pour ce chemin ; avec `--api`, les mêmes noms
+appellent les routes décrites plus haut.
 
 ### Choisir la base
 
 Toute commande prend `--data` explicite ; le script n'a aucune base par défaut.
 
 - Sur le serveur : `--data /srv/pokeprice/inventory`, la base de référence.
-- Depuis le poste de travail (chemin en voie de disparition), `--remote --data /srv/pokeprice/inventory` exécute
-  la commande sur le serveur (hôte lu dans `~/.config/pokeprice/backup.env`) et
-  y transmet le `--data` indiqué.
 - Pour un essai : une base temporaire ou une sauvegarde restaurée, jamais
   `data/inventory/` du poste pour une écriture.
 
@@ -218,12 +216,6 @@ pokeprice_lots.py --data /srv/pokeprice/inventory --output /tmp/rotation.json ro
 `pokeprice_lots.py` désigne `scripts/pokeprice_lots.py` lancé avec le Python de
 l'installation (sur le serveur : `/opt/pokeprice/.venv/bin/python
 /opt/pokeprice/scripts/pokeprice_lots.py`, sous l'utilisateur `pokeprice`).
-
-Depuis le poste de travail :
-
-```bash
-uv run python scripts/pokeprice_lots.py --remote --data /srv/pokeprice/inventory --output /tmp/status.json status
-```
 
 Essai sur une copie temporaire :
 
@@ -288,8 +280,9 @@ ou d'un prompt en langage naturel interprété par Gemini (Structured Outputs).
 Le modèle est la constante `DEFAULT_GEMINI_MODEL` du script, remplaçable par la
 variable d'environnement `POKEPRICE_LOTS_GEMINI_MODEL` ; la clé est lue dans
 `GEMINI_API_KEY`. Le paquet `google-genai` vient avec l'option `web` ou `cli`
-(`uv run --extra web python scripts/pokeprice_lots.py … compose`). Avec `--remote`, le prompt est interprété sur le poste de
-travail et seule la recette part sur le serveur.
+(`uv run --extra web python scripts/pokeprice_lots.py … compose`). Avec `--api`, le prompt est interprété sur le poste
+de l'agent et seule la recette part au serveur ; avec `--data`, là où le script
+tourne.
 
 Les filtres de la recette s'appliquent au gisement éligible : une carte sans
 prix, non confirmée, à revoir ou de valeur n'entre jamais dans le lot composé.

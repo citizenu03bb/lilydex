@@ -26,10 +26,9 @@ remboursements, les suppressions définitives, les messages libres aux clients,
 tout prix sous le plancher anti-bradage et le plafond de délégation. Le guide
 chapeau [pokeprice-autonome](../skills/pokeprice-autonome/SKILL.md) porte cette
 politique ; la composition et la publication de lots passent par
-[pokeprice-lots](../skills/pokeprice-lots/SKILL.md), avec un accès opérateur
-tant que l’identité restreinte des agents n’existe pas sur le serveur ; le
-client de l’API agent les fait déjà (voir [Déléguer l’outil des
-lots](#déléguer-loutil-des-lots)).
+[pokeprice-lots](../skills/pokeprice-lots/SKILL.md), par le client de l’API
+agent (voir [Déléguer l’outil des lots](#déléguer-loutil-des-lots)) ; l’accès
+opérateur au serveur est réservé à l’opérateur.
 
 Le pilote décrit sur cette page reste un **périmètre d'évaluation** : son guide
 scellé et son API déléguée ne publient, ne réservent et ne vendent rien. Ces
@@ -250,9 +249,13 @@ d’erreur et `/capabilities` l’indique (`lots.scope` vaut `collection`).
 permission correspondante ; un accès sans permission lots n’en voit aucune
 trace. Chaque opération a sa route et sa sous-commande de `pokeprice-agent`
 (voir [Client en ligne de commande](#client-en-ligne-de-commande-des-lots)).
-Tant que l’identité restreinte des agents n’existe pas sur le serveur, la
-production garde `scripts/pokeprice_lots.py` et son accès opérateur ([fiche
-0044](decisions/0044-outil-des-lots-par-l-api-agent.md)).
+La production des lots passe par ces routes ([fiche
+0044](decisions/0044-outil-des-lots-par-l-api-agent.md)). L’agent des lots
+tourne sous un utilisateur local dédié du poste de l’opérateur, qui ne détient
+que le fichier du jeton des lots : ni clé `ssh`, ni `sudo`, ni compte sur le
+serveur. La clé lots de production est déléguée pour 7 jours
+(`--days 7`, la valeur par défaut d’`agent-create`) ; à l’échéance, un administrateur en crée une nouvelle avec
+`agent-create`, l’agent ne la renouvelle jamais lui-même.
 
 ```bash
 uv run pokeprice-manage --data /CHEMIN_COLLECTION agent-create lots-doublons \
@@ -477,8 +480,9 @@ uv run pokeprice-agent lots-rotate --apply
   (`--prompt`) est interprété par Gemini sur le poste, qui envoie la recette.
   `--actor`, `--max-drafts` et `--scope all` sont refusés : le serveur fixe
   l’auteur, le plafond et le périmètre. `--key` redonne la clé d’un essai de
-  `rotate`, `compose` ou d’une publication. Sans `--api`, le script garde son
-  comportement local ou `--remote`.
+  `rotate`, `compose` ou d’une publication. Sans `--api`, le script ouvre la base
+  donnée par `--data`, là où elle vit : c’est le repli de l’opérateur, sans mode
+  `ssh`.
 
 ```bash
 python scripts/pokeprice_lots.py --api --token-file /chemin/prive/lots-doublons.token \
