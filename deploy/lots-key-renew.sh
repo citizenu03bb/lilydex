@@ -1,13 +1,19 @@
 #!/usr/bin/env bash
-# Renouvellement de la clé de l'agent des lots, côté opérateur.
+# Renouvellement de la clé de l'agent des lots.
 #
-# Lancé chaque jour par pokeprice-lots-key.timer sous le compte de l'opérateur,
-# qui a déjà ssh vers le serveur. L'agent des lots ne renouvelle jamais son
-# propre accès : il ne fait que lire le jeton déposé ici.
+# Deux modes, même logique :
+# - sur le serveur (LOTS_RENEW_LOCAL=1), lancé chaque jour par l'unité système
+#   pokeprice-lots-key.service sous le compte de service pokeprice : les
+#   commandes pokeprice.manage tournent ici, sans ssh ni sudo ;
+# - sur le poste de l'opérateur, en repli, par l'unité utilisateur de
+#   deploy/user/ : les commandes passent par ssh, sous le compte de service.
+# L'agent des lots ne renouvelle jamais son propre accès : il ne fait que lire
+# le jeton déposé ici.
 #
 # Configuration : ~/.config/pokeprice/lots-key.env (mode 0600, hors dépôt),
-# ou le fichier nommé par LOTS_KEY_ENV :
-#   POKEPRICE_OCI_HOST       compte@serveur (sinon lu dans backup.env)
+# ou le fichier nommé par LOTS_KEY_ENV (/etc/pokeprice/lots-key.env sur le
+# serveur) :
+#   POKEPRICE_OCI_HOST       compte@serveur, mode ssh seulement (sinon lu dans backup.env)
 #   LOTS_OWNER               compte administrateur délégant
 #   LOTS_ALBUM               album nommé par l'accès
 #   LOTS_TOKEN_DIR           dossier de dépôt lisible par le groupe de l'agent
@@ -28,14 +34,17 @@ if [ -f "$CONFIG" ]; then
     . "$CONFIG"
     set +a
 fi
-if [ -z "${POKEPRICE_OCI_HOST:-}" ] && [ -f "$BACKUP_ENV" ]; then
+LOCAL="${LOTS_RENEW_LOCAL:-0}"
+if [ "$LOCAL" != 1 ] && [ -z "${POKEPRICE_OCI_HOST:-}" ] && [ -f "$BACKUP_ENV" ]; then
     set -a
     # shellcheck disable=SC1090
     . "$BACKUP_ENV"
     set +a
 fi
 
-: "${POKEPRICE_OCI_HOST:?POKEPRICE_OCI_HOST manquant (lots-key.env ou backup.env)}"
+if [ "$LOCAL" != 1 ]; then
+    : "${POKEPRICE_OCI_HOST:?POKEPRICE_OCI_HOST manquant (lots-key.env ou backup.env)}"
+fi
 : "${LOTS_OWNER:?LOTS_OWNER manquant}"
 : "${LOTS_ALBUM:?LOTS_ALBUM manquant}"
 : "${LOTS_TOKEN_DIR:?LOTS_TOKEN_DIR manquant}"
@@ -43,7 +52,14 @@ LOTS_RENEW_BEFORE_HOURS="${LOTS_RENEW_BEFORE_HOURS:-48}"
 LOTS_NAME="${LOTS_NAME:-lots-doublons}"
 LOTS_VALUE_CEILING_EUR="${LOTS_VALUE_CEILING_EUR:-}"
 ACTOR="system:lots-key-renew"
-CLIENT="Agent des lots de doublons (poste de l'opérateur, renouvellement automatique)"
+if [ "$LOCAL" = 1 ]; then
+    CLIENT="Agent des lots de doublons (compte restreint du serveur, renouvellement automatique)"
+    # The JSON helpers use the deployment's Python: the server may lack python3.
+    HELPER_PY="${LOTS_SERVICE_PYTHON:-/opt/pokeprice/.venv/bin/python}"
+else
+    CLIENT="Agent des lots de doublons (poste de l'opérateur, renouvellement automatique)"
+    HELPER_PY=python3
+fi
 
 if ! [[ "$LOTS_RENEW_BEFORE_HOURS" =~ ^[0-9]+$ ]]; then
     echo "LOTS_RENEW_BEFORE_HOURS doit être un nombre d'heures." >&2
@@ -58,20 +74,34 @@ umask 077
 WORK="$(mktemp -d)"
 trap 'rm -rf -- "$WORK"' EXIT
 
-# Remote side: every pokeprice command runs as the service account, on the
+# Server side: every pokeprice command runs as the service account, on the
 # production base named explicitly, from a folder that account can read.
+# Already the service account (server unit): no sudo; otherwise sudo -n.
 REMOTE_PRELUDE='set -euo pipefail
 cd /
+PY="${LOTS_SERVICE_PYTHON:-/opt/pokeprice/.venv/bin/python}"
+as_service() {
+    if [ "$(id -un)" = pokeprice ]; then
+        "$@"
+    else
+        sudo -n -u pokeprice "$@"
+    fi
+}
 manage() {
-    sudo -n -u pokeprice env HOME=/srv/pokeprice /opt/pokeprice/.venv/bin/python \
+    as_service env HOME=/srv/pokeprice "$PY" \
         -m pokeprice.manage --data /srv/pokeprice/inventory "$@"
 }
 '
 
 remote() {
-    # remote SCRIPT ARG... : SCRIPT on stdin, arguments quoted for the remote shell.
+    # remote SCRIPT ARG... : SCRIPT on stdin; over ssh, arguments are quoted
+    # for the remote shell; in local mode, the same script runs here.
     local script="$1"
     shift
+    if [ "$LOCAL" = 1 ]; then
+        bash -s -- "$@" <<<"$REMOTE_PRELUDE$script"
+        return
+    fi
     local quoted=""
     if [ "$#" -gt 0 ]; then
         quoted="$(printf '%q ' "$@")"
@@ -80,7 +110,7 @@ remote() {
 }
 
 when() {
-    python3 -c 'import sys, time; print(time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime(int(sys.argv[1]))))' "$1"
+    "$HELPER_PY" -I -c 'import sys, time; print(time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime(int(sys.argv[1]))))' "$1"
 }
 
 write_private() {
@@ -100,7 +130,7 @@ fi
 
 if [ -n "$OLD_ID" ]; then
     remote 'manage agent-list' >"$WORK/list.json"
-    STATE="$(python3 - "$WORK/list.json" "$OLD_ID" "$LOTS_RENEW_BEFORE_HOURS" <<'PY'
+    STATE="$("$HELPER_PY" -I - "$WORK/list.json" "$OLD_ID" "$LOTS_RENEW_BEFORE_HOURS" <<'PY'
 import json, sys, time
 grants = json.load(open(sys.argv[1]))
 grant = next((g for g in grants if str(g.get("id")) == sys.argv[2]), None)
@@ -131,21 +161,21 @@ fi
 # Create the new access. The token file lives in a private folder of the
 # service account, removed in all cases; the token comes back on stdout after
 # the JSON summary, into a private local file, never on the terminal.
-CREATE='DIR="$(sudo -n -u pokeprice mktemp -d)"
-trap '\''sudo -n -u pokeprice rm -rf -- "$DIR"'\'' EXIT
+CREATE='DIR="$(as_service mktemp -d)"
+trap '\''as_service rm -rf -- "$DIR"'\'' EXIT
 ceiling=()
 if [ -n "$6" ]; then ceiling=(--value-ceiling-eur "$6"); fi
 manage agent-create "$1" --owner "$2" --album "$3" --client "$4" --actor "$5" \
     --lots-read --lots-compose --lots-publish "${ceiling[@]}" --token-file "$DIR/token"
 printf "\n@@TOKEN@@\n"
-sudo -n -u pokeprice cat -- "$DIR/token"
+as_service cat -- "$DIR/token"
 '
 CREATED=0
 remote "$CREATE" "$LOTS_NAME" "$LOTS_OWNER" "$LOTS_ALBUM" "$CLIENT" "$ACTOR" \
     "$LOTS_VALUE_CEILING_EUR" >"$WORK/created" || CREATED=$?
 
 # Extract the id and expiry; on success also store the token (0640, atomic).
-if ! NEW="$(python3 - "$WORK/created" "$LOTS_TOKEN_DIR" "$CREATED" <<'PY'
+if ! NEW="$("$HELPER_PY" -I - "$WORK/created" "$LOTS_TOKEN_DIR" "$CREATED" <<'PY'
 import json, os, sys, tempfile, time
 raw = open(sys.argv[1]).read()
 head, sep, tail = raw.partition("\n@@TOKEN@@\n")

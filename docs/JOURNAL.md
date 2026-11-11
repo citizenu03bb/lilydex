@@ -9,6 +9,17 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-11
 
+- L'agent des lots passe sur le serveur, sous le compte restreint
+  `lilydex-lots` (ni shell, ni `sudo`, ni clé `ssh`, ni accès à la collection
+  ou aux secrets) : `pokeprice-lots-rotate.timer` lance chaque matin vers 10 h
+  `pokeprice-agent lots-rotate --apply` vers l'interface locale, sans
+  fournisseur d'IA. La clé lots se renouvelle sur le serveur, sous
+  `pokeprice` et sans `ssh` (`lots-key-renew.sh` en mode local, vers 9 h 30) ;
+  le renouvellement du poste devient un repli (`deploy/user/`). L'interpréteur
+  du déploiement quitte `/srv/pokeprice` pour `/opt/pokeprice/.python`. Une
+  étape ultérieure peut ajouter un agent d'IA sous le même compte
+  ([AGENT_CONTROL](AGENT_CONTROL.md#agent-des-lots-sur-le-serveur),
+  `deploy/pokeprice-lots-rotate.service`, `tests/test_lots_key_renewal.py`).
 - Une carte qui quitte un lot de l'outil, par un retrait ou par la rotation
   d'un lot en ligne, revient seule en vitrine si son prix du jour relevé au
   plancher atteint 1 €, dans la même transaction ; les autres retournent au

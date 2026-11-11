@@ -1,0 +1,12 @@
+[Unit]
+Description=Poképrice - rotation quotidienne des lots de doublons, chaque matin
+
+[Timer]
+# After the key check (09:30, at most 15 min of random delay).
+OnCalendar=*-*-* 10:00:00 Europe/Paris
+RandomizedDelaySec=5min
+Persistent=true
+Unit=pokeprice-lots-rotate.service
+
+[Install]
+WantedBy=timers.target

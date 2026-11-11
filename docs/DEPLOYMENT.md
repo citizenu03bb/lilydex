@@ -184,6 +184,9 @@ Donnez aussi des chemins absolus aux fichiers.
 | `pokeprice-media-cache.service` et `.timer` | Entretien indépendant des dérivés publics, vers 4 h 30, limité au cache. |
 | `pokeprice-prices.service` et `.timer` | Cotation matinale de la collection vers 6 h 20 (`prices --from-guide`). Non activés par `oci-deploy.sh`. |
 | `pokeprice-brief.service` et `.timer` | Brief du jour de la gestion vers 7 h 30 (`brief --notify`). Non activés par `oci-deploy.sh`. |
+| `pokeprice-lots-key.service` et `.timer` | Renouvellement de la clé de l'agent des lots vers 9 h 30, sous `pokeprice`, sans `ssh` (`lots-key-renew.sh` en mode local). Non activés par `oci-deploy.sh` ([AGENT_CONTROL](AGENT_CONTROL.md#renouvellement-automatique-de-la-clé-des-lots)). |
+| `pokeprice-lots-rotate.service` et `.timer` | Rotation quotidienne des lots vers 10 h (`pokeprice-agent lots-rotate --apply`), sous le compte restreint `lilydex-lots`, sans accès à la collection. Non activés par `oci-deploy.sh` ([AGENT_CONTROL](AGENT_CONTROL.md#agent-des-lots-sur-le-serveur)). |
+| `user/pokeprice-lots-key.service` et `.timer` | Unités utilisateur **du poste** : repli du renouvellement de la clé des lots par `ssh`. |
 | `Caddyfile.example` | HTTPS, compression, corps de requête limité à 9 Mo, relais vers `127.0.0.1:3820`. |
 | `pokeprice-drive-backup.service` et `.timer` | Unités utilisateur **du portable** : rapatriement, chiffrement et copie Drive à 3 h 15. |
 | `oci-pull-backup.sh` | Raccourci de `backup-server-pull` (ou de `backup-server-drive` avec `--push-drive`) : rapatrie et contrôle la dernière archive du serveur. |
@@ -328,6 +331,13 @@ sert au pipeline d'albums `pokeprice` et à `pokeprice-manage import` : le
 serveur ne l'installe pas, et ces commandes s'y arrêtent en nommant l'option
 manquante. Numérisez et importez depuis un poste de travail, ou ajoutez
 `--extra cli` à la commande d'installation si le serveur doit importer.
+
+L'interpréteur Python que gère `uv` s'installe dans `/opt/pokeprice/.python`
+(`UV_PYTHON_INSTALL_DIR`), lisible par tous comme le code, et non sous
+`/srv/pokeprice`, fermé : le compte restreint de l'agent des lots lance le
+client du déploiement sans rien lire de la collection. Si l'environnement
+virtuel repose sur un interpréteur d'ailleurs, `oci-deploy.sh` le reconstruit
+une fois, avant de redémarrer le service.
 
 ## L'option vision
 
