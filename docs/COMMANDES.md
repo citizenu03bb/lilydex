@@ -510,3 +510,93 @@ Appliquer un plan précis, sans champ libre
 |---|---|
 | `id` |  |
 | `--output` `OUTPUT` |  |
+
+### `pokeprice-agent lots-pool`
+
+Gisement des doublons (lots:read)
+
+| Argument | Effet |
+|---|---|
+| `--max-per-lot` `MAX_PER_LOT` | Par défaut : `20`. |
+
+### `pokeprice-agent lots-status`
+
+Brouillons, lots en ligne et plafond
+
+### `pokeprice-agent lots-plan`
+
+Essai de composition d’une recette
+
+| Argument | Effet |
+|---|---|
+| `--recipe-file` `RECIPE_FILE` |  |
+
+### `pokeprice-agent lots-publication`
+
+Vérification de publication
+
+| Argument | Effet |
+|---|---|
+| `sale_id` |  |
+
+### `pokeprice-agent lots-compose`
+
+Brouillon d’un plan (lots:compose)
+
+| Argument | Effet |
+|---|---|
+| `--recipe-file` `RECIPE_FILE` |  |
+| `--plan-id` `PLAN_ID` |  |
+| `--asking-cents` `ASKING_CENTS` |  |
+| `--key` `KEY` | Clé d’un nouvel essai ; neuve par défaut |
+
+### `pokeprice-agent lots-rotate`
+
+Rotation, à blanc sauf --apply
+
+| Argument | Effet |
+|---|---|
+| `--apply` |  |
+| `--limit` `LIMIT` |  |
+| `--key` `KEY` | Clé d’un nouvel essai ; neuve par défaut |
+
+### `pokeprice-agent lots-cancel`
+
+Annuler un brouillon de l’outil
+
+| Argument | Effet |
+|---|---|
+| `sale_id` |  |
+| `--expected-version` `EXPECTED_VERSION` |  |
+| `--reason` `REASON` |  |
+
+### `pokeprice-agent lots-raise`
+
+Relever le prix d’un brouillon
+
+| Argument | Effet |
+|---|---|
+| `sale_id` |  |
+| `--expected-version` `EXPECTED_VERSION` |  |
+| `--asking-cents` `ASKING_CENTS` |  |
+
+### `pokeprice-agent lots-publish`
+
+Publier un brouillon (lots:publish), à blanc sauf --apply
+
+| Argument | Effet |
+|---|---|
+| `sale_id` |  |
+| `--expected-version` `EXPECTED_VERSION` |  |
+| `--apply` |  |
+| `--key` `KEY` | Clé d’un nouvel essai ; neuve par défaut |
+
+### `pokeprice-agent lots-unpublish`
+
+Retirer une annonce de lot
+
+| Argument | Effet |
+|---|---|
+| `listing_id` |  |
+| `--expected-version` `EXPECTED_VERSION` |  |
+| `--reason` `REASON` |  |

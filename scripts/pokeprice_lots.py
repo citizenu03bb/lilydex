@@ -9,6 +9,11 @@ Sous-commandes CLI :
 - compose : compose un lot sur mesure à partir d'une recette ou d'un prompt.
 - publish-to-storefront : publie un ou tous les brouillons valides en vitrine.
 
+Avec ``--api``, chaque sous-commande passe par les routes ``/api/agent/v1/lots``
+(``pokeprice.agent_client``) au lieu d'ouvrir une base : le serveur compose, fixe
+l'auteur et le prix plancher. L'interprétation d'un prompt par Gemini reste sur
+le poste, qui envoie la recette.
+
 Ce script n'est qu'un adaptateur : options, connexions et transactions. Les règles
 vivent dans le paquet ``pokeprice.lots`` (gisement, rotation, publication) et
 l'interprétation d'un prompt par Gemini dans ``pokeprice.lots_prompt``.
@@ -16,6 +21,7 @@ l'interprétation d'un prompt par Gemini dans ``pokeprice.lots_prompt``.
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -24,6 +30,7 @@ _SRC = str(Path(__file__).resolve().parents[1] / "src")
 if _SRC not in sys.path:
     sys.path.insert(0, _SRC)
 
+from pokeprice.agent_client import AgentClient, load_token  # noqa: E402
 from pokeprice.inventory import Store  # noqa: E402
 from pokeprice.listings import FloorRefusal  # noqa: E402
 from pokeprice.lots.engine import (  # noqa: E402
@@ -96,6 +103,7 @@ __all__ = [
     "normalize_pokemon_name",
     "prompt_to_recipe",
     "resolve_db_path",
+    "run_api_command",
     "run_remote_command",
 ]
 
@@ -285,22 +293,110 @@ def run_remote_command(remote_host, data, subcmd, extra_args):
     return res.stdout
 
 
+def read_recipe(args):
+    """La recette de ``compose`` : un fichier ou du JSON, sinon le prompt interprété par Gemini."""
+    if args.recipe:
+        recipe_raw = args.recipe
+        if not recipe_raw.strip().startswith("{") and len(recipe_raw) < 255:
+            recipe_path = Path(recipe_raw)
+            if recipe_path.exists():
+                recipe_raw = recipe_path.read_text(encoding="utf-8")
+        return LotCompositionRecipe.model_validate(json.loads(recipe_raw))
+    return prompt_to_recipe(args.prompt)
 
-def main():
+
+def api_publish_one(client, sale_id, dry_run, key=None):
+    """Publie un brouillon de l'outil à sa version vérifiée par le serveur."""
+    check = client.lots_publication(sale_id)
+    if not check.get("publishable"):
+        raise ValueError(check.get("refusal") or "Lot non publiable.")
+    return client.lots_publish(sale_id, expected_version=check["version"], dry_run=dry_run, key=key)
+
+
+def run_api_command(client, args):
+    """Chaque sous-commande du script par l'API agent ; le serveur fixe auteur, marge et plafond."""
+    if getattr(args, "actor", DEFAULT_ACTOR) != DEFAULT_ACTOR:
+        raise ValueError("--actor ne vaut pas avec --api : l'auteur est l'accès agent.")
+    if getattr(args, "max_drafts", MAX_ROTATION_DRAFTS) != MAX_ROTATION_DRAFTS:
+        raise ValueError("--max-drafts ne vaut pas avec --api : le plafond vient du serveur.")
+    command = args.subcommand
+    key = getattr(args, "key", None)
+    if key and (command in ("analyze", "status") or getattr(args, "all", False)):
+        raise ValueError("--key vaut pour une seule écriture : rotate, compose ou une publication.")
+    if command == "analyze":
+        return client.lots_pool(args.max_per_lot)
+    if command == "status":
+        return client.lots_status()
+    if command == "rotate":
+        return client.lots_rotate(dry_run=args.dry_run, limit=args.limit, key=key)
+    if command == "compose":
+        if args.scope != "duplicates":
+            raise ValueError("--scope all ne vaut pas avec --api : seuls les doublons entrent dans un lot.")
+        if not args.prompt and not args.recipe:
+            raise ValueError("Indiquez --prompt ou --recipe pour compose.")
+        plan = client.lots_plan(read_recipe(args).model_dump(mode="json"))
+        if not args.create_draft or not plan.get("plan_id"):
+            return plan
+        if args.dry_run:
+            return {**plan, "draft_action": "dry_run_simulated"}
+        draft = client.lots_compose(plan["recipe"], plan["plan_id"], key=key)
+        return {**plan, "draft": draft, "created_sale_id": draft["sale_id"], "draft_action": "created"}
+    # publish-to-storefront
+    if not args.all:
+        return api_publish_one(client, args.sale_id, args.dry_run, key)
+    report = {"dry_run": args.dry_run, "published": [], "refused": [], "skipped": []}
+    for draft in reversed(client.lots_status()["active_drafts"]):  # du plus ancien au plus récent
+        if not draft.get("tool_made"):
+            report["skipped"].append({"sale_id": draft["id"], "reason": "brouillon fait à la main"})
+        elif draft["online_listing_id"]:
+            report["skipped"].append(
+                {"sale_id": draft["id"], "title": draft["title"], "reason": "déjà en ligne"}
+            )
+        else:
+            try:
+                report["published"].append(api_publish_one(client, draft["id"], args.dry_run))
+            except ValueError as exc:
+                refused = {"sale_id": draft["id"], "title": draft["title"], "reason": str(exc)}
+                if getattr(exc, "code", ""):
+                    refused["code"] = exc.code
+                report["refused"].append(refused)
+    return report
+
+
+def main(argv=None):
     parser = argparse.ArgumentParser(
         description="Génération et rotation de lots de doublons Pokémon pour Les cartes de Lily"
     )
     parser.add_argument(
         "--data",
-        required=True,
-        help="Dossier ou fichier de la base SQLite visée, toujours explicite "
+        help="Dossier ou fichier de la base SQLite visée, toujours explicite sans --api "
         "(sur le serveur : /srv/pokeprice/inventory ; pour un essai : une base temporaire)",
     )
-    parser.add_argument(
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument(
         "--remote",
         action="store_true",
         help="Exécuter sur le serveur distant via SSH (hôte défini dans ~/.config/pokeprice/backup.env), "
         "sur la base --data du serveur",
+    )
+    mode.add_argument(
+        "--api",
+        action="store_true",
+        help="Passer par l'API agent (routes /api/agent/v1/lots), sans base ni accès au serveur",
+    )
+    parser.add_argument(
+        "--url",
+        default=os.environ.get("POKEPRICE_AGENT_URL", "http://127.0.0.1:3820"),
+        help="Serveur agent pour --api (défaut : POKEPRICE_AGENT_URL ou l'interface locale)",
+    )
+    parser.add_argument(
+        "--token-file",
+        help="Fichier privé (0600) du jeton agent pour --api ; sinon POKEPRICE_AGENT_TOKEN_FILE",
+    )
+    parser.add_argument(
+        "--key",
+        help="Avec --api : clé d'idempotence d'un nouvel essai de rotate, compose ou publication "
+        "d'un lot (neuve par défaut)",
     )
     parser.add_argument(
         "--output",
@@ -412,10 +508,22 @@ def main():
         help="Identifiant de l'auteur inscrit dans les événements (défaut: pokeprice-lots)",
     )
 
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
+    if not args.api and not args.data:
+        parser.error("indiquez la base visée avec --data, ou passez par --api")
 
+    if args.api:
+        try:
+            client = AgentClient(args.url, load_token(args.token_file))
+            result = run_api_command(client, args)
+        except (ValueError, OSError) as exc:
+            sys.stderr.write(f"Refus de l'API agent : {exc}\n")
+            key = getattr(exc, "idempotency_key", None)
+            if key:
+                sys.stderr.write(f"Clé d'idempotence de l'essai : {key}\n")
+            sys.exit(1)
     # Si exécution distante demandée
-    if args.remote:
+    elif args.remote:
         env_file = Path.home() / ".config/pokeprice/backup.env"
         if not env_file.exists():
             sys.stderr.write(f"Fichier de configuration introuvable : {env_file}\n")

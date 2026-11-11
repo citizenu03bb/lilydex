@@ -26,7 +26,10 @@ remboursements, les suppressions définitives, les messages libres aux clients,
 tout prix sous le plancher anti-bradage et le plafond de délégation. Le guide
 chapeau [pokeprice-autonome](../skills/pokeprice-autonome/SKILL.md) porte cette
 politique ; la composition et la publication de lots passent par
-[pokeprice-lots](../skills/pokeprice-lots/SKILL.md), avec un accès opérateur.
+[pokeprice-lots](../skills/pokeprice-lots/SKILL.md), avec un accès opérateur
+tant que l’identité restreinte des agents n’existe pas sur le serveur ; le
+client de l’API agent les fait déjà (voir [Déléguer l’outil des
+lots](#déléguer-loutil-des-lots)).
 
 Le pilote décrit sur cette page reste un **périmètre d'évaluation** : son guide
 scellé et son API déléguée ne publient, ne réservent et ne vendent rien. Ces
@@ -245,8 +248,10 @@ l’album nommé par l’accès ; `agent-create` le rappelle sur la sortie
 d’erreur et `/capabilities` l’indique (`lots.scope` vaut `collection`).
 `/capabilities` annonce ces opérations seulement à un accès qui détient la
 permission correspondante ; un accès sans permission lots n’en voit aucune
-trace. Chaque opération a sa route ; le client en ligne de commande passe
-encore par `scripts/pokeprice_lots.py` et son accès opérateur ([fiche
+trace. Chaque opération a sa route et sa sous-commande de `pokeprice-agent`
+(voir [Client en ligne de commande](#client-en-ligne-de-commande-des-lots)).
+Tant que l’identité restreinte des agents n’existe pas sur le serveur, la
+production garde `scripts/pokeprice_lots.py` et son accès opérateur ([fiche
 0044](decisions/0044-outil-des-lots-par-l-api-agent.md)).
 
 ```bash
@@ -422,6 +427,63 @@ d’écriture, autorisation, idempotence, quotas, validations, écritures, auteu
 - **Ce qui n’existe pas.** Ni publication de tous les brouillons d’un coup, ni
   route qui touche aux accès, à la marge, à l’âge de rotation ou aux
   dérogations.
+
+### Client en ligne de commande des lots
+
+`pokeprice-agent` porte une sous-commande par opération, avec la même URL et le
+même fichier de jeton que ses autres commandes (`--url` ou
+`POKEPRICE_AGENT_URL`, `--token-file` ou `POKEPRICE_AGENT_TOKEN_FILE`, en mode
+0600). Il écrit la réponse JSON du serveur sur la sortie standard ; un refus
+sort en code 1, avec le statut et le code d’erreur du serveur sur la sortie
+d’erreur (`HTTP 409 stale_plan : …`, `HTTP 429 draft_quota : …`).
+
+```bash
+export POKEPRICE_AGENT_URL=https://SERVEUR
+export POKEPRICE_AGENT_TOKEN_FILE=/chemin/prive/lots-doublons.token
+uv run pokeprice-agent lots-status
+uv run pokeprice-agent lots-plan --recipe-file recette.json
+uv run pokeprice-agent lots-compose --recipe-file recette.json --plan-id PLAN_ID
+uv run pokeprice-agent lots-publication SALE_ID
+uv run pokeprice-agent lots-publish SALE_ID --expected-version 3 --apply
+uv run pokeprice-agent lots-rotate --apply
+```
+
+| Sous-commande | Options |
+|---|---|
+| `lots-pool` | `--max-per-lot` |
+| `lots-status` | aucune |
+| `lots-plan` | `--recipe-file` (64 Ko au plus) |
+| `lots-publication` | `SALE_ID` |
+| `lots-compose` | `--recipe-file`, `--plan-id`, `--asking-cents`, `--key` |
+| `lots-rotate` | `--apply`, `--limit`, `--key` ; à blanc sans `--apply` |
+| `lots-cancel` | `SALE_ID`, `--expected-version`, `--reason` |
+| `lots-raise` | `SALE_ID`, `--expected-version`, `--asking-cents` |
+| `lots-publish` | `SALE_ID`, `--expected-version`, `--apply`, `--key` ; à blanc sans `--apply` |
+| `lots-unpublish` | `LISTING_ID`, `--expected-version`, `--reason` |
+
+- **Clé d’idempotence.** `lots-compose`, `lots-rotate` et `lots-publish`
+  envoient une clé neuve à chaque appel. Un échec affiche la clé envoyée ;
+  la redonner par `--key` rejoue la même opération sans la doubler, même si le
+  serveur l’a déjà faite.
+- **Version attendue.** `lots-cancel`, `lots-raise`, `lots-publish` et
+  `lots-unpublish` transmettent `--expected-version` telle quelle ; le serveur
+  refuse une version dépassée (409).
+- **Le script par l’API.** `scripts/pokeprice_lots.py --api` fait passer ses
+  sous-commandes par ces routes, sans `--data` ni accès au serveur :
+  `analyze` lit le gisement, `status` l’état, `rotate` la rotation (écriture
+  sauf `--dry-run`), `compose` le plan puis, avec `--create-draft`, le
+  brouillon ; `publish-to-storefront` vérifie chaque brouillon de l’outil puis
+  le publie à la version vérifiée, un à un avec `--all`. Un prompt
+  (`--prompt`) est interprété par Gemini sur le poste, qui envoie la recette.
+  `--actor`, `--max-drafts` et `--scope all` sont refusés : le serveur fixe
+  l’auteur, le plafond et le périmètre. `--key` redonne la clé d’un essai de
+  `rotate`, `compose` ou d’une publication. Sans `--api`, le script garde son
+  comportement local ou `--remote`.
+
+```bash
+python scripts/pokeprice_lots.py --api --token-file /chemin/prive/lots-doublons.token \
+  --output /tmp/lots-status.json status
+```
 
 ## Outils de l'assistant de gestion
 
