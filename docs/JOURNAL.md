@@ -9,6 +9,13 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-11
 
+- Une carte qui quitte un lot de l'outil, par un retrait ou par la rotation
+  d'un lot en ligne, revient seule en vitrine si son prix du jour relevé au
+  plancher atteint 1 €, dans la même transaction ; les autres retournent au
+  gisement. Les réponses listent `relisted` et `not_relisted`, et ces
+  annonces ne comptent pas dans le quota des lots publiés
+  ([décision 0045](decisions/0045-cartes-sorties-d-un-lot-en-annonce-unitaire.md),
+  [AGENT_CONTROL](AGENT_CONTROL.md), `tests/test_agent_lots_relist.py`).
 - Renouvellement automatique de la clé des lots, côté opérateur : un minuteur
   quotidien délivre une nouvelle clé 48 h avant l'échéance, la dépose pour
   l'utilisateur des lots (0640) et révoque l'ancienne aussitôt ; l'agent ne

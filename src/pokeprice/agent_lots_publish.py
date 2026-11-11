@@ -161,8 +161,9 @@ class LotsPublisher(LotsComposer):
     def unpublish(self, token_hash: str, listing_id: str, values: UnpublishRequest, request_id: str) -> Card:
         """Retire une annonce de lot de l'outil et annule son brouillon : les cartes reviennent au gisement.
 
-        Les annonces unitaires remplacées à la publication ne reviennent pas : les
-        cartes redeviennent libres, sans annonce, pour la prochaine composition.
+        Dans la même transaction, chaque carte d'au moins 1 € au prix du jour
+        relevé au plancher revient en annonce unitaire (décision 0045) ; les
+        autres restent libres, sans annonce, pour la prochaine composition.
         """
 
         def work(db: sqlite3.Connection, grant: Card, engine: LotsEngine) -> tuple[Card, Counts]:
@@ -187,12 +188,14 @@ class LotsPublisher(LotsComposer):
                     row["id"], {"status": "cancelled"}, row["version"], actor,
                     "Lot retiré de la vitrine par l'agent : " + reason, _db=db,
                 )
+            relist = engine.relist_released(db, copies, actor)
             return {
                 "listing_id": listing_id,
                 "state": after["state"],
                 "version": after["version"],
                 "cancelled": [row["id"] for row in sales],
                 "released_copies": copies,
+                **relist,
                 "request_id": request_id,
             }, {}
 
@@ -281,7 +284,10 @@ class LotsPublisher(LotsComposer):
         """Retire un lot en ligne échu, annule son brouillon, puis compose et publie son remplaçant.
 
         Tout se fait dans une seule transaction, le retrait d'abord : un échec
-        laisse le lot en ligne tel qu'il était.
+        laisse le lot en ligne tel qu'il était. Les cartes du lot retiré que le
+        remplaçant ne reprend pas reviennent en annonce unitaire quand elles
+        valent 1 € au moins (décision 0045) ; ces annonces ne comptent pas dans
+        le quota des lots publiés.
         """
         lot = dict(entry["replacement"])
         sale_id, listing_id = entry["sale_id"], entry["listing_id"]
@@ -320,6 +326,7 @@ class LotsPublisher(LotsComposer):
             lot["asking_cents"] = max(lot["asking_cents"], floor_cents(db, ids, lot_max_margin(db)))
             created = engine.apply_rotation(db, RotationPlan({}, [], [lot]), actor)[0]
             report = self.publish_draft(engine, db, created["sale_id"], actor)
+            relist = engine.relist_released(db, sale_copy_ids(db, sale_id), actor, kept=frozenset(ids))
             return {
                 "replaced_sale_id": sale_id,
                 "replaced_listing_id": listing_id,
@@ -329,6 +336,7 @@ class LotsPublisher(LotsComposer):
                 "title": report["title"],
                 "price_cents": report["price_cents"],
                 "copies_count": report["copies_count"],
+                **relist,
             }, {"drafts_created": 1, "published": 1}
 
         payload = {"sale_id": sale_id, "listing_id": listing_id}
