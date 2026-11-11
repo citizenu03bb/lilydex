@@ -9,6 +9,16 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-10
 
+- Routes de publication de l'outil des lots sur l'API agent, réservées à
+  `lots:publish` : publier un brouillon de l'outil (à blanc par défaut, prix
+  relevé au plancher, chaque carte revérifiée dans la transaction) et retirer
+  une annonce de lot de l'outil, dont les cartes reviennent au gisement. Avec
+  `lots:compose` en plus, la rotation remplace les lots en ligne échus, un par
+  transaction. `Listings.publish` refuse à un agent un lot qui porte une carte
+  sans cote, non confirmée ou à examiner. Quota de 10 publications par jour
+  ([AGENT_CONTROL](AGENT_CONTROL.md#publier-retirer-et-remplacer-les-lots-en-ligne),
+  [fiche 0044](decisions/0044-outil-des-lots-par-l-api-agent.md),
+  `tests/test_agent_lots_publish.py`).
 - Routes d'écriture de l'outil des lots sur l'API agent, réservées à
   `lots:compose` : créer le brouillon d'un plan recalculé par le serveur
   (`stale_plan` sinon), faire tourner les brouillons (à blanc par défaut),

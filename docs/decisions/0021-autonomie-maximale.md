@@ -1,6 +1,6 @@
 # 0021 — Les agents agissent seuls, sauf l'argent, l'irréversible et le bradage
 
-> **Statut :** en vigueur · **Date :** 2026-11-03
+> **Statut :** en vigueur, amendée par la [décision 0044](0044-outil-des-lots-par-l-api-agent.md) · **Date :** 2026-11-03
 
 **Contexte.** Lily a peu de temps pour la gestion et le suivi des ventes, et
 tout le stock est à vendre : vitrine, Vinted, Leboncoin et Cardmarket. La règle

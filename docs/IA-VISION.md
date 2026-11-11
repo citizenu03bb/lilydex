@@ -210,8 +210,10 @@ défaut), lots compris.
   ([fiche 0014](decisions/0014-corrections-agent-autorisees.md)) ;
 - préparer des brouillons de lots sur un album délégué ;
 - composer des lots de doublons, faire tourner les brouillons et publier un
-  lot en vitrine, par `scripts/pokeprice_lots.py`, avec un accès opérateur ;
-  l'outil refuse tout lot sous le plancher anti-bradage.
+  lot en vitrine, par l'API agent sous trois permissions réservées à
+  l'administrateur ([fiche 0044](decisions/0044-outil-des-lots-par-l-api-agent.md)) ;
+  le client en ligne de commande, `scripts/pokeprice_lots.py`, passe encore
+  par un accès opérateur. Aucun lot ne se vend sous le plancher anti-bradage.
 
 **Ce qui est visé, pas livré :**
 
@@ -240,8 +242,8 @@ défaut), lots compris.
 
 Un agent IA peut travailler sur un album délégué, avec sa propre clé d'accès,
 révocable à tout moment. Par l'API déléguée, il prépare des brouillons de lots
-et applique les corrections préautorisées ; la composition et la publication
-de lots passent par le script opérateur. Le pilote scellé reste un périmètre
+et applique les corrections préautorisées ; la composition, la publication et
+la rotation de lots ont leurs routes, sous des permissions à part. Le pilote scellé reste un périmètre
 d'évaluation. Voir le [pilote agent](AGENT_CONTROL.md).
 
 ## L'IA dans le développement du projet

@@ -2556,6 +2556,40 @@
   ],
   "include_in_schema": true,
   "methods": [
+   "POST"
+  ],
+  "name": "lots_publish",
+  "only": {
+   "agent_enabled": true
+  },
+  "path": "/api/agent/v1/lots/{sale_id}/publish",
+  "response_class": "JSONResponse",
+  "response_model": "dict[str, Any]",
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "agent_principal"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "lots_unpublish",
+  "only": {
+   "agent_enabled": true
+  },
+  "path": "/api/agent/v1/lots/{listing_id}/unpublish",
+  "response_class": "JSONResponse",
+  "response_model": "dict[str, Any]",
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "agent_principal"
+  ],
+  "include_in_schema": true,
+  "methods": [
    "GET"
   ],
   "name": "lots_pool",
