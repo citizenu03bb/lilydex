@@ -97,7 +97,7 @@ uv run python scripts/pokeprice_lots.py --api --output /tmp/status.json status
 
 Avec `--api`, `--actor` et `--max-drafts` sont refusés (l'auteur est l'accès,
 le plafond vient du serveur), de même que `--scope all` (seuls les doublons
-entrent dans un lot) et `--data`.
+entrent dans un lot) ; `--data` n'y sert pas.
 
 ### Parcours
 
