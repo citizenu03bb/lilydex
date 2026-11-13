@@ -1,7 +1,6 @@
 """Private FastAPI inventory API and a dependency-free French web interface."""
 
 import hashlib
-import hmac
 import html
 import io
 import json
@@ -14,7 +13,7 @@ import time
 import warnings
 from decimal import Decimal
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import Literal
 from urllib.parse import quote, urlsplit
 
 from fastapi import (
@@ -30,7 +29,7 @@ from fastapi import (
 from fastapi.exception_handlers import http_exception_handler
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from PIL import Image, ImageOps
-from pydantic import BaseModel, ConfigDict, Field, StrictBool
+from pydantic import BaseModel, ConfigDict, Field
 from starlette.concurrency import run_in_threadpool
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
@@ -72,53 +71,74 @@ from .verification import (
     check_rows,
     propose_variant,
 )
-
-# A page's text, as written in the HTML: {{t:filters.title}}.
-TEXT_KEY = re.compile(r"\{\{t:([\w.]+)\}\}")
-# The management app's offline shell (docs/APP.md, « Application installable »):
-# the only addresses its service worker ever writes to its cache. Never /api.
-APP_SHELL = (
-    "/gestion/hors-ligne", "/gestion/manifest.webmanifest",
-    "/assets/themes.css", "/assets/style.css", "/assets/photo-zoom.css",
-    "/assets/components.js", "/assets/photo-zoom.js", "/assets/media.js",
-    "/assets/app.js", "/assets/workflows.js", "/assets/gallery.js", "/assets/pwa.js",
-    "/assets/assistant.js",
-    "/assets/logo.png", "/assets/icon-192.png", "/assets/icon-512.png",
-    "/assets/icon-maskable-512.png", "/assets/apple-touch-icon.png", "/favicon.ico",
+from .web_constants import (
+    APP_NO_CACHE,
+    APP_SHELL,
+    LANGUAGES,
+    LOCAL_HOSTS,
+    MANAGEMENT_QUERY,
+    NOINDEX,
+    PUBLIC_PHOTO,
+    TEXT_KEY,
+    indexing_enabled,
+    interface_version,
 )
+from .schemas import (
+    AlbumCreate,
+    BasketQuote,
+    BatchApply,
+    BatchPreview,
+    BoundQuote,
+    CaptureCreate,
+    CapturePatch,
+    CaptureSave,
+    CardCreate,
+    CardFields,
+    CardPatch,
+    ClientPatch,
+    ConditionConfirmation,
+    ConditionRequest,
+    CopyRemoval,
+    Credentials,
+    FloorDecision,
+    FloorMarginSettings,
+    GuestRequest,
+    IntakeEntry,
+    IntakeQuery,
+    IntakeSave,
+    KeepRecorded,
+    ListingCreate,
+    ListingPrice,
+    LotRotationSettings,
+    MarketVerdict,
+    MoveApply,
+    MovePreview,
+    MoveUndo,
+    OffersPaste,
+    PasswordCheck,
+    PasswordSet,
+    PaymentSettings,
+    PhotoAttachment,
+    PhotoOptions,
+    Profile,
+    PushEndpoint,
+    PushSubscription,
+    ReferenceDispute,
+    RequestAccept,
+    RequestContact,
+    RequestCreate,
+    RequestVersion,
+    SaleCreate,
+    SalePatch,
+    Signup,
+    UserCreate,
+    UserPatch,
+    VariantDecision,
+    intake_values,
+)
+from .passwords import add_user, has_admin, password_hash, password_outdated, password_valid
 
 
-def interface_version(folder: Path) -> str:
-    """A digest of the interface files as deployed: it names the service worker's cache.
-
-    Any deployment that changes a page, a script, a style, a text or an icon
-    changes it, so the phone drops the old cache; no date to bump by hand.
-    """
-    digest = hashlib.sha256(SITE_NAME.encode())
-    for path in sorted(p for p in folder.rglob("*") if p.is_file()):
-        digest.update(path.relative_to(folder).as_posix().encode() + b"\0")
-        digest.update(path.read_bytes())
-    return digest.hexdigest()[:16]
-
-
-# Served with no-cache so a deployment reaches the phone at the next visit.
-APP_NO_CACHE = ("/gestion/sw.js", "/gestion/manifest.webmanifest")
-# The storefront's languages: dictionary, <html lang> and home address. French is the
-# reference; another language lives under its prefix (docs/decisions/0020).
-LANGUAGES = {"fr": ("fr", "/"), "en": ("en-GB", "/en/")}
-# The query keys of the former management links (/?view=sales, filters), read by
-# app.js. Any other parameter on / (fbclid, utm_*, gclid…) leaves the storefront.
-MANAGEMENT_QUERY = {
-    "view", "display", "q", "album", "stock", "status", "variant", "sort",
-    "review", "threshold", "limit", "offset",
-}
-NOINDEX = '<meta name="robots" content="noindex" />'
-PUBLIC_PHOTO = re.compile(r"/api/public/listings/[^/]+/photo")
-
-
-def indexing_enabled(value):
-    """POKEPRICE_INDEXING: on unless explicitly switched off."""
-    return str(value).strip().lower() not in {"0", "false", "no", "off", "non"}
 # The errors a storefront visitor can meet, by their French detail. The answer adds
 # the code; the storefront shows web/messages' "error.<code>" in its own language.
 ERROR_CODES = {
@@ -155,474 +175,6 @@ def error_response(detail, status_code, headers=None):
     return Response(
         json.dumps(body), status_code=status_code, headers=headers, media_type="application/json"
     )
-
-
-class Model(BaseModel):
-    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
-
-
-class PhotoOptions(Model):
-    crop: StrictBool = True
-    balance: StrictBool = True
-    perspective: StrictBool = True
-
-
-class PhotoAttachment(Model):
-    token: str = Field(min_length=20, max_length=100)
-    expected_version: int = Field(ge=1)
-    side: Literal["front", "back"] = "front"
-
-
-class ConditionRequest(Model):
-    expected_version: int = Field(ge=1)
-
-
-class MarketVerdict(Model):
-    expected_version: int = Field(ge=1)
-    verdict: Literal["wrong", "verified", ""]
-    reason: str = Field(min_length=1, max_length=1000)
-
-
-class BoundQuote(Model):
-    expected_version: int = Field(ge=1)
-    metrics: dict[str, Decimal]
-    observed_on: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
-    capture_sha256: str = Field(default="", pattern=r"^(?:[a-f0-9]{64})?$")
-    reason: str = Field(min_length=1, max_length=1000)
-
-
-class OffersPaste(Model):
-    text: str = Field(min_length=1, max_length=200_000)
-
-
-class ConditionConfirmation(ConditionRequest):
-    condition: Literal["NM", "EX", "GD", "LP", "PL", "PO", "NM/EX"]
-    human_confirmed: Literal[True]
-    reason: str = Field(min_length=1, max_length=1000)
-
-
-class VariantDecision(ConditionRequest):
-    finish: Literal["non_holo", "holo", "holo_border", "reverse", "special"]
-    stamp_state: Literal["unobserved", "absent", "present"]
-    stamp: str = Field(default="", max_length=120)
-    variant_confirmed: bool
-    reason: str = Field(min_length=1, max_length=1000)
-
-
-class KeepRecorded(ConditionRequest):
-    reason: str = Field(min_length=1, max_length=1000)
-
-
-class Credentials(Model):
-    # E-mail addresses serve as client usernames, "+" included.
-    username: str = Field(min_length=1, max_length=254, pattern=r"^[\w.@+-]+$")
-    password: str = Field(min_length=10, max_length=256)
-
-
-class UserCreate(Credentials):
-    role: Literal["admin", "editor", "reader"] = "reader"
-
-
-class UserPatch(Model):
-    role: Literal["admin", "editor", "reader"]
-    disabled: bool = False
-
-
-class PushKeys(Model):
-    p256dh: str = Field(min_length=1, max_length=200)
-    auth: str = Field(min_length=1, max_length=100)
-
-
-class PushEndpoint(Model):
-    endpoint: str = Field(min_length=1, max_length=1024)
-
-
-class PushSubscription(PushEndpoint):
-    keys: PushKeys
-
-
-class CardFields(Model):
-    name: str | None = Field(default=None, min_length=1, max_length=256)
-    set_name: str | None = Field(default=None, max_length=256)
-    number: str | None = Field(default=None, max_length=80)
-    language: str | None = Field(default=None, pattern=r"^(?:[a-z]{2,3}|unknown)$")
-    catalog_id: str | None = Field(default=None, max_length=120)
-    hp: int | None = Field(default=None, ge=0, le=5000)
-    identification_status: (
-        Literal["confirmed", "review", "unresolved", "failed"] | None
-    ) = None
-    condition: Literal["", "NM", "EX", "GD", "LP", "PL", "PO", "NM/EX"] | None = None
-    condition_confirmed: bool | None = None
-    foil: bool | None = None
-    finish: (
-        Literal["", "non_holo", "holo", "holo_border", "reverse", "special"] | None
-    ) = None
-    variant_confirmed: bool | None = None
-    variant_observation: str | None = Field(default=None, max_length=1000)
-    stamp: str | None = Field(default=None, max_length=120)
-    stamp_state: Literal["unobserved", "absent", "present"] | None = None
-    distribution: str | None = Field(default=None, max_length=120)
-    distribution_state: Literal["unobserved", "absent", "present"] | None = None
-    album_id: str | None = Field(default=None, min_length=1, max_length=120)
-    page: int | None = Field(default=None, ge=1, le=1000)
-    position: int | None = Field(default=None, ge=1, le=100)
-    notes: str | None = Field(default=None, max_length=8000)
-
-
-class CardPatch(CardFields):
-    expected_version: int = Field(ge=1)
-    reason: str = Field(min_length=1, max_length=1000)
-    reference_price_eur: Decimal | None = Field(
-        default=None, ge=0, le=10000000, decimal_places=2
-    )
-    price_source: str | None = Field(default=None, max_length=256)
-
-
-class CardCreate(CardFields):
-    name: str = Field(min_length=1, max_length=256)
-    album_id: str = Field(min_length=1, max_length=120)
-    page: int = Field(ge=1, le=1000)
-    position: int = Field(ge=1, le=100)
-    set_name: str = Field(default="", max_length=256)
-    number: str = Field(default="", max_length=80)
-    language: str = Field(default="fr", pattern=r"^(?:[a-z]{2,3}|unknown)$")
-    reason: str = Field(min_length=1, max_length=1000)
-    duplicate_acknowledgments: list[str] = Field(default_factory=list, max_length=200)
-
-
-class CopyRemoval(Model):
-    expected_version: int = Field(ge=1)
-    reason: str = Field(min_length=1, max_length=1000)
-
-
-class ReferenceDispute(CopyRemoval):
-    active: bool
-    affects: Literal["print", "market", "both"] = "both"
-
-
-class AlbumCreate(Model):
-    name: str = Field(min_length=1, max_length=120)
-
-
-class IntakeQuery(Model):
-    name: str = Field(min_length=1, max_length=256)
-    number: str = Field(default="", max_length=80)
-    language: str = Field(default="unknown", pattern=r"^(?:[a-z]{2,3}|unknown)$")
-    hp: int | None = Field(default=None, ge=0, le=5000)
-
-
-class IntakeEntry(Model):
-    """The entry as shown when a reading starts: fallback for unread fields."""
-
-    name: str = Field(default="", max_length=256)
-    number: str = Field(default="", max_length=80)
-    language: str = Field(default="unknown", pattern=r"^(?:[a-z]{2,3}|unknown)$")
-    hp: int | None = Field(default=None, ge=0, le=5000)
-
-
-class IntakeSave(CardCreate):
-    chosen_catalog_id: str | None = Field(default=None, max_length=120)
-    human_confirmed: bool = False
-
-
-class CaptureCreate(Model):
-    album_id: str = Field(min_length=1, max_length=120)
-    slots: int = Field(default=9, ge=1, le=100)
-    page: int = Field(default=1, ge=1, le=1000)
-    position: int = Field(default=1, ge=1, le=100)
-
-
-class CaptureFields(CardFields):
-    reason: str = Field(default="", max_length=1000)
-    chosen_catalog_id: str | None = Field(default=None, max_length=120)
-    human_confirmed: bool = False
-
-
-class CapturePatch(Model):
-    expected_version: int = Field(ge=1)
-    page: int | None = Field(default=None, ge=1, le=1000)
-    position: int | None = Field(default=None, ge=1, le=100)
-    fields: CaptureFields | None = None
-    front_token: str | None = Field(default=None, min_length=20, max_length=100)
-    back_token: str | None = Field(default=None, min_length=20, max_length=100)
-    status: Literal["active", "paused", "closed"] | None = None
-
-
-class CaptureSave(IntakeSave):
-    expected_version: int = Field(ge=1)
-    token: str = Field(min_length=20, max_length=100)
-
-
-class BatchCopy(Model):
-    id: str = Field(min_length=1, max_length=100)
-    expected_version: int = Field(ge=1)
-
-
-class BatchPreview(Model):
-    copies: list[BatchCopy] = Field(min_length=1, max_length=20)
-    side: Literal["front", "back"] = "front"
-    options: PhotoOptions = Field(default_factory=PhotoOptions)
-
-
-class BatchApply(Model):
-    copy_ids: list[str] = Field(default_factory=list, max_length=20)
-    positions: list[int] = Field(default_factory=list, max_length=9)
-
-
-class MovePreview(Model):
-    copies: list[BatchCopy] = Field(min_length=1, max_length=200)
-    album_id: str = Field(min_length=1, max_length=120)
-    mode: Literal["auto", "from_slot"] = "auto"
-    start_page: int = Field(default=1, ge=1, le=1000)
-    start_position: int = Field(default=1, ge=1, le=100)
-    slots: int = Field(default=9, ge=1, le=100)
-    reason: str = Field(default="Déplacement groupé", min_length=1, max_length=1000)
-
-
-class MoveApply(Model):
-    reason: str | None = Field(default=None, min_length=1, max_length=1000)
-    allow_collisions: bool = False
-
-
-class MoveUndo(Model):
-    reason: str | None = Field(default=None, min_length=1, max_length=1000)
-
-
-def intake_values(values):
-    data = values.model_dump(
-        exclude_unset=True,
-        exclude={
-            "expected_version",
-            "token",
-            "duplicate_acknowledgments",
-            "chosen_catalog_id",
-            "human_confirmed",
-            "catalog_id",
-            "identification_status",
-            "condition",
-            "condition_confirmed",
-            "foil",
-        },
-    )
-    if any(v is None and k != "hp" for k, v in data.items()):
-        raise ValueError("Champ vide non autorisé.")
-    for key in ("name", "number", "set_name", "language", "reason"):
-        data[key] = getattr(values, key)
-    return data
-
-
-class Signup(Model):
-    email: str = Field(min_length=3, max_length=254)
-    display_name: str = Field(min_length=1, max_length=80)
-    password: str = Field(min_length=10, max_length=256)
-    # Acknowledges the data notice; the legal basis is the reservation itself,
-    # not consent. Its date stays in users.consent_at.
-    consent: Literal[True]
-
-
-class BasketQuote(Model):
-    listing_ids: list[str] = Field(min_length=1, max_length=50)
-    delivery: Literal["shipping", "hand"] = "shipping"
-
-
-class RequestCreate(BasketQuote):
-    expected_prices: dict[str, Annotated[int, Field(strict=True, ge=0)]] = Field(max_length=50)
-    message: str = Field(default="", max_length=1000)
-    registered: bool | None = None
-
-
-class GuestRequest(RequestCreate):
-    email: str = Field(min_length=3, max_length=254)
-    display_name: str = Field(min_length=1, max_length=80)
-    # The same notice as at signup: the reservation itself is the legal basis.
-    consent: Literal[True]
-
-
-class PasswordSet(Model):
-    token: str = Field(min_length=20, max_length=100)
-    password: str = Field(min_length=10, max_length=256)
-
-
-class RequestVersion(Model):
-    expected_version: int = Field(ge=1)
-
-
-class RequestAccept(RequestVersion):
-    listing_ids: list[str] = Field(min_length=1, max_length=50)
-
-
-class RequestContact(RequestVersion):
-    email: str = Field(min_length=3, max_length=254)
-    display_name: str = Field(min_length=1, max_length=80)
-    correspondence_checked: Literal[True]
-
-
-class Profile(Model):
-    display_name: str = Field(min_length=1, max_length=80)
-    email: str = Field(min_length=3, max_length=254)
-    password: str = Field(min_length=1, max_length=256)
-
-
-class PasswordCheck(Model):
-    password: str = Field(min_length=1, max_length=256)
-
-
-class PaymentSettings(Model):
-    # Each method is optional; an empty value means it is not offered.
-    wero: str = Field("", max_length=254)
-    iban: str = Field("", max_length=64)
-    holder: str = Field("", max_length=70)
-    paypal: str = Field("", max_length=254)
-
-
-class FloorMarginSettings(Model):
-    margin: int = Field(ge=0, le=50, strict=True)
-
-
-class LotRotationSettings(Model):
-    days: int = Field(ge=3, le=90, strict=True)
-
-
-class ClientPatch(Model):
-    status: Literal["active", "refused"]
-    disabled: bool = False
-
-
-class ListingPrice(Model):
-    # Without a price, the copy takes its computed storefront price.
-    price_eur: Decimal | None = Field(default=None, ge=0, le=10000000, decimal_places=2)
-
-
-class FloorDecision(Model):
-    reason: str = Field(default="", max_length=1000)
-
-
-class ListingCreate(ListingPrice):
-    copy_ids: list[str] = Field(min_length=1, max_length=401)
-    lot: bool = False
-    title: str = Field(default="", max_length=256)
-
-
-class SaleCreate(Model):
-    title: str = Field(min_length=1, max_length=256)
-    copy_ids: list[str] = Field(min_length=1, max_length=401)
-    amount_eur: Decimal = Field(ge=0, le=10000000, decimal_places=2)
-    asking_eur: Decimal | None = Field(
-        default=None, ge=0, le=10000000, decimal_places=2
-    )
-    target_eur: Decimal | None = Field(
-        default=None, ge=0, le=10000000, decimal_places=2
-    )
-    minimum_eur: Decimal | None = Field(
-        default=None, ge=0, le=10000000, decimal_places=2
-    )
-    channel: str = Field(default="", max_length=120)
-    listing_url: str = Field(default="", max_length=2000)
-    notes: str = Field(default="", max_length=8000)
-
-
-class SalePatch(Model):
-    expected_version: int = Field(ge=1)
-    asking_eur: Decimal | None = Field(
-        default=None, ge=0, le=10000000, decimal_places=2
-    )
-    target_eur: Decimal | None = Field(
-        default=None, ge=0, le=10000000, decimal_places=2
-    )
-    minimum_eur: Decimal | None = Field(
-        default=None, ge=0, le=10000000, decimal_places=2
-    )
-    reason: str = Field(min_length=1, max_length=1000)
-    status: (
-        Literal[
-            "draft", "reserved", "sold", "shipped", "completed", "cancelled", "returned"
-        ]
-        | None
-    ) = None
-    amount_eur: Decimal | None = Field(
-        default=None, ge=0, le=10000000, decimal_places=2
-    )
-    fees_eur: Decimal | None = Field(default=None, ge=0, le=10000000, decimal_places=2)
-    shipping_charged_eur: Decimal | None = Field(
-        default=None, ge=0, le=10000000, decimal_places=2
-    )
-    shipping_cost_eur: Decimal | None = Field(
-        default=None, ge=0, le=10000000, decimal_places=2
-    )
-    packing_eur: Decimal | None = Field(
-        default=None, ge=0, le=10000000, decimal_places=2
-    )
-    refund_eur: Decimal | None = Field(
-        default=None, ge=0, le=10000000, decimal_places=2
-    )
-    paid: bool | None = None
-    channel: str | None = Field(default=None, max_length=120)
-    listing_url: str | None = Field(default=None, max_length=2000)
-    notes: str | None = Field(default=None, max_length=8000)
-
-
-# OWASP scrypt minimum in its low-memory form (16 MiB per hash, five passes):
-# the small server stays usable when several logins arrive at once.
-SCRYPT = {"n": 2**14, "r": 8, "p": 5}
-# Bare "salt:key" hashes written before October 2026, upgraded at login.
-LEGACY_SCRYPT = {"n": 2**14, "r": 8, "p": 1}
-
-
-def scrypt_key(password, salt, n, r, p):
-    return hashlib.scrypt(
-        password.encode(), salt=salt, n=n, r=r, p=p, maxmem=256 * r * n, dklen=32
-    )
-
-
-def password_hash(password):
-    salt = secrets.token_bytes(16)
-    params = ",".join(f"{k}={v}" for k, v in SCRYPT.items())
-    return f"scrypt${params}${salt.hex()}${scrypt_key(password, salt, **SCRYPT).hex()}"
-
-
-def hash_parts(encoded):
-    if "$" not in encoded:
-        salt, key = encoded.split(":")
-        return LEGACY_SCRYPT, salt, key
-    algorithm, params, salt, key = encoded.split("$")
-    if algorithm != "scrypt":
-        raise ValueError("Format de mot de passe inconnu.")
-    cost = {k: int(v) for k, v in (item.split("=") for item in params.split(","))}
-    return cost, salt, key
-
-
-def password_valid(password, encoded):
-    params, salt, key = hash_parts(encoded)
-    actual = scrypt_key(password, bytes.fromhex(salt), **params)
-    return hmac.compare_digest(actual, bytes.fromhex(key))
-
-
-def password_outdated(encoded):
-    return hash_parts(encoded)[0] != SCRYPT
-
-
-LOCAL_HOSTS = {"127.0.0.1", "localhost", "::1", "[::1]", "testserver"}
-
-
-def has_admin(db):
-    return bool(db.execute("SELECT 1 FROM users WHERE role='admin' LIMIT 1").fetchone())
-
-
-def add_user(db, values):
-    import uuid
-
-    user = {"id": str(uuid.uuid4()), "username": values.username, "role": values.role}
-    db.execute(
-        "INSERT INTO users(id,username,password_hash,role,created_at) VALUES(?,?,?,?,?)",
-        (
-            user["id"],
-            user["username"],
-            password_hash(values.password),
-            user["role"],
-            now(),
-        ),
-    )
-    return user
 
 
 def create_app(

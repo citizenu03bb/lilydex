@@ -502,7 +502,8 @@ def main():
         elif args.action == "user":
             import getpass
 
-            from .webapp import UserCreate, add_user
+            from .passwords import add_user
+            from .schemas import UserCreate
 
             password = getpass.getpass("Mot de passe (10 caractères minimum) : ")
             if password != getpass.getpass("Confirmation : "):

@@ -7,7 +7,7 @@ import urllib.parse
 import dotenv
 import pytest
 
-from pokeprice import webapp
+from pokeprice import passwords
 from pokeprice.tcgdex import TCGdexClient
 
 
@@ -15,7 +15,7 @@ from pokeprice.tcgdex import TCGdexClient
 def cheap_scrypt(request, monkeypatch):
     # Hundreds of test logins would otherwise pay the production hashing cost.
     if not request.node.get_closest_marker("real_scrypt"):
-        monkeypatch.setattr(webapp, "SCRYPT", {"n": 2**10, "r": 8, "p": 1})
+        monkeypatch.setattr(passwords, "SCRYPT", {"n": 2**10, "r": 8, "p": 1})
 
 
 # Read from ~/.env by the application: a test never sees a real key or channel.

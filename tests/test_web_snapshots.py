@@ -35,7 +35,7 @@ from fastapi.testclient import TestClient
 from starlette.routing import Match
 from test_library import inputs
 
-from pokeprice import webapp
+from pokeprice import passwords, webapp
 from pokeprice.inventory import Store
 from pokeprice.inventory_import import import_collection
 from pokeprice.webapp import UserCreate, add_user, create_app
@@ -329,7 +329,9 @@ def test_services_on_app_state_share_one_instance_each(tmp_path):
 
 
 def test_cheap_hashing_patch_reaches_password_hash():
-    # conftest patches webapp.SCRYPT; if the name ever moved behind a re-export,
-    # the patch would silently stop applying and every login test would slow down.
-    assert webapp.SCRYPT["n"] == 2**10
+    # conftest patches passwords.SCRYPT, the name password_hash reads. webapp must not
+    # re-export it: a patch on a copy would silently stop applying and slow every login test.
+    assert passwords.SCRYPT["n"] == 2**10
+    assert passwords.password_hash("Mot-de-passe-2026!").startswith("scrypt$n=1024,")
     assert webapp.password_hash("Mot-de-passe-2026!").startswith("scrypt$n=1024,")
+    assert not hasattr(webapp, "SCRYPT") and not hasattr(webapp, "LEGACY_SCRYPT")
