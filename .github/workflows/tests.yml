@@ -52,7 +52,12 @@ jobs:
   browsers:
     name: browser (${{ matrix.browser }})
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 25
+    # Playwright's own image carries the browsers and their system packages:
+    # installing WebKit's packages from the Ubuntu mirror often outlasted the job.
+    # The tag follows Playwright in tests/browser/package-lock.json.
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
     strategy:
       fail-fast: false
       matrix:
@@ -71,11 +76,18 @@ jobs:
         run: |
           uv sync --frozen --extra web --extra dev
           npm ci --prefix tests/browser
-      - name: Install browser and system dependencies
-        working-directory: tests/browser
-        run: npx playwright install --with-deps ${{ matrix.browser }}
+          # The image's browsers match one Playwright version only.
+          installed="$(node -p "require('./tests/browser/node_modules/playwright-core/package.json').version")"
+          if [ "$installed" != "1.62.1" ]; then
+            echo "Playwright $installed : mettez à jour l'image du travail browsers (v$installed-noble)." >&2
+            exit 1
+          fi
       - name: Run local synthetic storefront recipe
         working-directory: tests/browser
+        # The runner sets HOME to a folder root does not own, and Firefox then refuses
+        # to start; HOME on the step itself is the workaround Playwright documents.
+        env:
+          HOME: /root
         run: npm test -- --project=${{ matrix.browser }}
       - name: Archive browser reports and screenshots
         if: ${{ always() }}
