@@ -73,16 +73,11 @@ from .schemas import (
     ConditionRequest,
     CopyRemoval,
     Credentials,
-    FloorDecision,
-    FloorMarginSettings,
     GuestRequest,
     IntakeEntry,
     IntakeQuery,
     IntakeSave,
     KeepRecorded,
-    ListingCreate,
-    ListingPrice,
-    LotRotationSettings,
     MarketVerdict,
     MoveApply,
     MovePreview,
@@ -90,13 +85,10 @@ from .schemas import (
     OffersPaste,
     PasswordCheck,
     PasswordSet,
-    PaymentSettings,
     PhotoAttachment,
     PhotoOptions,
     Profile,
     ReferenceDispute,
-    RequestAccept,
-    RequestContact,
     RequestCreate,
     RequestVersion,
     Signup,
@@ -108,10 +100,14 @@ from .schemas import (
 from .errors import ERROR_CODES, install_handlers
 from .passwords import add_user, has_admin, password_hash, password_outdated, password_valid
 from .routes.backup import register_backup
+from .routes.client_requests import register_client_requests
 from .routes.context import build_services
 from .routes.exports import register_exports
+from .routes.floor_requests import register_floor_requests
+from .routes.listings import register_listings
 from .routes.push import register_push
 from .routes.sales import register_sales
+from .routes.settings import register_settings
 from .routes.statistics import register_statistics
 from .security import install_security
 
@@ -590,60 +586,8 @@ def create_app(
     def client_password_link(client_id: str, user=Depends(admin)):
         return reservations.password_link(client_id, user["username"])
 
-    @app.get("/api/settings/payment")
-    def payment_settings(user=Depends(admin)):
-        return reservations.payment()
-
-    @app.put("/api/settings/payment")
-    def payment_update(values: PaymentSettings, user=Depends(admin)):
-        return reservations.set_payment(values.model_dump(), user["username"])
-
-    # Decision 0042: only a signed-in administrator moves the anti-undercut margin.
-    @app.get("/api/settings/floor-margin")
-    def floor_margin_settings(user=Depends(admin)):
-        from .pricing import lot_margin_history, lot_max_margin
-
-        return {"margin": lot_max_margin(store), "history": lot_margin_history(store)}
-
-    @app.put("/api/settings/floor-margin")
-    def floor_margin_update(values: FloorMarginSettings, user=Depends(admin)):
-        from .pricing import set_lot_max_margin
-
-        return set_lot_max_margin(store, values.margin, user["username"])
-
-    # Only a signed-in administrator sets how long an unsold tool-made lot stays online.
-    @app.get("/api/settings/lot-rotation")
-    def lot_rotation_settings(user=Depends(admin)):
-        from .lots.settings import lot_rotation_days, lot_rotation_history
-
-        return {"days": lot_rotation_days(store), "history": lot_rotation_history(store)}
-
-    @app.put("/api/settings/lot-rotation")
-    def lot_rotation_update(values: LotRotationSettings, user=Depends(admin)):
-        from .lots.settings import set_lot_rotation_days
-
-        return set_lot_rotation_days(store, values.days, user["username"])
-
-    @app.get("/api/requests")
-    def request_index(user=Depends(staff)):
-        return reservations.all()
-
-    @app.post("/api/requests/{request_id}/accept")
-    def request_accept(request_id: str, values: RequestAccept, user=Depends(editor)):
-        return reservations.accept(
-            request_id, values.expected_version, values.listing_ids, user["username"]
-        )
-
-    @app.patch("/api/requests/{request_id}/contact")
-    def request_contact(request_id: str, values: RequestContact, user=Depends(admin)):
-        return reservations.confirm_contact(request_id, values.expected_version, values.email,
-                                            values.display_name, user["username"])
-
-    @app.post("/api/requests/{request_id}/refuse")
-    def request_refuse(request_id: str, values: CopyRemoval, user=Depends(editor)):
-        return reservations.refuse(
-            request_id, values.expected_version, user["username"], values.reason
-        )
+    register_settings(app, ctx)
+    register_client_requests(app, ctx)
 
     @app.get("/api/public/listings/{listing_id}")
     def public_listing(listing_id: str, request: Request, view: bool = False, _=Depends(public_rate)):
@@ -1699,78 +1643,8 @@ def create_app(
         )
 
 
-    @app.get("/api/listings")
-    def listing_index(
-        state: Literal["online", "offline", ""] = "online", user=Depends(staff)
-    ):
-        return listings.all(state)
-
-    @app.post("/api/listings", status_code=201)
-    def listing_create(values: ListingCreate, user=Depends(editor)):
-        price = cents(values.price_eur)
-        if values.lot:
-            return [
-                listings.publish(
-                    values.copy_ids, user["username"], price_cents=price,
-                    title=values.title, lot=True,
-                )
-            ]
-        # A selection: each card is published alone, at its own price.
-        published, refused = [], []
-        for copy_id in values.copy_ids:
-            try:
-                published.append(
-                    listings.publish([copy_id], user["username"], price_cents=price)
-                )
-            except (ValueError, Conflict) as error:
-                refused.append({"copy_id": copy_id, "reason": str(error)})
-        return {"published": published, "refused": refused}
-
-    @app.get("/api/copies/{copy_id}/listing")
-    def copy_listing(copy_id: str, user=Depends(staff)):
-        with store.connect() as db:
-            current = listings.active(db, copy_id)
-            current = listings.get(db, current["id"]) if current else None
-        return {"listing": current, "proposal": listings.proposal(copy_id)}
-
-    @app.put("/api/copies/{copy_id}/listing")
-    def copy_publish(copy_id: str, values: ListingPrice, user=Depends(editor)):
-        return listings.publish(
-            [copy_id], user["username"], price_cents=cents(values.price_eur)
-        )
-
-    @app.delete("/api/copies/{copy_id}/listing")
-    def copy_unpublish(copy_id: str, user=Depends(editor)):
-        with store.connect() as db:
-            current = listings.active(db, copy_id)
-        if not current:
-            raise KeyError("Cet exemplaire n’est pas publié.")
-        return listings.unpublish(
-            current["id"], current["version"], user["username"], "Retrait de la vitrine"
-        )
-
-    @app.post("/api/listings/{listing_id}/unpublish")
-    def listing_unpublish(listing_id: str, values: CopyRemoval, user=Depends(editor)):
-        return listings.unpublish(
-            listing_id, values.expected_version, user["username"], values.reason
-        )
-
-
-    @app.get("/api/floor-requests")
-    def floor_request_index(user=Depends(staff)):
-        return floor_requests.open()
-
-    @app.post("/api/floor-requests/{request_id}/accept")
-    def floor_request_accept(request_id: str, values: FloorDecision, user=Depends(editor)):
-        return floor_requests.accept(request_id, user["username"], values.reason)
-
-    @app.post("/api/floor-requests/{request_id}/raise")
-    def floor_request_raise(request_id: str, values: FloorDecision, user=Depends(editor)):
-        return floor_requests.raise_to_floor(request_id, user["username"], values.reason)
-
-    @app.post("/api/floor-requests/{request_id}/refuse")
-    def floor_request_refuse(request_id: str, values: FloorDecision, user=Depends(editor)):
-        return floor_requests.refuse(request_id, user["username"], values.reason)
+    register_listings(app, ctx)
+    register_floor_requests(app, ctx)
 
     register_sales(app, ctx)
     register_exports(app, ctx)
