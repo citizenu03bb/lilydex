@@ -2,6 +2,8 @@
 
 import ast
 import dataclasses
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -134,3 +136,22 @@ def test_no_postponed_annotations_where_fastapi_reads_them():
         for node in ast.walk(ast.parse(path.read_text())):
             if isinstance(node, ast.ImportFrom) and node.module == "__future__":
                 assert "annotations" not in [alias.name for alias in node.names], path.name
+
+
+def test_the_assistant_routes_load_at_start_up_not_at_import():
+    # create_app imports them, with the assistant modules, only when it runs.
+    probe = ("import sys, pokeprice.webapp; "
+             "print('pokeprice.routes.assistant' in sys.modules, 'pokeprice.assistant' in sys.modules)")
+    result = subprocess.run([sys.executable, "-c", probe], capture_output=True, text=True, check=True)
+    assert result.stdout.split() == ["False", "False"]
+
+
+def test_the_assistant_bodies_are_module_level_models(tmp_path):
+    # Defined at module level so FastAPI reads them as bodies (defect B4).
+    from pokeprice.routes import assistant
+
+    app = webapp.create_app(tmp_path / "inventory", price_fetch=no_service)
+    bodies = {route.name: route.body_field.field_info.annotation for route in app.routes
+              if getattr(route, "body_field", None) is not None}
+    assert bodies["assistant_ask"] is assistant.AssistantQuestion
+    assert bodies["assistant_flag"] is assistant.AssistantFlag

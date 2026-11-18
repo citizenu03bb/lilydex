@@ -25,7 +25,6 @@ from fastapi import (
 )
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from PIL import Image, ImageOps
-from pydantic import BaseModel, ConfigDict, Field
 from starlette.concurrency import run_in_threadpool
 
 from .audience import counted
@@ -44,7 +43,6 @@ from .pricing import (
     fetch_card,
 )
 from .privacy import Privacy
-from .notifications import subscribe, subscribed, unsubscribe
 from .reservations import shipping_config, valid_email
 from .variant_pricing import category
 from .edition_check import propose_edition
@@ -98,8 +96,6 @@ from .schemas import (
     PhotoAttachment,
     PhotoOptions,
     Profile,
-    PushEndpoint,
-    PushSubscription,
     ReferenceDispute,
     RequestAccept,
     RequestContact,
@@ -116,6 +112,8 @@ from .schemas import (
 from .errors import ERROR_CODES, install_handlers
 from .passwords import add_user, has_admin, password_hash, password_outdated, password_valid
 from .routes.context import build_services
+from .routes.push import register_push
+from .routes.statistics import register_statistics
 from .security import install_security
 
 
@@ -682,28 +680,8 @@ def create_app(
             raise KeyError("Photo absente.")
         return FileResponse(path, media_type="image/webp" if format == "webp" else "image/jpeg")
 
-    @app.get("/api/audience")
-    def audience_report(
-        days: int = Query(default=30, ge=7, le=365), user=Depends(admin)
-    ):
-        report = audience.report(days)
-        for row in report["listings"]:
-            try:
-                listing = storefront.get(row["id"])
-                row["title"] = listing["title"] or " · ".join(
-                    i["name"] for i in listing["items"]
-                )
-            except KeyError:
-                row["title"] = ""  # Sold or withdrawn since.
-        start = report["from"]
-        with store.connect() as db:
-            report["signups"] = db.execute(
-                "SELECT COUNT(*) FROM users WHERE role='client' AND created_at>=?", (start,)
-            ).fetchone()[0]
-            report["requests"] = db.execute(
-                "SELECT COUNT(*) FROM requests WHERE created_at>=?", (start,)
-            ).fetchone()[0]
-        return report
+    register_statistics(app, ctx)
+
 
     @app.get("/api/setup")
     def setup_state():
@@ -764,27 +742,7 @@ def create_app(
     def session(user=Depends(current_user)):
         return user
 
-    # Web Push of the management (decision 0033): the public key, then one
-    # subscription per phone, owned by the account that took it.
-    @app.get("/api/push")
-    def push_settings(user=Depends(staff)):
-        return {"enabled": web_push is not None,
-                "public_key": web_push.public_key if web_push else None}
-
-    @app.post("/api/push/subscriptions", status_code=201)
-    def push_subscribe(values: PushSubscription, user=Depends(staff)):
-        if web_push is None:
-            raise HTTPException(409, "Notifications non configurées sur le serveur.")
-        subscribe(store, user["id"], values.endpoint, values.keys.p256dh, values.keys.auth)
-        return {"subscribed": True}
-
-    @app.post("/api/push/subscriptions/check")
-    def push_check(values: PushEndpoint, user=Depends(staff)):
-        return {"subscribed": subscribed(store, user["id"], values.endpoint)}
-
-    @app.delete("/api/push/subscriptions")
-    def push_unsubscribe(values: PushEndpoint, user=Depends(staff)):
-        return {"removed": unsubscribe(store, user["id"], values.endpoint)}
+    register_push(app, ctx)
 
     @app.post("/api/logout")
     def logout(request: Request, response: Response, user=Depends(current_user)):
@@ -1944,77 +1902,10 @@ def create_app(
 
     # The management chat, V1 (assistant.py, decisions 0029 and 0034): it reads
     # through the closed tools and writes nothing. Off without its own key.
-    from fastapi.responses import StreamingResponse
-
-    from .agent import AgentError
-    from .assistant import MAX_QUESTION, Refused
+    from .routes.assistant import register_assistant
 
     app.state.assistant = assistant
-
-
-    class AssistantQuestion(BaseModel):
-        model_config = ConfigDict(extra="forbid")
-        question: str = Field(min_length=1, max_length=MAX_QUESTION)
-        conversation_id: str | None = Field(default=None, max_length=40, pattern=r"^[a-f0-9-]{36}$")
-        # V1.1, contexte de la question (fiche 0036) : liste blanche appliquée par
-        # assistant_context.clean dans Assistant.prepare ; le superflu est écarté.
-        context: dict | None = None
-
-    def assistant_refused(error):
-        if isinstance(error, AgentError):
-            raise HTTPException(error.status, str(error))
-        headers = {"Retry-After": str(error.retry_after)} if error.retry_after else None
-        raise HTTPException(error.status, str(error), headers=headers)
-
-    @app.get("/api/assistant")
-    def assistant_state(user=Depends(staff)):
-        try:
-            from .assistant import principal
-
-            principal(store, user["id"])
-        except AgentError as error:
-            assistant_refused(error)
-        return assistant.state(user["id"])
-
-    @app.post("/api/assistant")
-    def assistant_ask(values: AssistantQuestion, user=Depends(staff)):
-        try:
-            question = assistant.prepare(user["id"], values.question, values.conversation_id,
-                                         values.context)
-        except (Refused, AgentError) as error:
-            assistant_refused(error)
-
-        def events():
-            for kind, data in assistant.run(question):
-                yield f"event: {kind}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
-
-        return StreamingResponse(
-            events(), media_type="text/event-stream",
-            headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"},
-        )
-
-    @app.delete("/api/assistant/conversations")
-    def assistant_forget_all(user=Depends(staff)):
-        return assistant.journal.delete(user["id"])
-
-    @app.delete("/api/assistant/conversations/{conversation_id}")
-    def assistant_forget(conversation_id: str, user=Depends(staff)):
-        return assistant.journal.delete(user["id"], conversation_id)
-
-    # Chantier V1.1 « capture des échecs » (decision 0038): the 👎 under an
-    # answer, with a free note, kept beside it for the bench.
-    from .assistant_signals import MAX_NOTE
-
-    class AssistantFlag(BaseModel):
-        model_config = ConfigDict(extra="forbid")
-        note: str = Field(default="", max_length=MAX_NOTE)
-
-    @app.post("/api/assistant/answers/{message_id}/flag")
-    def assistant_flag(message_id: int, values: AssistantFlag, user=Depends(staff)):
-        try:
-            return assistant.journal.thumbs_down(user["id"], message_id, values.note)
-        except KeyError as error:
-            raise HTTPException(404, str(error.args[0])) from None
+    register_assistant(app, ctx)
 
     if agent_enabled:
         from .agent_api import install
