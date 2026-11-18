@@ -9,7 +9,6 @@ import secrets
 import sqlite3
 import warnings
 from decimal import Decimal
-from pathlib import Path
 from typing import Literal
 from urllib.parse import quote
 
@@ -32,7 +31,6 @@ from .brand import SITE_NAME, site_slug
 from .condition_assessment import assessment_rows
 from .intake import normalize_photo
 from .inventory import Conflict, cents, now
-from .inventory_backup import backup, export_csv, export_data, export_html
 from .photo_processing import parse_guide
 from .quote_ledger import select_transcription
 from .market_product import cached_set_code
@@ -101,8 +99,6 @@ from .schemas import (
     RequestContact,
     RequestCreate,
     RequestVersion,
-    SaleCreate,
-    SalePatch,
     Signup,
     UserCreate,
     UserPatch,
@@ -111,8 +107,11 @@ from .schemas import (
 )
 from .errors import ERROR_CODES, install_handlers
 from .passwords import add_user, has_admin, password_hash, password_outdated, password_valid
+from .routes.backup import register_backup
 from .routes.context import build_services
+from .routes.exports import register_exports
 from .routes.push import register_push
+from .routes.sales import register_sales
 from .routes.statistics import register_statistics
 from .security import install_security
 
@@ -1773,120 +1772,9 @@ def create_app(
     def floor_request_refuse(request_id: str, values: FloorDecision, user=Depends(editor)):
         return floor_requests.refuse(request_id, user["username"], values.reason)
 
-    @app.get("/api/sales")
-    def sales(user=Depends(staff)):
-        return store.sales()
-
-    @app.post("/api/sales", status_code=201)
-    def sale_create(values: SaleCreate, user=Depends(editor)):
-        data = values.model_dump(
-            exclude={
-                "copy_ids",
-                "amount_eur",
-                "asking_eur",
-                "target_eur",
-                "minimum_eur",
-            }
-        )
-        data["amount_cents"] = cents(values.amount_eur)
-        for key in ("asking", "target", "minimum"):
-            data[key + "_cents"] = cents(getattr(values, key + "_eur"))
-        return {"id": store.create_sale(data, values.copy_ids, user["username"])}
-
-    @app.patch("/api/sales/{sale_id}")
-    def sale_patch(sale_id: str, values: SalePatch, user=Depends(editor)):
-        changes = values.model_dump(
-            exclude_unset=True, exclude={"expected_version", "reason"}
-        )
-        if any(
-            v is None and k not in ("asking_eur", "target_eur", "minimum_eur")
-            for k, v in changes.items()
-        ):
-            raise ValueError("Champ vide non autorisé.")
-        for field in list(changes):
-            if field.endswith("_eur"):
-                changes[field[:-4] + "_cents"] = cents(changes.pop(field))
-        return store.update_sale(
-            sale_id, changes, values.expected_version, user["username"], values.reason
-        )
-
-    @app.get("/api/sales/{sale_id}/listing-package")
-    def listing_package(sale_id: str, user=Depends(editor)):
-        import shutil
-        import tempfile
-
-        from starlette.background import BackgroundTask
-
-        from .listing_package import package
-
-        folder = Path(tempfile.mkdtemp(prefix="pokeprice-listing-"))
-        target = folder / "annonce.zip"
-        try:
-            package(store, sale_id, target)
-        except Exception:
-            shutil.rmtree(folder)
-            raise
-        return FileResponse(
-            target,
-            filename="pokeprice-brouillon-annonce.zip",
-            media_type="application/zip",
-            background=BackgroundTask(shutil.rmtree, folder),
-        )
-
-    @app.get("/api/export/{kind}")
-    def export(kind: Literal["csv", "json", "html"], user=Depends(staff)):
-        body = {
-            "csv": export_csv,
-            "json": lambda s: json.dumps(export_data(s), ensure_ascii=False, indent=2),
-            "html": export_html,
-        }[kind](store)
-        media = {"csv": "text/csv", "json": "application/json", "html": "text/html"}[
-            kind
-        ]
-        return Response(
-            body,
-            media_type=media,
-            headers={
-                "Content-Disposition": f'attachment; filename="pokeprice-collection.{kind}"'
-            },
-        )
-
-    @app.get("/api/backup/status")
-    def backup_status(user=Depends(admin)):
-        from .daily_backup import public_status
-
-        return public_status(store)
-
-    @app.post("/api/backup/daily")
-    def backup_daily(user=Depends(admin)):
-        from .daily_backup import daily, public_status
-
-        daily(store, force=True)
-        return public_status(store)
-
-    @app.get("/api/backup")
-    def download_backup(user=Depends(admin)):
-        import tempfile
-
-        from starlette.background import BackgroundTask
-
-        folder = Path(tempfile.mkdtemp(prefix="pokeprice-backup-"))
-        target = folder / "collection.zip"
-        try:
-            backup(store, target)
-        except Exception:
-            import shutil
-
-            shutil.rmtree(folder)
-            raise
-        import shutil
-
-        return FileResponse(
-            target,
-            filename="pokeprice-backup.zip",
-            media_type="application/zip",
-            background=BackgroundTask(shutil.rmtree, folder),
-        )
+    register_sales(app, ctx)
+    register_exports(app, ctx)
+    register_backup(app, ctx)
 
     from .todo import default_since, parse_since
 
