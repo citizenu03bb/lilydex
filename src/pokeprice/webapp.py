@@ -33,41 +33,29 @@ from pydantic import BaseModel, ConfigDict, Field
 from starlette.concurrency import run_in_threadpool
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from .audience import Audience, counted
+from .audience import counted
 from .brand import SITE_NAME, site_slug, site_wordmark
-from .agent_review import AgentReview
-from .condition_assessment import ConditionService, assessment_rows, read_condition
-from .intake import IntakeService, catalogue_candidates, normalize_photo, read_photo
-from .inventory import Conflict, Store, cents, now
+from .condition_assessment import assessment_rows
+from .intake import normalize_photo
+from .inventory import Conflict, cents, now
 from .inventory_backup import backup, export_csv, export_data, export_html
 from .photo_processing import parse_guide
 from .quote_ledger import select_transcription
-from .market_product import MarketProducts, cached_set_code, fetch_tcgdex
+from .market_product import cached_set_code
 from .pricing import (
-    PriceService,
     binding_market_url,
     cardmarket_search_url,
     cardmarket_url,
     fetch_card,
-    fetch_card_with_guide,
-    fetch_catalogue_card,
 )
-from .cardmarket_guide import CardmarketGuide
-from .floor_requests import FloorRequests, HumanOnly
-from .listings import Listings, Storefront
+from .floor_requests import HumanOnly
 from .privacy import Privacy
 from .ratelimit import SlidingWindow, client_key
-from .notifications import (
-    Notifier, WebPush, channels_from_env, euros, subscribe, subscribed, unsubscribe,
-)
-from .reservations import BasketConflict, SHIPPING_SERVICES, Reservations, shipping_config, valid_email
-from .variant_catalogue import VariantCatalogue
-from .catalogue_image import CatalogueImages
+from .notifications import euros, subscribe, subscribed, unsubscribe
+from .reservations import BasketConflict, SHIPPING_SERVICES, shipping_config, valid_email
 from .variant_pricing import category
-from .edition_check import EditionCheckService, propose_edition
+from .edition_check import propose_edition
 from .verification import (
-    VariantCheckService,
-    check_inputs,
     check_rows,
     propose_variant,
 )
@@ -75,7 +63,6 @@ from .web_constants import (
     APP_NO_CACHE,
     APP_SHELL,
     LANGUAGES,
-    LOCAL_HOSTS,
     MANAGEMENT_QUERY,
     NOINDEX,
     PUBLIC_PHOTO,
@@ -137,6 +124,7 @@ from .schemas import (
     intake_values,
 )
 from .passwords import add_user, has_admin, password_hash, password_outdated, password_valid
+from .routes.context import build_services
 
 
 # The errors a storefront visitor can meet, by their French detail. The answer adds
@@ -198,41 +186,50 @@ def create_app(
     indexing=None,
     assistant_model=None,
 ):
-    # Preview URLs come from explicit deployment configuration, never Host or forwarding headers.
-    public_origin = os.environ.get("POKEPRICE_PUBLIC_ORIGIN", "") if public_origin is None else public_origin
-    public_origin = public_origin.strip()
-    if public_origin:
-        origin = urlsplit(public_origin)
-        try:
-            origin.port  # Reject malformed ports before serving any public metadata.
-        except ValueError as exc:
-            raise ValueError("Origine publique invalide.") from exc
-        if (
-            not origin.hostname or origin.username is not None or origin.password is not None
-            or origin.path not in ("", "/") or origin.query or origin.fragment
-            or any(c.isspace() or ord(c) < 32 or c in "?#\\" for c in public_origin)
-            or (origin.scheme != "https" and not (
-                origin.scheme == "http" and origin.hostname in {"localhost", "127.0.0.1", "::1", "testserver"}
-            ))
-        ):
-            raise ValueError("L’origine publique est une URL HTTPS sans chemin, identifiants ni paramètres.")
-        public_origin = public_origin.rstrip("/")
-    # Search engines may index the storefront unless the owner switches it off.
-    indexing = indexing_enabled(os.environ.get("POKEPRICE_INDEXING", "on") if indexing is None else indexing)
-    store = Store(directory)
-    allowed_hosts = allowed_hosts or ["127.0.0.1", "localhost", "testserver"]
-    # Web setup is for a private first run: once others can reach the server,
-    # the first visitor must not become admin, so the admin is made locally.
-    exposed = secure_cookie or set(allowed_hosts) - LOCAL_HOSTS
-    if exposed:
-        with store.connect() as db:
-            if not db.execute(
-                "SELECT 1 FROM users WHERE role='admin' AND disabled=0 LIMIT 1"
-            ).fetchone():
-                raise ValueError(
-                    "Créez un administrateur local (commande user) avant le "
-                    "démarrage HTTPS ou l’ouverture au réseau."
-                )
+    ctx = build_services(
+        directory,
+        secure_cookie=secure_cookie,
+        allowed_hosts=allowed_hosts,
+        public_origin=public_origin,
+        intake_reader=intake_reader,
+        intake_lookup=intake_lookup,
+        condition_reader=condition_reader,
+        variant_reader=variant_reader,
+        edition_reader=edition_reader,
+        edition_get_json=edition_get_json,
+        edition_fetch=edition_fetch,
+        price_fetch=price_fetch,
+        variant_fetch=variant_fetch,
+        market_fetch=market_fetch,
+        indexing=indexing,
+        assistant_model=assistant_model,
+    )
+    public_origin = ctx.public_origin
+    indexing = ctx.indexing
+    allowed_hosts = ctx.allowed_hosts
+    store = ctx.store
+    intake = ctx.intake
+    conditions = ctx.conditions
+    variant_checks = ctx.variant_checks
+    edition_checks = ctx.edition_checks
+    market = ctx.market
+    pricing = ctx.pricing
+    variant_catalogue = ctx.variant_catalogue
+    catalogue_images = ctx.catalogue_images
+    audience = ctx.audience
+    storefront = ctx.storefront
+    notifier = ctx.notifier
+    web_push = ctx.web_push
+    reservations = ctx.reservations
+    capture = ctx.capture
+    batches = ctx.batches
+    moves = ctx.moves
+    variant_inputs = ctx.variant_inputs
+    review = ctx.review
+    listings = ctx.listings
+    floor_requests = ctx.floor_requests
+    todo = ctx.todo
+    assistant = ctx.assistant
     app = FastAPI(
         title="Poképrice — collection privée",
         docs_url=None,
@@ -240,42 +237,13 @@ def create_app(
         openapi_url=None,
     )
     app.state.store = store
-    intake = IntakeService(
-        store, intake_reader or read_photo, intake_lookup or catalogue_candidates
-    )
     app.state.intake = intake
-    conditions = ConditionService(store, condition_reader or read_condition)
     app.state.conditions = conditions
-    variant_checks = VariantCheckService(store, variant_reader)
     app.state.variant_checks = variant_checks
-    edition_checks = EditionCheckService(
-        store, edition_reader, edition_get_json, edition_fetch
-    )
     app.state.edition_checks = edition_checks
-    # An injected price source (tests) never reaches TCGdex for neighbours.
-    market = MarketProducts(
-        store, market_fetch or (fetch_tcgdex if price_fetch is None else None)
-    )
     app.state.market = market
-    # Tests inject their source; the app completes TCGdex with Cardmarket's guide.
-    pricing = PriceService(
-        store,
-        price_fetch
-        or fetch_card_with_guide(CardmarketGuide(store.root / "cardmarket", store)),
-        market,
-    )
     app.state.pricing = pricing
-    variant_catalogue = VariantCatalogue(
-        store,
-        variant_fetch
-        or (
-            lambda *args: (
-                pricing.fetch(*args) if price_fetch else fetch_catalogue_card(*args)
-            )
-        ),
-    )
     app.state.variant_catalogue = variant_catalogue
-    catalogue_images = CatalogueImages(store, variant_catalogue.fetch)
     # The public name, plus loopback: commands run on the server itself (the agent
     # client's default URL) reach the app without going out through Caddy.
     app.add_middleware(
@@ -606,7 +574,6 @@ def create_app(
             path="/",
         )
 
-    audience = Audience(store.root, allowed_hosts)
 
     def count_visit(request, kind, key):
         """Count a storefront visit; the seller's team is not an audience."""
@@ -852,7 +819,6 @@ def create_app(
             return Response(status_code=304, headers={"ETag": etag})
         return FileResponse(path, media_type="image/x-icon", headers={"ETag": etag})
 
-    storefront = Storefront(store)
     public_hits = SlidingWindow(300, 60)
     app.state.rate_limits = {"public": public_hits, "login": failures}
 
@@ -951,12 +917,7 @@ def create_app(
             extension=extension, finish=finish, condition=condition,
         )
 
-    # Seller alerts: each channel is off until its environment variables are set.
-    notifier = Notifier(store, channels_from_env(store=store), public_origin)
-    web_push = next((c for c in notifier.channels if isinstance(c, WebPush)), None)
     app.state.notifier = notifier
-    notifier.start()  # A daemon thread, only when a channel is configured.
-    reservations = Reservations(store, storefront, notifier)
     signups = SlidingWindow(5, 3600)
     app.state.rate_limits["signup"] = signups
 
@@ -1718,15 +1679,6 @@ def create_app(
             threshold_cents=cents(threshold),
         )
 
-    from .capture import CaptureService
-    from .move_batches import MoveBatches
-    from .photo_batches import PhotoBatches
-
-    capture, batches, moves = (
-        CaptureService(store, intake),
-        PhotoBatches(store),
-        MoveBatches(store),
-    )
     app.state.moves = moves
 
     @app.get("/api/capture-sessions")
@@ -2178,11 +2130,6 @@ def create_app(
             values.reason,
         )
 
-    def variant_inputs(copy_id, threshold_cents=1000):
-        return check_inputs(store, variant_catalogue, copy_id, threshold_cents)
-
-    # The review agent confirms on evidence or asks for a photo (agent_review.py).
-    review = AgentReview(store, variant_checks, conditions, edition_checks, variant_inputs)
     app.state.agent_review = review
 
     def review_after_photo(tasks, copy_id):
@@ -2268,7 +2215,6 @@ def create_app(
             copy_id, check_id, values.expected_version, user["username"], values.reason
         )
 
-    listings = Listings(store)
 
     @app.get("/api/listings")
     def listing_index(
@@ -2326,8 +2272,6 @@ def create_app(
             listing_id, values.expected_version, user["username"], values.reason
         )
 
-    # Waivers under the anti-undercut floor: asked by agents, decided by a person (0030).
-    floor_requests = FloorRequests(store)
 
     @app.get("/api/floor-requests")
     def floor_request_index(user=Depends(staff)):
@@ -2460,15 +2404,8 @@ def create_app(
             background=BackgroundTask(shutil.rmtree, folder),
         )
 
-    # The management assistant, V0 (todo.py): the brief and the « À toi » queue,
-    # floor waivers (decision 0030) included.
-    from .todo import Todo, default_since, parse_since
+    from .todo import default_since, parse_since
 
-    todo = Todo(
-        store,
-        photo_requests=review.photo_requests,
-        floor_requests=floor_requests.open,
-    )
     app.state.todo = todo
 
     @app.get("/api/todo")
@@ -2484,41 +2421,10 @@ def create_app(
     from fastapi.responses import StreamingResponse
 
     from .agent import AgentError
-    from .assistant import DEFAULT_DAILY_LIMIT, DEFAULT_PER_MINUTE, MAX_QUESTION, Assistant, Refused
-    from .assistant_model import from_env
+    from .assistant import MAX_QUESTION, Refused
 
-    def positive(name, default):
-        try:
-            return max(1, int(os.environ.get(name, "") or default))
-        except ValueError:
-            raise ValueError(f"{name} : nombre entier attendu.") from None
-
-    assistant = Assistant(
-        store, todo, assistant_model if assistant_model is not None else from_env(),
-        daily_limit=positive("POKEPRICE_ASSISTANT_DAILY_LIMIT", DEFAULT_DAILY_LIMIT),
-        per_minute=positive("POKEPRICE_ASSISTANT_PER_MINUTE", DEFAULT_PER_MINUTE),
-    )
     app.state.assistant = assistant
 
-    # V1.1, cost alert (decision 0039): one alert a month on the alert channels once
-    # the chat's estimated cost reaches the threshold; 0 switches it off.
-    from .assistant import (COST_ALERT_VARIABLE, DEFAULT_COST_ALERT_EUR, DEFAULT_EUR_PER_USD,
-                            RATE_VARIABLE, CostAlert)
-
-    def amount(name, default):
-        try:
-            value = float((os.environ.get(name, "") or str(default)).replace(",", "."))
-        except ValueError:
-            raise ValueError(f"{name} : nombre attendu.") from None
-        if value < 0:
-            raise ValueError(f"{name} : nombre positif attendu.")
-        return value
-
-    assistant.cost_alert = CostAlert(
-        assistant.journal, notifier.channels, public_origin,
-        threshold_eur=amount(COST_ALERT_VARIABLE, DEFAULT_COST_ALERT_EUR),
-        eur_per_usd=amount(RATE_VARIABLE, DEFAULT_EUR_PER_USD) or DEFAULT_EUR_PER_USD,
-    )
 
     class AssistantQuestion(BaseModel):
         model_config = ConfigDict(extra="forbid")

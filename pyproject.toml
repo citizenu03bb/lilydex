@@ -102,7 +102,9 @@ ignore = [
 "scripts/evaluate_agent_control.py" = ["E402"]
 # Fichiers gelés pendant une refonte en cours : écarts reportés, à corriger
 # puis à retirer d'ici.
-"src/pokeprice/webapp.py" = ["B018", "B904", "F401", "F841"]
+"src/pokeprice/webapp.py" = ["B904", "F401", "F841"]
+# Lecture de origin.port pour rejeter un port mal formé : voulu.
+"src/pokeprice/routes/context.py" = ["B018"]
 "src/pokeprice/listings.py" = ["B904"]
 "tests/test_basket_quote.py" = ["F841"]
 "tests/test_energies_offertes.py" = ["F401"]
@@ -173,6 +175,11 @@ check_untyped_defs = false
 # Fichier gelé pendant une refonte en cours : deux affectations reportées.
 [[tool.mypy.overrides]]
 module = ["pokeprice.webapp"]
+disable_error_code = ["assignment"]
+
+# Assistant.cost_alert est déclaré None et reçoit son alerte au démarrage : reporté.
+[[tool.mypy.overrides]]
+module = ["pokeprice.routes.context"]
 disable_error_code = ["assignment"]
 
 # Modules entièrement annotés : toute fonction doit le rester.
