@@ -52,7 +52,7 @@ jobs:
   browsers:
     name: browser (${{ matrix.browser }})
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
@@ -71,9 +71,24 @@ jobs:
         run: |
           uv sync --frozen --extra web --extra dev
           npm ci --prefix tests/browser
+      # The Ubuntu mirror is sometimes slow enough that installing WebKit's system
+      # packages outlasts the job. The browser and the downloaded .deb files are
+      # kept between runs, so a warm run downloads nothing from the mirror.
+      - name: Restore browser and system packages
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0, node24
+        with:
+          path: |
+            ~/.cache/ms-playwright
+            ~/apt-archives
+          key: playwright-${{ matrix.browser }}-${{ runner.os }}-${{ hashFiles('tests/browser/package-lock.json') }}
       - name: Install browser and system dependencies
         working-directory: tests/browser
-        run: npx playwright install --with-deps ${{ matrix.browser }}
+        timeout-minutes: 15
+        run: |
+          mkdir -p ~/apt-archives
+          sudo cp ~/apt-archives/*.deb /var/cache/apt/archives/ 2>/dev/null || true
+          npx playwright install --with-deps ${{ matrix.browser }}
+          cp /var/cache/apt/archives/*.deb ~/apt-archives/ 2>/dev/null || true
       - name: Run local synthetic storefront recipe
         working-directory: tests/browser
         run: npm test -- --project=${{ matrix.browser }}
