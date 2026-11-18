@@ -91,6 +91,7 @@ def test_the_catalogue_images_keep_the_fetch_bound_at_start_up(tmp_path, monkeyp
 def test_the_web_modules_never_import_webapp():
     # One-way imports: webapp assembles the parts, no part reaches back into it.
     parts = [SOURCE / "web_constants.py", SOURCE / "schemas.py", SOURCE / "passwords.py",
+             SOURCE / "errors.py", SOURCE / "security.py",
              *sorted((SOURCE / "routes").glob("*.py"))]
     for path in parts:
         for node in ast.walk(ast.parse(path.read_text())):
