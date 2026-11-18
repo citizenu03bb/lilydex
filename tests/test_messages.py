@@ -31,7 +31,9 @@ def used():
     html_keys = {k for name in PAGES for k in TEXT_KEY.findall((WEB / name).read_text())}
     scripts = "".join((WEB / name).read_text() for name in SCRIPTS)
     server_keys = set()
-    for node in ast.walk(ast.parse((SOURCE / "webapp.py").read_text())):
+    # The builders keep the local words = dictionaries[language] idiom, wherever they live.
+    modules = [SOURCE / "webapp.py", *sorted((SOURCE / "routes").glob("*.py"))]
+    for node in (node for path in modules for node in ast.walk(ast.parse(path.read_text()))):
         key = None
         if isinstance(node, ast.Subscript) and isinstance(node.value, ast.Name) and node.value.id == "words":
             key = node.slice

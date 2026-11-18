@@ -93,6 +93,14 @@ def test_the_limiters_and_session_dependencies_come_from_the_context(tmp_path, m
     assert limits.public_rate.__name__ == "public_rate"
 
 
+def test_the_pages_read_the_web_folder_beside_the_package(tmp_path, monkeypatch):
+    seen = built(monkeypatch)
+    webapp.create_app(tmp_path / "inventory", price_fetch=no_service)
+    (ctx,) = seen
+    assert ctx.pages.static == SOURCE / "web"
+    assert set(ctx.pages.dictionaries) == set(webapp.LANGUAGES)
+
+
 def test_the_catalogue_images_keep_the_fetch_bound_at_start_up(tmp_path, monkeypatch):
     # Bound once: replacing variant_catalogue.fetch later does not reach the images.
     seen = built(monkeypatch)
