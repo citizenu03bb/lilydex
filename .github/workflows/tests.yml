@@ -58,8 +58,6 @@ jobs:
     # The tag follows Playwright in tests/browser/package-lock.json.
     container:
       image: mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
-      # Firefox refuses a home directory owned by another user than root.
-      options: --env HOME=/root
     strategy:
       fail-fast: false
       matrix:
@@ -86,6 +84,10 @@ jobs:
           fi
       - name: Run local synthetic storefront recipe
         working-directory: tests/browser
+        # The runner sets HOME to a folder root does not own, and Firefox then refuses
+        # to start; HOME on the step itself is the workaround Playwright documents.
+        env:
+          HOME: /root
         run: npm test -- --project=${{ matrix.browser }}
       - name: Archive browser reports and screenshots
         if: ${{ always() }}
