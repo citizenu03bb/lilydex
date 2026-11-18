@@ -146,8 +146,9 @@ def test_the_about_page_has_an_english_translation_and_the_french_prevails(tmp_p
 
 def test_every_error_code_has_its_text_and_the_french_is_the_detail():
     found = dictionaries()
-    sources = "".join(
-        (SOURCE / name).read_text() for name in ("webapp.py", "errors.py", "security.py", "reservations.py", "listings.py")
+    files = ["webapp.py", "errors.py", "security.py", "reservations.py", "listings.py"]
+    sources = "".join((SOURCE / name).read_text() for name in files) + "".join(
+        path.read_text() for path in sorted((SOURCE / "routes").glob("*.py"))
     )
     assert len(set(ERROR_CODES.values())) == len(ERROR_CODES)
     for detail, code in ERROR_CODES.items():
