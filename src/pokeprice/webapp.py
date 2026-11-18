@@ -14,7 +14,6 @@ from urllib.parse import quote
 
 from fastapi import (
     BackgroundTasks,
-    Body,
     Depends,
     FastAPI,
     HTTPException,
@@ -24,7 +23,6 @@ from fastapi import (
 )
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from PIL import Image, ImageOps
-from starlette.concurrency import run_in_threadpool
 
 from .audience import counted
 from .brand import SITE_NAME, site_slug
@@ -59,12 +57,7 @@ from .web_constants import (
 from .schemas import (
     AlbumCreate,
     BasketQuote,
-    BatchApply,
-    BatchPreview,
     BoundQuote,
-    CaptureCreate,
-    CapturePatch,
-    CaptureSave,
     CardCreate,
     CardFields,
     CardPatch,
@@ -78,9 +71,6 @@ from .schemas import (
     IntakeSave,
     KeepRecorded,
     MarketVerdict,
-    MoveApply,
-    MovePreview,
-    MoveUndo,
     OffersPaste,
     PasswordCheck,
     PasswordSet,
@@ -99,11 +89,15 @@ from .errors import ERROR_CODES, install_handlers
 from .passwords import add_user, password_hash, password_valid
 from .routes.auth import register_auth, register_logout
 from .routes.backup import register_backup
+from .routes.capture import register_capture
 from .routes.client_requests import register_client_requests
 from .routes.context import build_services
 from .routes.exports import register_exports
 from .routes.floor_requests import register_floor_requests
+from .routes.hooks import build_hooks
 from .routes.listings import register_listings
+from .routes.move_batches import register_move_batches
+from .routes.photo_batches import register_photo_batches
 from .routes.push import register_push
 from .routes.sales import register_sales
 from .routes.settings import register_settings
@@ -996,198 +990,12 @@ def create_app(
 
     app.state.moves = moves
 
-    @app.get("/api/capture-sessions")
-    def capture_list(user=Depends(editor)):
-        return capture.listing(user["id"])
-
-    @app.post("/api/capture-sessions", status_code=201)
-    def capture_create(values: CaptureCreate, user=Depends(editor)):
-        return capture.create(user["id"], values.model_dump())
-
-    @app.get("/api/capture-sessions/{sid}")
-    def capture_get(sid: str, user=Depends(editor)):
-        with store.connect() as db:
-            return capture.get(db, sid, user["id"])
-
-    @app.patch("/api/capture-sessions/{sid}")
-    def capture_patch(sid: str, values: CapturePatch, user=Depends(editor)):
-        changes = values.model_dump(exclude_unset=True, exclude={"expected_version"})
-        if any(
-            changes.get(k) is None
-            for k in ("fields", "status", "page", "position")
-            if k in changes
-        ):
-            raise ValueError("Champ vide non autorisé.")
-        return capture.patch(sid, user["id"], values.expected_version, changes)
-
-    @app.post("/api/capture-sessions/{sid}/save", status_code=201)
-    def capture_save(
-        sid: str, values: CaptureSave, tasks: BackgroundTasks, user=Depends(editor)
-    ):
-        result = capture.save(
-            sid,
-            user["id"],
-            user["username"],
-            values.expected_version,
-            values.token,
-            intake_values(values),
-            values.chosen_catalog_id,
-            values.human_confirmed,
-            values.duplicate_acknowledgments,
-        )
-        read_after_intake(tasks, result["card"], user)
-        return result
-
-    @app.post("/api/photo-batches", status_code=201)
-    def batch_preview(values: BatchPreview, user=Depends(editor)):
-        if len({c.id for c in values.copies}) != len(values.copies):
-            raise ValueError("Exemplaires répétés.")
-        return batches.preview(
-            user["id"],
-            [c.model_dump() for c in values.copies],
-            values.side,
-            values.options.model_dump(),
-        )
-
-    @app.post("/api/photo-batches/page", status_code=201)
-    async def batch_page_preview(
-        request: Request,
-        album_id: str = Query(min_length=1, max_length=100),
-        page: int = Query(ge=1, le=1000),
-        rotation: Literal["auto", "0", "90", "180", "270"] = "auto",
-        user=Depends(editor),
-    ):
-        data = bytearray()
-        async for chunk in request.stream():
-            data.extend(chunk)
-            # Caddy refuses bodies over 9 MB: the same limit as the other photos.
-            if len(data) > 8 * 1024 * 1024:
-                raise HTTPException(413, "Photo limitée à 8 Mo.")
-        # Slicing a 24-megapixel page takes seconds: off the event loop.
-        return await run_in_threadpool(
-            batches.preview_page,
-            user["id"],
-            album_id,
-            page,
-            bytes(data),
-            rotation=rotation,
-        )
-
-    @app.get("/api/photo-batches")
-    def batch_list(user=Depends(editor)):
-        with store.connect() as db:
-            return [
-                batches.get(db, r[0], user["id"])
-                for r in db.execute(
-                    "SELECT id FROM photo_batches WHERE owner_id=? ORDER BY created_at DESC LIMIT 20",
-                    (user["id"],),
-                )
-            ]
-
-    @app.get("/api/photo-batches/{jid}")
-    def batch_get(jid: str, user=Depends(editor)):
-        with store.connect() as db:
-            return batches.get(db, jid, user["id"])
-
-    @app.get("/api/photo-batches/{jid}/photo/{copy_id}/{view}")
-    def batch_photo(
-        jid: str, copy_id: str, view: Literal["before", "result"], user=Depends(editor)
-    ):
-        with store.connect() as db:
-            job = batches.get(db, jid, user["id"])
-        item = next(
-            (
-                i
-                for i in job["data"]["items"]
-                if copy_id in (i.get("id"), i.get("key"), str(i.get("position")))
-            ),
-            None,
-        )
-        if not item or not item.get(view):
-            raise KeyError("Photo absente.")
-        return FileResponse(store.photos / item[view], media_type="image/jpeg")
-
-    @app.post("/api/photo-batches/{jid}/apply")
-    def batch_apply(
-        jid: str, values: BatchApply, tasks: BackgroundTasks, user=Depends(editor)
-    ):
-        selected = values.positions or values.copy_ids
-        result = batches.apply(jid, user["id"], user["username"], selected)
-        if result["data"].get("kind") == "page":
-            for item in result["data"]["items"]:
-                if not item.get("applied_version") or not item.get("id"):
-                    continue
-                if item.get("action") == "create":
-                    read_after_intake(
-                        tasks,
-                        {"id": item["id"], "photo": item.get("result")},
-                        user,
-                    )
-                elif item.get("action") == "update":
-                    review_after_photo(tasks, item["id"])
-        return result
-
-    @app.post("/api/photo-batches/{jid}/undo")
-    def batch_undo(jid: str, user=Depends(editor)):
-        return batches.apply(jid, user["id"], user["username"], [], undo=True)
-
-    @app.post("/api/move-batches", status_code=201)
-    def move_batch_preview(values: MovePreview, user=Depends(editor)):
-        if len({c.id for c in values.copies}) != len(values.copies):
-            raise ValueError("Exemplaires répétés.")
-        return moves.preview(
-            user["id"],
-            [c.model_dump() for c in values.copies],
-            values.album_id,
-            mode=values.mode,
-            start_page=values.start_page,
-            start_position=values.start_position,
-            slots=values.slots,
-            reason=values.reason,
-        )
-
-    @app.get("/api/move-batches")
-    def move_batch_list(user=Depends(editor)):
-        with store.connect() as db:
-            return [
-                moves.get(db, r[0], user["id"])
-                for r in db.execute(
-                    "SELECT id FROM move_batches WHERE owner_id=? ORDER BY created_at DESC LIMIT 20",
-                    (user["id"],),
-                )
-            ]
-
-    @app.get("/api/move-batches/{jid}")
-    def move_batch_get(jid: str, user=Depends(editor)):
-        with store.connect() as db:
-            return moves.get(db, jid, user["id"])
-
-    @app.post("/api/move-batches/{jid}/apply")
-    def move_batch_apply(
-        jid: str,
-        values: MoveApply | None = Body(default=None),
-        user=Depends(editor),
-    ):
-        return moves.apply(
-            jid,
-            user["id"],
-            user["username"],
-            reason=values.reason if values else None,
-            allow_collisions=bool(values and values.allow_collisions),
-        )
-
-    @app.post("/api/move-batches/{jid}/undo")
-    def move_batch_undo(
-        jid: str,
-        values: MoveUndo | None = Body(default=None),
-        user=Depends(editor),
-    ):
-        return moves.undo(
-            jid,
-            user["id"],
-            user["username"],
-            reason=values.reason if values else None,
-        )
+    hooks = build_hooks(ctx, auto_checks)
+    read_after_intake = hooks.read_after_intake
+    review_after_photo = hooks.review_after_photo
+    register_capture(app, ctx, hooks)
+    register_photo_batches(app, ctx, hooks)
+    register_move_batches(app, ctx)
 
     @app.post("/api/intake/drafts", status_code=201)
     def intake_draft(user=Depends(editor)):
@@ -1297,20 +1105,6 @@ def create_app(
     @app.post("/api/intake/{token}/catalogue")
     def intake_catalogue(token: str, values: IntakeQuery, user=Depends(editor)):
         return intake.search(token, user["id"], values.model_dump())
-
-    def read_after_intake(tasks, card, user):
-        """A new photographed copy is checked once, after the response."""
-        if auto_checks and card.get("photo"):
-            tasks.add_task(
-                variant_checks.evaluate_new_copy,
-                card["id"],
-                user["username"],
-                variant_inputs,
-            )
-            if edition_checks.available:
-                tasks.add_task(
-                    edition_checks.evaluate_new_copy, card["id"], user["username"]
-                )
 
     @app.post("/api/intake/{token}/save", status_code=201)
     def intake_save(
@@ -1446,11 +1240,6 @@ def create_app(
         )
 
     app.state.agent_review = review
-
-    def review_after_photo(tasks, copy_id):
-        """A new photo answering a request is read again after the response."""
-        if auto_checks:
-            tasks.add_task(review.after_photo, copy_id)
 
     @app.get("/api/photo-requests")
     def photo_requests(user=Depends(staff)):
