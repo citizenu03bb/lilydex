@@ -32,6 +32,7 @@ from ..verification import VariantCheckService, check_inputs
 from ..web_constants import LOCAL_HOSTS, indexing_enabled
 from .auth_deps import Auth, build_auth
 from .limits import Limits, build_limits
+from .pages import Pages, build_pages
 
 if TYPE_CHECKING:  # Imported inside build_services: loaded at start-up, not at import.
     from ..assistant import Assistant
@@ -71,6 +72,7 @@ class AppContext:
     floor_requests: FloorRequests
     todo: "Todo"
     assistant: "Assistant"
+    pages: Pages
     limits: Limits
     auth: Auth
 
@@ -230,7 +232,9 @@ def build_services(
         threshold_eur=amount(COST_ALERT_VARIABLE, DEFAULT_COST_ALERT_EUR),
         eur_per_usd=amount(RATE_VARIABLE, DEFAULT_EUR_PER_USD) or DEFAULT_EUR_PER_USD,
     )
-    # Last, as in the original start-up: the limiters, then the session dependencies.
+    # Last, as in the original start-up: the pages, which need the notifier for the
+    # shipping rates, then the limiters, then the session dependencies.
+    pages = build_pages(public_origin, indexing, reservations, notifier)
     limits = build_limits()
     auth = build_auth(store, secure_cookie)
     return AppContext(
@@ -260,6 +264,7 @@ def build_services(
         floor_requests=floor_requests,
         todo=todo,
         assistant=assistant,
+        pages=pages,
         limits=limits,
         auth=auth,
     )

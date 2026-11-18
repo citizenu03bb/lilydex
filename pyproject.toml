@@ -103,6 +103,7 @@ ignore = [
 # Fichiers gelés pendant une refonte en cours : écarts reportés, à corriger
 # puis à retirer d'ici.
 "src/pokeprice/webapp.py" = ["B904", "F401", "F841"]
+"src/pokeprice/routes/pages.py" = ["F841"]
 # Lecture de origin.port pour rejeter un port mal formé : voulu.
 "src/pokeprice/routes/context.py" = ["B018"]
 "src/pokeprice/listings.py" = ["B904"]
