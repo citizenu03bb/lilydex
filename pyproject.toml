@@ -104,6 +104,7 @@ ignore = [
 # puis à retirer d'ici.
 "src/pokeprice/webapp.py" = ["B904", "F401", "F841"]
 "src/pokeprice/routes/pages.py" = ["F841"]
+"src/pokeprice/routes/users.py" = ["B904"]
 # Lecture de origin.port pour rejeter un port mal formé : voulu.
 "src/pokeprice/routes/context.py" = ["B018"]
 "src/pokeprice/listings.py" = ["B904"]

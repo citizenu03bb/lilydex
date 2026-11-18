@@ -72,7 +72,6 @@ from .schemas import (
     ConditionConfirmation,
     ConditionRequest,
     CopyRemoval,
-    Credentials,
     GuestRequest,
     IntakeEntry,
     IntakeQuery,
@@ -93,12 +92,12 @@ from .schemas import (
     RequestVersion,
     Signup,
     UserCreate,
-    UserPatch,
     VariantDecision,
     intake_values,
 )
 from .errors import ERROR_CODES, install_handlers
-from .passwords import add_user, has_admin, password_hash, password_outdated, password_valid
+from .passwords import add_user, password_hash, password_valid
+from .routes.auth import register_auth, register_logout
 from .routes.backup import register_backup
 from .routes.client_requests import register_client_requests
 from .routes.context import build_services
@@ -109,6 +108,7 @@ from .routes.push import register_push
 from .routes.sales import register_sales
 from .routes.settings import register_settings
 from .routes.statistics import register_statistics
+from .routes.users import register_users
 from .security import install_security
 
 
@@ -626,124 +626,12 @@ def create_app(
     register_statistics(app, ctx)
 
 
-    @app.get("/api/setup")
-    def setup_state():
-        with store.connect() as db:
-            return {"required": not has_admin(db)}
-
-    @app.get("/health")
-    def health():
-        with store.connect() as db:
-            db.execute("SELECT 1").fetchone()
-        return {"status": "ok"}
-
-    @app.post("/api/setup")
-    def setup(values: Credentials, response: Response):
-        with store.connect(write=True) as db:
-            # Client sign-ups do not count: only an admin closes the setup.
-            if has_admin(db):
-                raise Conflict("Le compte initial existe déjà.")
-            user = add_user(db, UserCreate(**values.model_dump(), role="admin"))
-            issue_session(db, user, response)
-            return user
-
-    @app.post("/api/login")
-    def login(values: Credentials, request: Request, response: Response):
-        key = client_of(request)
-        target = values.username.casefold()
-        # Reserve the attempt before hashing to account for simultaneous requests.
-        if not failures.hit(key, target):
-            raise HTTPException(
-                429, "Trop de tentatives. Réessayez dans cinq minutes."
-            )
-        with store.connect(write=True) as db:
-            row = db.execute(
-                "SELECT * FROM users WHERE username=?", (values.username,)
-            ).fetchone()
-            valid = password_valid(
-                values.password, row["password_hash"] if row else dummy_hash
-            )
-            if not valid or not row or row["disabled"] or row["status"] == "refused":
-                raise HTTPException(401, "Identifiants incorrects.")
-            if row["status"] == "pending":
-                # Only said after a correct password: it reveals nothing to a guesser.
-                raise HTTPException(403, "Compte en attente de validation.")
-            if password_outdated(row["password_hash"]):
-                # The password is only known here: strengthen old hashes as owners log in.
-                db.execute(
-                    "UPDATE users SET password_hash=? WHERE id=?",
-                    (password_hash(values.password), row["id"]),
-                )
-            user = {k: row[k] for k in ("id", "username", "role")}
-            issue_session(db, user, response)
-        # Forgive only this account's typos: logging into one's own account
-        # must not reset guesses aimed at another one from the same address.
-        failures.forgive(key, target)
-        return user
-
-    @app.get("/api/session")
-    def session(user=Depends(current_user)):
-        return user
+    register_auth(app, ctx)
 
     register_push(app, ctx)
 
-    @app.post("/api/logout")
-    def logout(request: Request, response: Response, user=Depends(current_user)):
-        with store.connect(write=True) as db:
-            db.execute(
-                "DELETE FROM sessions WHERE token_hash=?",
-                (
-                    hashlib.sha256(
-                        request.cookies["pokeprice_session"].encode()
-                    ).hexdigest(),
-                ),
-            )
-        response.delete_cookie("pokeprice_session", path="/")
-        return {"ok": True}
-
-    @app.get("/api/users")
-    def users(user=Depends(admin)):
-        with store.connect() as db:
-            return [
-                dict(r)
-                for r in db.execute(
-                    # Storefront clients have their own screen (/api/clients).
-                    "SELECT id,username,role,disabled,created_at FROM users WHERE role!='client' ORDER BY username"
-                )
-            ]
-
-    @app.post("/api/users", status_code=201)
-    def user_create(values: UserCreate, user=Depends(admin)):
-        with store.connect(write=True) as db:
-            try:
-                return add_user(db, values)
-            except sqlite3.IntegrityError:
-                raise Conflict("Ce compte existe déjà.")
-
-    @app.patch("/api/users/{user_id}")
-    def user_patch(user_id: str, values: UserPatch, user=Depends(admin)):
-        with store.connect(write=True) as db:
-            row = db.execute(
-                "SELECT * FROM users WHERE id=? AND role!='client'", (user_id,)
-            ).fetchone()
-            if not row:
-                raise KeyError("Compte introuvable.")
-            if (
-                row["role"] == "admin"
-                and not row["disabled"]
-                and (values.role != "admin" or values.disabled)
-            ):
-                count = db.execute(
-                    "SELECT COUNT(*) FROM users WHERE role='admin' AND disabled=0"
-                ).fetchone()[0]
-                if count <= 1:
-                    raise Conflict("Conservez au moins un administrateur actif.")
-            db.execute(
-                "UPDATE users SET role=?,disabled=? WHERE id=?",
-                (values.role, values.disabled, user_id),
-            )
-            db.execute("DELETE FROM sessions WHERE user_id=?", (user_id,))
-        return {"ok": True}
+    register_logout(app, ctx)
+    register_users(app, ctx)
 
     @app.get("/api/summary")
     def summary(
