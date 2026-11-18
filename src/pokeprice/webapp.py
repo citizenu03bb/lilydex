@@ -14,7 +14,7 @@ import warnings
 from decimal import Decimal
 from pathlib import Path
 from typing import Literal
-from urllib.parse import quote, urlsplit
+from urllib.parse import quote
 
 from fastapi import (
     BackgroundTasks,
@@ -26,12 +26,10 @@ from fastapi import (
     Request,
     Response,
 )
-from fastapi.exception_handlers import http_exception_handler
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from PIL import Image, ImageOps
 from pydantic import BaseModel, ConfigDict, Field
 from starlette.concurrency import run_in_threadpool
-from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from .audience import counted
 from .brand import SITE_NAME, site_slug, site_wordmark
@@ -48,11 +46,10 @@ from .pricing import (
     cardmarket_url,
     fetch_card,
 )
-from .floor_requests import HumanOnly
 from .privacy import Privacy
 from .ratelimit import SlidingWindow, client_key
 from .notifications import euros, subscribe, subscribed, unsubscribe
-from .reservations import BasketConflict, SHIPPING_SERVICES, shipping_config, valid_email
+from .reservations import SHIPPING_SERVICES, shipping_config, valid_email
 from .variant_pricing import category
 from .edition_check import propose_edition
 from .verification import (
@@ -60,12 +57,10 @@ from .verification import (
     propose_variant,
 )
 from .web_constants import (
-    APP_NO_CACHE,
     APP_SHELL,
     LANGUAGES,
     MANAGEMENT_QUERY,
     NOINDEX,
-    PUBLIC_PHOTO,
     TEXT_KEY,
     indexing_enabled,
     interface_version,
@@ -123,46 +118,10 @@ from .schemas import (
     VariantDecision,
     intake_values,
 )
+from .errors import ERROR_CODES, install_handlers
 from .passwords import add_user, has_admin, password_hash, password_outdated, password_valid
 from .routes.context import build_services
-
-
-# The errors a storefront visitor can meet, by their French detail. The answer adds
-# the code; the storefront shows web/messages' "error.<code>" in its own language.
-ERROR_CODES = {
-    "Origine interdite.": "origin_forbidden",
-    "Trop de requêtes. Réessayez dans une minute.": "too_many_requests",
-    "Trop d’inscriptions depuis cette adresse. Réessayez plus tard.": "too_many_signups",
-    "Trop de demandes depuis cette adresse. Réessayez plus tard.": "too_many_guest_requests",
-    "Trop de tentatives. Réessayez dans cinq minutes.": "too_many_attempts",
-    "Connectez-vous pour consulter la collection.": "login_required",
-    "Espace réservé aux comptes clients.": "clients_only",
-    "Identifiants incorrects.": "wrong_credentials",
-    "Compte en attente de validation.": "account_pending",
-    "Mot de passe incorrect.": "wrong_password",
-    "Adresse e-mail invalide.": "invalid_email",
-    "Cette adresse est déjà utilisée par un autre compte.": "email_taken",
-    "Ce lien n’est plus valable : demandez-en un autre au vendeur.": "link_expired",
-    "La boutique n’est pas encore ouverte aux inscriptions.": "signup_closed",
-    "La boutique n’est pas encore ouverte aux réservations.": "requests_closed",
-    "Carte absente de la vitrine.": "card_not_found",
-    "Choisissez des cartes distinctes.": "duplicate_cards",
-    "Votre sélection a changé : vérifiez les prix et les disponibilités.": "basket_changed",
-    "Trop de demandes en attente : attendez une réponse du vendeur.": "too_many_pending",
-    "Demande introuvable.": "request_not_found",
-    "La demande a changé. Actualisez la page.": "request_changed",
-    "Seule une demande en attente peut être annulée.": "request_not_pending",
-    "Format d’image indisponible.": "photo_format_unavailable",
-}
-
-
-def error_response(detail, status_code, headers=None):
-    body = {"detail": detail}
-    if detail in ERROR_CODES:
-        body["code"] = ERROR_CODES[detail]
-    return Response(
-        json.dumps(body), status_code=status_code, headers=headers, media_type="application/json"
-    )
+from .security import install_security
 
 
 def create_app(
@@ -244,12 +203,6 @@ def create_app(
     app.state.market = market
     app.state.pricing = pricing
     app.state.variant_catalogue = variant_catalogue
-    # The public name, plus loopback: commands run on the server itself (the agent
-    # client's default URL) reach the app without going out through Caddy.
-    app.add_middleware(
-        TrustedHostMiddleware,
-        allowed_hosts=list(dict.fromkeys([*allowed_hosts, "127.0.0.1", "localhost"])),
-    )
     static = Path(__file__).with_name("web")
 
     small, large = site_wordmark()
@@ -449,76 +402,8 @@ def create_app(
     failures = SlidingWindow(5, 300, tagged=True)
     dummy_hash = password_hash("not-a-valid-user-password")
 
-    @app.middleware("http")
-    async def protect(request, call_next):
-        if request.method not in ("GET", "HEAD", "OPTIONS"):
-            origin = request.headers.get("origin")
-            base = urlsplit(str(request.base_url))
-            if origin and origin != f"{base.scheme}://{base.netloc}":
-                return error_response("Origine interdite.", 403)
-            if request.headers.get("sec-fetch-site") == "cross-site":
-                return error_response("Origine interdite.", 403)
-        if (
-            request.method == "GET"
-            and request.url.path == "/api/copies"
-            and "text/html" in request.headers.get("accept", "")
-            and request.headers.get("sec-fetch-dest", "") in ("", "document")
-        ):
-            response = RedirectResponse("/gestion?" + request.url.query, status_code=303)
-        else:
-            response = await call_next(request)
-        if secure_cookie:
-            # Behind HTTPS only: browsers then refuse plain HTTP for a year.
-            response.headers["Strict-Transport-Security"] = "max-age=31536000"
-        if request.url.path.startswith(("/gestion", "/api/")) and not (
-            indexing and PUBLIC_PHOTO.fullmatch(request.url.path)
-        ):
-            # The seller's login and data never belong in a search engine; with
-            # indexing on, the public photos may illustrate the cards.
-            response.headers["X-Robots-Tag"] = "noindex, nofollow"
-        response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["X-Frame-Options"] = "DENY"
-        response.headers["Referrer-Policy"] = "no-referrer"
-        cache_policy = "no-store"
-        if response.status_code in (200, 304):
-            if request.url.path == "/favicon.ico":
-                cache_policy = "public, max-age=86400"
-            elif request.url.path.startswith("/assets/"):
-                cache_policy = "public, no-cache"
-            elif request.url.path in APP_NO_CACHE:
-                cache_policy = "no-cache"
-        response.headers["Cache-Control"] = cache_policy
-        response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://assets.tcgdex.net; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
-        )
-        return response
-
-    @app.exception_handler(HTTPException)
-    async def refused(request, exc):
-        if isinstance(exc.detail, str):
-            return error_response(exc.detail, exc.status_code, exc.headers)
-        return await http_exception_handler(request, exc)
-
-    @app.exception_handler(Conflict)
-    async def conflict(request, exc):
-        if isinstance(exc, BasketConflict):
-            return Response(json.dumps({
-                "detail": str(exc), "code": "basket_changed", "quote": exc.quote,
-                "changed": exc.changed, "unavailable": exc.quote["unavailable"],
-            }), status_code=409, media_type="application/json")
-        return error_response(str(exc), 409)
-
-    @app.exception_handler(KeyError)
-    async def missing(request, exc):
-        return error_response(str(exc.args[0]), 404)
-
-    @app.exception_handler(ValueError)
-    async def invalid(request, exc):
-        return error_response(str(exc), 422)
-
-    @app.exception_handler(HumanOnly)
-    async def human_only(request, exc):
-        return error_response(str(exc), 403)
+    install_security(app, allowed_hosts=allowed_hosts, secure_cookie=secure_cookie, indexing=indexing)
+    install_handlers(app)
 
     def current_user(request: Request):
         token = request.cookies.get("pokeprice_session", "")
