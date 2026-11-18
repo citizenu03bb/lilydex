@@ -9,7 +9,6 @@ import os
 import re
 import secrets
 import sqlite3
-import time
 import warnings
 from decimal import Decimal
 from pathlib import Path
@@ -47,7 +46,6 @@ from .pricing import (
     fetch_card,
 )
 from .privacy import Privacy
-from .ratelimit import SlidingWindow, client_key
 from .notifications import euros, subscribe, subscribed, unsubscribe
 from .reservations import SHIPPING_SERVICES, shipping_config, valid_email
 from .variant_pricing import category
@@ -189,6 +187,19 @@ def create_app(
     floor_requests = ctx.floor_requests
     todo = ctx.todo
     assistant = ctx.assistant
+    failures = ctx.limits.failures
+    public_hits = ctx.limits.public_hits
+    signups = ctx.limits.signups
+    guests = ctx.limits.guests
+    client_of = ctx.limits.client_of
+    public_rate = ctx.limits.public_rate
+    dummy_hash = ctx.auth.dummy_hash
+    current_user = ctx.auth.current_user
+    staff = ctx.auth.staff
+    client = ctx.auth.client
+    editor = ctx.auth.editor
+    admin = ctx.auth.admin
+    issue_session = ctx.auth.issue_session
     app = FastAPI(
         title="Poképrice — collection privée",
         docs_url=None,
@@ -399,66 +410,8 @@ def create_app(
             rendered = rendered.replace("</head>", "  " + links + "\n  </head>", 1)
         return rendered
 
-    failures = SlidingWindow(5, 300, tagged=True)
-    dummy_hash = password_hash("not-a-valid-user-password")
-
     install_security(app, allowed_hosts=allowed_hosts, secure_cookie=secure_cookie, indexing=indexing)
     install_handlers(app)
-
-    def current_user(request: Request):
-        token = request.cookies.get("pokeprice_session", "")
-        hashed = hashlib.sha256(token.encode()).hexdigest()
-        with store.connect() as db:
-            row = db.execute(
-                "SELECT u.id,u.username,u.role FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>? AND u.disabled=0 AND u.status='active'",
-                (hashed, int(time.time())),
-            ).fetchone()
-        if not row:
-            raise HTTPException(401, "Connectez-vous pour consulter la collection.")
-        return dict(row)
-
-    def staff(user=Depends(current_user)):
-        # Storefront clients never reach the management routes, even read-only ones.
-        if user["role"] not in ("admin", "editor", "reader"):
-            raise HTTPException(403, "Ce compte n'a pas accès à la gestion.")
-        return user
-
-    def client(user=Depends(current_user)):
-        if user["role"] != "client":
-            raise HTTPException(403, "Espace réservé aux comptes clients.")
-        return user
-
-    def editor(user=Depends(staff)):
-        if user["role"] not in ("admin", "editor"):
-            raise HTTPException(403, "Ce compte permet uniquement la consultation.")
-        return user
-
-    def admin(user=Depends(staff)):
-        if user["role"] != "admin":
-            raise HTTPException(403, "Administration requise.")
-        return user
-
-    def issue_session(db, user, response):
-        token = secrets.token_urlsafe(32)
-        db.execute("DELETE FROM sessions WHERE expires_at<=?", (int(time.time()),))
-        db.execute(
-            "INSERT INTO sessions VALUES(?,?,?)",
-            (
-                hashlib.sha256(token.encode()).hexdigest(),
-                user["id"],
-                int(time.time()) + 43200,
-            ),
-        )
-        response.set_cookie(
-            "pokeprice_session",
-            token,
-            max_age=43200,
-            httponly=True,
-            secure=secure_cookie,
-            samesite="strict",
-            path="/",
-        )
-
 
     def count_visit(request, kind, key):
         """Count a storefront visit; the seller's team is not an audience."""
@@ -704,18 +657,7 @@ def create_app(
             return Response(status_code=304, headers={"ETag": etag})
         return FileResponse(path, media_type="image/x-icon", headers={"ETag": etag})
 
-    public_hits = SlidingWindow(300, 60)
     app.state.rate_limits = {"public": public_hits, "login": failures}
-
-    def client_of(request: Request) -> str:
-        """The rate-limit key of a client: its IPv4 address or its IPv6 /64."""
-        return client_key(request.client.host if request.client else None)
-
-    def public_rate(request: Request):
-        """Anonymous storefront reads: at most 300 requests a minute per address."""
-        key = (client_of(request), "photo" if request.url.path.endswith("/photo") else "api")
-        if not public_hits.hit(key):
-            raise HTTPException(429, "Trop de requêtes. Réessayez dans une minute.", headers={"Retry-After": "60"})
 
     @app.get("/vitrine")
     def storefront_page():
@@ -803,7 +745,6 @@ def create_app(
         )
 
     app.state.notifier = notifier
-    signups = SlidingWindow(5, 3600)
     app.state.rate_limits["signup"] = signups
 
     @app.post("/api/public/signup", status_code=202)
@@ -821,7 +762,6 @@ def create_app(
     def basket_quote(values: BasketQuote, _=Depends(public_rate)):
         return reservations.quote(values.listing_ids, values.delivery)
 
-    guests = SlidingWindow(5, 3600)
     app.state.rate_limits["guest"] = guests
 
     @app.post("/api/public/requests", status_code=202)

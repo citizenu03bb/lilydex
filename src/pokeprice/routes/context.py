@@ -30,6 +30,8 @@ from ..reservations import Reservations
 from ..variant_catalogue import VariantCatalogue
 from ..verification import VariantCheckService, check_inputs
 from ..web_constants import LOCAL_HOSTS, indexing_enabled
+from .auth_deps import Auth, build_auth
+from .limits import Limits, build_limits
 
 if TYPE_CHECKING:  # Imported inside build_services: loaded at start-up, not at import.
     from ..assistant import Assistant
@@ -69,6 +71,8 @@ class AppContext:
     floor_requests: FloorRequests
     todo: "Todo"
     assistant: "Assistant"
+    limits: Limits
+    auth: Auth
 
 
 def build_services(
@@ -226,6 +230,9 @@ def build_services(
         threshold_eur=amount(COST_ALERT_VARIABLE, DEFAULT_COST_ALERT_EUR),
         eur_per_usd=amount(RATE_VARIABLE, DEFAULT_EUR_PER_USD) or DEFAULT_EUR_PER_USD,
     )
+    # Last, as in the original start-up: the limiters, then the session dependencies.
+    limits = build_limits()
+    auth = build_auth(store, secure_cookie)
     return AppContext(
         public_origin=public_origin,
         indexing=indexing,
@@ -253,4 +260,6 @@ def build_services(
         floor_requests=floor_requests,
         todo=todo,
         assistant=assistant,
+        limits=limits,
+        auth=auth,
     )

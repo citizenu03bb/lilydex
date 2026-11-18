@@ -77,6 +77,22 @@ def test_app_state_publishes_the_context_objects_themselves(tmp_path, monkeypatc
         ctx.store = None
 
 
+def test_the_limiters_and_session_dependencies_come_from_the_context(tmp_path, monkeypatch):
+    seen = built(monkeypatch)
+    app = webapp.create_app(tmp_path / "inventory", price_fetch=no_service)
+    (ctx,) = seen
+    limits = ctx.limits
+    expected = {"public": limits.public_hits, "login": limits.failures,
+                "signup": limits.signups, "guest": limits.guests}
+    assert list(app.state.rate_limits) == list(expected)
+    for name, limiter in expected.items():
+        assert app.state.rate_limits[name] is limiter, name
+    # The route table names dependencies by function: the names stay as they were.
+    names = {"current_user", "staff", "client", "editor", "admin"}
+    assert {getattr(ctx.auth, name).__name__ for name in names} == names
+    assert limits.public_rate.__name__ == "public_rate"
+
+
 def test_the_catalogue_images_keep_the_fetch_bound_at_start_up(tmp_path, monkeypatch):
     # Bound once: replacing variant_catalogue.fetch later does not reach the images.
     seen = built(monkeypatch)
