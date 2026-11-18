@@ -27,9 +27,7 @@ from PIL import Image, ImageOps
 from .audience import counted
 from .brand import SITE_NAME, site_slug
 from .condition_assessment import assessment_rows
-from .intake import normalize_photo
 from .inventory import Conflict, cents, now
-from .photo_processing import parse_guide
 from .quote_ledger import select_transcription
 from .market_product import cached_set_code
 from .pricing import (
@@ -62,39 +60,32 @@ from .schemas import (
     CardFields,
     CardPatch,
     ClientPatch,
-    ConditionConfirmation,
     ConditionRequest,
     CopyRemoval,
     GuestRequest,
-    IntakeEntry,
-    IntakeQuery,
-    IntakeSave,
-    KeepRecorded,
     MarketVerdict,
     OffersPaste,
     PasswordCheck,
     PasswordSet,
-    PhotoAttachment,
-    PhotoOptions,
     Profile,
     ReferenceDispute,
     RequestCreate,
     RequestVersion,
     Signup,
     UserCreate,
-    VariantDecision,
-    intake_values,
 )
 from .errors import ERROR_CODES, install_handlers
 from .passwords import add_user, password_hash, password_valid
 from .routes.auth import register_auth, register_logout
 from .routes.backup import register_backup
 from .routes.capture import register_capture
+from .routes.checks import register_checks, register_conditions
 from .routes.client_requests import register_client_requests
 from .routes.context import build_services
 from .routes.exports import register_exports
 from .routes.floor_requests import register_floor_requests
 from .routes.hooks import build_hooks
+from .routes.intake import register_intake
 from .routes.listings import register_listings
 from .routes.move_batches import register_move_batches
 from .routes.photo_batches import register_photo_batches
@@ -991,156 +982,12 @@ def create_app(
     app.state.moves = moves
 
     hooks = build_hooks(ctx, auto_checks)
-    read_after_intake = hooks.read_after_intake
     review_after_photo = hooks.review_after_photo
     register_capture(app, ctx, hooks)
     register_photo_batches(app, ctx, hooks)
     register_move_batches(app, ctx)
 
-    @app.post("/api/intake/drafts", status_code=201)
-    def intake_draft(user=Depends(editor)):
-        return intake.new(user["id"])
-
-    @app.post("/api/intake/photo", status_code=201)
-    async def intake_photo(request: Request, user=Depends(editor)):
-        data = bytearray()
-        async for chunk in request.stream():
-            data.extend(chunk)
-            if len(data) > 8 * 1024 * 1024:
-                raise HTTPException(413, "Photo limitée à 8 Mo.")
-        guide = request.headers.get("x-card-guide")
-        return intake.new(
-            user["id"],
-            normalize_photo(data),
-            guide=parse_guide(guide) if guide else None,
-        )
-
-    @app.post("/api/copies/{copy_id}/intake", status_code=201)
-    def intake_existing(copy_id: str, user=Depends(editor)):
-        with store.connect() as db:
-            card = store.get(db, copy_id)
-        data = (store.photos / card["photo"]).read_bytes() if card["photo"] else None
-        return {
-            **intake.new(
-                user["id"],
-                data,
-                {
-                    "id": copy_id,
-                    "version": card["version"],
-                    **{k: card[k] for k in ("name", "number", "language", "hp")},
-                },
-            ),
-            "card": card,
-        }
-
-    @app.get("/api/intake/{token}")
-    def intake_metadata(token: str, user=Depends(editor)):
-        draft = intake.draft(token, user["id"])
-        return {
-            "token": token,
-            "has_photo": draft["photo"] is not None,
-            "photo_processing": draft["photo_processing"],
-            "searches": draft["searches"],
-            "observation": draft["observation"],
-        }
-
-    @app.get("/api/intake/{token}/photo")
-    def intake_preview(token: str, user=Depends(staff)):
-        draft = intake.draft(token, user["id"])
-        if draft["photo"] is None:
-            raise HTTPException(404, "Photo absente.")
-        return Response(draft["photo"], media_type="image/jpeg")
-
-    @app.post("/api/intake/{token}/photo-options")
-    def intake_photo_options(token: str, values: PhotoOptions, user=Depends(editor)):
-        return intake.photo_options(token, user["id"], values.model_dump())
-
-    @app.post("/api/copies/{copy_id}/photo-from-intake")
-    def attach_prepared_photo(
-        copy_id: str, values: PhotoAttachment, tasks: BackgroundTasks, user=Depends(editor)
-    ):
-        review_after_photo(tasks, copy_id)
-        return intake.attach_photo(
-            values.token,
-            user["id"],
-            copy_id,
-            values.expected_version,
-            user["username"],
-            values.side,
-        )
-
-    @app.delete("/api/intake/{token}")
-    def intake_discard(token: str, user=Depends(editor)):
-        with intake.lock:
-            intake.draft(token, user["id"])
-            with store.connect() as db:
-                for row in db.execute(
-                    "SELECT data_json FROM capture_sessions WHERE owner_id=? AND status!='closed'",
-                    (user["id"],),
-                ):
-                    data = json.loads(row[0])
-                    if token in (data.get("front_token"), data.get("back_token")):
-                        raise Conflict(
-                            "Cette photo est conservée pour une série en cours."
-                        )
-            del intake.drafts[token]
-            with store.connect(write=True) as db:
-                db.execute(
-                    "DELETE FROM intake_drafts WHERE token=? AND owner_id=?",
-                    (token, user["id"]),
-                )
-        return {"discarded": True}
-
-    @app.post("/api/intake/{token}/analyze")
-    def intake_analyze(
-        token: str, entry: IntakeEntry | None = None, user=Depends(editor)
-    ):
-        try:
-            return intake.analyze(
-                token, user["id"], entry.model_dump() if entry else None
-            )
-        except RuntimeError as exc:
-            raise HTTPException(502, str(exc)) from None
-
-    @app.post("/api/intake/{token}/catalogue")
-    def intake_catalogue(token: str, values: IntakeQuery, user=Depends(editor)):
-        return intake.search(token, user["id"], values.model_dump())
-
-    @app.post("/api/intake/{token}/save", status_code=201)
-    def intake_save(
-        token: str, values: IntakeSave, tasks: BackgroundTasks, user=Depends(editor)
-    ):
-        data = intake_values(values)
-        existing = intake.draft(token, user["id"])["existing"]
-        result = intake.save(
-            token,
-            user["id"],
-            user["username"],
-            data,
-            values.chosen_catalog_id,
-            values.human_confirmed,
-            duplicate_acknowledgments=values.duplicate_acknowledgments,
-        )
-        if not existing:  # Identifying a stored copy does not change its photo.
-            read_after_intake(tasks, result, user)
-        return result
-
-    @app.post("/api/intake/{token}/duplicates")
-    def intake_duplicates(token: str, values: IntakeSave, user=Depends(editor)):
-        draft = intake.draft(token, user["id"])
-        data = {
-            **intake_values(values),
-            "photo": store.save_photo(draft["photo"]) if draft["photo"] else None,
-            "photo_original": store.save_photo(draft["original_photo"])
-            if draft["original_photo"]
-            else None,
-        }
-        with store.connect() as db:
-            return store.duplicates(
-                db,
-                data,
-                draft["existing"]["id"] if draft["existing"] else draft["copy_id"],
-            )
+    register_intake(app, ctx, hooks)
 
     @app.get("/api/copies/{copy_id}/catalogue")
     def catalogue(copy_id: str, user=Depends(staff)):
@@ -1214,110 +1061,11 @@ def create_app(
             + ("recto" if side == "front" else "verso"),
         )
 
-    @app.post("/api/copies/{copy_id}/condition-assessments", status_code=201)
-    def assess_condition(copy_id: str, values: ConditionRequest, user=Depends(editor)):
-        try:
-            return conditions.evaluate(
-                copy_id, values.expected_version, user["username"]
-            )
-        except RuntimeError as error:
-            raise HTTPException(502, str(error)) from None
-
-    @app.post("/api/copies/{copy_id}/condition-assessments/{assessment_id}/confirm")
-    def confirm_condition(
-        copy_id: str,
-        assessment_id: str,
-        values: ConditionConfirmation,
-        user=Depends(editor),
-    ):
-        return conditions.confirm(
-            copy_id,
-            assessment_id,
-            values.expected_version,
-            values.condition,
-            user["username"],
-            values.reason,
-        )
+    register_conditions(app, ctx)
 
     app.state.agent_review = review
 
-    @app.get("/api/photo-requests")
-    def photo_requests(user=Depends(staff)):
-        return review.photo_requests()
-
-    @app.post("/api/copies/{copy_id}/variant-checks", status_code=201)
-    def check_variant(
-        copy_id: str,
-        values: ConditionRequest,
-        threshold: float = Query(default=10, ge=0.01, le=10000),
-        user=Depends(editor),
-    ):
-        snapshot, valuation = variant_inputs(copy_id, cents(threshold))
-        try:
-            return variant_checks.evaluate(
-                copy_id,
-                values.expected_version,
-                user["username"],
-                snapshot=snapshot,
-                valuation=valuation,
-            )
-        except RuntimeError as error:
-            raise HTTPException(502, str(error)) from None
-
-    @app.post("/api/copies/{copy_id}/variant-checks/{check_id}/confirm")
-    def confirm_variant(
-        copy_id: str,
-        check_id: str,
-        values: VariantDecision,
-        threshold: float = Query(default=10, ge=0.01, le=10000),
-        user=Depends(editor),
-    ):
-        snapshot, valuation = variant_inputs(copy_id, cents(threshold))
-        with store.connect() as db:
-            card = store.get(db, copy_id)
-            row = next((r for r in check_rows(db, card) if r["id"] == check_id), None)
-        proposal = (
-            propose_variant(card, row["result"], snapshot, valuation) if row else None
-        )
-        return variant_checks.confirm(
-            copy_id,
-            check_id,
-            values.expected_version,
-            values.model_dump(exclude={"expected_version", "reason"}),
-            user["username"],
-            values.reason,
-            proposal,
-        )
-
-    @app.post("/api/copies/{copy_id}/variant-checks/{check_id}/keep-language")
-    def keep_language(
-        copy_id: str, check_id: str, values: KeepRecorded, user=Depends(editor)
-    ):
-        return variant_checks.keep_language(
-            copy_id, check_id, values.expected_version, user["username"], values.reason
-        )
-
-    @app.post("/api/copies/{copy_id}/edition-checks", status_code=201)
-    def check_edition(copy_id: str, values: ConditionRequest, user=Depends(editor)):
-        if not edition_checks.available:
-            raise HTTPException(
-                503,
-                "Contrôle d’édition indisponible : installez l’option vision (uv sync --extra vision).",
-            )
-        try:
-            return edition_checks.evaluate(
-                copy_id, values.expected_version, user["username"]
-            )
-        except RuntimeError as error:
-            raise HTTPException(502, str(error)) from None
-
-    @app.post("/api/copies/{copy_id}/edition-checks/{check_id}/keep")
-    def keep_edition(
-        copy_id: str, check_id: str, values: KeepRecorded, user=Depends(editor)
-    ):
-        return edition_checks.keep(
-            copy_id, check_id, values.expected_version, user["username"], values.reason
-        )
+    register_checks(app, ctx)
 
 
     register_listings(app, ctx)
