@@ -1,79 +1,15 @@
 """Private FastAPI inventory API and a dependency-free French web interface."""
 
-import hashlib
-import html
-import io
-import json
-import logging
-import secrets
-import sqlite3
-import warnings
-from decimal import Decimal
-from typing import Literal
-from urllib.parse import quote
+from fastapi import FastAPI
 
-from fastapi import (
-    BackgroundTasks,
-    Depends,
-    FastAPI,
-    HTTPException,
-    Query,
-    Request,
-    Response,
-)
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
-from PIL import Image, ImageOps
-
-from .audience import counted
-from .brand import SITE_NAME, site_slug
-from .condition_assessment import assessment_rows
-from .inventory import Conflict, cents, now
-from .quote_ledger import select_transcription
-from .market_product import cached_set_code
-from .pricing import (
-    binding_market_url,
-    cardmarket_search_url,
-    cardmarket_url,
-    fetch_card,
-)
-from .privacy import Privacy
-from .reservations import shipping_config, valid_email
-from .variant_pricing import category
-from .edition_check import propose_edition
-from .verification import (
-    check_rows,
-    propose_variant,
-)
 from .web_constants import (
     APP_SHELL,
     LANGUAGES,
-    MANAGEMENT_QUERY,
     TEXT_KEY,
     indexing_enabled,
     interface_version,
 )
-from .schemas import (
-    AlbumCreate,
-    BasketQuote,
-    BoundQuote,
-    CardCreate,
-    CardFields,
-    CardPatch,
-    ClientPatch,
-    ConditionRequest,
-    CopyRemoval,
-    GuestRequest,
-    MarketVerdict,
-    OffersPaste,
-    PasswordCheck,
-    PasswordSet,
-    Profile,
-    ReferenceDispute,
-    RequestCreate,
-    RequestVersion,
-    Signup,
-    UserCreate,
-)
+from .schemas import UserCreate
 from .errors import ERROR_CODES, install_handlers
 from .passwords import add_user, password_hash, password_valid
 from .routes.auth import register_auth, register_logout
@@ -106,6 +42,13 @@ from .routes.storefront import register_card_pages, register_storefront_pages, v
 from .routes.todo import register_todo
 from .routes.users import register_users
 from .security import install_security
+
+# Names that tests and other modules still import from here.
+__all__ = [
+    "APP_SHELL", "ERROR_CODES", "LANGUAGES", "TEXT_KEY", "UserCreate", "add_user",
+    "build_services", "create_app", "indexing_enabled", "interface_version",
+    "password_hash", "password_valid",
+]
 
 
 def create_app(
@@ -147,7 +90,6 @@ def create_app(
         indexing=indexing,
         assistant_model=assistant_model,
     )
-    public_origin = ctx.public_origin
     indexing = ctx.indexing
     allowed_hosts = ctx.allowed_hosts
     store = ctx.store
@@ -158,39 +100,15 @@ def create_app(
     market = ctx.market
     pricing = ctx.pricing
     variant_catalogue = ctx.variant_catalogue
-    catalogue_images = ctx.catalogue_images
-    audience = ctx.audience
-    storefront = ctx.storefront
     notifier = ctx.notifier
-    web_push = ctx.web_push
-    reservations = ctx.reservations
-    capture = ctx.capture
-    batches = ctx.batches
     moves = ctx.moves
-    variant_inputs = ctx.variant_inputs
     review = ctx.review
-    listings = ctx.listings
-    floor_requests = ctx.floor_requests
     todo = ctx.todo
     assistant = ctx.assistant
     failures = ctx.limits.failures
     public_hits = ctx.limits.public_hits
     signups = ctx.limits.signups
     guests = ctx.limits.guests
-    client_of = ctx.limits.client_of
-    public_rate = ctx.limits.public_rate
-    dummy_hash = ctx.auth.dummy_hash
-    current_user = ctx.auth.current_user
-    staff = ctx.auth.staff
-    client = ctx.auth.client
-    editor = ctx.auth.editor
-    admin = ctx.auth.admin
-    issue_session = ctx.auth.issue_session
-    static = ctx.pages.static
-    dictionaries = ctx.pages.dictionaries
-    page = ctx.pages.page
-    about_page = ctx.pages.about_page
-    conditions_page = ctx.pages.conditions_page
     app = FastAPI(
         title="Poképrice — collection privée",
         docs_url=None,
