@@ -19,6 +19,7 @@ APP_SHELL = (
     "/assets/themes.css", "/assets/style.css", "/assets/photo-zoom.css",
     "/assets/components.js", "/assets/photo-zoom.js", "/assets/media.js",
     "/assets/app.js",
+    "/assets/app-prices.js",
     "/assets/app-detail-sections.js",
     "/assets/app-detail.js",
     "/assets/app-sales.js",

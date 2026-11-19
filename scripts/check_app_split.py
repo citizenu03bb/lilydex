@@ -89,10 +89,10 @@ def main() -> int:
     if Counter(joined) != Counter(original):
         errors.append("les lignes des parties, en multiensemble, diffèrent de l'original")
 
-    print(f"{'partie':<20} {'lignes d’origine':>17} {'nombre':>7}")
+    print(f"{'partie':<24} {'lignes d’origine':>17} {'nombre':>7}")
     for start, end, name in runs:
-        print(f"{name:<20} {f'{start + 1}–{end}':>17} {end - start:>7}")
-    print(f"{'total':<20} {'':>17} {len(joined):>7} / {len(original)} lignes d'origine")
+        print(f"{name:<24} {f'{start + 1}–{end}':>17} {end - start:>7}")
+    print(f"{'total':<24} {'':>17} {len(joined):>7} / {len(original)} lignes d'origine")
     for error in errors:
         print(f"ERREUR : {error}", file=sys.stderr)
     if errors:
