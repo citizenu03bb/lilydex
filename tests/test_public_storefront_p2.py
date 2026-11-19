@@ -82,7 +82,9 @@ def test_media_metadata_and_generated_bytes_match_without_private_paths(shop):  
     assert (media["width"], media["height"]) == (1064, 1573)
     assert name not in str(detail) and single["items"][0]["id"] not in str(detail)
     assert "back" not in detail["items"][0]["media"]
-    assert {v["size"] for v in media["variants"]} == {"thumb", "grid2", "grid3", "view", "view2"}
+    assert {v["size"] for v in media["variants"]} == {"thumb", "grid1", "grid2", "grid3", "view", "view2"}
+    # The grid's small WebP has no JPEG twin: the thumbnail is that JPEG.
+    assert {v["format"] for v in media["variants"] if v["size"] == "grid1"} == {"webp"}
     for variant in media["variants"]:
         assert set(variant) == {"size", "format", "width", "height", "url"}
         response = visitor.get(variant["url"])

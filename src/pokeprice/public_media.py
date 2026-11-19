@@ -16,6 +16,8 @@ from PIL import Image, ImageOps, features
 # Version includes the resize/encoding contract. Bump when that contract changes.
 VERSION = "v1"
 PRESETS = {
+    # The grid's ordinary-density WebP; its JPEG twin is the stored thumbnail.
+    "grid1": (280, 392),
     "grid2": (560, 784),
     "grid3": (840, 1176),
     "view": (640, 960),
@@ -23,7 +25,7 @@ PRESETS = {
 }
 THUMB_BOX = (280, 392)
 JPEG_QUALITY = 90
-WEBP_QUALITY = 92
+WEBP_QUALITY = 82
 
 
 def cache_digest(payload, size, format):
@@ -81,6 +83,11 @@ class PublicMedia:
                 if size == "thumb" or (clean_jpeg and fitted.size == (width, height))
                 else self.formats
             )
+            if size == "grid1":
+                # Only the WebP: the thumbnail already is the small JPEG.
+                formats = tuple(f for f in formats if f != "jpeg")
+                if not formats:
+                    continue
             variants.append({
                 "size": size, "width": fitted.width, "height": fitted.height,
                 "formats": list(formats),

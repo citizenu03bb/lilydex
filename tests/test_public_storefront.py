@@ -215,9 +215,12 @@ def test_the_storefront_page_is_separate_and_indexable(shop):
 
 def test_every_page_shows_the_logo_and_its_tab_icon(shop):
     _, visitor, *_ = shop
-    for path in ("/", "/a-propos", "/gestion"):
+    # The public pages show a light WebP mark; management keeps the PNG of its shell.
+    for path, logo in (("/", "logo-mark.webp"), ("/a-propos", "logo-mark.webp"), ("/gestion", "logo.png")):
         page = visitor.get(path).text
-        assert 'rel="icon" href="/favicon.ico"' in page and 'src="/assets/logo.png"' in page
+        assert 'rel="icon" href="/favicon.ico"' in page and f'src="/assets/{logo}"' in page
+    mark = visitor.get("/assets/logo-mark.webp")
+    assert mark.status_code == 200 and mark.headers["content-type"] == "image/webp"
     icon = visitor.get("/favicon.ico")
     assert icon.status_code == 200 and icon.headers["content-type"] == "image/x-icon"
     assert icon.content[:4] == b"\x00\x00\x01\x00"  # ICO header
@@ -308,7 +311,7 @@ def test_every_page_takes_the_site_name_from_one_place(shop):
         assert f"<title>{SITE_NAME} · " in text, path
         assert "{{" not in text and "Lilydex" not in text, path
     assert site_slug() == "les-cartes-de-lily"
-    assert '<span class="wordmark"><span>Les cartes</span><em>de Lily</em></span>' in visitor.get("/").text
+    assert '<span class="wordmark"><span>Les cartes</span> <em>de Lily</em></span>' in visitor.get("/").text
 
 
 def test_the_logotype_follows_the_site_name(monkeypatch):
@@ -351,3 +354,13 @@ def test_photo_budget_does_not_block_catalogue_and_exposes_retry_after(shop):
     limited = visitor.get('/api/public/listings/absent/photo')
     assert limited.status_code == 429 and limited.headers['retry-after'] == '60'
     assert visitor.get('/api/public/listings').status_code == 200
+
+
+def test_only_a_page_sent_with_a_session_cookie_asks_who_is_signed_in(shop):
+    # Without the mark, storefront.js skips /api/me: no 401 for a mere visitor.
+    _, visitor, *_ = shop
+    visitor.cookies.clear()
+    assert "data-session" not in visitor.get("/").text
+    visitor.cookies.set("pokeprice_session", "stale")
+    assert '<body class="storefront" data-session' in visitor.get("/en/").text
+    visitor.cookies.clear()

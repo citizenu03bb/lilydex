@@ -122,7 +122,7 @@ def register_public_listing(app, ctx: AppContext, count_visit):
         listing_id: str,
         item: int = Query(default=0, ge=0, le=500),
         side: Literal["front", "back"] = "front",
-        size: Literal["full", "thumb", "grid2", "grid3", "view", "view2"] = "thumb",
+        size: Literal["full", "thumb", "grid1", "grid2", "grid3", "view", "view2"] = "thumb",
         format: Literal["jpeg", "webp"] = "jpeg",
         request: Request = None,
         _=Depends(public_rate),

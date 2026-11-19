@@ -37,7 +37,7 @@ def build_pages(public_origin: str, indexing: bool, reservations: Reservations, 
     static = Path(__file__).parent.with_name("web")
 
     small, large = site_wordmark()
-    wordmark = (f"<span>{html.escape(small)}</span>" if small else "") + f"<em>{html.escape(large)}</em>"
+    wordmark = (f"<span>{html.escape(small)}</span> " if small else "") + f"<em>{html.escape(large)}</em>"
 
     # The interface texts, one dictionary per language (docs/decisions/0020).
     dictionaries = {
@@ -85,9 +85,13 @@ def build_pages(public_origin: str, indexing: bool, reservations: Reservations, 
         summary = listing_summary(language, listing)
         first, esc = summary["first"], html.escape
         parts = ['<article id="card-summary" class="card-summary" aria-labelledby="card-summary-title">']
-        if image := summary["image"]:
+        # The grid's JPEG suits the summary's 200 px. Chrome still fetches it while
+        # the block is hidden (storefront.css), so the sharing image stays out of it.
+        jpegs = [v for v in first.get("media", {}).get("front", {}).get("variants", []) if v["format"] == "jpeg"]
+        image = next((v for v in jpegs if v["size"] == "grid2"), summary["image"])
+        if image:
             parts.append(f'<img src="{esc(image["url"], quote=True)}" alt="{esc(summary["alt"], quote=True)}"'
-                         f' width="{int(image["width"])}" height="{int(image["height"])}" />')
+                         f' width="{int(image["width"])}" height="{int(image["height"])}" loading="lazy" />')
         parts.append("<div>")
         parts.append(f'<h2 id="card-summary-title">{esc(summary["name"])}</h2>')
         if len(listing["items"]) > 1:
