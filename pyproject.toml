@@ -177,7 +177,7 @@ check_untyped_defs = false
 
 # Fichiers gelés pendant une refonte en cours : deux affectations reportées.
 [[tool.mypy.overrides]]
-module = ["pokeprice.webapp", "pokeprice.routes.copies"]
+module = ["pokeprice.routes.copies", "pokeprice.routes.public"]
 disable_error_code = ["assignment"]
 
 # Assistant.cost_alert est déclaré None et reçoit son alerte au démarrage : reporté.

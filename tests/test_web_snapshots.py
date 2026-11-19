@@ -335,3 +335,50 @@ def test_cheap_hashing_patch_reaches_password_hash():
     assert passwords.password_hash("Mot-de-passe-2026!").startswith("scrypt$n=1024,")
     assert webapp.password_hash("Mot-de-passe-2026!").startswith("scrypt$n=1024,")
     assert not hasattr(webapp, "SCRYPT") and not hasattr(webapp, "LEGACY_SCRYPT")
+
+
+def test_robots_and_sitemap_bodies_byte_for_byte(published):
+    # Pinned before robots.txt and sitemap.xml left webapp.py: same bytes with indexing on,
+    # the same 404 with it off, and no sitemap without a public origin.
+    store, listing = published
+    robots = (
+        b"User-agent: *\nAllow: /api/public/listings/*/photo\nDisallow: /gestion\nDisallow: /api/\n"
+    )
+    not_found = b'{"detail":"Not Found"}'
+
+    def url(rest, lastmod=""):
+        links = (
+            f'<xhtml:link rel="alternate" hreflang="fr" href="{ORIGIN}/{rest}"/>'
+            f'<xhtml:link rel="alternate" hreflang="en" href="{ORIGIN}/en/{rest}"/>'
+            f'<xhtml:link rel="alternate" hreflang="x-default" href="{ORIGIN}/{rest}"/>'
+        )
+        modified = f"<lastmod>{lastmod}</lastmod>" if lastmod else ""
+        return [f"<url><loc>{ORIGIN}/{home}{rest}</loc>{modified}{links}</url>" for home in ("", "en/")]
+
+    for indexing in (True, False):
+        config = {"indexing": indexing, "agent_enabled": True, "secure_cookie": False}
+        with TestClient(build(store, config), base_url="https://testserver") as client:
+            day = client.get(f"/api/public/listings/{listing}").json()["price_date"][:10]
+            entries = [*url(""), *url("a-propos"), *url("conditions"), *url(f"carte/{listing}", day)]
+            sitemap = (
+                '<?xml version="1.0" encoding="UTF-8"?>\n'
+                '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" '
+                'xmlns:xhtml="http://www.w3.org/1999/xhtml">\n' + "\n".join(entries) + "\n</urlset>\n"
+            ).encode()
+            seen = {path: client.get(path) for path in ("/robots.txt", "/sitemap.xml")}
+        if indexing:
+            assert seen["/robots.txt"].status_code == 200
+            assert seen["/robots.txt"].content == robots + f"Sitemap: {ORIGIN}/sitemap.xml\n".encode()
+            assert seen["/robots.txt"].headers["content-type"] == "text/plain; charset=utf-8"
+            assert seen["/sitemap.xml"].status_code == 200 and seen["/sitemap.xml"].content == sitemap
+            assert seen["/sitemap.xml"].headers["content-type"] == "application/xml"
+        else:
+            for response in seen.values():
+                assert response.status_code == 404 and response.content == not_found
+    # Without a public origin: robots.txt names no sitemap, which is not served.
+    app = create_app(store.root, public_origin="", indexing=True, agent_enabled=True, **SERVICES)
+    with TestClient(app, base_url="https://testserver") as client:
+        assert client.get("/robots.txt").content == robots
+        missing = client.get("/sitemap.xml")
+        assert missing.status_code == 404
+        assert missing.json()["detail"] == "Plan du site indisponible sans origine publique."
