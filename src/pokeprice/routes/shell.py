@@ -75,6 +75,8 @@ def register_shell(app, ctx: AppContext):
         request: Request,
         name: Literal[
             "app.js",
+            "app-controls.js",
+            "app-intake.js",
             "app-requests.js",
             "app-moves.js",
             "app-assistant.js",
