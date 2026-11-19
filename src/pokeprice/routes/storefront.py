@@ -41,6 +41,17 @@ def visit_counter(ctx: AppContext):
     return count_visit
 
 
+def with_session(rendered, request):
+    """Mark a storefront page sent with a session cookie, valid or not.
+
+    Without the mark, storefront.js does not ask /api/me: a visitor who never
+    signed in gets no 401 in the console. The cookie itself stays HttpOnly.
+    """
+    if not request.cookies.get("pokeprice_session"):
+        return rendered
+    return rendered.replace('<body class="storefront"', '<body class="storefront" data-session', 1)
+
+
 def register_storefront_pages(app, ctx: AppContext, count_visit):
     """Register the storefront, about and conditions pages, where ``create_app`` had them."""
     page = ctx.pages.page
@@ -55,7 +66,7 @@ def register_storefront_pages(app, ctx: AppContext, count_visit):
             # shared link's fbclid, utm_* or gclid stays on the storefront.
             return RedirectResponse("/gestion?" + request.url.query, status_code=301)
         count_visit(request, "page", "accueil")
-        return page("storefront.html", public="")
+        return with_session(page("storefront.html", public=""), request)
 
     @app.get("/en", include_in_schema=False)
     def home_en_slash():
@@ -65,7 +76,7 @@ def register_storefront_pages(app, ctx: AppContext, count_visit):
     @app.get("/en/", response_class=HTMLResponse)
     def home_en(request: Request):
         count_visit(request, "page", "accueil")
-        return page("storefront.html", "en", public="")
+        return with_session(page("storefront.html", "en", public=""), request)
 
     @app.get("/a-propos", response_class=HTMLResponse)
     def about(request: Request):
@@ -116,10 +127,10 @@ def register_card_pages(app, ctx: AppContext, count_visit):
             listing = storefront.get(listing_id)
         except KeyError:
             # The page still loads and says the card is no longer for sale.
-            return HTMLResponse(page("storefront.html", language, "carte/" + quote(listing_id, safe="")), status_code=404)
+            return HTMLResponse(with_session(page("storefront.html", language, "carte/" + quote(listing_id, safe="")), request), status_code=404)
         count_visit(request, "page", "carte")
         rest = "carte/" + quote(listing_id, safe="")
-        return page("storefront.html", language, rest, listing=listing, public=rest)
+        return with_session(page("storefront.html", language, rest, listing=listing, public=rest), request)
 
     def online_listings():
         """The publications on sale, newest first, for the sitemap."""

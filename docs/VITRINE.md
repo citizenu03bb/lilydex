@@ -160,8 +160,11 @@ la ferme. Changer de face ou de publication réinitialise le zoom. Le contrôleu
 de zoom est partagé avec la visionneuse de gestion ; les routes photo et les
 dialogues restent propres à chaque interface.
 
-La grille choisit une définition JPEG selon la place réellement occupée et la
-densité d'écran. La fiche utilise une variante de consultation WebP, si disponible,
+La grille choisit une définition selon la place réellement occupée et la
+densité d'écran, en WebP dès la plus petite (`grid1`), avec repli JPEG. Les
+premières vignettes et la photo de la fiche se chargent aussitôt, avec la
+priorité haute pour la première ; les suivantes attendent d'approcher de
+l'écran. La fiche utilise une variante de consultation WebP, si disponible,
 avec repli JPEG. Une petite source n'est jamais agrandie pour fabriquer une
 variante ; un JPEG déjà adapté et sans métadonnée privée évite une recompression
 inutile. La photo complète de consultation se charge à la demande du zoom,
@@ -214,8 +217,11 @@ Le corps d'une fiche `/carte/{id}` contient aussi sa version HTML, écrite par l
 serveur à la place de `{{card_summary}}` : photo du recto avec son texte
 alternatif, nom, extension, numéro, état et prix ; pour un lot, son titre, sa
 description et la liste des cartes qu'il contient. Les robots et les lecteurs
-sans JavaScript lisent ainsi la fiche ; `storefront.js` retire ce bloc dès que
-la fiche s'ouvre dans sa fenêtre. Une fiche absente (404) n'en a pas.
+sans JavaScript lisent ainsi la fiche. Dès que les scripts se chargent, le bloc
+est masqué avant le premier affichage : la grille ne bouge pas sous la fenêtre
+de la fiche. Sa photo est la variante de grille, plus légère que l'image de
+partage.
+`storefront.js` retire ensuite le bloc quand la fiche s'ouvre. Une fiche absente (404) n'en a pas.
 
 La vitrine est ouverte aux moteurs de recherche par défaut. Le réglage
 `POKEPRICE_INDEXING` de l'environnement du serveur la ferme avec `off`, `0`,
@@ -354,9 +360,10 @@ minute et par adresse :
   détail et photo par identifiant de publication, 404 si la carte n'est plus
   publiée. Le détail reçoit `view=1` à chaque ouverture de fiche pour mesurer
   cette ouverture ; les tailles de photos et le zoom ne la comptent pas à nouveau.
-  La photo accepte `item`, `side`, `size` (`thumb`, `full`, `grid2`, `grid3`, `view`,
-  `view2`) et `format` (`jpeg`, `webp` selon les variantes proposées). `thumb` et
-  `full` conservent leur format JPEG ; les dimensions annoncées sont celles
+  La photo accepte `item`, `side`, `size` (`thumb`, `full`, `grid1`, `grid2`, `grid3`,
+  `view`, `view2`) et `format` (`jpeg`, `webp` selon les variantes proposées). `thumb` et
+  `full` conservent leur format JPEG ; `grid1`, de même taille que `thumb`, n'est
+  proposé qu'en WebP ; les dimensions annoncées sont celles
   réellement produites.
 - `POST /api/public/quote` : devis sans réservation, limité à 50 publications
   distinctes ; renvoie les articles disponibles (identifiant, libellé public,

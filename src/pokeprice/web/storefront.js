@@ -171,28 +171,33 @@ function photoSizes(media, usage) {
     : `min(560px, ${62 * ratio}dvh, ${560 * ratio}px)`;
   return `(max-width: 600px) ${mobile}, ${desktop}`;
 }
-function adaptivePhoto(listing, item, face, usage, alt = "", interactive = false) {
+// `priority`: "high" for the page's main photo, "eager" for the first visible tiles.
+function adaptivePhoto(listing, item, face, usage, alt = "", interactive = false, priority = "") {
   const image = el("img");
   image.alt = alt;
-  if (usage === "grid") image.loading = "lazy";
+  if (usage === "grid" && !priority) image.loading = "lazy";
+  if (priority === "high" || usage === "detail") image.fetchPriority = "high";
   const media = item.media?.[face];
   const sizes = photoSizes(media, usage);
-  const presets = usage === "grid" ? ["thumb", "grid2", "grid3"] : ["view", "view2"];
+  const presets = usage === "grid" ? ["thumb", "grid1", "grid2", "grid3"] : ["view", "view2"];
   const variants = media?.variants?.filter(v => presets.includes(v.size) && v.width > 0 && v.height > 0) || [];
   const candidates = format => [...new Map(variants.filter(v => v.format === format)
     .sort((a, b) => a.width - b.width).map(v => [v.width, v])).values()];
   const jpeg = candidates("jpeg");
   const webp = candidates("webp");
   const picture = el("picture");
-  // Grid JPEGs include the small legacy thumbnail. WebP starts at grid2 and
-  // would overfetch on ordinary-density displays; use it for the larger fiche.
-  if (webp.length && usage === "detail") {
+  // Grid JPEGs include the small legacy thumbnail; the grid's WebP starts at
+  // the same width (grid1), so an ordinary-density display never overfetches.
+  if (webp.length && (usage === "detail" || webp[0].width <= (jpeg[0]?.width ?? Infinity))) {
     const source = el("source");
     source.type = "image/webp";
     source.srcset = webp.map(v => `${v.url} ${v.width}w`).join(", ");
     source.sizes = sizes;
     picture.append(source);
   }
+  // In its <picture> before any source: WebKit starts loading a detached
+  // image's own srcset at once, then the WebP too (two or three downloads).
+  picture.append(image);
   if (jpeg.length) {
     image.srcset = jpeg.map(v => `${v.url} ${v.width}w`).join(", ");
     image.sizes = sizes;
@@ -200,7 +205,6 @@ function adaptivePhoto(listing, item, face, usage, alt = "", interactive = false
   if (media?.width && media?.height) { image.width = media.width; image.height = media.height; }
   // Set sources before src to avoid a speculative second image download.
   image.src = jpeg[0]?.url || photo(listing, item, face, usage === "grid" ? "thumb" : "full");
-  picture.append(image);
   watchPhoto(image, interactive);
   return picture;
 }
@@ -234,7 +238,9 @@ function label(listing) {
   return [item.name, item.set_name, item.number].filter(Boolean).join(" · ");
 }
 
-function tile(listing) {
+// The first tiles are in view on arrival: lazy loading would only delay them.
+const EAGER_TILES = 4;
+function tile(listing, index) {
   const li = el("li", undefined, "tile");
   // A real link: middle click or "open in a new tab" reach the card's address.
   const open = el("a", undefined, "tile-open");
@@ -242,7 +248,8 @@ function tile(listing) {
   const first = listing.items[0];
   const figure = el("div", undefined, "tile-photo");
   if (first.photos.includes("front")) {
-    figure.append(adaptivePhoto(listing, first, "front", "grid"));
+    const priority = index === 0 ? "high" : index < EAGER_TILES ? "eager" : "";
+    figure.append(adaptivePhoto(listing, first, "front", "grid", "", false, priority));
   }
   if (listing.items.length > 1) {
     const gifts = offered(listing).length;
@@ -573,6 +580,7 @@ async function openFromAddress() {
   try {
     show(await call(`/api/public/listings/${match[1]}?view=1`), false, false);
     // The server's plain copy of the fiche, for robots: the dialog now says it all.
+    // It is already hidden (storefront.css) so the grid never moves under the dialog.
     document.getElementById("card-summary")?.remove();
   } catch {
     history.replaceState(null, "", HOME + location.hash);
@@ -927,12 +935,10 @@ function updateFacets(result) {
 function drawHero() {
   const photos = state.items.filter((listing) => listing.items[0].photos.includes("front")).slice(0, 2);
   $("hero-art").hidden = photos.length < 2;
-  $("hero-art").replaceChildren(...photos.map((listing) => {
-    const image = el("img");
-    image.src = photo(listing, listing.items[0], "front", "thumb");
-    image.alt = "";
-    return image;
-  }));
+  // The grid's own sources: the browser downloads each photo once for both.
+  // Lazy: the hero is hidden on a phone and must not compete with the first tile.
+  $("hero-art").replaceChildren(...photos.map((listing) =>
+    adaptivePhoto(listing, listing.items[0], "front", "grid")));
 }
 
 function filterLoading() {
@@ -1331,7 +1337,9 @@ openLink();
 state.basket = readBasket();
 renderAccount();
 restoreBasket();
-whoAmI();
+// The server marks the page when a session cookie came with it: without one,
+// the visitor is signed out and /api/me would only answer 401.
+if ("session" in document.body.dataset) whoAmI();
 readFilters();
 load();
 openFromAddress();

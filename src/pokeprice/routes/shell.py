@@ -88,7 +88,7 @@ def register_shell(app, ctx: AppContext):
             "media.js", "workflows.js", "gallery.js", "style.css",
             "storefront.js", "storefront.css", "themes.css", "components.js",
             "photo-zoom.js", "photo-zoom.css", "pwa.js", "assistant.js",
-            "logo.png", "apple-touch-icon.png", "mascotte.png",
+            "logo.png", "logo-mark.webp", "apple-touch-icon.png", "mascotte.png",
             "icon-192.png", "icon-512.png", "icon-maskable-512.png",
         ],
     ):
@@ -96,7 +96,9 @@ def register_shell(app, ctx: AppContext):
         etag = '"' + hashlib.sha256(path.read_bytes()).hexdigest() + '"'
         if request.headers.get("if-none-match") == etag:
             return Response(status_code=304, headers={"ETag": etag})
-        return FileResponse(path, headers={"ETag": etag})
+        # Older Pythons do not know the WebP type: say it.
+        media_type = "image/webp" if name.endswith(".webp") else None
+        return FileResponse(path, media_type=media_type, headers={"ETag": etag})
 
     # Browsers ask for /favicon.ico on their own, before reading any page.
     @app.get("/favicon.ico", include_in_schema=False)

@@ -508,9 +508,11 @@ fieldset.stack legend {
 .hero-art { height: 145px; max-width: 255px; width: 100%; margin-inline: auto; position: relative; }
 .hero-art::before { content: ""; position: absolute; inset: 22px 0 0; background: var(--surface-3); border-radius: 46% 54% 44% 56% / 59% 45% 55% 41%; transform: rotate(-6deg); }
 .hero-art img { position: absolute; width: 85px; height: 115px; object-fit: contain; top: 8px; left: 43px; border-radius: 5px; transform: rotate(-12deg); }
-.hero-art img + img { left: 117px; top: 15px; transform: rotate(10deg); }
+.hero-art picture + picture img { left: 117px; top: 15px; transform: rotate(10deg); }
 .catalogue-title { font-size: 27px; font-weight: 400; margin: 0 0 15px; }
 .card-summary { display: flex; gap: 20px; align-items: flex-start; margin: 0 0 30px; }
+/* The fiche opens in its dialog: its plain copy would push the grid down, then up. */
+.js .card-summary { display: none; }
 .card-summary img { width: 200px; max-width: 40%; height: auto; border-radius: 8px; }
 .card-summary h2 { margin: 0 0 10px; }
 .card-summary p, .card-summary ul { margin: 0 0 8px; }

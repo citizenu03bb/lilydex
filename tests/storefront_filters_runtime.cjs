@@ -57,6 +57,7 @@ const context = vm.createContext({
   fetch: url => new Promise((resolve, reject) => pending.push({ url, resolve, reject })),
   tile: item => item.id,
   photo: (listing, item) => `/photo/${listing.id}/${item.index}`,
+  adaptivePhoto: (listing, item) => ({ tagName: "PICTURE", src: `/photo/${listing.id}/${item.index}` }),
   openLink: () => false,
 });
 vm.runInContext(slice("const FILTERS =", "// A link sent by the seller:"), context);

@@ -9064,6 +9064,7 @@
        "enum": [
         "full",
         "thumb",
+        "grid1",
         "grid2",
         "grid3",
         "view",
@@ -10162,6 +10163,7 @@
         "pwa.js",
         "assistant.js",
         "logo.png",
+        "logo-mark.webp",
         "apple-touch-icon.png",
         "mascotte.png",
         "icon-192.png",

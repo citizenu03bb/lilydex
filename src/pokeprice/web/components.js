@@ -1,6 +1,10 @@
 /* Shared W3C Custom Elements (Light DOM) and theme/filter helpers for the site. */
 "use strict";
 
+// Loaded in <head>: styles meant for readers without JavaScript can step aside
+// before the first paint, instead of moving the page once scripts run.
+if (typeof document !== "undefined") document.documentElement.classList.add("js");
+
 // The page's texts: the server puts its dictionary in #messages (docs/decisions/0020).
 // A plural is an object keyed by Intl plural category, with an optional "zero".
 function translator(messages, locale) {
