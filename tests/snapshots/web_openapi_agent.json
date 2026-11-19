@@ -10139,6 +10139,10 @@
       "schema": {
        "enum": [
         "app.js",
+        "app-requests.js",
+        "app-moves.js",
+        "app-assistant.js",
+        "app-boot.js",
         "media.js",
         "workflows.js",
         "gallery.js",

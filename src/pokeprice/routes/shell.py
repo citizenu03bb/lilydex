@@ -74,7 +74,12 @@ def register_shell(app, ctx: AppContext):
     def assets(
         request: Request,
         name: Literal[
-            "app.js", "media.js", "workflows.js", "gallery.js", "style.css",
+            "app.js",
+            "app-requests.js",
+            "app-moves.js",
+            "app-assistant.js",
+            "app-boot.js",
+            "media.js", "workflows.js", "gallery.js", "style.css",
             "storefront.js", "storefront.css", "themes.css", "components.js",
             "photo-zoom.js", "photo-zoom.css", "pwa.js", "assistant.js",
             "logo.png", "apple-touch-icon.png", "mascotte.png",
