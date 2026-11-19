@@ -166,10 +166,11 @@ function translate(key, params = {}) {
     },
   });
 
-  vm.runInContext(
-    source.slice(source.indexOf("let activeMoveBatch = null;")),
-    context,
-  );
+  // The move section alone: the boot, in the last part, must not run here.
+  const start = source.indexOf("let activeMoveBatch = null;");
+  const end = source.indexOf("// The management assistant", start);
+  assert.ok(start >= 0 && end > start, "move section not found in the app parts");
+  vm.runInContext(source.slice(start, end), context);
 
   // 1. Open dialog: picks the other album by default and renders collision warning.
   await controls["move-selection"].click();
