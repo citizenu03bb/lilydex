@@ -1006,6 +1006,8 @@ async function load(reset = true) {
     state.approximate = Boolean(result.approximate);
   } catch (error) {
     if (request !== state.request) return;
+    // Lily stops waiting: the message and its retry button take over.
+    for (const waiting of $("grid").querySelectorAll(".tile-waiting")) waiting.remove();
     state.retryReset = reset;
     $("error").textContent = message;
     $("error").hidden = false;

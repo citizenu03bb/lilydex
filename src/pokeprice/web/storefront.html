@@ -143,7 +143,18 @@
         <button id="results-reset" type="button" class="text-button">{{t:results.reset}}</button>
       </div>
       <p id="notice" class="notice" role="status" hidden></p>
-      <ul id="grid" class="grid"></ul>
+      <!-- Lily waits with the visitor until the first cards arrive (storefront.js
+           replaces these tiles; without JavaScript, storefront.css hides them). -->
+      <ul id="grid" class="grid" aria-busy="true">
+        <li class="tile tile-waiting" aria-hidden="true"><div class="tile-photo"><img src="/assets/logo-mark.webp" alt="" width="56" height="56" /></div><div class="tile-text"><span class="bar bar-name"></span><span class="bar"></span><span class="bar bar-short"></span></div></li>
+        <li class="tile tile-waiting" aria-hidden="true"><div class="tile-photo"><img src="/assets/logo-mark.webp" alt="" width="56" height="56" /></div><div class="tile-text"><span class="bar bar-name"></span><span class="bar"></span><span class="bar bar-short"></span></div></li>
+        <li class="tile tile-waiting" aria-hidden="true"><div class="tile-photo"><img src="/assets/logo-mark.webp" alt="" width="56" height="56" /></div><div class="tile-text"><span class="bar bar-name"></span><span class="bar"></span><span class="bar bar-short"></span></div></li>
+        <li class="tile tile-waiting" aria-hidden="true"><div class="tile-photo"><img src="/assets/logo-mark.webp" alt="" width="56" height="56" /></div><div class="tile-text"><span class="bar bar-name"></span><span class="bar"></span><span class="bar bar-short"></span></div></li>
+        <li class="tile tile-waiting" aria-hidden="true"><div class="tile-photo"><img src="/assets/logo-mark.webp" alt="" width="56" height="56" /></div><div class="tile-text"><span class="bar bar-name"></span><span class="bar"></span><span class="bar bar-short"></span></div></li>
+        <li class="tile tile-waiting" aria-hidden="true"><div class="tile-photo"><img src="/assets/logo-mark.webp" alt="" width="56" height="56" /></div><div class="tile-text"><span class="bar bar-name"></span><span class="bar"></span><span class="bar bar-short"></span></div></li>
+        <li class="tile tile-waiting" aria-hidden="true"><div class="tile-photo"><img src="/assets/logo-mark.webp" alt="" width="56" height="56" /></div><div class="tile-text"><span class="bar bar-name"></span><span class="bar"></span><span class="bar bar-short"></span></div></li>
+        <li class="tile tile-waiting" aria-hidden="true"><div class="tile-photo"><img src="/assets/logo-mark.webp" alt="" width="56" height="56" /></div><div class="tile-text"><span class="bar bar-name"></span><span class="bar"></span><span class="bar bar-short"></span></div></li>
+      </ul>
       <p class="more"><button id="more" type="button" hidden>{{t:results.more}}</button></p>
       </section>
     </main>

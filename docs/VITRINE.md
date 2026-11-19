@@ -160,6 +160,13 @@ la ferme. Changer de face ou de publication réinitialise le zoom. Le contrôleu
 de zoom est partagé avec la visionneuse de gestion ; les routes photo et les
 dialogues restent propres à chaque interface.
 
+Pendant le premier chargement, la grille montre huit vignettes d'attente : la
+marque de Lily, estompée, qui respire doucement (immobile si le système demande
+moins d'animations), au-dessus de barres grises à la place du texte. Elles ont
+la taille des vraies vignettes, qui les remplacent sans décaler la page ; sans
+JavaScript, elles restent masquées. En cas d'erreur, elles laissent la place au
+message et au bouton pour réessayer.
+
 La grille choisit une définition selon la place réellement occupée et la
 densité d'écran, en WebP dès la plus petite (`grid1`), avec repli JPEG. Les
 premières vignettes et la photo de la fiche se chargent aussitôt, avec la
