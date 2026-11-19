@@ -1,7 +1,7 @@
 # Carte des modules web
 
-> **Pour qui :** toute personne qui doit modifier le serveur web et cherche où vit une route.
-> **Vous y trouverez :** le rôle de chaque module, la façon dont l'application est assemblée et les tests qui prouvent que les routes ne bougent pas.
+> **Pour qui :** toute personne qui doit modifier le serveur web ou l'interface de gestion et cherche où vit une route ou un écran.
+> **Vous y trouverez :** le rôle de chaque module, la façon dont l'application est assemblée, les tests qui prouvent que les routes ne bougent pas, et les parties de `app.js` avec leur règle d'ordre.
 
 ## Assemblage
 
@@ -72,3 +72,43 @@ noms que les tests et d'autres modules lui demandent (`__all__`).
 
 Les raisons de ce découpage sont dans la
 [décision 0046](decisions/0046-decouper-webapp-par-groupe-de-routes.md).
+
+## Interface de gestion : les parties de `app.js`
+
+La page `/gestion` charge des scripts classiques (`defer`, sans module) qui
+partagent la portée globale. Le script de l'application est découpé en
+parties, chargées l'une après l'autre dans cet ordre :
+
+| Partie | Contenu |
+|---|---|
+| `app.js` | Le cœur : `$`, `state`, `api`, les aides partagées (`el`, `field`, `pair`…), l'accès, la navigation (`syncLocation`, `restoreLocation`, `changeView`), la liste des cartes, la sélection et les lots |
+| `app-prices.js` | Le prix d'une carte : relevé, produit Cardmarket, cote liée, estimation de vente |
+| `app-detail-sections.js` | Les sections de la fiche : vitrine, retrait, état, contrôles d'édition, de langue et de variante, image du catalogue |
+| `app-detail.js` | La fiche d'une carte (`openDetail`) |
+| `app-sales.js` | Demandes de la vitrine, clients, audience, ventes, paiement, marge plancher, rotation des lots, comptes |
+| `app-controls.js` | Les écouteurs de la page : dialogues, vues, connexion, historique, recherche, filtres, pagination, sélection, prix, lots |
+| `app-intake.js` | Préparation des photos, saisie, dialogue photo, ajout d'album |
+| `app-requests.js` | Photos demandées par l'agent de revue, prix sous le plancher |
+| `app-moves.js` | Déplacements groupés et leur annulation |
+| `app-assistant.js` | L'assistant « À toi » |
+| `app-boot.js` | Le démarrage, seul |
+
+**Règle d'ordre.** Une déclaration de fonction n'est remontée que dans son
+propre fichier, et le code de premier niveau s'exécute au chargement de sa
+partie. Ce code (écouteurs posés sur la page, blocs `if ($("…"))`, boucles
+sur `document.querySelectorAll`) ne lit donc que des noms d'une partie
+chargée avant la sienne, ou de la sienne. Un rappel, lui, n'est résolu qu'à
+l'événement. Le démarrage reste dans `app-boot.js`, la dernière partie :
+entre deux scripts `defer`, le navigateur peut traiter la réponse d'un
+`fetch`, et ce qui suit son premier `await` appelle des fonctions de toutes
+les parties. Chaque partie commence par `"use strict";`.
+
+**Ajouter une partie.** Trois listes la nomment, dans le même ordre : les
+balises `<script>` de `index.html`, `APP_SHELL` (`web_constants.py`, sinon
+l'application ne marche plus hors ligne) et le `Literal` de `/assets/{name}`
+(`routes/shell.py`, qui figure dans le document OpenAPI).
+`tests/test_web_scripts.py` vérifie que ces listes concordent, que chaque
+partie est en mode strict et que les scripts se chargent dans l'ordre de la
+page sur un DOM factice. Les environnements Node des tests lisent les parties
+réunies (`tests/web_scripts.py`). `scripts/check_app_split.py` prouve que
+les parties reprennent à l'identique l'`app.js` d'avant le découpage.

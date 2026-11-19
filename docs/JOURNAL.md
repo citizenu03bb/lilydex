@@ -9,6 +9,12 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-19
 
+- `app.js` (4 669 lignes) est découpé en onze parties chargées l'une après
+  l'autre (PR 127 à 131). Chaque partie reprend à l'identique une suite
+  contiguë de l'original (`scripts/check_app_split.py`), et le démarrage se
+  charge en dernier. Seuls les noms de `/assets/{name}` changent dans le
+  document OpenAPI. Parties et règle d'ordre :
+  [carte des modules web](ARCHITECTURE-WEB.md#interface-de-gestion--les-parties-de-appjs).
 - `webapp.py` passe d'environ 3 000 lignes à 210 : le découpage par groupe de
   routes est fini côté serveur (PR 112 à 125, puis le nettoyage). Chaque étape
   déplace le code à l'identique ; la table des routes, le document OpenAPI et les
