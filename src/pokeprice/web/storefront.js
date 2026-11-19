@@ -934,8 +934,9 @@ function drawHero() {
   const photos = state.items.filter((listing) => listing.items[0].photos.includes("front")).slice(0, 2);
   $("hero-art").hidden = photos.length < 2;
   // The grid's own sources: the browser downloads each photo once for both.
+  // Lazy: the hero is hidden on a phone and must not compete with the first tile.
   $("hero-art").replaceChildren(...photos.map((listing) =>
-    adaptivePhoto(listing, listing.items[0], "front", "grid", "", false, "eager")));
+    adaptivePhoto(listing, listing.items[0], "front", "grid")));
 }
 
 function filterLoading() {
