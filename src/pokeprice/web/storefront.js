@@ -195,6 +195,9 @@ function adaptivePhoto(listing, item, face, usage, alt = "", interactive = false
     source.sizes = sizes;
     picture.append(source);
   }
+  // In its <picture> before any source: WebKit starts loading a detached
+  // image's own srcset at once, then the WebP too (two or three downloads).
+  picture.append(image);
   if (jpeg.length) {
     image.srcset = jpeg.map(v => `${v.url} ${v.width}w`).join(", ");
     image.sizes = sizes;
@@ -202,7 +205,6 @@ function adaptivePhoto(listing, item, face, usage, alt = "", interactive = false
   if (media?.width && media?.height) { image.width = media.width; image.height = media.height; }
   // Set sources before src to avoid a speculative second image download.
   image.src = jpeg[0]?.url || photo(listing, item, face, usage === "grid" ? "thumb" : "full");
-  picture.append(image);
   watchPhoto(image, interactive);
   return picture;
 }

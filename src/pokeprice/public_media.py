@@ -78,7 +78,7 @@ class PublicMedia:
             # Pillow's thumbnail rounding is the output's actual pixel contract.
             fitted = Image.new("1", raw_size if size == "thumb" else (width, height))
             fitted.thumbnail(box, Image.Resampling.LANCZOS)
-            formats = (
+            formats: tuple[str, ...] = (
                 ("jpeg",)
                 if size == "thumb" or (clean_jpeg and fitted.size == (width, height))
                 else self.formats
