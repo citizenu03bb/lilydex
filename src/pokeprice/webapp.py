@@ -82,15 +82,7 @@ from .routes.capture import register_capture
 from .routes.checks import register_checks, register_conditions
 from .routes.client_requests import register_client_requests
 from .routes.context import build_services
-from .routes.copies import (
-    register_copy_detail,
-    register_copy_images,
-    register_copy_list,
-    register_editions,
-    register_reference_audit,
-    register_reference_replay,
-    register_summary,
-)
+from .routes.copies import register_copies, register_copy_images
 from .routes.exports import register_exports
 from .routes.floor_requests import register_floor_requests
 from .routes.hooks import build_hooks
@@ -627,249 +619,18 @@ def create_app(
     register_logout(app, ctx)
     register_users(app, ctx)
 
-    register_summary(app, ctx)
-
-    @app.post("/api/albums", status_code=201)
-    def album_create(values: AlbumCreate, user=Depends(editor)):
-        import uuid
-
-        album = {"id": str(uuid.uuid4()), "name": values.name}
-        with store.connect(write=True) as db:
-            db.execute("INSERT INTO albums VALUES(?,?)", (album["id"], album["name"]))
-        return album
-
-    register_copy_list(app, ctx)
-
-    @app.delete("/api/copies/{copy_id}")
-    def copy_remove(copy_id: str, values: CopyRemoval, user=Depends(admin)):
-        return store.set_deleted(
-            copy_id, True, values.expected_version, user["username"], values.reason
-        )
-
-    @app.post("/api/copies/{copy_id}/restore")
-    def copy_restore(copy_id: str, values: CopyRemoval, user=Depends(admin)):
-        return store.set_deleted(
-            copy_id, False, values.expected_version, user["username"], values.reason
-        )
-
-    register_copy_detail(app, ctx)
-
-    @app.post("/api/copies/{copy_id}/variant-preview")
-    def variant_preview(copy_id: str, values: CardFields, user=Depends(staff)):
-        with store.connect() as db:
-            before = store.get(db, copy_id)
-            card = {**before, **values.model_dump(exclude_unset=True)}
-            if any(
-                card.get(k) != before.get(k)
-                for k in (
-                    "finish",
-                    "stamp",
-                    "stamp_state",
-                    "distribution",
-                    "distribution_state",
-                    "catalog_id",
-                    "language",
-                    "number",
-                    "identification_status",
-                )
-            ):
-                card["variant_confirmed"] = False
-            if (
-                any(card[k] != before[k] for k in ("number", "set_name", "language"))
-                and card["catalog_id"] == before["catalog_id"]
-            ):
-                card["catalog_id"] = None
-        variant_catalogue.ensure(card)
-        with store.connect() as db:
-            snapshot = store.category_snapshot(db, card)
-            return {
-                **category(card, snapshot),
-                "reference_resolution": store.reference.decision_for(
-                    db, card, snapshot
-                ),
-            }
-
-    register_reference_audit(app, ctx)
-
-    @app.post("/api/copies/{copy_id}/reference-decision", status_code=201)
-    def reference_decision(copy_id: str, values: CopyRemoval, user=Depends(editor)):
-        return store.reference.record(
-            copy_id, values.expected_version, user["username"], values.reason
-        )
-
-    register_reference_replay(app, ctx)
-
-    @app.post("/api/copies/{copy_id}/reference-dispute")
-    def reference_dispute(copy_id: str, values: ReferenceDispute, user=Depends(editor)):
-        return store.reference.dispute(
-            copy_id,
-            values.expected_version,
-            values.active,
-            values.affects,
-            user["username"],
-            values.reason,
-        )
-
-    @app.post("/api/copies/{copy_id}/market-product")
-    def market_product(copy_id: str, values: MarketVerdict, user=Depends(editor)):
-        return market.judge(
-            copy_id,
-            values.expected_version,
-            values.verdict,
-            user["username"],
-            values.reason,
-        )
-
-    @app.post("/api/copies/{copy_id}/bound-quote", status_code=201)
-    def bound_quote(copy_id: str, values: BoundQuote, user=Depends(editor)):
-        if any(v < 0 or v > 10000000 for v in values.metrics.values()):
-            raise ValueError("Montant hors limites.")
-        return select_transcription(
-            store,
-            copy_id,
-            values.expected_version,
-            values.metrics,
-            values.observed_on,
-            user["username"],
-            values.reason,
-            values.capture_sha256,
-        )
-
-    @app.post("/api/copies/{copy_id}/sale-estimate", status_code=201)
-    def sale_estimate(copy_id: str, values: OffersPaste, user=Depends(editor)):
-        return pricing.estimate(copy_id, values.text, user["username"])
-
-    @app.post("/api/copies/{copy_id}/price-refresh")
-    def price_refresh(copy_id: str, values: ConditionRequest, user=Depends(editor)):
-        try:
-            return pricing.refresh(copy_id, values.expected_version, user["username"])
-        except RuntimeError as exc:
-            raise HTTPException(503, str(exc)) from None
-
-    @app.patch("/api/copies/{copy_id}")
-    def correct(copy_id: str, values: CardPatch, user=Depends(editor)):
-        changes = values.model_dump(
-            exclude_unset=True, exclude={"reason", "expected_version"}
-        )
-        if any(
-            v is None and k not in ("catalog_id", "hp", "reference_price_eur")
-            for k, v in changes.items()
-        ):
-            raise ValueError("Champ vide non autorisé.")
-        if "reference_price_eur" in changes:
-            changes["reference_cents"] = cents(changes.pop("reference_price_eur"))
-            if changes["reference_cents"] is not None:
-                if not changes.get("price_source"):
-                    raise ValueError("Précisez la source du prix.")
-                changes["price_date"] = now()
-            else:
-                changes.update(price_source="", price_date="")
-        # Network metadata lookup happens before the write transaction. It may
-        # fail; saving a physical observation must remain possible offline.
-        with store.connect() as db:
-            before = store.get(db, copy_id)
-        if before["version"] != values.expected_version:
-            raise Conflict("La fiche a changé. Rechargez-la avant de modifier.")
-        observed = {**before, **changes}
-        if (
-            any(observed[k] != before[k] for k in ("number", "set_name", "language"))
-            and observed["catalog_id"] == before["catalog_id"]
-        ):
-            observed["catalog_id"] = None
-        variant_catalogue.ensure(observed)
-        return store.patch(
-            copy_id, changes, values.expected_version, user["username"], values.reason
-        )
-
-    @app.post("/api/copies", status_code=201)
-    def copy_create(values: CardCreate, user=Depends(editor)):
-        changes = values.model_dump(
-            exclude_unset=True, exclude={"reason", "duplicate_acknowledgments"}
-        )
-        if any(v is None and k not in ("catalog_id", "hp") for k, v in changes.items()):
-            raise ValueError("Champ vide non autorisé.")
-        for key in (
-            "name",
-            "album_id",
-            "page",
-            "position",
-            "set_name",
-            "number",
-            "language",
-        ):
-            changes[key] = getattr(values, key)
-        variant_catalogue.ensure(changes)
-        return store.create_copy(
-            changes,
-            user["username"],
-            values.reason,
-            duplicate_acknowledgments=values.duplicate_acknowledgments,
-        )
-
-    register_editions(app, ctx)
+    register_copies(app, ctx)
 
     app.state.moves = moves
 
     hooks = build_hooks(ctx, auto_checks)
-    review_after_photo = hooks.review_after_photo
     register_capture(app, ctx, hooks)
     register_photo_batches(app, ctx, hooks)
     register_move_batches(app, ctx)
 
     register_intake(app, ctx, hooks)
 
-    register_copy_images(app, ctx)
-
-    @app.put("/api/copies/{copy_id}/photo")
-    async def upload(
-        copy_id: str,
-        request: Request,
-        tasks: BackgroundTasks,
-        version: int = Query(ge=1),
-        side: Literal["front", "back"] = "front",
-        user=Depends(editor),
-    ):
-        review_after_photo(tasks, copy_id)
-        data = bytearray()
-        async for chunk in request.stream():
-            data.extend(chunk)
-            if len(data) > 8 * 1024 * 1024:
-                raise HTTPException(413, "Photo limitée à 8 Mo.")
-        try:
-            with warnings.catch_warnings():
-                warnings.simplefilter("error", Image.DecompressionBombWarning)
-                with Image.open(io.BytesIO(data)) as image:
-                    if (
-                        image.format not in ("JPEG", "PNG", "WEBP")
-                        or image.width * image.height > 24000000
-                    ):
-                        raise ValueError("Format ou dimensions non pris en charge.")
-                    image = ImageOps.exif_transpose(image).convert("RGB")
-                    image.thumbnail((1600, 1600))
-                    output = io.BytesIO()
-                    image.save(output, format="JPEG", quality=90)
-        except (
-            OSError,
-            ValueError,
-            Image.DecompressionBombWarning,
-            Image.DecompressionBombError,
-        ):
-            raise HTTPException(
-                422, "Photo JPEG, PNG ou WebP valide requise (24 mégapixels maximum)."
-            )
-        name = store.save_photo(output.getvalue())
-        return store.patch(
-            copy_id,
-            {
-                "photo" if side == "front" else "back_photo": name,
-                "photo_original" if side == "front" else "back_photo_original": name,
-                "condition_confirmed": False,
-            },
-            version,
-            user["username"],
-            "Ajout ou remplacement de la photo du "
-            + ("recto" if side == "front" else "verso"),
-        )
+    register_copy_images(app, ctx, hooks)
 
     register_conditions(app, ctx)
 

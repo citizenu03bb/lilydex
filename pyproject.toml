@@ -105,6 +105,7 @@ ignore = [
 "src/pokeprice/webapp.py" = ["B904", "F401", "F841"]
 "src/pokeprice/routes/pages.py" = ["F841"]
 "src/pokeprice/routes/users.py" = ["B904"]
+"src/pokeprice/routes/copies.py" = ["B904"]
 # Lecture de origin.port pour rejeter un port mal formé : voulu.
 "src/pokeprice/routes/context.py" = ["B018"]
 "src/pokeprice/listings.py" = ["B904"]
@@ -174,9 +175,9 @@ module = [
 ]
 check_untyped_defs = false
 
-# Fichier gelé pendant une refonte en cours : deux affectations reportées.
+# Fichiers gelés pendant une refonte en cours : deux affectations reportées.
 [[tool.mypy.overrides]]
-module = ["pokeprice.webapp"]
+module = ["pokeprice.webapp", "pokeprice.routes.copies"]
 disable_error_code = ["assignment"]
 
 # Assistant.cost_alert est déclaré None et reçoit son alerte au démarrage : reporté.
