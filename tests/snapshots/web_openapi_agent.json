@@ -10139,6 +10139,7 @@
       "schema": {
        "enum": [
         "app.js",
+        "app-prices.js",
         "app-detail-sections.js",
         "app-detail.js",
         "app-sales.js",
