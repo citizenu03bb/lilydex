@@ -17,6 +17,7 @@ function element(id, tagName = "BUTTON", options = []) {
       if (this.tagName === "SELECT") this.options = children;
     },
     setAttribute(key, value) { this.attributes[key] = value; },
+    querySelectorAll() { return []; },
     addEventListener(type, fn) { this.handlers[type] = fn; },
     focus() { focused = id; context.document.activeElement = this; },
   };

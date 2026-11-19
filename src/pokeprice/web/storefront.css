@@ -537,6 +537,15 @@ fieldset.stack legend {
 .tile-open:hover .tile-photo img { transform: translateY(-3px); }
 .badge { position: absolute; left: 8px; top: 8px; padding: 4px 10px; border-radius: 20px; background: var(--card); border: 1px solid var(--line); color: var(--ink); font-size: 12px; }
 .tile-text { padding: 10px 1px 0; }
+/* Placeholder tiles while the first cards load: Lily's mark, faded, breathing. */
+.tile-waiting { display: none; }
+.js .tile-waiting { display: block; }
+.tile-waiting .tile-photo img { width: 56px; height: 56px; opacity: .22; animation: lily-wait 1.6s ease-in-out infinite alternate; }
+.tile-waiting .bar { display: block; height: 14px; margin: 5px 0 9px; border-radius: 7px; background: var(--surface-3); width: 80%; }
+.tile-waiting .bar-name { height: 16px; margin-top: 3px; width: 65%; }
+.tile-waiting .bar-short { width: 45%; }
+@keyframes lily-wait { from { opacity: .14; transform: scale(.94); } to { opacity: .3; transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .tile-waiting .tile-photo img { animation: none; } }
 .tile-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 5px; }
 .tile-text p { margin: 0; }
 .tile-name { font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }

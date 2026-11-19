@@ -364,3 +364,13 @@ def test_only_a_page_sent_with_a_session_cookie_asks_who_is_signed_in(shop):
     visitor.cookies.set("pokeprice_session", "stale")
     assert '<body class="storefront" data-session' in visitor.get("/en/").text
     visitor.cookies.clear()
+
+
+def test_lily_waits_in_placeholder_tiles_only_when_scripts_run(shop):
+    _, visitor, *_ = shop
+    page = visitor.get("/").text
+    grid = page.split('<ul id="grid"', 1)[1].split("</ul>", 1)[0]
+    assert grid.count('class="tile tile-waiting" aria-hidden="true"') == 8
+    assert 'src="/assets/logo-mark.webp" alt=""' in grid
+    css = visitor.get("/assets/storefront.css").text
+    assert ".tile-waiting { display: none; }" in css and ".js .tile-waiting { display: block; }" in css
