@@ -102,7 +102,6 @@ ignore = [
 "scripts/evaluate_agent_control.py" = ["E402"]
 # Fichiers gelés pendant une refonte en cours : écarts reportés, à corriger
 # puis à retirer d'ici.
-"src/pokeprice/webapp.py" = ["B904", "F401", "F841"]
 "src/pokeprice/routes/pages.py" = ["F841"]
 "src/pokeprice/routes/users.py" = ["B904"]
 "src/pokeprice/routes/copies.py" = ["B904"]
@@ -171,7 +170,6 @@ module = [
     "pokeprice.todo",
     "pokeprice.valuation",
     "pokeprice.verification",
-    "pokeprice.webapp",
 ]
 check_untyped_defs = false
 

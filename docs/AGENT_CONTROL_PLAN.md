@@ -168,7 +168,7 @@ obtenir une réponse HTTP 200.
 
 ### Ce qui ne bloque pas cette livraison
 
-`current_user` de `webapp.py` lit actuellement le cookie, pas le Bearer. Les
+`current_user` (`routes/auth_deps.py`) lit actuellement le cookie, pas le Bearer. Les
 écritures de gestion peuvent donc rester fermées à l’agent sans refondre
 `Store.patch`, `create_copy`, intake et capture. La provenance historiquement
 classée humaine reste une limite réelle, à traiter avant d’exposer une commande
