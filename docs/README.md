@@ -20,6 +20,7 @@ quand, est dans le [journal](JOURNAL.md).
 | Page | Ce que vous y trouvez |
 |---|---|
 | [Guide de l'application](APP.md) | Démarrer, saisir des cartes, photos, variantes, prix, lots, imports et exports |
+| [Carte des modules web](ARCHITECTURE-WEB.md) | Où vit chaque route du serveur web et comment l'application est assemblée |
 | [Référence des commandes](COMMANDES.md) | Chaque commande et ses options, générées depuis le code |
 | [Valeur en jeu et file d'examen](VALUATION.md) | Comment l'application repère les cartes qui méritent une décision humaine |
 | [Aide à l'état](CONDITION-ASSESSMENT.md) | Le verso et la proposition d'état |

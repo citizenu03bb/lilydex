@@ -13,6 +13,12 @@ client. Il n'y a ni paiement en ligne, ni service d'e-mail : le vendeur
 contacte le client depuis sa propre messagerie, et c'est sa réponse qui
 vérifie l'adresse.
 
+Les pages et l'API publiques vivent dans `src/pokeprice/routes/storefront.py`
+(pages, adresse propre d'une carte, `robots.txt`, plan du site) et
+`src/pokeprice/routes/public.py` (recherche, inscription, devis, demandes des
+invités, annonces et photos) ; les comptes des clients sont dans
+`routes/accounts.py`. La [carte des modules](ARCHITECTURE-WEB.md) situe le reste.
+
 La vitrine s'affiche sous le nom **Les cartes de Lily**. Ce nom vient de
 `SITE_NAME` (`src/pokeprice/brand.py`), que le serveur insère dans chaque page à
 la place de `{{site_name}}` ; le logotype (`{{site_wordmark}}`) le coupe avant

@@ -156,7 +156,7 @@ Ce qui rend l'installation possible, et ce qui reste sur le téléphone :
 
 Le service worker garde dans un cache l'interface seule : la page hors ligne,
 les scripts, les styles, le manifeste et les icônes (liste `APP_SHELL` de
-`webapp.py`). Le nom du cache porte une empreinte de tous les fichiers de
+`web_constants.py`). Le nom du cache porte une empreinte de tous les fichiers de
 `src/pokeprice/web/` : un déploiement qui change l'interface crée un nouveau
 cache, et l'ancien est supprimé à l'activation. Le réseau passe toujours
 d'abord ; le cache ne sert que sans réseau. Les requêtes `/api`, dont les

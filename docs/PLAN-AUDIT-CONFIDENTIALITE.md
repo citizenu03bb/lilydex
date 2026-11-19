@@ -52,7 +52,7 @@ courante dans les lots, et `forget()` valide la base avant `record()`.
 
 ### L1 — Identité et effacement des clients
 
-**Constat 1 — adresse non vérifiée.** Fichiers : `webapp.py` (`me_update`),
+**Constat 1 — adresse non vérifiée.** Fichiers : `routes/accounts.py` (`me_update`),
 `reservations.py` (`guest`).
 
 - Le changement d'e-mail devient une demande : la nouvelle adresse est rangée
@@ -153,7 +153,8 @@ courante dans les lots, et `forget()` valide la base avant `record()`.
 
 **Constat 6 — prix affiché et prix enregistré.** Fichiers :
 `web/storefront.js` (instantané du panier), `reservations.py` (`prices`),
-`webapp.py` (schémas, devis, routes invitées et connectées, réponse de conflit).
+`schemas.py` (schémas), `routes/public.py` (devis, routes invitées),
+`routes/accounts.py` (routes connectées) et `errors.py` (réponse de conflit).
 
 - Avant l'envoi, le navigateur redemande un devis (prix et disponibilité de
   chaque article) ; si un prix a changé, le panier montre l'écart et demande

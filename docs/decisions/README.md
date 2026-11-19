@@ -53,6 +53,7 @@ l'ancienne passe au statut « remplacée ».
 | [0043](0043-banc-provenance-et-intervalles.md) | Le banc d'essai publie ses intervalles et la provenance de sa vérité | 2026-11-10 |
 | [0044](0044-outil-des-lots-par-l-api-agent.md) | L'outil des lots passe par l'API agent, sous trois permissions réservées à l'administrateur | 2026-11-10 |
 | [0045](0045-cartes-sorties-d-un-lot-en-annonce-unitaire.md) | Une carte qui quitte un lot revient seule en vitrine à partir de 1 € | 2026-11-11 |
+| [0046](0046-decouper-webapp-par-groupe-de-routes.md) | `webapp.py` est découpé par groupe de routes, par déplacements à l'identique prouvés par des instantanés | 2026-11-19 |
 
 ## Écrire une fiche
 

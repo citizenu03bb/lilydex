@@ -7,6 +7,16 @@
 Une page qui décrit le fonctionnement ne porte pas de date : quand un passage
 daté la quitte, il est versé ici dans le même commit.
 
+## 2026-11-19
+
+- `webapp.py` passe d'environ 3 000 lignes à 210 : le découpage par groupe de
+  routes est fini côté serveur (PR 112 à 125, puis le nettoyage). Chaque étape
+  déplace le code à l'identique ; la table des routes, le document OpenAPI et les
+  en-têtes restent identiques octet pour octet
+  (`tests/test_web_snapshots.py`). Raisons : [décision 0046](decisions/0046-decouper-webapp-par-groupe-de-routes.md) ;
+  plan des modules : [carte des modules web](ARCHITECTURE-WEB.md). Le découpage
+  de `app.js` vient ensuite.
+
 ## 2026-11-11
 
 - L'agent des lots passe sur le serveur, sous le compte restreint
