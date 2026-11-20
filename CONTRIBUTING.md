@@ -19,6 +19,24 @@ uv run --extra web --extra dev pytest
 Ajoutez `--extra vision` pour installer torch et lancer aussi les tests du
 contrôle par l'image ; sans cette option, ils sont ignorés.
 
+### Un seul contrôle avant de commiter
+
+```bash
+uv run --extra web --extra dev python scripts/check.py
+```
+
+[scripts/check.py](scripts/check.py) enchaîne les contrôles de la CI :
+`ruff` et `mypy` comme dans le workflow, `ruff` sur les seuls fichiers Python
+modifiés par rapport à `master`, `scripts/check_docs.py`, `pytest` (qui exécute aussi les tests
+JavaScript des scripts) et la recette Playwright dans Firefox. Cette dernière
+est ignorée, avec la raison affichée, si `npm`, les dépendances de
+`tests/browser` ou le Firefox de Playwright manquent ; WebKit et les trois
+versions de Python restent à la CI. Le script se termine par un résumé et sort
+avec un code non nul si une étape échoue. `--rapide` ne lance que le lint des
+fichiers modifiés et le contrôle de la documentation ;
+`--sans-navigateur` saute la recette ; `--base RÉVISION` change la
+comparaison (`master` par défaut).
+
 ### Lint, types et couverture
 
 ```bash
