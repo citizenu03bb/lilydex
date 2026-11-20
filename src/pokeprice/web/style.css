@@ -1004,6 +1004,7 @@ dialog::backdrop {
   }
   .heading-actions {
     flex-direction: row;
+    flex-wrap: wrap;
     align-items: center;
     width: 100%;
   }
@@ -2505,4 +2506,26 @@ button.chat-flag-button.chat-flagged {
     margin-left: auto;
     padding: 8px 12px;
   }
+}
+
+/* Binder import (decision 0047): the pages, and the pockets waiting for a person. */
+.binder-pages {
+  display: grid;
+  gap: 8px;
+  padding-left: 1.2em;
+}
+.binder-pocket {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 4px 8px;
+  align-items: center;
+  margin: 6px 0;
+}
+.binder-pocket img {
+  grid-row: span 3;
+  width: 72px;
+  border-radius: 4px;
+}
+.binder-pocket p {
+  margin: 0;
 }
