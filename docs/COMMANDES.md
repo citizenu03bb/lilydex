@@ -423,6 +423,52 @@ Proposer les cartes à vérifier sur la carte physique pour le banc d'essai, dan
 | `--names` | Feuille avec les noms : l'identité n'est alors plus vérifiée à l'aveugle |
 | `--output` `OUTPUT` | Écrire dans ce fichier (jamais écrasé) ; sortie standard sinon |
 
+### `pokeprice-manage binder-import`
+
+Importer un classeur : photos de pages dans l'ordre du classeur, exemplaires « à vérifier »
+
+| Argument | Effet |
+|---|---|
+| `photos` | Photos de pages (ou de cartes avec --grid single) |
+| `--album` `ALBUM` | Nom de l'album (créé s'il n'existe pas) |
+| `--import-id` `IMPORT_ID` | Ajouter les photos à un import existant |
+| `--grid` `GRID` | Valeurs : `3x3`, `2x2`, `3x4`, `4x3`, `single`. Par défaut : `3x3`. |
+| `--first-page` `FIRST_PAGE` | Numéro de la première photo Par défaut : `1`. |
+| `--budget-eur` `BUDGET_EUR` | Budget Gemini de l'import (3 € par défaut) |
+| `--actor` `ACTOR` | Compte administrateur qui importe |
+| `--no-run` | Seulement enregistrer : le processus de fond lit |
+
+### `pokeprice-manage binder-worker`
+
+Processus de fond des imports de classeur (service systemd)
+
+### `pokeprice-manage binder-status`
+
+État d'un import, ou des derniers
+
+| Argument | Effet |
+|---|---|
+| `import_id` |  |
+
+### `pokeprice-manage binder-continue`
+
+Continuer un import arrêté au budget (ajoute le budget initial)
+
+| Argument | Effet |
+|---|---|
+| `import_id` |  |
+| `--actor` `ACTOR` |  |
+
+### `pokeprice-manage agent-review-apply`
+
+Faire écrire l'agent de revue sur les pages importées, ou le remettre en simulation
+
+| Argument | Effet |
+|---|---|
+| `state` | Valeurs : `on`, `off`. |
+| `--actor` `ACTOR` | Compte administrateur |
+| `--reason` `REASON` | La mesure à l'aveugle qui l'autorise |
+
 ### `pokeprice-manage export`
 
 Export de la collection gérée

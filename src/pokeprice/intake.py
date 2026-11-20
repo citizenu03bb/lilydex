@@ -17,6 +17,7 @@ from urllib.request import Request, urlopen
 from PIL import Image, ImageOps
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
 
+from .gemini_usage import record as record_usage
 from .photo_processing import prepare_photo
 from .tcgdex import TCGdexClient, strip_accents
 
@@ -107,6 +108,7 @@ def read_photo(data):
                     ),
                 ),
             )
+        record_usage(MODEL, response)
         raw = response.text or ""
         observation = Observation.model_validate_json(raw).model_dump()
     except Exception:  # noqa: BLE001 - Provider errors must never expose API credentials.

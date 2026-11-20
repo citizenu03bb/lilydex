@@ -9,6 +9,24 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-20
 
+- M3 : l'agent de revue confirme aussi l'identité d'une carte importée quand le
+  catalogue n'a trouvé qu'une édition exacte, que l'image la confirme et que la
+  carte est sous le seuil ; identité, variante et état s'écrivent ensemble ou
+  pas du tout, et s'annulent ensemble ([aide à l'état](CONDITION-ASSESSMENT.md#lagent-de-revue)).
+- M3, interface : **Collection → Importer un classeur**, pour l'administrateur ;
+  file d'envoi gardée dans le navigateur et reprise seule, avancement et coût
+  par page, pochettes à reprendre ou vides. Les boutons d'en-tête passent à la
+  ligne sur téléphone ([gestion](APP.md#importer-un-classeur)).
+- M3, routes de l'import : `/api/binder-imports` (création, état, coût,
+  téléversement par morceaux, reprise au budget, pochette vide) et
+  `/api/settings/agent-review-apply`, réservées à l'administrateur ; le
+  service web ne lit aucune carte (`tests/test_binder_routes.py`).
+- M3, service d'import : `binder_import.py` découpe les pages par le découpage de
+  la ligne de commande, lit chaque pochette, crée les exemplaires « à vérifier »
+  et reprend seul après une coupure ; `binder-worker` tourne dans
+  `pokeprice-import.service`, moins prioritaire que le site. Commandes
+  `binder-import`, `binder-status`, `binder-continue`, `agent-review-apply`
+  (`tests/test_binder_import.py`).
 - Cadre de M3 : un classeur s'importe page par page sur le serveur, par un
   processus moins prioritaire que le site, avec reprise toute seule, budget
   Gemini par classeur et agent de revue en simulation jusqu'à la porte de la

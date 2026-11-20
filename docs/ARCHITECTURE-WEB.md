@@ -48,6 +48,7 @@ noms que les tests et d'autres modules lui demandent (`__all__`).
 | `capture.py` | Séances de saisie d'une page de classeur |
 | `photo_batches.py`, `move_batches.py` | Lots de photos et lots de déplacements, aperçus, application, annulation |
 | `intake.py` | Brouillons de saisie par photo |
+| `binder_imports.py` | Imports de classeur, par un administrateur : téléversements par morceaux, budget, réglage d'écriture de l'agent de revue ; la lecture se fait dans le processus de fond ([fiche 0047](decisions/0047-import-de-classeur-sur-le-serveur.md)) |
 | `checks.py` | Contrôles d'état, de variante et d'édition d'un exemplaire |
 | `listings.py` | Annonces de la vitrine côté gestion |
 | `sales.py` | Registre des ventes, modifications, brouillon d'annonce |

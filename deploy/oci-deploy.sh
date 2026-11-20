@@ -83,14 +83,15 @@ ssh "$REMOTE_HOST" "sudo cp /opt/pokeprice/deploy/pokeprice.service /etc/systemd
     sudo cp /opt/pokeprice/deploy/pokeprice-audience-purge.timer /etc/systemd/system/ && \
     sudo cp /opt/pokeprice/deploy/pokeprice-media-cache.service /etc/systemd/system/ && \
     sudo cp /opt/pokeprice/deploy/pokeprice-media-cache.timer /etc/systemd/system/ && \
+    sudo cp /opt/pokeprice/deploy/pokeprice-import.service /etc/systemd/system/ && \
     if command -v restorecon >/dev/null 2>&1; then sudo restorecon -v /etc/systemd/system/pokeprice* >/dev/null 2>&1 || true; fi && \
     { sudo sed 's/cards.example.com/${DOMAIN}/g' /opt/pokeprice/deploy/Caddyfile.example; \
       if [ -n '${REDIRECTS}' ]; then printf '\n%s {\n    redir https://%s{uri} permanent\n}\n' '${REDIRECTS}' '${DOMAIN}'; fi; } \
       | sudo tee /etc/caddy/Caddyfile >/dev/null && \
     sudo caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null && \
     sudo systemctl daemon-reload && \
-    sudo systemctl enable --now pokeprice.service pokeprice-backup.timer pokeprice-media-cache.timer pokeprice-audience-purge.timer && \
-    sudo systemctl restart pokeprice.service && \
+    sudo systemctl enable --now pokeprice.service pokeprice-import.service pokeprice-backup.timer pokeprice-media-cache.timer pokeprice-audience-purge.timer && \
+    sudo systemctl restart pokeprice.service pokeprice-import.service && \
     sudo systemctl reload-or-restart caddy"
 
 echo "[6/6] Vérification de l'état local et HTTPS du service..."

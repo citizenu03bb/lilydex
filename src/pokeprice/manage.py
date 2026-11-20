@@ -317,6 +317,38 @@ def main():
     bench.add_argument("--format", choices=["json", "sheet"], default="json", help="JSON pour les outils, ou feuille de séance à remplir")
     bench.add_argument("--names", action="store_true", help="Feuille avec les noms : l'identité n'est alors plus vérifiée à l'aveugle")
     bench.add_argument("--output", help="Écrire dans ce fichier (jamais écrasé) ; sortie standard sinon")
+    # Decision 0047: the binder import, on the server, the app's own service.
+    binder = actions.add_parser(
+        "binder-import",
+        help="Importer un classeur : photos de pages dans l'ordre du classeur, exemplaires « à vérifier »",
+    )
+    binder.add_argument("photos", nargs="*", help="Photos de pages (ou de cartes avec --grid single)")
+    binder.add_argument("--album", help="Nom de l'album (créé s'il n'existe pas)")
+    binder.add_argument("--import-id", help="Ajouter les photos à un import existant")
+    binder.add_argument("--grid", default="3x3", choices=["3x3", "2x2", "3x4", "4x3", "single"])
+    binder.add_argument("--first-page", type=int, default=1, help="Numéro de la première photo")
+    binder.add_argument("--budget-eur", type=float, help="Budget Gemini de l'import (3 € par défaut)")
+    binder.add_argument("--actor", required=True, help="Compte administrateur qui importe")
+    binder.add_argument(
+        "--no-run", action="store_true", help="Seulement enregistrer : le processus de fond lit"
+    )
+    actions.add_parser(
+        "binder-worker", help="Processus de fond des imports de classeur (service systemd)"
+    )
+    binder_status = actions.add_parser("binder-status", help="État d'un import, ou des derniers")
+    binder_status.add_argument("import_id", nargs="?")
+    binder_continue = actions.add_parser(
+        "binder-continue", help="Continuer un import arrêté au budget (ajoute le budget initial)"
+    )
+    binder_continue.add_argument("import_id")
+    binder_continue.add_argument("--actor", required=True)
+    review_apply = actions.add_parser(
+        "agent-review-apply",
+        help="Faire écrire l'agent de revue sur les pages importées, ou le remettre en simulation",
+    )
+    review_apply.add_argument("state", choices=["on", "off"])
+    review_apply.add_argument("--actor", required=True, help="Compte administrateur")
+    review_apply.add_argument("--reason", default="", help="La mesure à l'aveugle qui l'autorise")
     exporter = actions.add_parser("export", help="Export de la collection gérée")
     exporter.add_argument("format", choices=["csv", "json", "html"])
     exporter.add_argument("output")
@@ -337,6 +369,17 @@ def main():
             write_bench(args)
         except (ValueError, FileNotFoundError, FileExistsError) as error:
             parser.error(str(error))
+        return
+    if args.action.startswith("binder-") or args.action == "agent-review-apply":
+        if not any(arg == "--data" or arg.startswith("--data=") for arg in sys.argv[1:]):
+            parser.error(f"{args.action} exige --data explicite")
+    if args.action == "binder-worker":
+        import logging
+
+        from .binder_worker import build, run_worker
+
+        logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s %(message)s")
+        run_worker(build(Store(args.data), holder="worker"))
         return
     if args.action == "vapid-keys":
         try:
@@ -691,6 +734,27 @@ def main():
             result = NameCatalog(store).refresh(tuple(args.languages.split(",")))
         elif args.action == "brief":
             result = send_brief(store, args.since, args.notify)
+        elif args.action == "binder-import":
+            result = binder_import(store, args)
+        elif args.action == "binder-status":
+            from .binder_import import BinderImports
+
+            imports = BinderImports(store, reader=lambda photo: None, lookup=lambda query: {})
+            result = (
+                binder_summary(imports.get(args.import_id))
+                if args.import_id
+                else [binder_summary(i) for i in imports.listing()]
+            )
+        elif args.action == "binder-continue":
+            from .binder_import import BinderImports
+
+            require_admin(store, args.actor)
+            imports = BinderImports(store, reader=lambda photo: None, lookup=lambda query: {})
+            result = binder_summary(imports.continue_budget(args.import_id, args.actor))
+        elif args.action == "agent-review-apply":
+            from .agent_review import set_review_apply
+
+            result = set_review_apply(store, args.state == "on", args.actor, args.reason)
         elif args.action == "export":
             from .inventory_backup import export_csv, export_data, export_html
 
@@ -709,6 +773,59 @@ def main():
             result = {"path": str(output)}
     # Output lands in the systemd journal: the private Drive folder stays out of it.
     print(json.dumps(without_drive_folder(result), ensure_ascii=False, indent=2))
+
+
+def require_admin(store, actor):
+    with store.connect() as db:
+        if not db.execute(
+            "SELECT 1 FROM users WHERE username=? AND role='admin' AND disabled=0 AND status='active'",
+            (actor,),
+        ).fetchone():
+            raise ValueError("Seul un compte administrateur actif importe un classeur.")
+
+
+def binder_summary(item):
+    """An import without its pockets' readings: enough for a terminal."""
+    return {
+        "id": item["id"],
+        "album": item["album"],
+        "grid": item["grid"],
+        "status": item["status"],
+        "note": item["note"],
+        "budget_eur": item["budget_eur"],
+        "cost": item["cost"],
+        "progress": item["progress"],
+        "counts": item["counts"],
+        "pages": [
+            {"page": p["page"], "status": p["status"], "error": p["error"],
+             "cost_eur": p["cost_eur"], "review": p["review"],
+             "to_retake": [k["position"] for k in p["pockets"] if k["status"] in ("retake", "failed")]}
+            for p in item["pages"]
+        ],
+    }
+
+
+def binder_import(store, args, imports=None):
+    """Register the photos as pages, then run the steps here unless the worker holds them."""
+    from .binder_worker import build
+
+    require_admin(store, args.actor)
+    imports = imports or build(store)
+    if args.import_id:
+        item = imports.get(args.import_id)
+    else:
+        if not args.album:
+            raise ValueError("--album ou --import-id requis.")
+        item = imports.create(args.actor, album_name=args.album, grid=args.grid,
+                              budget_eur=args.budget_eur)
+    for offset, path in enumerate(args.photos):
+        imports.add_photo(item["id"], args.first_page + offset, 0, Path(path).read_bytes())
+    if not args.no_run:
+        try:
+            imports.run_until_idle()
+        finally:
+            imports.release()
+    return binder_summary(imports.get(item["id"]))
 
 
 def send_brief(store, since=None, notify=False, channels=None, origin=None):

@@ -29,6 +29,7 @@
     <script src="/assets/app-assistant.js" defer></script>
     <script src="/assets/app-boot.js" defer></script>
     <script src="/assets/workflows.js" defer></script>
+    <script src="/assets/binder-import.js" defer></script>
     <script src="/assets/gallery.js" defer></script>
     <script src="/assets/pwa.js" defer></script>
     <script src="/assets/assistant.js" defer></script>
@@ -136,6 +137,7 @@
               </button>
               <button id="capture-series" hidden>Saisie en série</button>
               <button id="capture-page" hidden>{{t:page_batch.open}}</button>
+              <button id="capture-binder" hidden>{{t:binder.open}}</button>
             </div>
           </div>
           <div class="stats" id="stats"></div>
@@ -969,6 +971,42 @@
         </button>
         <p id="page-error" class="error" role="alert"></p>
       </div>
+    </dialog>
+    <dialog id="binder-dialog" aria-labelledby="binder-dialog-title">
+      <div class="dialog-header">
+        <h2 id="binder-dialog-title">{{t:binder.title}}</h2>
+        <button data-close="binder-dialog" class="close" aria-label="{{t:binder.close}}">×</button>
+      </div>
+      <form id="binder-form" class="dialog-form">
+        <p class="help">{{t:binder.help}}</p>
+        <label>{{t:binder.import}}<select name="import_id"></select></label>
+        <fieldset id="binder-new">
+          <label>{{t:binder.album}}<input name="album_name" maxlength="120" required /></label>
+          <label>{{t:binder.grid}}<select name="grid">
+            <option value="3x3">3×3</option>
+            <option value="2x2">2×2</option>
+            <option value="3x4">3×4</option>
+            <option value="4x3">4×3</option>
+            <option value="single">{{t:binder.grid.single}}</option>
+          </select></label>
+          <button class="primary">{{t:binder.create}}</button>
+        </fieldset>
+        <p id="binder-error" class="error" role="alert"></p>
+      </form>
+      <section id="binder-current" class="dialog-form" hidden>
+        <h3 id="binder-title"></h3>
+        <p id="binder-progress"></p>
+        <p id="binder-cost" class="help"></p>
+        <p id="binder-note" class="help" role="status"></p>
+        <div class="intake-actions">
+          <button type="button" id="binder-next-page" class="primary"></button>
+          <label class="button">{{t:binder.files}}<input id="binder-files" type="file" multiple accept="image/jpeg,image/png,image/webp" /></label>
+          <button type="button" id="binder-continue" hidden>{{t:binder.continue}}</button>
+        </div>
+        <p id="binder-status" class="help" role="status" aria-live="polite"></p>
+        <ol id="binder-pages" class="binder-pages"></ol>
+        <button type="button" id="binder-close">{{t:binder.close_import}}</button>
+      </section>
     </dialog>
     <dialog id="batch-dialog" aria-labelledby="batch-title">
       <div class="dialog-header">

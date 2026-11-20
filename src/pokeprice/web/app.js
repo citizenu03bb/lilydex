@@ -181,6 +181,7 @@ async function showWorkspace(user) {
   refreshFloorRequests().catch((e) => toast(e.message));
   if (typeof refreshTodo === "function") refreshTodo().catch((e) => toast(e.message));
   if (typeof Assistant !== "undefined") Assistant.attach(user);
+  if (typeof BinderImport !== "undefined") BinderImport.attach();
   restoreLocation();
   if (requestLink) changeView("sales", false);
   await loadCards();
