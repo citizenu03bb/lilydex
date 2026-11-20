@@ -85,7 +85,7 @@ def register_shell(app, ctx: AppContext):
             "app-moves.js",
             "app-assistant.js",
             "app-boot.js",
-            "media.js", "workflows.js", "gallery.js", "style.css",
+            "media.js", "workflows.js", "binder-import.js", "gallery.js", "style.css",
             "storefront.js", "storefront.css", "themes.css", "components.js",
             "photo-zoom.js", "photo-zoom.css", "pwa.js", "assistant.js",
             "logo.png", "logo-mark.webp", "apple-touch-icon.png", "mascotte.png",

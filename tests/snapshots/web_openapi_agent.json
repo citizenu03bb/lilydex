@@ -10682,6 +10682,7 @@
         "app-boot.js",
         "media.js",
         "workflows.js",
+        "binder-import.js",
         "gallery.js",
         "style.css",
         "storefront.js",
