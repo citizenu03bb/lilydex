@@ -9,6 +9,13 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-20
 
+- M3, réception sur Android (Pixel 7, Chrome, base temporaire) : import de
+  trois pages, 27 cartes « à vérifier » dans l'ordre du classeur, téléversement
+  coupé à 1 Mio sur 2,5 Mo puis repris seul, 0,22 € de Gemini ; saisie en
+  série de deux cartes. Sur ces cartes découpées d'une page, l'agent de revue
+  ne confirme rien et demande des prises de près (reflet, coins). Corrigé dans
+  la foulée : l'agent passe sur une page dès que ses pochettes sont finies, et
+  non à la fin de l'import (`tests/test_binder_import.py`).
 - M3 : une prise au reflet de qualité suffisante tranche la question des
   reverses (bande arc-en-ciel ou corps mat), même au-dessus du seuil ; bouton
   **Photo au reflet** dans la fiche, et réponse aux demandes « reflet holo »

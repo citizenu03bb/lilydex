@@ -503,3 +503,16 @@ def test_a_card_photo_is_oriented_and_reduced_before_reading(store):
     pocket = imports.get(item["id"])["pages"][0]["pockets"][0]
     with Image.open(store.photos / pocket["photo"]) as image:
         assert image.height > image.width and max(image.size) <= 1600
+
+
+def test_each_page_is_reviewed_before_the_next_page_is_read(store):
+    imports = service(store, review=lambda ids, apply: {
+        "run_id": None, "confirmed": [], "photo_requests": [], "skipped": []})
+    item = imports.create("admin", album_name="Deux pages", budget_eur=50)
+    upload(imports, item["id"], 1, page_photo())
+    upload(imports, item["id"], 2, page_photo({1: (250, 20, 20)}))
+    done = imports.run_until_idle()
+    kinds = [(kind, page) for kind, _, page, _ in done]
+    # Page 1 is reviewed as soon as its pockets are done, before page 2 is read.
+    assert kinds.index(("review", 1)) < kinds.index(("cut", 2))
+    assert kinds[-1] == ("review", 2)
