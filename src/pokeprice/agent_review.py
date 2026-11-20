@@ -445,6 +445,21 @@ class AgentReview:
                 }
             else:
                 verdict = self.decide(found)
+            if (
+                apply
+                and verdict["confirm"]
+                and "identity" in verdict["decisions"]
+                and not review_apply(self.store)
+            ):
+                # Decision 0047: whoever runs the agent (worker, command line),
+                # an imported identity is written only once the blind check's gate
+                # opened the setting. The simulation still says it would confirm.
+                report["skipped"].append({
+                    **item,
+                    "reason": "Identité confirmable, mais l’agent n’écrit pas sur les cartes "
+                    "importées tant que agent_review_apply est faux.",
+                })
+                continue
             if verdict["confirm"]:
                 saved = len(verdict["decisions"])
                 if apply:

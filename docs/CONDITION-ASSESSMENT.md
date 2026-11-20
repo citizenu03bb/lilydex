@@ -79,8 +79,9 @@ confirme aussi l'identité, en premier, avec la variante et l'état, ou rien
 le catalogue a trouvé cette seule édition, au nom exact et à la référence
 complète ; le contrôle d'édition par l'image la désigne avec la marge ; la
 langue lue est celle de l'édition ; la carte est sous le seuil de valeur.
-Sur les pages importées, il ne fait que simuler tant que le réglage
-`agent_review_apply` est faux.
+Tant que le réglage `agent_review_apply` est faux, il n'écrit aucune
+identité, quel que soit l'appelant (processus d'import ou `agent-review
+--apply`) : le rapport dit seulement qu'il la confirmerait.
 
 Sinon, il inscrit une **demande de photo** dans le journal (`photo-request`) :
 la carte, la vue (recto net, verso, reflet holo, coins de près) et une raison

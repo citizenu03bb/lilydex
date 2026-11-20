@@ -411,8 +411,15 @@ def imported(client, *, exact=True, language="en", position=1, color=(40, 90, 16
     return attach(client, card, color)
 
 
+def open_gate(client):
+    from pokeprice.agent_review import set_review_apply
+
+    set_review_apply(client.app.state.store, True, "pat", "Porte passée (essai).")
+
+
 def test_agent_confirms_the_identity_of_an_easy_imported_card(env):
     client, review, _, _ = env
+    open_gate(client)
     card = imported(client)
     simulated = review.run(read=False)
     assert simulated["run_id"] is None and simulated["confirmed"] == []
@@ -445,6 +452,29 @@ def test_simulation_says_what_it_would_confirm_on_imported_copies(env):
     report = review.run()
     assert [c["copy_id"] for c in report["confirmed"]] == [card["id"]]
     assert card_of(client, card)["identification_status"] == "review"
+
+
+def test_without_the_gate_no_caller_writes_an_imported_identity(env, monkeypatch, capsys):
+    import sys
+
+    from pokeprice import manage
+
+    client, review, _, _ = env
+    card = imported(client)
+    # Readings done, setting off: the agent would confirm, and writes nothing.
+    report = review.run(apply=True, read=True)
+    assert report["confirmed"] == []
+    assert "agent_review_apply" in report["skipped"][0]["reason"]
+    assert review.run()["confirmed"][0]["copy_id"] == card["id"]
+    # The command line, with --apply, goes through the same gate.
+    root = str(client.app.state.store.root)
+    monkeypatch.setattr(sys, "argv", ["pokeprice-manage", "--data", root, "agent-review", "--apply"])
+    manage.main()
+    assert '"confirmed": 0' in capsys.readouterr().out
+    assert card_of(client, card)["identification_status"] == "review"
+    open_gate(client)
+    assert review.run(apply=True)["confirmed"][0]["copy_id"] == card["id"]
+    assert card_of(client, card)["identification_status"] == "confirmed"
 
 
 @pytest.mark.parametrize(
