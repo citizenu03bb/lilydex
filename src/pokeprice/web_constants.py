@@ -29,7 +29,7 @@ APP_SHELL = (
     "/assets/app-moves.js",
     "/assets/app-assistant.js",
     "/assets/app-boot.js",
-    "/assets/workflows.js", "/assets/gallery.js", "/assets/pwa.js",
+    "/assets/workflows.js", "/assets/binder-import.js", "/assets/gallery.js", "/assets/pwa.js",
     "/assets/assistant.js",
     "/assets/logo.png", "/assets/icon-192.png", "/assets/icon-512.png",
     "/assets/icon-maskable-512.png", "/assets/apple-touch-icon.png", "/favicon.ico",

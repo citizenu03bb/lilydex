@@ -601,6 +601,32 @@ page** restaure les photos antérieures et place en corbeille les fiches créée
 par le lot, tant qu'aucune fiche concernée n'a été modifiée ou engagée dans un
 lot depuis l'application ([décision 0025](decisions/0025-photo-page-classeur-gestion.md)).
 
+### Importer un classeur
+
+**Collection → Importer un classeur**, réservé à l'administrateur, fait entrer
+un classeur entier sur le serveur, page par page
+([décision 0047](decisions/0047-import-de-classeur-sur-le-serveur.md)).
+Choisissez un import en cours ou commencez-en un : un album (créé s'il
+n'existe pas) et le nombre de pochettes par page (3×3, 2×2, 3×4, 4×3, ou une
+carte par photo). **Photographier la page N** prend la page suivante dans
+l'ordre du classeur ; **Choisir des photos de pages** en envoie plusieurs,
+numérotées dans l'ordre choisi.
+
+- Les photos montent par morceaux et restent dans le navigateur jusqu'à
+  l'accusé du serveur : une coupure de réseau ou un rechargement de la page
+  reprend l'envoi là où il s'est arrêté.
+- Le serveur découpe, lit et crée les exemplaires « À vérifier » en tâche de
+  fond, dans l'ordre du classeur, sans ralentir la vitrine. L'écran suit
+  l'avancement et le coût Gemini estimé, par classeur et par page.
+- Une pochette sans recto lisible, ou qui échoue seule plusieurs fois,
+  s'affiche avec sa découpe : **Reprendre la carte** la photographie seule,
+  **Pochette vide** la clôt. Une page illisible se reprend entière.
+- Au budget (3 € par défaut), l'import s'arrête et une notification part ;
+  **Continuer** ajoute le budget initial.
+- Après chaque page, l'agent de revue passe sur ses cartes. Tant qu'il est en
+  simulation, la page dit combien il en confirmerait, et toutes restent
+  « À vérifier ».
+
 ## Vérifier une carte
 
 Chaque vérification est une décision humaine, enregistrée avec son auteur, sa

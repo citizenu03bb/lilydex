@@ -1267,6 +1267,10 @@ class Store:
                     if variant_validation and evidence.get("decided_by") == "agent"
                     else "Finition lue confrontée à la carte et décidée humainement"
                     if variant_validation
+                    else "Import du classeur : nouvelle photo lue, identité à vérifier"
+                    if evidence.get("type") == "binder-import"
+                    else "Édition exacte au catalogue et image concordante : identité confirmée par l’agent"
+                    if evidence.get("type") == "identity-validation"
                     else "Lecture assistée et confirmation humaine",
                     {},
                     evidence,
