@@ -58,6 +58,8 @@ def test_admin_imports_a_page_and_the_worker_does_the_rest(client):
     assert result["progress"] == {"pockets": 9, "settled": 9, "pages_done": 1}
     assert result["cost"]["calls"] == 9
     assert item["id"] in [i["id"] for i in client.get("/api/binder-imports").json()]
+    report = client.get(f"/api/binder-imports/{item['id']}/report?threshold=10").json()
+    assert report["threshold_cents"] == 1000 and report["tally"]["copies"] == 9
     copies = client.get("/api/copies?status=review").json()
     assert len(copies["items"] if isinstance(copies, dict) else copies) == 9
 

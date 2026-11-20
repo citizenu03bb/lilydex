@@ -5840,6 +5840,55 @@
     "summary": "Binder Pocket Photo"
    }
   },
+  "/api/binder-imports/{import_id}/report": {
+   "get": {
+    "operationId": "binder_import_report_api_binder_imports__import_id__report_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "import_id",
+      "required": true,
+      "schema": {
+       "title": "Import Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "threshold",
+      "required": false,
+      "schema": {
+       "default": 10,
+       "maximum": 100000,
+       "minimum": 0,
+       "title": "Threshold",
+       "type": "number"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Binder Import Report"
+   }
+  },
   "/api/binder-imports/{import_id}/uploads": {
    "post": {
     "operationId": "binder_upload_begin_api_binder_imports__import_id__uploads_post",
@@ -7128,6 +7177,20 @@
         "back"
        ],
        "title": "Side",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "view",
+      "required": false,
+      "schema": {
+       "default": "",
+       "enum": [
+        "",
+        "glint"
+       ],
+       "title": "View",
        "type": "string"
       }
      }

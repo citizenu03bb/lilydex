@@ -687,6 +687,23 @@
   ],
   "include_in_schema": true,
   "methods": [
+   "GET"
+  ],
+  "name": "binder_import_report",
+  "only": {},
+  "path": "/api/binder-imports/{import_id}/report",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "admin",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
    "POST"
   ],
   "name": "binder_import_continue",

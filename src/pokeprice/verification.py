@@ -129,6 +129,21 @@ class GeminiFinishReader:
         return result, raw, usage
 
 
+GLINT_EVENT = "glint-photo"
+
+
+def glint_photo(store, card):
+    """Whether the copy's current front photo was taken as a glint shot (0047)."""
+    if not card.get("photo"):
+        return False
+    with store.connect() as db:
+        row = db.execute(
+            "SELECT after_json FROM events WHERE copy_id=? AND kind=? ORDER BY id DESC LIMIT 1",
+            (card["id"], GLINT_EVENT),
+        ).fetchone()
+    return bool(row and json.loads(row[0]).get("photo") == card["photo"])
+
+
 def foil_value(valuation):
     """Most prudent known Foil price among the plausible prints, or None."""
     known = [
@@ -163,6 +178,25 @@ def propose_variant(card, reading, snapshot=None, valuation=None):
     observed_stamp = card.get("stamp_state") in ("absent", "present")
     stamp = (card.get("stamp") or "") if observed_stamp else reading["stamp_text"]
     proposal["stamp"] = stamp
+    # Decision 0047: a glint shot (card tilted under a raking light) of adequate
+    # quality settles the reverse question that a flat photo cannot (0008).
+    glint = reading.get("glint") and reading["photo_quality"] == "adequate"
+    if glint and reading["background_shine"] == "visible":
+        return {
+            **proposal,
+            "status": "proposed",
+            "finish": "reverse",
+            "foil": True,
+            "reason": "Prise au reflet : une bande arc-en-ciel couvre le corps de la carte hors de l’illustration. Reverse.",
+        }
+    if glint and reading["background_shine"] == "not_visible" and reading["artwork"] == "matte":
+        return {
+            **proposal,
+            "status": "proposed",
+            "finish": "non_holo",
+            "foil": False,
+            "reason": "Prise au reflet nette : le corps de la carte reste mat sous la lumière rasante. Pas de reverse.",
+        }
     if reading["background_shine"] == "visible":
         return {
             **proposal,
@@ -545,6 +579,8 @@ class VariantCheckService(CheckService):
                 raise RuntimeError(
                     "Réponse de lecture invalide. La fiche reste inchangée."
                 ) from None
+            if glint_photo(self.store, card):
+                result["glint"] = True
             return result, propose_variant(card, result, snapshot, valuation), raw, usage
 
         return self.run(copy_id, version, actor, read, trigger)

@@ -65,6 +65,15 @@ def register_binder_imports(app, ctx: AppContext):
         # The last chunk checks the fingerprint and writes the photo: off the loop.
         return await run_in_threadpool(imports.put_chunk, upload_id, offset, bytes(data))
 
+    @app.get("/api/binder-imports/{import_id}/report")
+    def binder_import_report(
+        import_id: str, threshold: float = Query(default=10, ge=0, le=100000),
+        user=Depends(admin),
+    ):
+        from ..inventory import cents
+
+        return imports.report(import_id, cents(threshold))
+
     @app.post("/api/binder-imports/{import_id}/continue")
     def binder_import_continue(import_id: str, user=Depends(admin)):
         return imports.continue_budget(import_id, user["username"])

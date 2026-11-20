@@ -413,6 +413,7 @@ def register_copy_images(app, ctx: AppContext, hooks: Hooks):
     staff = ctx.auth.staff
     editor = ctx.auth.editor
     review_after_photo = hooks.review_after_photo
+    read_after_intake = hooks.read_after_intake
 
     @app.get("/api/copies/{copy_id}/catalogue")
     def catalogue(copy_id: str, user=Depends(staff)):
@@ -442,8 +443,12 @@ def register_copy_images(app, ctx: AppContext, hooks: Hooks):
         tasks: BackgroundTasks,
         version: int = Query(ge=1),
         side: Literal["front", "back"] = "front",
+        # A glint shot: the card tilted under a raking light, to settle a reverse (0047).
+        view: Literal["", "glint"] = "",
         user=Depends(editor),
     ):
+        if view and side != "front":
+            raise HTTPException(422, "La prise au reflet remplace la photo du recto.")
         review_after_photo(tasks, copy_id)
         data = bytearray()
         async for chunk in request.stream():
@@ -473,7 +478,7 @@ def register_copy_images(app, ctx: AppContext, hooks: Hooks):
                 422, "Photo JPEG, PNG ou WebP valide requise (24 mégapixels maximum)."
             )
         name = store.save_photo(output.getvalue())
-        return store.patch(
+        result = store.patch(
             copy_id,
             {
                 "photo" if side == "front" else "back_photo": name,
@@ -483,5 +488,16 @@ def register_copy_images(app, ctx: AppContext, hooks: Hooks):
             version,
             user["username"],
             "Ajout ou remplacement de la photo du "
-            + ("recto" if side == "front" else "verso"),
+            + ("recto" if side == "front" else "verso")
+            + (", prise au reflet" if view else ""),
         )
+        if view:
+            from ..verification import GLINT_EVENT
+
+            with store.connect(write=True) as db:
+                store.event(db, copy_id, user["username"], GLINT_EVENT,
+                            "Photo du recto prise au reflet, sous une lumière rasante",
+                            {}, {"photo": name})
+            # The finish is read on the new photo, after the response.
+            read_after_intake(tasks, result, user)
+        return result
