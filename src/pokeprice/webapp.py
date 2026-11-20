@@ -14,6 +14,7 @@ from .errors import ERROR_CODES, install_handlers
 from .passwords import add_user, password_hash, password_valid
 from .routes.auth import register_auth, register_logout
 from .routes.backup import register_backup
+from .routes.binder_imports import register_binder_imports
 from .routes.capture import register_capture
 from .routes.checks import register_checks, register_conditions
 from .routes.client_requests import register_client_requests
@@ -150,6 +151,7 @@ def create_app(
     register_accounts(app, ctx)
 
     register_settings(app, ctx)
+    register_binder_imports(app, ctx)
     register_client_requests(app, ctx)
 
     register_public_listing(app, ctx, count_visit)

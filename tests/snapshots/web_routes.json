@@ -596,6 +596,193 @@
  },
  {
   "dependencies": [
+   "admin",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "binder_import_list",
+  "only": {},
+  "path": "/api/binder-imports",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "admin",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "binder_import_create",
+  "only": {},
+  "path": "/api/binder-imports",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": 201
+ },
+ {
+  "dependencies": [
+   "admin",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "binder_import_get",
+  "only": {},
+  "path": "/api/binder-imports/{import_id}",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "admin",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "binder_upload_begin",
+  "only": {},
+  "path": "/api/binder-imports/{import_id}/uploads",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": 201
+ },
+ {
+  "dependencies": [
+   "admin",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "PUT"
+  ],
+  "name": "binder_upload_chunk",
+  "only": {},
+  "path": "/api/binder-uploads/{upload_id}",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "admin",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "binder_import_continue",
+  "only": {},
+  "path": "/api/binder-imports/{import_id}/continue",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "admin",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "binder_import_close",
+  "only": {},
+  "path": "/api/binder-imports/{import_id}/close",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "admin",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "binder_pocket_empty",
+  "only": {},
+  "path": "/api/binder-imports/{import_id}/pages/{page}/pockets/{position}/empty",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "admin",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "binder_pocket_photo",
+  "only": {},
+  "path": "/api/binder-imports/{import_id}/pages/{page}/pockets/{position}/photo",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "admin",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "GET"
+  ],
+  "name": "review_apply_settings",
+  "only": {},
+  "path": "/api/settings/agent-review-apply",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "admin",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "PUT"
+  ],
+  "name": "review_apply_update",
+  "only": {},
+  "path": "/api/settings/agent-review-apply",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
    "staff",
    "current_user"
   ],

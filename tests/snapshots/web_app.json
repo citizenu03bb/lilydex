@@ -58,6 +58,7 @@
    "agent_review",
    "agents",
    "assistant",
+   "binder_imports",
    "conditions",
    "edition_checks",
    "intake",
@@ -124,6 +125,7 @@
   "state": [
    "agent_review",
    "assistant",
+   "binder_imports",
    "conditions",
    "edition_checks",
    "intake",

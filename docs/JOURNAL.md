@@ -9,6 +9,10 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-20
 
+- M3, routes de l'import : `/api/binder-imports` (création, état, coût,
+  téléversement par morceaux, reprise au budget, pochette vide) et
+  `/api/settings/agent-review-apply`, réservées à l'administrateur ; le
+  service web ne lit aucune carte (`tests/test_binder_routes.py`).
 - M3, service d'import : `binder_import.py` découpe les pages par le découpage de
   la ligne de commande, lit chaque pochette, crée les exemplaires « à vérifier »
   et reprend seul après une coupure ; `binder-worker` tourne dans
