@@ -678,6 +678,34 @@ function renderVariantCheck(parent, card, previous = null) {
     );
     panel.append(el("p", proposal.reason));
     if (reading.notes) panel.append(el("p", reading.notes, "help"));
+    // Decision 0047: one good glint shot settles the reverse question.
+    if (
+      editAllowed() &&
+      !card.deleted_at &&
+      proposal.status !== "proposed" &&
+      ["reverse", "non_holo"].includes(proposal.finish)
+    ) {
+      panel.append(el("p", t("glint.help"), "help"));
+      const glint = el("button", t("glint.take"), "primary");
+      glint.type = "button";
+      glint.onclick = () =>
+        CardMedia.capture(async (file) => {
+          glint.disabled = true;
+          try {
+            await api(`/copies/${card.id}/photo?version=${card.version}&side=front&view=glint`, {
+              method: "PUT",
+              body: file,
+              headers: CardMedia.photoHeaders(file),
+            });
+            toast(t("glint.sent"));
+            await openDetail(card.id);
+          } catch (e) {
+            toast(e.message);
+            glint.disabled = false;
+          }
+        });
+      panel.append(glint);
+    }
     if (proposal.conflicts.length) {
       const conflicts = el("ul", undefined, "price-warnings");
       for (const conflict of proposal.conflicts)

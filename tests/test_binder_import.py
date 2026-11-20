@@ -492,3 +492,14 @@ def test_a_binders_cheap_rare_editions_are_counted_not_queued(store):
         ("Fantômes Holon", "copies", 9, 20)]
     queue = store.listing(review="coverage", limit=100)["items"]
     assert sum(c["source_key"].startswith("binder:") for c in queue) == 9
+
+
+def test_a_card_photo_is_oriented_and_reduced_before_reading(store):
+    imports = service(store)
+    item = imports.create("admin", album_name="Cartes seules", grid="single")
+    out = io.BytesIO()
+    Image.new("RGB", (3000, 2000), (200, 30, 30)).save(out, "JPEG")
+    upload(imports, item["id"], 1, out.getvalue())
+    pocket = imports.get(item["id"])["pages"][0]["pockets"][0]
+    with Image.open(store.photos / pocket["photo"]) as image:
+        assert image.height > image.width and max(image.size) <= 1600

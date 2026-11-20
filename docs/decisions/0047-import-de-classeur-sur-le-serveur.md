@@ -109,7 +109,8 @@ notification demande à l'administrateur s'il continue. Continuer ajoute le
 budget initial, une fois. Le budget initial est de 3 € par import
 (`POKEPRICE_IMPORT_BUDGET_EUR`) : au tarif relevé, trois appels par carte
 coûtent environ 1 € pour 100 cartes, 2 € au tarif annoncé pour 2027. Le
-dépassement est au plus d'un appel.
+dépassement est au plus d'une étape : une lecture, ou les contrôles d'une
+carte (finition et état, deux appels).
 
 *La file « Référentiel à compléter ».* Une édition (extension × langue)
 apportée par un classeur n'entre dans la file que si l'un de ses exemplaires
@@ -121,7 +122,7 @@ une heure ([guide du référentiel](../PRINT_REFERENCE_GUIDE.md)), et une
 édition peu chère et rare ne la rembourse pas.
 
 *Les reverses.* Pour une carte de « À examiner » au motif « reverse
-possible », la gestion propose une prise de vue au reflet : la carte inclinée
+possible », la fiche propose, sous la lecture de finition, une prise de vue au reflet : la carte inclinée
 sous une lumière rasante. Cette photo, marquée comme reflet, passe par la
 lecture de finition. Si la photo est de qualité suffisante, une bande
 arc-en-ciel sur le corps de la carte (`background_shine="visible"`) propose la

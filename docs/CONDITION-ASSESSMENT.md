@@ -64,14 +64,24 @@ Il confirme les deux ensemble, ou rien, si :
 - au seuil de valeur (10 € par défaut) ou sans valeur prudente connue, le
   verso est aussi exploitable ([décision 0008](decisions/0008-reverses-examen-physique.md)).
 
+Une **prise au reflet** (la carte inclinée sous une lampe, hors pochette)
+tranche la question des reverses quand elle est de qualité suffisante : une
+bande arc-en-ciel sur le corps de la carte propose la reverse, un corps
+nettement mat propose la Standard, même au-dessus du seuil. La fiche d'une
+carte dont la finition demande un examen offre le bouton **Photo au reflet** ;
+la photo qui répond à une demande « reflet holo » de l'agent compte aussi comme
+prise au reflet. Une photo ordinaire ne prouve toujours pas la Standard
+([décision 0047](decisions/0047-import-de-classeur-sur-le-serveur.md)).
+
 Pour une carte créée par l'import d'un classeur et encore « à vérifier », il
 confirme aussi l'identité, en premier, avec la variante et l'état, ou rien
 ([décision 0047](decisions/0047-import-de-classeur-sur-le-serveur.md)) :
 le catalogue a trouvé cette seule édition, au nom exact et à la référence
 complète ; le contrôle d'édition par l'image la désigne avec la marge ; la
 langue lue est celle de l'édition ; la carte est sous le seuil de valeur.
-Sur les pages importées, il ne fait que simuler tant que le réglage
-`agent_review_apply` est faux.
+Tant que le réglage `agent_review_apply` est faux, il n'écrit aucune
+identité, quel que soit l'appelant (processus d'import ou `agent-review
+--apply`) : le rapport dit seulement qu'il la confirmerait.
 
 Sinon, il inscrit une **demande de photo** dans le journal (`photo-request`) :
 la carte, la vue (recto net, verso, reflet holo, coins de près) et une raison

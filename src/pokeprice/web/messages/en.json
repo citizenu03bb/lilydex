@@ -549,5 +549,9 @@
   "binder.page_status.error": "Page {page}: to retake",
   "binder.review_simulated": {"zero": "agent in simulation: no card confirmed", "one": "agent in simulation: would confirm {count} card", "other": "agent in simulation: would confirm {count} cards"},
   "binder.review_applied": {"zero": "agent: no card confirmed", "one": "agent: {count} card confirmed", "other": "agent: {count} cards confirmed"},
-  "binder.reference": "Print reference to complete: {queued} editions · editions only counted: {tally} (copies: {copies})"
+  "binder.reference": "Print reference to complete: {queued} editions · editions only counted: {tally} (copies: {copies})",
+  "glint.help": "A glint shot settles it: tilt the card under a lamp, out of its sleeve, until it shines. A reverse shows a rainbow band across the whole card, around the artwork.",
+  "glint.take": "Glint shot",
+  "glint.sent": "Glint shot saved: the finish is read again.",
+  "binder.review": "Review the cards to check"
 }

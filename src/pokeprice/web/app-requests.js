@@ -59,7 +59,8 @@ async function refreshPhotoRequests() {
       try {
         const card = await api(`/copies/${request.copy_id}`);
         await api(
-          `/copies/${request.copy_id}/photo?version=${card.version}&side=${request.side}`,
+          `/copies/${request.copy_id}/photo?version=${card.version}&side=${request.side}` +
+            (view === "holo" ? "&view=glint" : ""),
           {
             method: "PUT",
             body: file,
