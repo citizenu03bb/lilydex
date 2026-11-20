@@ -9,6 +9,10 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-20
 
+- Cadre de M3 : un classeur s'importe page par page sur le serveur, par un
+  processus moins prioritaire que le site, avec reprise toute seule, budget
+  Gemini par classeur et agent de revue en simulation jusqu'à la porte de la
+  vérification à l'aveugle ([décision 0047](decisions/0047-import-de-classeur-sur-le-serveur.md)).
 - Tranche 5 de M2 : quand le catalogue ne trouve aucune édition à la saisie,
   DINOv2 en propose une parmi les impressions du nom lu, filtrées par le
   numéro même mal lu (numéro ou nombre de cartes de l'extension, TCGdex

@@ -35,7 +35,7 @@ de **10 €** par défaut, réglable. Voir [valeur en jeu](VALUATION.md).
 | M1 — Valeur en jeu et file « À examiner » | fait | — |
 | M1.1 — Référentiel des impressions | socle en mode audit | les preuves par langue et de marché, limitées à 2 jours |
 | M2 — Contrôles automatiques indépendants | tranches 1 à 5 faites | l'agent de revue mesuré à l'aveugle ; la double source pour la contrefaçon |
-| M3 — Saisie à l'échelle des classeurs | à faire, prochain jalon | tout |
+| M3 — Saisie à l'échelle des classeurs | en cours | l'import sur le serveur, l'agent sur les pages importées, la prise au reflet, la réception sur Android et la mesure de S5 |
 | M4 — Prix de vente et lots | à faire | tout |
 | M5 — Exploitation | en partie | tests de bout en bout des parcours de gestion, exercice de restauration, procédure d'import sur le serveur |
 
@@ -158,19 +158,40 @@ appliquée sans validation humaine. Résultats : [banc d'essai](BANC-RECONNAISSA
 
 ### M3 — Saisie à l'échelle des classeurs (3 à 5 jours)
 
-- **Import d'un classeur depuis l'application** : photos de pages téléversées,
-  découpe par pochette, lecture et contrôles en tâche de fond, exemplaires
-  créés « à vérifier » dans une file d'examen par page. Un seul service
-  d'import pour la ligne de commande et l'application.
-- Reprise après interruption et coût Gemini affiché par classeur.
-- Réception de la saisie en série sur un vrai téléphone Android.
-- Extension du référentiel par impact : les éditions chères et nombreuses
-  d'abord ; chaque classeur alimente la file « Référentiel à compléter ».
-- Facultatif : double prise de vue (deux éclairages) pour trancher les reverses
-  de la file « À examiner ».
+Le cadre est dans la [fiche 0047](decisions/0047-import-de-classeur-sur-le-serveur.md).
+
+- **Import d'un classeur sur le serveur**, par un administrateur, depuis la
+  gestion : une photo par page, découpée en pochettes par le découpage de la
+  ligne de commande, ou une photo par carte. La page est l'unité de travail ;
+  une page ou une pochette mal découpée se reprend seule. Un seul service
+  d'import (`binder_import.py`) pour la ligne de commande du serveur et
+  l'application.
+- **Un processus à part, moins prioritaire que le site** (`Nice`, `idle` pour
+  le disque, poids processeur et disque à 20 contre 100), qui lit, contrôle et
+  crée les exemplaires « à vérifier » dans l'ordre du classeur.
+- **Reprise toute seule** après un redémarrage, une erreur ou un quota Gemini,
+  ou une coupure du téléphone : état durable par pochette, étapes rejouables,
+  téléversement par morceaux.
+- **Budget Gemini par classeur** (3 € par défaut) : le coût estimé s'affiche
+  par classeur et par page ; au budget, l'import s'arrête et l'administrateur
+  décide de continuer.
+- **L'agent de revue après chaque page** : il confirme les cartes simples
+  (identité, variante, état) et la personne ne voit que le reste. Il reste en
+  simulation tant que la vérification à l'aveugle de M2 n'a pas passé sa
+  porte ; le passage à l'écriture est un seul réglage, `agent_review_apply`.
+- **Référentiel par impact** : une édition apportée par un classeur entre dans
+  « Référentiel à compléter » si l'un de ses exemplaires a une valeur en jeu
+  d'au moins le seuil, ou si elle compte au moins 20 exemplaires ; sinon elle
+  compte dans le rapport d'import.
+- **Reverses** : une prise de vue au reflet, proposée pour les cartes de
+  « À examiner » au motif reverse possible, tranche la question quand elle
+  est de qualité suffisante.
+- **Réception sur un vrai téléphone Android** de la saisie en série et de
+  l'import.
 
 **Critère :** un classeur de 100 cartes est importé et examiné en moins d'une
-heure de travail humain (S5), sans passer par la ligne de commande.
+heure de travail humain (S5), sans passer par la ligne de commande, et
+l'import passe sur un vrai téléphone Android.
 
 ### M4 — Prix de vente et lots (2 à 3 jours)
 
