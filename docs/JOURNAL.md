@@ -9,6 +9,13 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-20
 
+- M3 : une prise au reflet de qualité suffisante tranche la question des
+  reverses (bande arc-en-ciel ou corps mat), même au-dessus du seuil ; bouton
+  **Photo au reflet** dans la fiche, et réponse aux demandes « reflet holo »
+  de l'agent ([aide à l'état](CONDITION-ASSESSMENT.md#lagent-de-revue)).
+- M3 : une édition apportée par un classeur n'entre dans « Référentiel à
+  compléter » qu'au seuil de valeur ou à partir de 20 exemplaires ; sinon le
+  rapport de l'import la compte (`/api/binder-imports/{id}/report`).
 - M3 : l'agent de revue confirme aussi l'identité d'une carte importée quand le
   catalogue n'a trouvé qu'une édition exacte, que l'image la confirme et que la
   carte est sous le seuil ; identité, variante et état s'écrivent ensemble ou
