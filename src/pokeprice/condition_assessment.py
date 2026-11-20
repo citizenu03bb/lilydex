@@ -9,6 +9,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr
 
+from .gemini_usage import record as record_usage
 from .intake import MODEL
 from .inventory import Conflict, now
 
@@ -83,6 +84,7 @@ def read_condition(photos):
                     ),
                 ),
             )
+        record_usage(MODEL, response)
         raw = response.text or ""
         return ConditionObservation.model_validate_json(raw).model_dump(), raw
     except Exception:  # noqa: BLE001 - Never leak provider errors or credentials.

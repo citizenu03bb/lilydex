@@ -9,17 +9,22 @@ from PIL import Image
 
 from .inventory import Conflict, now
 from .photo_processing import prepare_photo
-from .slicer import normalize_orientation, slice_grid
+from .slicer import detect_grid_layout, normalize_orientation, slice_grid
 
 ROTATIONS = ("auto", "0", "90", "180", "270")
 
 
 def slice_page_photo(
-    data: bytes, rotation: str = "auto"
+    data: bytes, rotation: str = "auto", grid: str = "3x3"
 ) -> tuple[bytes, list[tuple[int, bytes]]]:
-    """Validate, orient, and slice a 3x3 binder page image into 9 pocket JPEGs."""
+    """Validate, orient, and slice a binder page image into pocket JPEGs.
+
+    The cutting is the command line's (``slicer.py``): the page drop of decision
+    0025 and the binder import of decision 0047 share it.
+    """
     if rotation not in ROTATIONS:
         raise ValueError("Rotation non prise en charge.")
+    rows, cols = detect_grid_layout(None, grid)  # type: ignore[arg-type]  # explicit grids read no image
     try:
         with warnings.catch_warnings():
             warnings.simplefilter("error", Image.DecompressionBombWarning)
@@ -49,7 +54,7 @@ def slice_page_photo(
     page_image.save(page_buf, format="JPEG", quality=90)
 
     pockets: list[tuple[int, bytes]] = []
-    for position, crop in slice_grid(oriented, 3, 3, inset_pct=0.02):
+    for position, crop in slice_grid(oriented, rows, cols, inset_pct=0.02):
         cell = crop.copy()
         cell.thumbnail((1600, 1600))
         cell_buf = io.BytesIO()

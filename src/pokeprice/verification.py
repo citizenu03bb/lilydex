@@ -14,6 +14,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, StrictStr
 
 from .condition_assessment import photo_snapshot
+from .gemini_usage import record as record_usage
 from .intake import MODEL
 from .inventory import Conflict, now
 from .library import normalized
@@ -108,6 +109,7 @@ class GeminiFinishReader:
                         ),
                     ),
                 )
+            record_usage(self.model, response)
             raw = response.text or ""
             result = FinishReading.model_validate_json(raw).model_dump()
         except Exception:  # noqa: BLE001 - Never leak provider errors or credentials.

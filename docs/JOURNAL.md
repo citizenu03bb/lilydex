@@ -9,6 +9,12 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-20
 
+- M3, service d'import : `binder_import.py` découpe les pages par le découpage de
+  la ligne de commande, lit chaque pochette, crée les exemplaires « à vérifier »
+  et reprend seul après une coupure ; `binder-worker` tourne dans
+  `pokeprice-import.service`, moins prioritaire que le site. Commandes
+  `binder-import`, `binder-status`, `binder-continue`, `agent-review-apply`
+  (`tests/test_binder_import.py`).
 - Cadre de M3 : un classeur s'importe page par page sur le serveur, par un
   processus moins prioritaire que le site, avec reprise toute seule, budget
   Gemini par classeur et agent de revue en simulation jusqu'à la porte de la

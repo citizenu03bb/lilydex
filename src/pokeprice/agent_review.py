@@ -605,3 +605,53 @@ class AgentReview:
                     },
                 )
             return None
+
+
+# -- The write switch (decision 0047) --------------------------------------------
+# Until the blind check at the binder passes its gate (ROADMAP, M2), the agent
+# runs in simulation on imported pages. Writing is one setting of the base,
+# false without a row, changed only by an active administrator, and logged.
+
+APPLY_KEY = "agent_review_apply"
+APPLY_EVENT = "agent-review-apply"
+
+
+def review_apply(source):
+    """Whether the agent writes on imported pages, from a store or an open connection."""
+    if hasattr(source, "connect"):
+        with source.connect() as db:
+            return review_apply(db)
+    row = source.execute("SELECT value_json FROM settings WHERE key=?", (APPLY_KEY,)).fetchone()
+    return bool(row and json.loads(row[0]) is True)
+
+
+def set_review_apply(store, value, actor, reason):
+    """Switch the agent's writing on or off; the reason names the gate's evidence."""
+    if not isinstance(value, bool):
+        raise ValueError("Valeur vraie ou fausse attendue.")
+    reason = (reason or "").strip()
+    if value and not reason:
+        raise ValueError("Dites quelle mesure à l’aveugle autorise l’écriture.")
+    with store.connect(write=True) as db:
+        if not db.execute(
+            "SELECT 1 FROM users WHERE username=? AND role='admin' AND disabled=0 AND status='active'",
+            (actor,),
+        ).fetchone():
+            from .floor_requests import HumanOnly
+
+            raise HumanOnly("Seul un compte administrateur fait écrire l’agent de revue.")
+        before = review_apply(db)
+        stamp = now()
+        db.execute(
+            "INSERT INTO settings(key,value_json,updated_by,updated_at) VALUES(?,?,?,?) "
+            "ON CONFLICT(key) DO UPDATE SET value_json=excluded.value_json,"
+            "updated_by=excluded.updated_by,updated_at=excluded.updated_at",
+            (APPLY_KEY, json.dumps(value), actor, stamp),
+        )
+        db.execute(
+            "INSERT INTO events(copy_id,actor,kind,reason,before_json,after_json,created_at) "
+            "VALUES(NULL,?,?,?,?,?,?)",
+            (actor, APPLY_EVENT, reason or "Agent de revue remis en simulation.",
+             json.dumps({"apply": before}), json.dumps({"apply": value}), stamp),
+        )
+    return {"apply": value, "previous": before}
