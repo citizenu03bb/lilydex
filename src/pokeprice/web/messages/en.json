@@ -548,5 +548,6 @@
   "binder.page_status.done": "Page {page}: done",
   "binder.page_status.error": "Page {page}: to retake",
   "binder.review_simulated": {"zero": "agent in simulation: no card confirmed", "one": "agent in simulation: would confirm {count} card", "other": "agent in simulation: would confirm {count} cards"},
-  "binder.review_applied": {"zero": "agent: no card confirmed", "one": "agent: {count} card confirmed", "other": "agent: {count} cards confirmed"}
+  "binder.review_applied": {"zero": "agent: no card confirmed", "one": "agent: {count} card confirmed", "other": "agent: {count} cards confirmed"},
+  "binder.reference": "Print reference to complete: {queued} editions · editions only counted: {tally} (copies: {copies})"
 }

@@ -731,6 +731,18 @@ class Store:
                 )
             ):
                 selected.append(row)
+        if review == "coverage":
+            # Decision 0047: an edition a binder brings joins the queue only at the
+            # value threshold or with enough copies; otherwise its import report counts it.
+            from .binder_import import is_imported, reference_queued, reference_stats
+
+            stats = reference_stats(rows)
+            selected = [
+                r for r in selected
+                if not is_imported(r)
+                or reference_queued(stats[(r["set_name"] or "", r["language"] or "")],
+                                    threshold_cents)
+            ]
         if sort in ("price", "price_asc"):
             # The prudent value shown on each card, computed above; the SQL
             # order (name) breaks ties and unknown prices always come last.

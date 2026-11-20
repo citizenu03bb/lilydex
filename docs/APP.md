@@ -623,6 +623,8 @@ numérotées dans l'ordre choisi.
   **Pochette vide** la clôt. Une page illisible se reprend entière.
 - Au budget (3 € par défaut), l'import s'arrête et une notification part ;
   **Continuer** ajoute le budget initial.
+- L'écran dit combien d'éditions de l'import entrent dans « Référentiel à
+  compléter » et combien sont seulement comptées.
 - Après chaque page, l'agent de revue passe sur ses cartes. Tant qu'il est en
   simulation, la page dit combien il en confirmerait, et toutes restent
   « À vérifier ».
@@ -857,7 +859,11 @@ L'ajout et la correction enregistrent les observations dont le
 [référentiel](PRINT_REFERENCE_GUIDE.md) a besoin : finition observée, état du
 tampon, son texte original, une autre marque de distribution. Le filtre
 **Examen → Référentiel à compléter** montre les lacunes du référentiel, à part
-de l'examen physique ; il garde son état dans l'adresse, fonctionne dans les
+de l'examen physique. Une édition apportée par l'import d'un classeur n'y
+entre que si l'une de ses cartes importées atteint le seuil de valeur, ou si
+la collection en compte au moins 20 exemplaires ; sinon le rapport de l'import
+la compte seulement ([décision 0047](decisions/0047-import-de-classeur-sur-le-serveur.md)).
+Le filtre garde son état dans l'adresse, fonctionne dans les
 vues par exemplaire et par édition, et respecte le tri Classeur. La fiche et
 son aperçu montrent l'état de la correspondance marchande.
 

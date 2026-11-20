@@ -459,3 +459,36 @@ def test_meter_counts_thinking_as_output_and_nothing_outside_a_block():
         {"model": "gemini:gemini-3.8-flash", "input_tokens": 400_000, "output_tokens": 100_000},
         {"model": "gemini:gemini-3.8-flash", "input_tokens": 0, "output_tokens": 0},
     ]
+
+
+def test_reference_queue_rule():
+    from pokeprice.binder_import import reference_queued
+
+    assert reference_queued({"copies": 20, "risk": None}, 1000) == "copies"
+    assert reference_queued({"copies": 2, "risk": 1000}, 1000) == "value"
+    assert reference_queued({"copies": 19, "risk": 999}, 1000) is None
+    assert reference_queued({"copies": 1, "risk": None}, 1000) is None
+
+
+def test_a_binders_cheap_rare_editions_are_counted_not_queued(store):
+    imports = service(store, Reader(["Pikachu"] * 9))
+    item = imports.create("admin", album_name="A")
+    upload(imports, item["id"], 1, page_photo())
+    imports.run_until_idle()
+    report = imports.report(item["id"])
+    assert report["queued"] == [] and report["tally"] == {"editions": 1, "copies": 9}
+    queue = store.listing(review="coverage", limit=100)["items"]
+    assert not [c for c in queue if c["source_key"].startswith("binder:")]
+    # Twenty copies of the edition in the collection: it joins the queue.
+    album = item["album_id"]
+    for position in range(1, 12):
+        store.create_copy(
+            {"name": "Pikachu", "set_name": "Fantômes Holon", "number": "58/127",
+             "language": "fr", "album_id": album, "page": 9, "position": position},
+            "lily", "Saisie",
+        )
+    report = imports.report(item["id"])
+    assert [(q["set_name"], q["reason"], q["imported"], q["collection"]) for q in report["queued"]] == [
+        ("Fantômes Holon", "copies", 9, 20)]
+    queue = store.listing(review="coverage", limit=100)["items"]
+    assert sum(c["source_key"].startswith("binder:") for c in queue) == 9

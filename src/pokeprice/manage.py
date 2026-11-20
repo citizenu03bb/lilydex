@@ -825,7 +825,7 @@ def binder_import(store, args, imports=None):
             imports.run_until_idle()
         finally:
             imports.release()
-    return binder_summary(imports.get(item["id"]))
+    return {**binder_summary(imports.get(item["id"])), "reference": imports.report(item["id"])}
 
 
 def send_brief(store, since=None, notify=False, channels=None, origin=None):

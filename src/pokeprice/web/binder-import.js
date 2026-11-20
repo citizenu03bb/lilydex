@@ -5,7 +5,8 @@ const BinderImport = (() => {
   const CHUNK = 512 * 1024;
   let current = null,
     sending = false,
-    poll = null;
+    poll = null,
+    reported = null;
   const post = (path, data) =>
     api(path, { method: "POST", ...(data ? { body: JSON.stringify(data) } : {}) });
   const euros = (value) =>
@@ -134,6 +135,7 @@ const BinderImport = (() => {
   }
 
   function render(item) {
+    if (item?.id !== current?.id) reported = null;
     current = item;
     const panel = $("binder-current");
     panel.hidden = !item;
@@ -176,6 +178,18 @@ const BinderImport = (() => {
       for (const pocket of page.pockets.filter((p) => ["retake", "failed"].includes(p.status)))
         row.append(pocketActions(item, page, pocket));
       list.append(row);
+    }
+    if (item.progress.pages_done !== reported) {
+      reported = item.progress.pages_done;
+      api(`/binder-imports/${item.id}/report`)
+        .then((report) => {
+          $("binder-reference").textContent = t("binder.reference", {
+            queued: report.queued.length,
+            tally: report.tally.editions,
+            copies: report.tally.copies,
+          });
+        })
+        .catch(() => {});
     }
     clearTimeout(poll);
     if ($("binder-dialog").open && item.status === "active" && item.progress.pages_done < item.pages.length)

@@ -89,6 +89,38 @@ class BudgetReached(Conflict):
     pass
 
 
+def edition_key(card):
+    """An edition for the print reference queue: set and language."""
+    return (card.get("set_name") or "", card.get("language") or "")
+
+
+def is_imported(card, import_id=None):
+    prefix = "binder:" + (f"{import_id}:" if import_id else "")
+    return str(card.get("source_key") or "").startswith(prefix)
+
+
+def reference_stats(rows):
+    """Per edition: copies in the collection and the highest stake of an imported one."""
+    stats: dict[tuple[str, str], dict[str, Any]] = {}
+    for row in rows:
+        stat = stats.setdefault(edition_key(row), {"copies": 0, "risk": None})
+        stat["copies"] += 1
+        risk = (row.get("valuation") or {}).get("risk_cents")
+        if is_imported(row) and risk is not None:
+            stat["risk"] = max(stat["risk"] or 0, risk)
+    return stats
+
+
+def reference_queued(stat, threshold_cents):
+    """Decision 0047: an edition a binder brings is worth a proof at the value
+    threshold, or once the collection holds enough of it; otherwise it is counted."""
+    if stat["copies"] >= REFERENCE_COPIES:
+        return "copies"
+    if stat["risk"] is not None and stat["risk"] >= threshold_cents:
+        return "value"
+    return None
+
+
 def budget_from_env(environ):
     raw = (environ.get(BUDGET_VARIABLE) or "").strip()
     if not raw:
@@ -291,6 +323,31 @@ class BinderImports:
             "pages_done": sum(p["status"] == "done" for p in pages),
         }
         return item
+
+    def report(self, import_id, threshold_cents=1000):
+        """The editions this import brings to « Référentiel à compléter », and the tally."""
+        from collections import Counter
+
+        with self.connect() as db:
+            album_id = self.row(db, import_id)["album_id"]
+        rows = self.store.listing(limit=10**9, threshold_cents=threshold_cents)["items"]
+        stats = reference_stats(rows)
+        mine = [r for r in rows if r["album_id"] == album_id and is_imported(r, import_id)
+                and r["reference_resolution"]["coverage_needed"]]
+        queued: list[dict[str, Any]] = []
+        tally: Counter[str] = Counter()
+        for key in dict.fromkeys(edition_key(r) for r in mine):
+            copies = sum(edition_key(r) == key for r in mine)
+            reason = reference_queued(stats[key], threshold_cents)
+            if reason:
+                queued.append({"set_name": key[0], "language": key[1], "reason": reason,
+                               "imported": copies, "collection": stats[key]["copies"],
+                               "risk_cents": stats[key]["risk"]})
+            else:
+                tally["editions"] += 1
+                tally["copies"] += copies
+        return {"threshold_cents": threshold_cents, "queued": queued,
+                "tally": {"editions": tally["editions"], "copies": tally["copies"]}}
 
     def listing(self, limit=20):
         with self.connect() as db:
