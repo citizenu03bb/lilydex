@@ -578,6 +578,16 @@ class BinderImports:
                 ).fetchone()
                 if page:
                     return ("page", import_id, page[0], 0)
+                # A page whose pockets are all done is reviewed before the next page's
+                # pockets: the agent runs after each page (decision 0047), not at the end.
+                page = db.execute(
+                    "SELECT p.page FROM pages p WHERE p.import_id=? AND p.status='cut' AND NOT "
+                    "EXISTS(SELECT 1 FROM pockets k WHERE k.import_id=p.import_id AND "
+                    "k.page=p.page AND k.status IN ('cut','read','created')) ORDER BY p.page LIMIT 1",
+                    (import_id,),
+                ).fetchone()
+                if page:
+                    return ("review", import_id, page[0], 0)
                 # Binder order, but a pocket that failed waits behind the fresh ones:
                 # a bad photo never holds up its neighbours.
                 pocket = db.execute(
@@ -588,14 +598,6 @@ class BinderImports:
                 ).fetchone()
                 if pocket:
                     return (pocket["status"], import_id, pocket["page"], pocket["position"])
-                page = db.execute(
-                    "SELECT p.page FROM pages p WHERE p.import_id=? AND p.status='cut' AND NOT "
-                    "EXISTS(SELECT 1 FROM pockets k WHERE k.import_id=p.import_id AND "
-                    "k.page=p.page AND k.status IN ('cut','read','created')) ORDER BY p.page LIMIT 1",
-                    (import_id,),
-                ).fetchone()
-                if page:
-                    return ("review", import_id, page[0], 0)
         return None
 
     def step(self):
