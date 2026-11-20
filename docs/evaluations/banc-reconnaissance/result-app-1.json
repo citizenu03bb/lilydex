@@ -658,6 +658,206 @@
      "device": "cuda",
      "new_references": 0
     }
+   },
+   "image_edition": {
+    "prints": [
+     {
+      "id": "tk-ex-latia-5",
+      "name": "Chamallot",
+      "language": "fr",
+      "image": "",
+      "local_id": "5",
+      "count": 10
+     },
+     {
+      "id": "sv04.5-011",
+      "name": "Chamallot",
+      "language": "fr",
+      "image": "https://assets.tcgdex.net/fr/sv/sv04.5/011",
+      "local_id": "011",
+      "count": 91
+     },
+     {
+      "id": "xy9-12",
+      "name": "Chamallot",
+      "language": "fr",
+      "image": "https://assets.tcgdex.net/fr/xy/xy9/12",
+      "local_id": "12",
+      "count": 122
+     },
+     {
+      "id": "swsh10.5-013",
+      "name": "Chamallot",
+      "language": "fr",
+      "image": "https://assets.tcgdex.net/fr/swsh/swsh10.5/013",
+      "local_id": "013",
+      "count": 78
+     },
+     {
+      "id": "sm4-13",
+      "name": "Chamallot",
+      "language": "fr",
+      "image": "https://assets.tcgdex.net/fr/sm/sm4/13",
+      "local_id": "13",
+      "count": 111
+     },
+     {
+      "id": "bw7-21",
+      "name": "Chamallot",
+      "language": "fr",
+      "image": "https://assets.tcgdex.net/fr/bw/bw7/21",
+      "local_id": "21",
+      "count": 149
+     },
+     {
+      "id": "me01-021",
+      "name": "Chamallot",
+      "language": "fr",
+      "image": "https://assets.tcgdex.net/fr/me/me01/021",
+      "local_id": "021",
+      "count": 132
+     },
+     {
+      "id": "sm11-23",
+      "name": "Chamallot",
+      "language": "fr",
+      "image": "https://assets.tcgdex.net/fr/sm/sm11/23",
+      "local_id": "23",
+      "count": 236
+     },
+     {
+      "id": "me02.5-027",
+      "name": "Chamallot",
+      "language": "fr",
+      "image": "https://assets.tcgdex.net/fr/me/me02.5/027",
+      "local_id": "027",
+      "count": 217
+     },
+     {
+      "id": "sv03-031",
+      "name": "Chamallot",
+      "language": "fr",
+      "image": "https://assets.tcgdex.net/fr/sv/sv03/031",
+      "local_id": "031",
+      "count": 197
+     },
+     {
+      "id": "hgss2-35",
+      "name": "Chamallot",
+      "language": "fr",
+      "image": "https://assets.tcgdex.net/fr/hgss/hgss2/35",
+      "local_id": "35",
+      "count": 95
+     },
+     {
+      "id": "ex9-57",
+      "name": "Chamallot",
+      "language": "fr",
+      "image": "https://assets.tcgdex.net/fr/ex/ex9/57",
+      "local_id": "57",
+      "count": 106
+     },
+     {
+      "id": "ex9-58",
+      "name": "Chamallot",
+      "language": "fr",
+      "image": "https://assets.tcgdex.net/fr/ex/ex9/58",
+      "local_id": "58",
+      "count": 106
+     },
+     {
+      "id": "ex14-59",
+      "name": "Chamallot",
+      "language": "fr",
+      "image": "https://assets.tcgdex.net/fr/ex/ex14/59",
+      "local_id": "59",
+      "count": 100
+     },
+     {
+      "id": "ex1-61",
+      "name": "Chamallot",
+      "language": "fr",
+      "image": "https://assets.tcgdex.net/fr/ex/ex1/61",
+      "local_id": "61",
+      "count": 109
+     },
+     {
+      "id": "ex8-68",
+      "name": "Chamallot",
+      "language": "fr",
+      "image": "https://assets.tcgdex.net/fr/ex/ex8/68",
+      "local_id": "68",
+      "count": 107
+     },
+     {
+      "id": "ex3-69",
+      "name": "Chamallot",
+      "language": "fr",
+      "image": "https://assets.tcgdex.net/fr/ex/ex3/69",
+      "local_id": "69",
+      "count": 97,
+      "set_name": "EX Dragon 69"
+     },
+     {
+      "id": "ex3-70",
+      "name": "Chamallot",
+      "language": "fr",
+      "image": "https://assets.tcgdex.net/fr/ex/ex3/70",
+      "local_id": "70",
+      "count": 97
+     },
+     {
+      "id": "ex13-72",
+      "name": "Chamallot",
+      "language": "fr",
+      "image": "https://assets.tcgdex.net/fr/ex/ex13/72",
+      "local_id": "72",
+      "count": 110
+     },
+     {
+      "id": "pl3-74",
+      "name": "Chamallot",
+      "language": "fr",
+      "image": "https://assets.tcgdex.net/fr/pl/pl3/74",
+      "local_id": "74",
+      "count": 147
+     },
+     {
+      "id": "dp6-110",
+      "name": "Chamallot",
+      "language": "fr",
+      "image": "",
+      "local_id": "110",
+      "count": 146
+     },
+     {
+      "id": "me02.5-223",
+      "name": "Chamallot",
+      "language": "fr",
+      "image": "https://assets.tcgdex.net/fr/me/me02.5/223",
+      "local_id": "223",
+      "count": 217
+     }
+    ],
+    "kept": [
+     "ex8-68",
+     "ex3-69",
+     "ex3-70"
+    ],
+    "scores": {
+     "ex8-68": 0.41106,
+     "ex3-69": 0.75044,
+     "ex3-70": 0.50928
+    },
+    "proposal": {
+     "status": "proposed",
+     "top": "ex3-69",
+     "gap": 0.24116,
+     "kept": 3,
+     "filtered": true,
+     "missing_images": [],
+     "reason": "Proposée par l’image : EX Dragon 69 (ex3-69), la plus proche parmi 3 impressions (écart 0.241). Comparez avec la carte avant de confirmer."
+    }
    }
   },
   "banc-03": {
@@ -2633,6 +2833,194 @@
      "device": "cuda",
      "new_references": 0
     }
+   },
+   "image_edition": {
+    "prints": [
+     {
+      "id": "hgss2-6",
+      "name": "Octillery",
+      "language": "fr",
+      "image": "https://assets.tcgdex.net/fr/hgss/hgss2/6",
+      "local_id": "6",
+      "count": 95
+     },
+     {
+      "id": "ex10-10",
+      "name": "Octillery",
+      "language": "fr",
+      "image": "https://assets.tcgdex.net/fr/ex/ex10/10",
+      "local_id": "10",
+      "count": 115
+     },
+     {
+      "id": "me04-017",
+      "name": "Octillery",
+      "language": "fr",
+      "image": "https://assets.tcgdex.net/fr/me/me04/017",
+      "local_id": "017",
+      "count": 86
+     },
+     {
+      "id": "bw10-19",
+      "name": "Octillery",
+      "language": "fr",
+      "image": "https://assets.tcgdex.net/fr/bw/bw10/19",
+      "local_id": "19",
+      "count": 101
+     },
+     {
+      "id": "sm4-23",
+      "name": "Octillery",
+      "language": "fr",
+      "image": "https://assets.tcgdex.net/fr/sm/sm4/23",
+      "local_id": "23",
+      "count": 111
+     },
+     {
+      "id": "ecard2-26",
+      "name": "Octillery",
+      "language": "fr",
+      "image": "https://assets.tcgdex.net/fr/ecard/ecard2/26",
+      "local_id": "26",
+      "count": 147
+     },
+     {
+      "id": "xy8-33",
+      "name": "Octillery",
+      "language": "fr",
+      "image": "https://assets.tcgdex.net/fr/xy/xy8/33",
+      "local_id": "33",
+      "count": 162
+     },
+     {
+      "id": "neo3-34",
+      "name": "Octillery",
+      "language": "fr",
+      "image": "https://assets.tcgdex.net/fr/neo/neo3/34",
+      "local_id": "34",
+      "count": 64
+     },
+     {
+      "id": "sv04-034",
+      "name": "Octillery",
+      "language": "fr",
+      "image": "https://assets.tcgdex.net/fr/sv/sv04/034",
+      "local_id": "034",
+      "count": 182
+     },
+     {
+      "id": "sv09-034",
+      "name": "Octillery",
+      "language": "fr",
+      "image": "https://assets.tcgdex.net/fr/sv/sv09/034",
+      "local_id": "034",
+      "count": 159
+     },
+     {
+      "id": "swsh5-37",
+      "name": "Octillery",
+      "language": "fr",
+      "image": "https://assets.tcgdex.net/fr/swsh/swsh5/37",
+      "local_id": "37",
+      "count": 163
+     },
+     {
+      "id": "dp2-57",
+      "name": "Octillery",
+      "language": "fr",
+      "image": "",
+      "local_id": "57",
+      "count": 123
+     },
+     {
+      "id": "pl1-58",
+      "name": "Octillery",
+      "language": "fr",
+      "image": "https://assets.tcgdex.net/fr/pl/pl1/58",
+      "local_id": "58",
+      "count": 127,
+      "set_name": "Platine 58"
+     },
+     {
+      "id": "swsh5-178",
+      "name": "Octillery",
+      "language": "fr",
+      "image": "https://assets.tcgdex.net/fr/swsh/swsh5/178",
+      "local_id": "178",
+      "count": 163
+     },
+     {
+      "id": "ecard2-H20",
+      "name": "Octillery",
+      "language": "fr",
+      "image": "https://assets.tcgdex.net/fr/ecard/ecard2/H20",
+      "local_id": "H20",
+      "count": 147
+     },
+     {
+      "id": "swshp-SWSH089",
+      "name": "Octillery",
+      "language": "fr",
+      "image": "https://assets.tcgdex.net/fr/swsh/swshp/SWSH089",
+      "local_id": "SWSH089",
+      "count": 307
+     },
+     {
+      "id": "swsh9tg-TG03",
+      "name": "Octillery",
+      "language": "fr",
+      "image": "",
+      "local_id": "TG03",
+      "count": 30
+     }
+    ],
+    "kept": [
+     "hgss2-6",
+     "ex10-10",
+     "me04-017",
+     "bw10-19",
+     "sm4-23",
+     "ecard2-26",
+     "xy8-33",
+     "neo3-34",
+     "sv04-034",
+     "sv09-034",
+     "swsh5-37",
+     "dp2-57",
+     "pl1-58",
+     "swsh5-178",
+     "ecard2-H20",
+     "swshp-SWSH089",
+     "swsh9tg-TG03"
+    ],
+    "scores": {
+     "hgss2-6": 0.36573,
+     "ex10-10": 0.50791,
+     "me04-017": 0.44863,
+     "bw10-19": 0.52177,
+     "sm4-23": 0.35343,
+     "ecard2-26": 0.60264,
+     "xy8-33": 0.53301,
+     "neo3-34": 0.59273,
+     "sv04-034": 0.40093,
+     "sv09-034": 0.47253,
+     "swsh5-37": 0.55687,
+     "dp2-57": 0.45488,
+     "pl1-58": 0.74635,
+     "swsh5-178": 0.39823,
+     "ecard2-H20": 0.55798,
+     "swshp-SWSH089": 0.49672,
+     "swsh9tg-TG03": 0.44101
+    },
+    "proposal": {
+     "status": "proposed",
+     "top": "pl1-58",
+     "gap": 0.14371,
+     "kept": 17,
+     "filtered": false,
+     "missing_images": [],
+     "reason": "Proposée par l’image : Platine 58 (pl1-58), la plus proche parmi 17 impressions (écart 0.144). Comparez avec la carte avant de confirmer."
+    }
    }
   },
   "banc-10": {
@@ -3667,6 +4055,106 @@
      "seconds": 0.04,
      "device": "cuda",
      "new_references": 0
+    }
+   },
+   "image_edition": {
+    "prints": [
+     {
+      "id": "swsh10-035",
+      "name": "Barboach",
+      "language": "it",
+      "image": "https://assets.tcgdex.net/it/swsh/swsh10/035",
+      "local_id": "035",
+      "count": 189
+     },
+     {
+      "id": "xy5-39",
+      "name": "Barboach",
+      "language": "it",
+      "image": "https://assets.tcgdex.net/it/xy/xy5/39",
+      "local_id": "39",
+      "count": 160
+     },
+     {
+      "id": "sv04.5-050",
+      "name": "Barboach",
+      "language": "it",
+      "image": "https://assets.tcgdex.net/it/sv/sv04.5/050",
+      "local_id": "050",
+      "count": 91
+     },
+     {
+      "id": "sm2-70",
+      "name": "Barboach",
+      "language": "it",
+      "image": "https://assets.tcgdex.net/it/sm/sm2/70",
+      "local_id": "70",
+      "count": 145
+     },
+     {
+      "id": "swsh2-99",
+      "name": "Barboach",
+      "language": "it",
+      "image": "https://assets.tcgdex.net/it/swsh/swsh2/99",
+      "local_id": "99",
+      "count": 192
+     },
+     {
+      "id": "sv03-108",
+      "name": "Barboach",
+      "language": "it",
+      "image": "https://assets.tcgdex.net/it/sv/sv03/108",
+      "local_id": "108",
+      "count": 197
+     },
+     {
+      "id": "ex3-51",
+      "name": "Barboach",
+      "language": "en",
+      "image": "https://assets.tcgdex.net/en/ex/ex3/51",
+      "local_id": "51",
+      "count": 97
+     },
+     {
+      "id": "ex8-54",
+      "name": "Barboach",
+      "language": "en",
+      "image": "https://assets.tcgdex.net/en/ex/ex8/54",
+      "local_id": "54",
+      "count": 107,
+      "set_name": "Deoxys 54"
+     },
+     {
+      "id": "ex13-60",
+      "name": "Barboach",
+      "language": "en",
+      "image": "https://assets.tcgdex.net/en/ex/ex13/60",
+      "local_id": "60",
+      "count": 110
+     },
+     {
+      "id": "dp2-72",
+      "name": "Barboach",
+      "language": "en",
+      "image": "https://assets.tcgdex.net/en/dp/dp2/72",
+      "local_id": "72",
+      "count": 123
+     }
+    ],
+    "kept": [
+     "ex8-54"
+    ],
+    "scores": {
+     "ex8-54": 0.63643
+    },
+    "proposal": {
+     "status": "proposed",
+     "top": "ex8-54",
+     "gap": null,
+     "kept": 1,
+     "filtered": true,
+     "missing_images": [],
+     "reason": "Proposée par l’image : Deoxys 54 (ex8-54), seule impression de ce nom retenue par le numéro. Comparez avec la carte avant de confirmer."
     }
    }
   },
@@ -6930,7 +7418,70 @@
     "conflicts": [],
     "language_conflicts": []
    },
-   "edition_error": "Confirmez d’abord une édition du catalogue."
+   "edition_error": "Confirmez d’abord une édition du catalogue.",
+   "image_edition": {
+    "prints": [
+     {
+      "id": "sm2-75",
+      "name": "Mudbray",
+      "language": "en",
+      "image": "https://assets.tcgdex.net/en/sm/sm2/75",
+      "local_id": "75",
+      "count": 145
+     },
+     {
+      "id": "sm3-77",
+      "name": "Mudbray",
+      "language": "en",
+      "image": "https://assets.tcgdex.net/en/sm/sm3/77",
+      "local_id": "77",
+      "count": 147
+     },
+     {
+      "id": "sv05-091",
+      "name": "Mudbray",
+      "language": "en",
+      "image": "https://assets.tcgdex.net/en/sv/sv05/091",
+      "local_id": "091",
+      "count": 162
+     },
+     {
+      "id": "swsh4-96",
+      "name": "Mudbray",
+      "language": "en",
+      "image": "https://assets.tcgdex.net/en/swsh/swsh4/96",
+      "local_id": "96",
+      "count": 185
+     },
+     {
+      "id": "swsh1-105",
+      "name": "Mudbray",
+      "language": "en",
+      "image": "https://assets.tcgdex.net/en/swsh/swsh1/105",
+      "local_id": "105",
+      "count": 202
+     },
+     {
+      "id": "sv10-107",
+      "name": "Mudbray",
+      "language": "en",
+      "image": "https://assets.tcgdex.net/en/sv/sv10/107",
+      "local_id": "107",
+      "count": 182
+     }
+    ],
+    "kept": [],
+    "scores": {},
+    "proposal": {
+     "status": "none",
+     "top": null,
+     "gap": null,
+     "kept": 0,
+     "filtered": true,
+     "missing_images": [],
+     "reason": "Aucune impression de ce nom ne porte ce numéro ni ce nombre de cartes."
+    }
+   }
   },
   "banc-23": {
    "confirmed_variant": null,
@@ -8258,6 +8809,42 @@
      "device": "cuda",
      "new_references": 0
     }
+   },
+   "image_edition": {
+    "prints": [
+     {
+      "id": "neo3-58",
+      "name": "Zarbi K",
+      "language": "fr",
+      "image": "https://assets.tcgdex.net/fr/neo/neo3/58",
+      "local_id": "58",
+      "count": 64,
+      "set_name": "Neo Revelation 58"
+     },
+     {
+      "id": "dp3-68",
+      "name": "Zarbi K",
+      "language": "fr",
+      "image": "https://assets.tcgdex.net/fr/dp/dp3/68",
+      "local_id": "68",
+      "count": 132
+     }
+    ],
+    "kept": [
+     "neo3-58"
+    ],
+    "scores": {
+     "neo3-58": 0.7227
+    },
+    "proposal": {
+     "status": "proposed",
+     "top": "neo3-58",
+     "gap": null,
+     "kept": 1,
+     "filtered": true,
+     "missing_images": [],
+     "reason": "Proposée par l’image : Neo Revelation 58 (neo3-58), seule impression de ce nom retenue par le numéro. Comparez avec la carte avant de confirmer."
+    }
    }
   },
   "banc-28": {
@@ -8472,6 +9059,44 @@
      "seconds": 0.03,
      "device": "cuda",
      "new_references": 0
+    }
+   },
+   "image_edition": {
+    "prints": [
+     {
+      "id": "dp2-117",
+      "name": "Fossile Crâne",
+      "language": "fr",
+      "image": "",
+      "local_id": "117",
+      "count": 123
+     },
+     {
+      "id": "pl1-120",
+      "name": "Fossile Crâne",
+      "language": "fr",
+      "image": "https://assets.tcgdex.net/fr/pl/pl1/120",
+      "local_id": "120",
+      "count": 127,
+      "set_name": "Platine 120"
+     }
+    ],
+    "kept": [
+     "dp2-117",
+     "pl1-120"
+    ],
+    "scores": {
+     "dp2-117": 0.36173,
+     "pl1-120": 0.66138
+    },
+    "proposal": {
+     "status": "proposed",
+     "top": "pl1-120",
+     "gap": 0.29965,
+     "kept": 2,
+     "filtered": false,
+     "missing_images": [],
+     "reason": "Proposée par l’image : Platine 120 (pl1-120), la plus proche parmi 2 impressions (écart 0.300). Comparez avec la carte avant de confirmer."
     }
    }
   },
@@ -9262,6 +9887,75 @@
      "seconds": 0.03,
      "device": "cuda",
      "new_references": 0
+    }
+   },
+   "image_edition": {
+    "prints": [
+     {
+      "id": "tk-hs-g-25",
+      "name": "Méthode d'entraînement du Prof. Orme",
+      "language": "fr",
+      "image": "",
+      "local_id": "25",
+      "count": 30
+     },
+     {
+      "id": "ex15-79",
+      "name": "Méthode d'entraînement du Prof. Orme",
+      "language": "fr",
+      "image": "https://assets.tcgdex.net/fr/ex/ex15/79",
+      "local_id": "79",
+      "count": 101,
+      "set_name": "EX Île des Dragons 79"
+     },
+     {
+      "id": "col1-82",
+      "name": "Méthode d'entraînement du Prof. Orme",
+      "language": "fr",
+      "image": "",
+      "local_id": "82",
+      "count": 95
+     },
+     {
+      "id": "ex10-89",
+      "name": "Méthode d'entraînement du Prof. Orme",
+      "language": "fr",
+      "image": "https://assets.tcgdex.net/fr/ex/ex10/89",
+      "local_id": "89",
+      "count": 115
+     },
+     {
+      "id": "hgss1-100",
+      "name": "Méthode d'entraînement du Prof.Orme",
+      "language": "fr",
+      "image": "https://assets.tcgdex.net/fr/hgss/hgss1/100",
+      "local_id": "100",
+      "count": 123
+     }
+    ],
+    "kept": [
+     "tk-hs-g-25",
+     "ex15-79",
+     "col1-82",
+     "ex10-89",
+     "hgss1-100"
+    ],
+    "scores": {
+     "ex15-79": 0.64069,
+     "col1-82": 0.46191,
+     "ex10-89": 0.57975,
+     "hgss1-100": 0.42298
+    },
+    "proposal": {
+     "status": "proposed",
+     "top": "ex15-79",
+     "gap": 0.06094,
+     "kept": 5,
+     "filtered": false,
+     "missing_images": [
+      "tk-hs-g-25"
+     ],
+     "reason": "Proposée par l’image : EX Île des Dragons 79 (ex15-79), la plus proche parmi 4 impressions (écart 0.061). Comparez avec la carte avant de confirmer. Sans image TCGdex, donc non comparées : tk-hs-g-25."
     }
    }
   }

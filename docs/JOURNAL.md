@@ -9,6 +9,15 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-20
 
+- Tranche 5 de M2 : quand le catalogue ne trouve aucune édition à la saisie,
+  DINOv2 en propose une parmi les impressions du nom lu, filtrées par le
+  numéro même mal lu (numéro ou nombre de cartes de l'extension, TCGdex
+  `/sets` en cache) ; une personne confirme. Banc rejoué sur les lectures
+  enregistrées : 6/6 puis 7/8 justes, aucune fausse
+  ([banc d'essai](BANC-RECONNAISSANCE.md#lédition-proposée-par-limage-à-la-saisie),
+  `tests/test_edition_suggestion.py`). `catalogue_candidates` compare les noms
+  sans tenir compte des majuscules (« Fossile crâne » trouve « Fossile
+  Crâne »), et les impressions TCG Pocket sans image sortent des galeries.
 - Un script de contrôle unique, `scripts/check.py`, lance sur le portable les
   contrôles de la CI (`ruff`, `mypy`, documentation, `pytest`, recette
   Firefox) et le lint des fichiers modifiés, puis résume ;

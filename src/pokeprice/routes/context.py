@@ -18,7 +18,7 @@ from ..audience import Audience
 from ..cardmarket_guide import CardmarketGuide
 from ..catalogue_image import CatalogueImages
 from ..condition_assessment import ConditionService, read_condition
-from ..edition_check import EditionCheckService
+from ..edition_check import EditionCheckService, EditionSuggester
 from ..floor_requests import FloorRequests
 from ..intake import IntakeService, catalogue_candidates, read_photo
 from ..inventory import Store
@@ -131,14 +131,25 @@ def build_services(
                     "Créez un administrateur local (commande user) avant le "
                     "démarrage HTTPS ou l’ouverture au réseau."
                 )
-    intake = IntakeService(
-        store, intake_reader or read_photo, intake_lookup or catalogue_candidates
-    )
-    conditions = ConditionService(store, condition_reader or read_condition)
-    variant_checks = VariantCheckService(store, variant_reader)
     edition_checks = EditionCheckService(
         store, edition_reader, edition_get_json, edition_fetch
     )
+    # With the vision option, the image proposes an edition the catalogue
+    # misses. An injected catalogue (tests) never reaches the real TCGdex here.
+    suggest = (
+        EditionSuggester(edition_checks)
+        if edition_checks.available
+        and (edition_get_json is not None or intake_lookup is None)
+        else None
+    )
+    intake = IntakeService(
+        store,
+        intake_reader or read_photo,
+        intake_lookup or catalogue_candidates,
+        suggest,
+    )
+    conditions = ConditionService(store, condition_reader or read_condition)
+    variant_checks = VariantCheckService(store, variant_reader)
     # An injected price source (tests) never reaches TCGdex for neighbours.
     market = MarketProducts(
         store, market_fetch or (fetch_tcgdex if price_fetch is None else None)

@@ -75,6 +75,9 @@
 .intake-candidate.selected {
   outline: 3px solid var(--green);
 }
+.intake-candidate .intake-image-proposal {
+  font-style: italic;
+}
 .intake-comparison {
   display: grid;
   grid-template-columns: 1fr 1fr;

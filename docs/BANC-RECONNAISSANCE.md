@@ -176,34 +176,58 @@ le choix, 27 cartes ne suffisent pas à départager les marges.
 Des appels TCGdex échoués font chuter ces mesures (3 à 7 contrôles perdus lors
 d'un essai) : le contrôle a besoin du réseau pour constituer sa galerie.
 
-### Piste mesurée, non livrée : proposer l'édition à la saisie
+### L'édition proposée par l'image à la saisie
 
-Quand le catalogue ne trouve rien (numéro absent ou mal lu), DINOv2 pourrait
-proposer l'édition. Simulation hors ligne sur les lectures enregistrées des
-deux passages :
+Quand le catalogue ne trouve rien (numéro absent ou mal lu), DINOv2 propose
+l'édition parmi les impressions du nom lu, filtrées par le numéro, même mal
+lu ; une personne confirme. La règle :
 
-| Règle | Cartes sans résultat catalogue (6, puis 8) | Toutes les cartes (58 lectures) |
+1. galerie : les impressions TCGdex du nom lu, dans la langue lue et en
+   anglais, noms comparés sans accents, casse, crochets ni ponctuation, sans
+   les impressions TCG Pocket ;
+2. filtre : on garde les impressions dont le numéro ou le nombre de cartes de
+   l'extension (TCGdex `/sets`) correspond au numéro lu ; « 68/97 » garde
+   l'extension à 97 cartes, « 4/ » les impressions numérotées 4 ; sans numéro
+   lu, pas de filtre ;
+3. DINOv2 classe la photo dans ce qui reste : l'impression en tête est
+   proposée si elle devance la deuxième d'au moins 0,05, ou si elle reste
+   seule ;
+4. une impression retenue par le numéro mais sans image bloque la
+   proposition : la vraie peut être celle que l'image ne voit pas. Sans
+   numéro lu, la proposition nomme les impressions sans image.
+
+| Mesure, sur les cartes sans résultat du catalogue | Passage 1 | Passage 2 |
 |---|---|---|
-| Nom seul, écart ≥ 0,05 | 6/6 puis 6/8 justes, aucune fausse | 30 justes, **4 fausses**, 24 sans proposition (30/34 propositions justes, IC 95 % : 73,3–95,4 %) |
-| Nom puis filtre par numéro, écart ≥ 0,05 | 6/6 puis **7/8** justes, aucune fausse | **48 justes**, 1 fausse, 9 sans proposition (48/49, IC 95 % : 89,3–99,64 %) |
+| Bonne édition proposée | **6/6** | **7/8** (IC 95 % du pire passage : 52,9–97,8 %) |
+| Fausse édition proposée | 0 | 0 |
+| Images trop proches, pas de proposition | 0 | 1 (PokéNav, écart 0,037) |
 
-*Conditions de mesure : lectures enregistrées des deux passages applicatifs, DINOv2-small rejoué hors ligne, octobre 2026.*
+*Conditions de mesure : lectures Gemini enregistrées des deux passages applicatifs du 14 octobre 2026, galerie TCGdex et DINOv2-small rejoués par `bench_recognition.py image-edition` en novembre 2026 ; Mudbray (contrefaçon, sans édition vraie) et la photo à refuser sont hors mesure, Mudbray ne reçoit aucune proposition.*
 
-Sans filtre, deux erreurs reviennent aux deux passages : Solochi, confondu
-avec une impression récente (écart 0,075), et Baggiguane 10/12, dont la vraie
-impression n'a pas d'image, si bien que DINOv2 en choisit forcément une autre.
-Monter la marge ne les sépare pas des bonnes propositions, qui ont aussi des
-écarts de 0,061 et 0,075. Le numéro, même partiel, les règle : « 68/97 » garde
-l'extension à 97 cartes. Il départage aussi Clic (« 89/114 ») et Chamallot
-(écarts de 0,075 à 0,241), et récupère Zarbi K (« 58/105 »), Fossile Crâne et
-Méthode d'entraînement du Prof. Orme.
+`bench_recognition.py app-check` rejoue la règle sur les galeries et
+similarités enregistrées, sans réseau : minimum 7/8, aucune fausse
+proposition. Les éditions retrouvées : Chamallot (lu « 68/97 », écart 0,241),
+Octillery et Fossile Crâne (sans numéro lu), Barboach italien et Zarbi K
+(« 58/105 » puis « 58/75 », seule impression numérotée 58), Méthode
+d'entraînement du Prof. Orme (écart 0,061) et Clic (lu « 89/114 », écart
+0,075).
 
-La seule erreur restante, avec le filtre, est PokéNav lu « 88/109 », numéro
-d'une autre impression existante dont l'illustration est identique : le
-catalogue faisait déjà la même erreur, et l'image ne peut pas trancher. Risque
-restant : sans numéro lu, une vraie impression sans image (promos) laisse
-passer une mauvaise proposition ; la proposition devra alors signaler les
-impressions de ce nom qui n'ont pas d'image.
+Simulée hors ligne sur les 58 lectures, toutes cartes confondues, la même
+règle donne 48 justes, 1 fausse et 9 sans proposition (48/49, IC 95 % :
+89,3–99,64 %) ; par le nom seul, sans filtre, 30 justes et **4 fausses** (30/34,
+IC 95 % : 73,3–95,4 %). Sans filtre, deux erreurs reviennent aux deux
+passages : Solochi, confondu avec une impression récente (écart 0,075), et
+Baggiguane 10/12, dont la vraie impression n'a pas d'image. Monter la marge
+ne les sépare pas des bonnes propositions, qui ont aussi des écarts de 0,061
+et 0,075 ; le numéro, même partiel, les règle. La seule erreur restante est
+PokéNav lu « 88/109 », numéro d'une autre impression existante dont
+l'illustration est identique : le catalogue fait la même erreur, et l'image
+ne peut pas trancher. Elle ne se produit pas à la saisie, puisque le
+catalogue y trouve une édition.
+
+Risque restant : sans numéro lu, une vraie impression sans image (promos)
+laisse passer une mauvaise proposition. La proposition nomme alors les
+impressions sans image, et la personne compare avant de confirmer.
 
 ## La langue : Tesseract face au contrôle de cohérence
 

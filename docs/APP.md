@@ -228,7 +228,7 @@ Git ignore :
 | `collection.sqlite3` | La base : fiches, historique, prix, ventes et comptes |
 | `photos/` | Les photos de chaque exemplaire, nommées par leur empreinte SHA-256 |
 | `reference_documents/` | Les pièces justificatives du référentiel, rangées par empreinte |
-| `references/` | Le cache du contrôle par l'image (images TCGdex, vecteurs) ; il se recalcule |
+| `references/` | Le cache du contrôle par l'image (images TCGdex, vecteurs, nombre de cartes par extension) ; il se recalcule |
 | `thumbnails/` | Les vignettes de la grille ; elles se recalculent |
 | `assistant.sqlite3` | Les conversations et le journal du chat, 30 jours au plus, hors des sauvegardes |
 
