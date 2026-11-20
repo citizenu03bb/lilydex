@@ -359,7 +359,13 @@ class EditionCheckService(CheckService):
         return self.reader is not None
 
     def ready(self, card):
-        return bool(card["catalog_id"]) and card["identification_status"] == "confirmed"
+        # An imported copy keeps the catalogue's exact edition unconfirmed: the
+        # image check is what lets the review agent confirm it (decision 0047).
+        return bool(card["catalog_id"]) and (
+            card["identification_status"] == "confirmed"
+            or (card["identification_status"] == "review"
+                and str(card.get("source_key") or "").startswith("binder:"))
+        )
 
     def image(self, ref):
         """A cached catalogue image, downloaded once; None when no source has it."""
