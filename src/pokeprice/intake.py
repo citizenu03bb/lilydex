@@ -128,9 +128,20 @@ def number_key(value):
 
 
 def catalogue_name_key(value):
-    return strip_accents(TCGdexClient.clean_name(value)).translate(
-        str.maketrans({"’": "'", "‘": "'", "ʼ": "'", "œ": "oe"})
+    """Printed and official names compared without accents or case.
+
+    « Fossile crâne » read on the card is the catalogue's « Fossile Crâne ».
+    """
+    return (
+        strip_accents(TCGdexClient.clean_name(value))
+        .translate(str.maketrans({"’": "'", "‘": "'", "ʼ": "'", "œ": "oe"}))
+        .casefold()
     )
+
+
+def loose_name_key(value):
+    """Also without brackets or punctuation: « Zarbi [K] » is « Zarbi K »."""
+    return " ".join(re.findall(r"\w+", catalogue_name_key(value)))
 
 
 def catalogue_name_matches(printed, official):
@@ -158,6 +169,35 @@ def candidate_mismatch(values, candidate):
     ):
         return "Les PV ne correspondent pas à l’édition choisie."
     return None
+
+
+def catalogue_reference(detail):
+    """The collector reference of a TCGdex print, « 58/127 » when the set says."""
+    count = (detail.get("set", {}).get("cardCount", {})).get("official")
+    return str(detail.get("localId", "")) + (f"/{count}" if count else "")
+
+
+def catalogue_candidate(detail, language, *, printed_name, printed_number):
+    """One edition offered for a human choice, from a TCGdex card detail."""
+    image = detail.get("image", "")
+    parsed = urlsplit(image)
+    if parsed.scheme != "https" or parsed.netloc != "assets.tcgdex.net":
+        image = ""
+    base = f"https://api.tcgdex.net/v2/{language}"
+    return {
+        "id": detail["id"],
+        "name": detail["name"],
+        "printed_name": printed_name,
+        "printed_number": printed_number,
+        "set_name": detail.get("set", {}).get("name", ""),
+        "number": catalogue_reference(detail),
+        "language": language,
+        "hp": detail.get("hp"),
+        "image": image + "/low.webp" if image else "",
+        "source": base + "/cards/" + detail["id"],
+        "pricing": detail.get("pricing"),
+        "variants": detail.get("variants"),
+    }
 
 
 def catalogue_candidates(query, get_json=None):
@@ -210,8 +250,7 @@ def catalogue_candidates(query, get_json=None):
                 or number_key(str(detail.get("localId", ""))) != numerator
             ):
                 continue
-            count = (detail.get("set", {}).get("cardCount", {})).get("official")
-            ref = str(detail.get("localId", "")) + (f"/{count}" if count else "")
+            ref = catalogue_reference(detail)
             if "/" in number and number_key(ref) != number_key(number):
                 continue
             if (
@@ -225,25 +264,13 @@ def catalogue_candidates(query, get_json=None):
             official_level = TCGdexClient.extract_level(detail.get("name", ""))
             if level and official_level and level != official_level:
                 continue
-            image = detail.get("image", "")
-            parsed = urlsplit(image)
-            if parsed.scheme != "https" or parsed.netloc != "assets.tcgdex.net":
-                image = ""
             candidates.append(
-                {
-                    "id": detail["id"],
-                    "name": detail["name"],
-                    "printed_name": name,
-                    "printed_number": number if "/" in number else ref,
-                    "set_name": detail.get("set", {}).get("name", ""),
-                    "number": ref,
-                    "language": language,
-                    "hp": detail.get("hp"),
-                    "image": image + "/low.webp" if image else "",
-                    "source": base + "/cards/" + summary["id"],
-                    "pricing": detail.get("pricing"),
-                    "variants": detail.get("variants"),
-                }
+                catalogue_candidate(
+                    detail,
+                    language,
+                    printed_name=name,
+                    printed_number=number if "/" in number else ref,
+                )
             )
         incomplete = len(summaries) > 8
         # An omitted Delta suffix may suggest an edition, never preselect it.
@@ -272,8 +299,11 @@ def catalogue_candidates(query, get_json=None):
 class IntakeService:
     """Private, bounded 30-minute drafts. Accepted evidence is written atomically."""
 
-    def __init__(self, store, reader=read_photo, lookup=catalogue_candidates):
+    def __init__(self, store, reader=read_photo, lookup=catalogue_candidates, suggest=None):
+        # ``suggest(photo, query)``: an edition proposed by the image when the
+        # catalogue finds nothing (edition_check.EditionSuggester), or None.
         self.store, self.reader, self.lookup = store, reader, lookup
+        self.suggest = suggest
         self.drafts = {}
         self.lock = threading.RLock()
         self.reading = set()
@@ -437,6 +467,14 @@ class IntakeService:
     def search(self, token, owner, query):
         draft = self.draft(token, owner)
         result = self.lookup(query)
+        if (
+            not result.get("candidates")
+            and self.suggest
+            and draft["photo"] is not None
+            and str(query.get("name") or "").strip()
+        ):
+            # Never preselected: a person compares and confirms, as for the catalogue.
+            result = {**result, **self.suggest(draft["photo"], query), "exact": False}
         with self.lock:
             draft["searches"] = (draft["searches"] + [{"query": query, **result}])[-5:]
             self.persist(token, owner)
@@ -541,6 +579,11 @@ class IntakeService:
                 "raw_response": draft["raw_response"],
                 "searches": draft["searches"],
                 "chosen_catalog_id": chosen,
+                # An edition first proposed by the image: the edition check that
+                # follows is then not an independent opinion on this card.
+                "chosen_proposed_by": (candidate or {}).get("proposed_by", "catalogue")
+                if candidate
+                else None,
                 "human_confirmed": confirmed,
                 "photo_preparation": self.photo_evidence(draft),
             }

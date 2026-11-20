@@ -359,7 +359,12 @@ function setIntakeFormValues(values) {
 function showIntakeCandidates(result) {
   clearIntakeChoice();
   $("intake-candidates").replaceChildren();
-  $("intake-catalogue-message").textContent = result.message;
+  // Without a proposal, the image says why (prints without image, too close).
+  const imageNote =
+    result.image_proposal && !result.candidates.length
+      ? ` ${result.image_proposal.reason}`
+      : "";
+  $("intake-catalogue-message").textContent = result.message + imageNote;
   const choices = [];
   for (const candidate of result.candidates) {
     const entry = el("article", undefined, "intake-candidate-entry");
@@ -413,6 +418,10 @@ function showIntakeCandidates(result) {
       el("span", candidate.set_name),
       el("span", `${candidate.number} · ${candidate.language.toUpperCase()}`),
     );
+    if (candidate.proposed_by === "image")
+      button.append(
+        el("span", "Proposée par l’image, à confirmer", "intake-image-proposal"),
+      );
     button.addEventListener("click", choose);
     entry.append(button);
     $("intake-candidates").append(entry);

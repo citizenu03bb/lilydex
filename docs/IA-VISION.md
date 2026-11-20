@@ -48,6 +48,7 @@
 | Lecture de la carte à la saisie | Gemini (vision-langage) | cloud, appelé par le serveur | numéro juste 23/30 au pire passage (IC 95 % : 59,0–88,3 %) ; langue 30/30 (90,4–100 %) |
 | Finition, tampon et langue du texte | Gemini | cloud, après chaque saisie avec photo | holo ou mate, quand la lecture tranche : 21/21 (86,7–100 %) ; variante fausse proposée au-dessus du seuil de valeur : 0/24 (0–11,8 %) |
 | Contrôle d'édition par l'image | DINOv2-small, pré-entraîné | serveur, processeur seul | vraie édition confirmée 22/27 (63,3–91,9 %) ; fausse alerte 1/27 (0,65–18,3 %) |
+| Édition proposée par l'image à la saisie | DINOv2-small, pré-entraîné | serveur, processeur seul | sur les cartes que le catalogue ne trouve pas : 6/6 puis 7/8 justes (pire passage, IC 95 % : 52,9–97,8 %), aucune fausse |
 | Porte énergie (pipeline d'albums) | DINOv2-small, plus proches voisins avec rejet | portable ou serveur | énergies de base admises 166/166 (98,2–100 %) ; autre carte admise à tort 1/1 601 (0,01–0,36 %) |
 | Lecture des albums (pipeline) | Gemma via Ollama (local, par défaut) ou Gemini | portable | non mesurée pour Gemma |
 | Aide à l'état | Gemini | cloud, seulement à la demande | non mesurée : une proposition, jamais une note |
@@ -118,6 +119,31 @@ n'est pas détecté ; les promos sans image TCGdex ne sont pas contrôlables.
 Le libellé « Édition confirmée par l'image » signifie que l'édition de la
 fiche arrive en tête, même de peu : pour des illustrations identiques, c'est
 un accord sans valeur de preuve.
+
+### Proposer l'édition à la saisie
+
+Quand le catalogue ne trouve aucune édition pour le nom et le numéro lus
+(numéro absent ou mal lu), DINOv2 en propose une parmi les impressions TCGdex
+du nom lu, dans la langue lue et en anglais. Les noms se comparent sans
+accents, casse, crochets ni ponctuation : « Fossile crâne » trouve « Fossile
+Crâne », « Zarbi [K] » trouve « Zarbi K ». Le numéro, même mal lu, resserre
+la galerie : on garde les impressions qui portent ce numéro ou dont
+l'extension a ce nombre de cartes (TCGdex `/sets`, gardé une semaine en
+cache). La photo est ensuite classée parmi ce qui reste, avec la marge de
+0,05 du contrôle d'édition.
+
+- La proposition s'affiche parmi les éditions, marquée « Proposée par
+  l'image, à confirmer ». Elle n'est jamais présélectionnée : une personne
+  compare la photo et l'image TCGdex, puis confirme.
+- Une impression retenue par le numéro mais sans image bloque la proposition.
+  Sans numéro lu, la proposition nomme les impressions sans image.
+- L'historique de la fiche garde la provenance (`chosen_proposed_by`) : le
+  contrôle d'édition par l'image qui suit n'est pas un avis indépendant pour
+  cette carte.
+- Sans l'option `vision`, la saisie fonctionne normalement, sans proposition
+  par l'image.
+
+Mesure et règle : [banc d'essai](BANC-RECONNAISSANCE.md#lédition-proposée-par-limage-à-la-saisie).
 
 ### La porte énergie
 

@@ -24,8 +24,15 @@ from urllib.request import Request, urlopen
 
 from PIL import Image
 
-from .intake import LANGUAGES
+from .intake import (
+    LANGUAGES,
+    catalogue_candidate,
+    catalogue_reference,
+    loose_name_key,
+    number_key,
+)
 from .inventory import Conflict
+from .tcgdex import TCGdexClient
 from .verification import CheckService, check_rows, stale
 
 API = "https://api.tcgdex.net/v2"
@@ -75,27 +82,67 @@ def same_name_gallery(card, get_json):
         if not isinstance(detail, dict) or detail.get("id") != card["catalog_id"]:
             continue
         gallery.setdefault(detail["id"], reference(detail, language))
-        try:
-            summaries = get_json(
-                f"{API}/{language}/cards?" + urlencode({"name": f"eq:{detail['name']}"})
-            )
-        except (OSError, ValueError):
-            summaries = []
-        for item in summaries if isinstance(summaries, list) else []:
-            if (
-                isinstance(item, dict)
-                and item.get("name") == detail["name"]
-                and CARD_ID.fullmatch(str(item.get("id", "")))
-                and not digital_only(item)
-            ):
-                gallery.setdefault(item["id"], reference(item, language))
+        add_prints(
+            gallery,
+            get_json,
+            language,
+            {"name": f"eq:{detail['name']}"},
+            lambda name, official=detail["name"]: name == official,
+        )
     return list(gallery.values())[:MAX_GALLERY]
+
+
+def read_name_gallery(name, language, get_json):
+    """TCGdex prints of a name as read on the card, in its language and in English.
+
+    Names are compared without accents, case, brackets or punctuation: the
+    exact search (``eq:``) misses « Fossile crâne » and « Zarbi [K] ». The
+    search runs on the longest word of the name, then a local filter keeps
+    the prints whose whole name matches; an omitted Delta suffix still matches.
+    """
+    key = loose_name_key(name)
+    words = re.findall(r"\w+", TCGdexClient.clean_name(name))
+    if not key or not words:
+        return []
+    gallery = {}
+    for lang in dict.fromkeys([language, "en"]):
+        if lang in LANGUAGES:
+            add_prints(
+                gallery,
+                get_json,
+                lang,
+                {"name": max(words, key=len)},
+                lambda official: loose_name_key(official) in (key, key + " δ"),
+            )
+    return list(gallery.values())[:MAX_GALLERY]
+
+
+def add_prints(gallery, get_json, language, search, accept):
+    """Physical prints found by a TCGdex search whose name ``accept`` keeps."""
+    try:
+        summaries = get_json(f"{API}/{language}/cards?" + urlencode(search))
+    except (OSError, ValueError):
+        summaries = []
+    for item in summaries if isinstance(summaries, list) else []:
+        if (
+            isinstance(item, dict)
+            and accept(str(item.get("name", "")))
+            and CARD_ID.fullmatch(str(item.get("id", "")))
+            and not digital_only(item)
+        ):
+            gallery.setdefault(item["id"], reference(item, language))
+
+
+# TCG Pocket set ids (A1, A2b, B1, P-A…): the catalogue gives some no image.
+POCKET_SET = re.compile(r"(?:[AB]\d+[a-z]?|P-[AB])-[^-]+")
 
 
 def digital_only(item):
     """TCG Pocket prints (series ``tcgp``) exist only in the app, never in a binder."""
     parts = urlsplit(str(item.get("image") or "")).path.split("/")
-    return len(parts) > 2 and parts[2] == "tcgp"
+    return (len(parts) > 2 and parts[2] == "tcgp") or bool(
+        POCKET_SET.fullmatch(str(item.get("id", "")))
+    )
 
 
 def reference(item, language):
@@ -107,6 +154,7 @@ def reference(item, language):
         "name": item.get("name", ""),
         "language": language,
         "image": image,
+        "local_id": str(item.get("localId") or item["id"].rsplit("-", 1)[-1]),
     }
 
 
@@ -409,3 +457,227 @@ class EditionCheckService(CheckService):
                 },
             )
             return self.store.get(db, copy_id)
+
+
+# --- Edition proposed by the image at intake (M2, slice 5) --------------------
+
+IMAGE_PROTOCOL = "edition-read-name-v1"
+SETS_TTL = 7 * 86400
+
+
+def set_id(catalog_id):
+    return catalog_id.rsplit("-", 1)[0]
+
+
+def number_parts(number):
+    """(numerator, set size) of a number read, each possibly empty."""
+    parts = number_key(number or "").split("/")
+    total = parts[1] if len(parts) > 1 and parts[1].isdigit() else ""
+    return parts[0], total
+
+
+def number_filter(number, prints):
+    """Prints whose number, or whose set size, matches the number read.
+
+    A misread number still narrows the gallery: « 68/97 » keeps the set of 97
+    cards, « 4/ » the prints numbered 4. Without any number read, nothing is
+    filtered. Each print carries ``local_id`` and ``count`` (official set size).
+    Returns ``(kept, discarded)``.
+    """
+    numerator, total = number_parts(number)
+    if not numerator and not total:
+        return list(prints), []
+    kept, discarded = [], []
+    for ref in prints:
+        same_number = numerator and number_key(ref["local_id"]) == numerator
+        same_set = total and str(ref.get("count") or "") == total
+        (kept if same_number or same_set else discarded).append(ref)
+    return kept, discarded
+
+
+def image_proposal(kept, scores, filtered):
+    """The leading print if the image separates it by MARGIN, else no proposal.
+
+    ``filtered`` says a number narrowed the gallery. Then a kept print without
+    image blocks the proposal: the true one may be the print the image cannot
+    see. Without any number read, the proposal stands and names the prints
+    without image, for the person who confirms.
+    """
+    missing = sorted(ref["id"] for ref in kept if ref["id"] not in scores)
+    proposal = {
+        "status": "none",
+        "top": None,
+        "gap": None,
+        "kept": len(kept),
+        "filtered": filtered,
+        "missing_images": missing,
+    }
+    unseen = (
+        f" Sans image TCGdex, donc non comparées : {', '.join(missing)}."
+        if missing
+        else ""
+    )
+    if not kept:
+        return {
+            **proposal,
+            "reason": "Aucune impression de ce nom ne porte ce numéro ni ce nombre de cartes.",
+        }
+    if (missing and filtered) or not scores:
+        return {
+            **proposal,
+            "reason": "Pas de proposition par l’image : la vraie impression peut être l’une de celles qui n’ont pas d’image."
+            + unseen,
+        }
+    ranking = sorted(scores, key=lambda i: -scores[i])
+    top = ranking[0]
+    gap = scores[top] - scores[ranking[1]] if len(ranking) > 1 else None
+    proposal.update(top=top, gap=None if gap is None else round(gap, 5))
+    if gap is not None and gap < MARGIN:
+        return {
+            **proposal,
+            "status": "undecided",
+            "reason": f"Images trop proches pour proposer une édition parmi {len(ranking)} impressions (écart {gap:.3f})."
+            + unseen,
+        }
+    label = next((r.get("set_name") for r in kept if r["id"] == top), "") or top
+    among = (
+        "seule impression de ce nom retenue par le numéro"
+        if gap is None
+        else f"la plus proche parmi {len(ranking)} impressions (écart {gap:.3f})"
+    )
+    return {
+        **proposal,
+        "status": "proposed",
+        "reason": f"Proposée par l’image : {label} ({top}), {among}. Comparez avec la carte avant de confirmer."
+        + unseen,
+    }
+
+
+class SetCounts:
+    """Official card count of each TCGdex set, from ``/sets``, cached a week."""
+
+    def __init__(self, get_json, folder):
+        self.get_json, self.folder = get_json, Path(folder)
+        self.memory = {}
+        self.lock = threading.Lock()
+
+    def __call__(self, language):
+        with self.lock:
+            cached = self.memory.get(language)
+            if cached and cached[0] > time.time() - SETS_TTL:
+                return cached[1]
+            path = self.folder / f"sets-{language}.json"
+            try:
+                stored = json.loads(path.read_text())
+                if stored["at"] > time.time() - SETS_TTL:
+                    self.memory[language] = (stored["at"], stored["counts"])
+                    return stored["counts"]
+            except (OSError, ValueError, KeyError, TypeError):
+                pass
+            try:
+                sets = self.get_json(f"{API}/{language}/sets")
+            except (OSError, ValueError):
+                return {}
+            counts = {
+                str(item["id"]): (item.get("cardCount") or {}).get("official")
+                for item in (sets if isinstance(sets, list) else [])
+                if isinstance(item, dict) and item.get("id")
+            }
+            now = time.time()
+            self.memory[language] = (now, counts)
+            self.folder.mkdir(parents=True, exist_ok=True)
+            temporary = path.with_suffix(".tmp")
+            temporary.write_text(json.dumps({"at": now, "counts": counts}))
+            temporary.replace(path)
+            return counts
+
+
+class EditionSuggester:
+    """When the catalogue finds nothing, the image proposes an edition.
+
+    The gallery is every print of the name read (``read_name_gallery``),
+    narrowed by the number even misread (``number_filter``); DINOv2 ranks the
+    photo against what remains (``image_proposal``). A person always confirms.
+    """
+
+    def __init__(self, checks):
+        self.checks = checks
+        self.sets = SetCounts(checks.get_json, checks.references)
+
+    def gallery(self, query):
+        """The name's prints, each with its set size, and the filter applied."""
+        prints = read_name_gallery(query["name"], query["language"], self.checks.get_json)
+        counts = {}
+        for language in dict.fromkeys(["en", query["language"]]):
+            counts.update({k: v for k, v in self.sets(language).items() if v})
+        for ref in prints:
+            ref["count"] = counts.get(set_id(ref["id"]))
+        kept, _ = number_filter(query.get("number", ""), prints)
+        return prints, kept, any(number_parts(query.get("number", "")))
+
+    def evaluate(self, photo, query):
+        """Everything the bench records: prints, filter, scores and proposal."""
+        prints, kept, filtered = self.gallery(query)
+        paths = {ref["id"]: self.checks.image(ref) for ref in kept}
+        references = {i: p for i, p in paths.items() if p}
+        scores = self.checks.reader(photo, references)[0] if references else {}
+        for ref in kept:  # The leading print is named, for the human.
+            if scores and ref["id"] == max(scores, key=scores.get):
+                ref["set_name"] = self.checks.set_name(ref)
+        return {
+            "prints": prints,
+            "kept": [ref["id"] for ref in kept],
+            "scores": scores,
+            "proposal": image_proposal(kept, scores, filtered),
+        }
+
+    def candidate(self, top, query):
+        """The proposed print as a catalogue choice, in the card's language."""
+        for language in dict.fromkeys([query["language"], "en"]):
+            try:
+                detail = self.checks.get_json(f"{API}/{language}/cards/{quote(top)}")
+            except (OSError, ValueError):
+                continue
+            if isinstance(detail, dict) and detail.get("id") == top and detail.get("name"):
+                # The copy keeps the language read; the catalogue id is shared.
+                return catalogue_candidate(
+                    detail,
+                    query["language"],
+                    printed_name=detail["name"],
+                    printed_number=catalogue_reference(detail),
+                )
+        return None
+
+    def __call__(self, photo, query):
+        """Fields merged into the catalogue answer; never raises."""
+        if query.get("language") not in LANGUAGES:
+            return {}
+        try:
+            found = self.evaluate(photo, query)
+            proposal = found["proposal"]
+            candidate = (
+                self.candidate(proposal["top"], query)
+                if proposal["status"] == "proposed"
+                else None
+            )
+        except Exception:  # noqa: BLE001 - The proposal is a help; intake goes on without it.
+            return {
+                "image_proposal": {
+                    "status": "none",
+                    "reason": "Proposition par l’image indisponible.",
+                }
+            }
+        summary = {
+            k: proposal[k]
+            for k in ("status", "top", "gap", "kept", "filtered", "missing_images", "reason")
+        }
+        summary["protocol"] = IMAGE_PROTOCOL
+        if not candidate:
+            return {"image_proposal": summary}
+        candidate.update(proposed_by="image", similarity_gap=proposal["gap"])
+        return {
+            "candidates": [candidate],
+            "image_proposal": summary,
+            "message": "Le catalogue ne trouve pas ce numéro. "
+            + proposal["reason"],
+        }

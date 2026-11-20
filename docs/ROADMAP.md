@@ -34,7 +34,7 @@ de **10 €** par défaut, réglable. Voir [valeur en jeu](VALUATION.md).
 | M0 — Données de référence fiables | fait | — |
 | M1 — Valeur en jeu et file « À examiner » | fait | — |
 | M1.1 — Référentiel des impressions | socle en mode audit | les preuves par langue et de marché, limitées à 2 jours |
-| M2 — Contrôles automatiques indépendants | tranches 1 à 4 faites | l'agent de revue mesuré à l'aveugle ; la tranche 5 (proposer l'édition par l'image) ; la double source pour la contrefaçon |
+| M2 — Contrôles automatiques indépendants | tranches 1 à 5 faites | l'agent de revue mesuré à l'aveugle ; la double source pour la contrefaçon |
 | M3 — Saisie à l'échelle des classeurs | à faire, prochain jalon | tout |
 | M4 — Prix de vente et lots | à faire | tout |
 | M5 — Exploitation | en partie | tests de bout en bout des parcours de gestion, exercice de restauration, procédure d'import sur le serveur |
@@ -129,6 +129,11 @@ et l'[état de la mise en œuvre](PRINT_REFERENCE_GUIDE.md#ce-qui-est-mis-en-œu
   dans la file ([fiche 0006](decisions/0006-dinov2-marge.md)).
 - **Fait, tranche 4 :** langue du texte contrôlée par cohérence, Tesseract
   écarté ([fiche 0005](decisions/0005-langue-sans-tesseract.md)).
+- **Fait, tranche 5 :** quand le catalogue ne trouve rien, DINOv2 propose
+  l'édition parmi les impressions du nom lu, filtrées par le numéro même mal
+  lu ; une personne confirme. Banc : 6/6 puis 7/8 justes sur les cartes sans
+  résultat du catalogue, aucune fausse
+  ([banc d'essai](BANC-RECONNAISSANCE.md#lédition-proposée-par-limage-à-la-saisie)).
 - **Reste, agent de revue :** l'agent `agent:revue` confirme la variante et
   l'état quand toutes les preuves concordent, sinon il demande une photo
   ([fiche 0022](decisions/0022-agent-confirme-ou-demande-photo.md)). Il tourne
@@ -143,18 +148,6 @@ et l'[état de la mise en œuvre](PRINT_REFERENCE_GUIDE.md#ce-qui-est-mis-en-œu
   l'agent tourne à intervalle régulier, avec un plafond par passage, et ses
   cas « À examiner » alimentent la file « À toi ». C'est le levier principal
   de S1, S2 et S5.
-- **Reste, tranche 5 :** quand le catalogue ne trouve rien, DINOv2 propose
-  l'édition parmi les impressions du nom lu, filtrées par le numéro même mal
-  lu ; une personne confirme. La règle est mesurée hors ligne (48 justes,
-  1 fausse, 9 sans proposition sur 58 lectures). À prévoir : la proposition à
-  la saisie (avec l'option `vision`), la galerie par nom lu en partageant le
-  code de `same_name_gallery`, le nombre de cartes par extension (TCGdex
-  `/sets`, en cache), une mesure « édition proposée par l'image » dans le banc
-  (au moins 6/6 et 7/8 justes sur les cartes sans résultat du catalogue,
-  aucune fausse), et des tests : nom lu avec une autre casse ou des crochets,
-  numéro partiel, impressions sans image. À corriger dans la même tranche :
-  `catalogue_candidates` compare les noms en tenant compte des majuscules
-  (« Fossile crâne » contre « Fossile Crâne »).
 - **Reste :** une alerte de contrefaçon seulement si deux sources indépendantes
   concordent ; aujourd'hui, Gemini est le seul lecteur de texte
   ([fiche 0004](decisions/0004-gemini-seul-lecteur.md)), donc aucune alerte.

@@ -6,12 +6,15 @@
     uv run python scripts/bench_recognition.py report   # compare every runner
     uv run python scripts/bench_recognition.py app      # the application, against minimum scores
     uv run python scripts/bench_recognition.py app-check  # replay recorded app readings, offline
+    uv run --extra vision python scripts/bench_recognition.py image-edition
+        # edition proposed by the image on recorded readings (TCGdex, DINOv2, no Gemini)
 
 The embedding runner (scripts/bench_embed.py) needs a PyTorch environment.
 Nothing here writes to the collection database: the app run works on a copy.
 """
 
 import json
+import os
 import shutil
 import sqlite3
 import sys
@@ -23,7 +26,8 @@ from urllib.request import Request, urlopen
 ROOT = Path(__file__).resolve().parents[1]
 DB = ROOT / "data/inventory/collection.sqlite3"
 PHOTOS = ROOT / "data/inventory/photos"
-OUT = ROOT / "outputs/bench-recognition"
+# A worktree may point at the private bench of the main checkout.
+OUT = Path(os.environ.get("POKEPRICE_BENCH_OUT") or ROOT / "outputs/bench-recognition")
 # Published copy of the recorded app runs (copy ids replaced by labels), so that
 # the offline replay runs from the public repository too.
 PUBLIC = ROOT / "docs/evaluations/banc-reconnaissance"
@@ -539,6 +543,10 @@ APP_THRESHOLDS = {
     "edition_image_ok": (22, 27),
     "edition_quiet": (26, 27),
     "edition_caught": (14, 26),
+    # Edition proposed by the image at intake when the catalogue finds nothing
+    # (M2 slice 5): measured offline on 14 October at 6/6 then 7/8, no wrong one.
+    "edition_proposed_ok": (7, 8),
+    "edition_proposed_quiet": (8, 8),
 }
 APP_LABELS = {
     "number_ok": "Numéro (lecture de saisie)",
@@ -553,6 +561,8 @@ APP_LABELS = {
     "edition_image_ok": "Édition confirmée par l’image (DINOv2)",
     "edition_quiet": "Vraie édition sans fausse alerte",
     "edition_caught": "Édition voisine la plus proche signalée",
+    "edition_proposed_ok": "Édition proposée par l’image (catalogue muet)",
+    "edition_proposed_quiet": "Aucune fausse édition proposée par l’image",
 }
 # Gemini answers differ from one run to the next: each measure is judged on the
 # worst of APP_RUNS live runs, so that a lucky run never hides a regression.
@@ -622,7 +632,7 @@ def run_app(index=1):
     import tempfile
 
     sys.path.insert(0, str(ROOT / "src"))
-    from pokeprice.edition_check import EditionCheckService
+    from pokeprice.edition_check import EditionCheckService, EditionSuggester
     from pokeprice.intake import catalogue_candidates, read_photo
     from pokeprice.pricing import fetch_catalogue_card
     from pokeprice.variant_catalogue import VariantCatalogue
@@ -634,6 +644,7 @@ def run_app(index=1):
         service = VariantCheckService(store)
         # Reference images and their vectors survive runs: only Gemini is re-asked.
         editions = EditionCheckService(store, references=OUT / "app-refs")
+        suggester = EditionSuggester(editions)
         catalogue = VariantCatalogue(store, fetch_catalogue_card)
 
         def one(entry):
@@ -648,6 +659,8 @@ def run_app(index=1):
                     raw_observation=raw,
                     candidates=[c["id"] for c in candidates],
                 )
+                if not candidates:
+                    record["image_edition"] = image_edition(suggester, entry, query)
             except Exception as error:  # noqa: BLE001 - A failed read scores as wrong.
                 record["observation_error"] = str(error)
             try:
@@ -705,6 +718,10 @@ def replay(run):
         edition = record.get("edition")
         if edition:
             edition["proposal"] = propose_edition(edition["card"], edition["result"])
+        if record.get("image_edition"):
+            record["image_edition"]["proposal"] = replay_image_edition(
+                record["observation"], record["image_edition"]
+            )
         if record.get("reading"):
             record["proposal"] = propose_variant(
                 record["card"], record["reading"], record["snapshot"], record["valuation"]
@@ -755,6 +772,7 @@ def app_scores(entries, run):
             else (record.get("candidates") or [None])[0] == truth["catalog_id"],
             "refused_ok": not observation if refuse else None,
             **edition_scores(truth, record.get("edition"), propose_edition),
+            **image_edition_scores(truth, record, refuse),
             "art_holo_ok": None
             if truth["art_holo"] is None or artwork == "unclear"
             else artwork == ("holo" if truth["art_holo"] else "matte"),
@@ -796,6 +814,80 @@ def edition_scores(truth, edition, propose):
         "edition_quiet": status != "disagree",
         "edition_caught": caught,
     }
+
+
+def image_edition_scores(truth, record, refuse):
+    """Slice 5, on the cards whose reading found nothing in the catalogue."""
+    found = record.get("image_edition")
+    if refuse or not truth["catalog_id"] or not record.get("observation") or record.get("candidates"):
+        return {"edition_proposed_ok": None, "edition_proposed_quiet": None}
+    proposal = (found or {}).get("proposal") or {}
+    proposed = proposal.get("status") == "proposed"
+    return {
+        "edition_proposed_ok": proposed and proposal["top"] == truth["catalog_id"],
+        "edition_proposed_quiet": not proposed or proposal["top"] == truth["catalog_id"],
+    }
+
+
+def image_edition(suggester, entry, query):
+    """What the intake would propose by the image, with what it rests on."""
+    try:
+        return suggester.evaluate((OUT / entry["photo"]).read_bytes(), query)
+    except Exception as error:  # noqa: BLE001 - Reported, scored as no proposal.
+        return {"error": str(error)}
+
+
+def replay_image_edition(observation, found):
+    """The current filter and margin, on the recorded prints and similarities."""
+    sys.path.insert(0, str(ROOT / "src"))
+    from pokeprice.edition_check import digital_only, image_proposal, number_filter, number_parts
+
+    if "prints" not in found:
+        return found.get("proposal") or {"status": "none"}
+    number = observation.get("number", "")
+    prints = [ref for ref in found["prints"] if not digital_only(ref)]
+    kept, _ = number_filter(number, prints)
+    return image_proposal(kept, found["scores"], any(number_parts(number)))
+
+
+def run_image_edition():
+    """Slice 5 on the recorded readings: TCGdex and DINOv2 rerun, Gemini is not.
+
+    Adds ``image_edition`` to each recorded run, private and published copies.
+    """
+    sys.path.insert(0, str(ROOT / "src"))
+    import tempfile
+
+    from pokeprice.edition_check import EditionCheckService, EditionSuggester
+    from pokeprice.inventory import Store
+
+    entries = json.loads((OUT / "truth.json").read_text())
+    published = {e["label"]: e["copy_id"] for e in json.loads((PUBLIC / "truth.json").read_text())}
+    with tempfile.TemporaryDirectory() as folder:
+        editions = EditionCheckService(Store(Path(folder) / "inventory"), references=OUT / "app-refs")
+        suggester = EditionSuggester(editions)
+        for path in sorted(OUT.glob("result-app-*.json")):
+            run = json.loads(path.read_text())
+            public_path = PUBLIC / path.name
+            public = json.loads(public_path.read_text()) if public_path.exists() else None
+            for entry in entries:
+                record = run["cards"].get(entry["copy_id"], {})
+                observation = record.get("observation")
+                if not observation or record.get("candidates"):
+                    continue
+                query = {k: observation[k] for k in ("name", "number", "language", "hp")}
+                record["image_edition"] = image_edition(suggester, entry, query)
+                proposal = record["image_edition"].get("proposal") or {}
+                print(
+                    f"{path.name} {entry['label']:<45} lu {observation['number'] or '—':<8} "
+                    f"{proposal.get('status', 'échec'):<10} {proposal.get('top')} {proposal.get('gap')}"
+                )
+                key = published.get(entry["label"])
+                if public and key in public["cards"]:
+                    public["cards"][key]["image_edition"] = record["image_edition"]
+            path.write_text(json.dumps(run, ensure_ascii=False, indent=1))
+            if public:
+                public_path.write_text(json.dumps(public, ensure_ascii=False, indent=1))
 
 
 def measure_shares(all_scores, key, ids=None):
@@ -1141,5 +1233,6 @@ if __name__ == "__main__":
         "report": run_report,
         "app": lambda: run_app_check(live=True),
         "app-check": lambda: run_app_check(live=False),
+        "image-edition": run_image_edition,
     }
     commands[sys.argv[1]]()

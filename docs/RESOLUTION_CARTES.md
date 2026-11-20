@@ -299,15 +299,15 @@ passe enchaîne alors :
 3. exécution par l'agent (`apply-correction`) qui confirme le `catalog_id` et
    acquiert immédiatement le prix TCGdex en euros.
 
-### 3. Filtrage de la galerie d'éditions par numéro partiel et DINOv2 (jalon M2 tranche 5)
+### 3. Édition proposée par l'image, avec un numéro partiel
 
-Pour les cartes où le lecteur a reconnu le nom et le début du numéro (par
-exemple `4/`) sans identifier le symbole d'extension :
-
-1. restreindre `same_name_gallery` aux seules impressions dont le numéro local
-   commence par `4/` et dont l'année de copyright est compatible ;
-2. trier les vignettes candidates par similarité cosinus DINOv2 avec la découpe
-   du classeur pour présenter l'édition la plus proche en première position.
+Pour une carte dont le lecteur a reconnu le nom et une partie du numéro (par
+exemple `4/` ou `68/97` mal lu) sans que le catalogue trouve l'édition, la
+saisie propose l'édition par l'image (option `vision`) : galerie des
+impressions du nom lu, filtrée par le numéro ou le nombre de cartes de
+l'extension, puis classée par DINOv2. Une personne confirme toujours la
+proposition, la photo à côté de l'image TCGdex. Règle et mesure :
+[IA et vision](IA-VISION.md#proposer-lédition-à-la-saisie).
 
 ### 4. Protocole de mesure du gain humain (critère S5)
 
