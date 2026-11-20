@@ -480,3 +480,59 @@ def test_an_unidentified_or_manual_copy_is_not_the_agents(env):
     manual = store.create_copy({**data, "identification_status": "review"}, "pat", "Saisie")
     with store.connect() as db:
         assert manual["id"] not in review.candidates(db)
+
+
+# -- The glint shot (decision 0047) ---------------------------------------------------
+
+
+def glint(client, card, color=(90, 40, 160)):
+    current = card_of(client, card)
+    response = client.put(
+        f"/api/copies/{card['id']}/photo?version={current['version']}&side=front&view=glint",
+        content=picture(color),
+        headers={"Content-Type": "image/jpeg"},
+    )
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+@pytest.mark.parametrize(
+    "shine, finish, foil",
+    [("not_visible", "non_holo", False), ("visible", "reverse", True)],
+)
+def test_a_good_glint_shot_settles_a_valuable_reverse(env, shine, finish, foil):
+    client, review, readers, stakes = env
+    stakes.snapshot, stakes.foil = MATTE_WITH_REVERSE, 4300
+    readers["finish"].result = reading(artwork="matte")
+    card = photographed(client)
+    report = review.run(apply=True, read=True)
+    assert report["photo_requests"][0]["views"][0]["view"] == "holo"
+    glint(client, card)
+    readers["finish"].result = reading(artwork="matte", background_shine=shine)
+    report = review.run(apply=True, read=True)
+    assert [c["copy_id"] for c in report["confirmed"]] == [card["id"]]
+    detail = card_of(client, card)
+    assert detail["finish"] == finish and bool(detail["foil"]) is foil and detail["variant_confirmed"]
+    assert any(e["kind"] == "glint-photo" for e in detail["history"])
+
+
+def test_a_poor_glint_shot_or_a_flat_photo_settles_nothing(env):
+    client, review, readers, stakes = env
+    stakes.snapshot, stakes.foil = MATTE_WITH_REVERSE, 4300
+    card = photographed(client)
+    glint(client, card)
+    readers["finish"].result = reading(artwork="matte", photo_quality="limited")
+    report = review.run(apply=True, read=True)
+    assert report["confirmed"] == []
+    assert not card_of(client, card)["variant_confirmed"]
+
+
+def test_glint_is_for_the_front_only(env):
+    client, _, _, _ = env
+    card = photographed(client)
+    response = client.put(
+        f"/api/copies/{card['id']}/photo?version={card['version']}&side=back&view=glint",
+        content=picture((1, 2, 3)),
+        headers={"Content-Type": "image/jpeg"},
+    )
+    assert response.status_code == 422

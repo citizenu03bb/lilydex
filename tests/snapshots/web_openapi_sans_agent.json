@@ -5684,6 +5684,20 @@
        "title": "Side",
        "type": "string"
       }
+     },
+     {
+      "in": "query",
+      "name": "view",
+      "required": false,
+      "schema": {
+       "default": "",
+       "enum": [
+        "",
+        "glint"
+       ],
+       "title": "View",
+       "type": "string"
+      }
      }
     ],
     "responses": {

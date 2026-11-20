@@ -550,3 +550,19 @@ def test_automatic_reading_is_off_unless_the_server_enables_it(app):
     token = intake_draft(client)
     client.post(f"/api/intake/{token}/save", json=values(client)).raise_for_status()
     assert reader.sent == []
+
+
+def test_glint_rule_needs_an_adequate_glint_shot():
+    from pokeprice.verification import propose_variant
+
+    valuation = {"threshold_cents": 1000, "hypotheses": [{"foil": True, "prudent_cents": 5000}]}
+    snapshot = {"variants": {"normal": True, "reverse": True}}
+    flat = propose_variant(card(), reading(artwork="matte"), snapshot, valuation)
+    assert flat["status"] == "examine"
+    matte = reading(artwork="matte", glint=True)
+    assert propose_variant(card(), matte, snapshot, valuation)["finish"] == "non_holo"
+    assert propose_variant(card(), matte, snapshot, valuation)["status"] == "proposed"
+    shine = reading(artwork="matte", background_shine="visible", glint=True)
+    assert propose_variant(card(), shine, snapshot, valuation)["finish"] == "reverse"
+    poor = reading(artwork="matte", photo_quality="limited", glint=True)
+    assert propose_variant(card(), poor, snapshot, valuation)["status"] == "examine"
