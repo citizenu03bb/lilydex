@@ -9,6 +9,10 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-20
 
+- M3 : l'agent de revue confirme aussi l'identité d'une carte importée quand le
+  catalogue n'a trouvé qu'une édition exacte, que l'image la confirme et que la
+  carte est sous le seuil ; identité, variante et état s'écrivent ensemble ou
+  pas du tout, et s'annulent ensemble ([aide à l'état](CONDITION-ASSESSMENT.md#lagent-de-revue)).
 - M3, interface : **Collection → Importer un classeur**, pour l'administrateur ;
   file d'envoi gardée dans le navigateur et reprise seule, avancement et coût
   par page, pochettes à reprendre ou vides. Les boutons d'en-tête passent à la
