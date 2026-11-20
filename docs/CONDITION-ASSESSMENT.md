@@ -64,6 +64,15 @@ Il confirme les deux ensemble, ou rien, si :
 - au seuil de valeur (10 € par défaut) ou sans valeur prudente connue, le
   verso est aussi exploitable ([décision 0008](decisions/0008-reverses-examen-physique.md)).
 
+Pour une carte créée par l'import d'un classeur et encore « à vérifier », il
+confirme aussi l'identité, en premier, avec la variante et l'état, ou rien
+([décision 0047](decisions/0047-import-de-classeur-sur-le-serveur.md)) :
+le catalogue a trouvé cette seule édition, au nom exact et à la référence
+complète ; le contrôle d'édition par l'image la désigne avec la marge ; la
+langue lue est celle de l'édition ; la carte est sous le seuil de valeur.
+Sur les pages importées, il ne fait que simuler tant que le réglage
+`agent_review_apply` est faux.
+
 Sinon, il inscrit une **demande de photo** dans le journal (`photo-request`) :
 la carte, la vue (recto net, verso, reflet holo, coins de près) et une raison
 en une phrase. Une seule vue par face, la plus précise. La gestion les liste

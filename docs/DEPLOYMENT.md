@@ -182,6 +182,7 @@ Donnez aussi des chemins absolus aux fichiers.
 | `pokeprice-backup.service` et `.timer` | Chaque nuit vers 3 h : durées de conservation des données clients (`purge`), puis archive vérifiée (`backup-daily`), 7 archives gardées. |
 | `pokeprice-audience-purge.service` et `.timer` | Nettoyage indépendant des sels et empreintes des jours précédents, programmé à 0 h 05, heure de Paris, avec au plus cinq minutes de délai aléatoire. Activé par `oci-deploy.sh`. |
 | `pokeprice-media-cache.service` et `.timer` | Entretien indépendant des dérivés publics, vers 4 h 30, limité au cache. |
+| `pokeprice-import.service` | Processus de fond des imports de classeur (`binder-worker`), moins prioritaire que le site : `Nice=10`, disque en `idle`, poids processeur et disque à 20. Activé par `oci-deploy.sh` ([fiche 0047](decisions/0047-import-de-classeur-sur-le-serveur.md)). |
 | `pokeprice-prices.service` et `.timer` | Cotation matinale de la collection vers 6 h 20 (`prices --from-guide`). Non activés par `oci-deploy.sh`. |
 | `pokeprice-brief.service` et `.timer` | Brief du jour de la gestion vers 7 h 30 (`brief --notify`). Non activés par `oci-deploy.sh`. |
 | `pokeprice-lots-key.service` et `.timer` | Renouvellement de la clé de l'agent des lots vers 9 h 30, sous `pokeprice`, sans `ssh` (`lots-key-renew.sh` en mode local). Non activés par `oci-deploy.sh` ([AGENT_CONTROL](AGENT_CONTROL.md#renouvellement-automatique-de-la-clé-des-lots)). |
@@ -263,6 +264,29 @@ sudo cp /opt/pokeprice/deploy/pokeprice-prices.service /opt/pokeprice/deploy/pok
 ```
 
 Le rapport du passage se lit avec `journalctl -u pokeprice-prices.service`.
+
+## Importer un classeur
+
+`pokeprice-import.service` tourne en permanence et ne fait rien tant qu'aucun
+import n'attend. Il découpe les pages, lit chaque pochette, crée les
+exemplaires « à vérifier » et fait passer l'agent de revue, une pochette à la
+fois, à une priorité plus basse que le site
+([fiche 0047](decisions/0047-import-de-classeur-sur-le-serveur.md)). L'état
+de chaque import est dans `binder_imports.sqlite3`, à côté de la base ; un
+redémarrage reprend là où le processus s'est arrêté. Un import se lance depuis
+la gestion, ou sur le serveur, avec un compte administrateur :
+
+```bash
+sudo -u pokeprice /opt/pokeprice/.venv/bin/pokeprice-manage --data /srv/pokeprice/inventory binder-import --actor <admin> --album "Classeur bleu" page-01.jpg page-02.jpg
+```
+
+Les photos sont prises dans l'ordre du classeur ; `--first-page` donne le
+numéro de la première. Si le processus de fond tourne, la commande lui laisse
+le travail : `binder-status` suit l'avancement et le coût, `binder-continue`
+relance un import arrêté au budget Gemini (3 € par défaut,
+`POKEPRICE_IMPORT_BUDGET_EUR`). L'agent de revue reste en simulation tant que
+`agent-review-apply on` n'a pas été lancé, après la porte de la vérification à
+l'aveugle. Le journal se lit avec `journalctl -u pokeprice-import.service`.
 
 ## Envoyer le brief du jour
 

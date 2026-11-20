@@ -421,6 +421,100 @@
     "title": "BatchPreview",
     "type": "object"
    },
+   "BinderImportCreate": {
+    "additionalProperties": false,
+    "properties": {
+     "album_id": {
+      "anyOf": [
+       {
+        "maxLength": 120,
+        "minLength": 1,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Album Id"
+     },
+     "album_name": {
+      "anyOf": [
+       {
+        "maxLength": 120,
+        "minLength": 1,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Album Name"
+     },
+     "budget_eur": {
+      "anyOf": [
+       {
+        "exclusiveMinimum": 0.0,
+        "maximum": 100.0,
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Budget Eur"
+     },
+     "grid": {
+      "default": "3x3",
+      "enum": [
+       "3x3",
+       "2x2",
+       "3x4",
+       "4x3",
+       "single"
+      ],
+      "title": "Grid",
+      "type": "string"
+     }
+    },
+    "title": "BinderImportCreate",
+    "type": "object"
+   },
+   "BinderUpload": {
+    "additionalProperties": false,
+    "properties": {
+     "page": {
+      "maximum": 1000.0,
+      "minimum": 1.0,
+      "title": "Page",
+      "type": "integer"
+     },
+     "position": {
+      "default": 0,
+      "maximum": 100.0,
+      "minimum": 0.0,
+      "title": "Position",
+      "type": "integer"
+     },
+     "sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Sha256",
+      "type": "string"
+     },
+     "size": {
+      "maximum": 15728640.0,
+      "minimum": 1.0,
+      "title": "Size",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "page",
+     "size",
+     "sha256"
+    ],
+    "title": "BinderUpload",
+    "type": "object"
+   },
    "BoundQuote": {
     "additionalProperties": false,
     "properties": {
@@ -3478,6 +3572,26 @@
     "title": "RequestVersion",
     "type": "object"
    },
+   "ReviewApplySettings": {
+    "additionalProperties": false,
+    "properties": {
+     "apply": {
+      "title": "Apply",
+      "type": "boolean"
+     },
+     "reason": {
+      "default": "",
+      "maxLength": 1000,
+      "title": "Reason",
+      "type": "string"
+     }
+    },
+    "required": [
+     "apply"
+    ],
+    "title": "ReviewApplySettings",
+    "type": "object"
+   },
    "RotateRequest": {
     "additionalProperties": false,
     "properties": {
@@ -5453,6 +5567,372 @@
      }
     },
     "summary": "Backup Status"
+   }
+  },
+  "/api/binder-imports": {
+   "get": {
+    "operationId": "binder_import_list_api_binder_imports_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Binder Import List"
+   },
+   "post": {
+    "operationId": "binder_import_create_api_binder_imports_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/BinderImportCreate"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Binder Import Create"
+   }
+  },
+  "/api/binder-imports/{import_id}": {
+   "get": {
+    "operationId": "binder_import_get_api_binder_imports__import_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "import_id",
+      "required": true,
+      "schema": {
+       "title": "Import Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Binder Import Get"
+   }
+  },
+  "/api/binder-imports/{import_id}/close": {
+   "post": {
+    "operationId": "binder_import_close_api_binder_imports__import_id__close_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "import_id",
+      "required": true,
+      "schema": {
+       "title": "Import Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Binder Import Close"
+   }
+  },
+  "/api/binder-imports/{import_id}/continue": {
+   "post": {
+    "operationId": "binder_import_continue_api_binder_imports__import_id__continue_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "import_id",
+      "required": true,
+      "schema": {
+       "title": "Import Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Binder Import Continue"
+   }
+  },
+  "/api/binder-imports/{import_id}/pages/{page}/pockets/{position}/empty": {
+   "post": {
+    "operationId": "binder_pocket_empty_api_binder_imports__import_id__pages__page__pockets__position__empty_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "import_id",
+      "required": true,
+      "schema": {
+       "title": "Import Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "page",
+      "required": true,
+      "schema": {
+       "title": "Page",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "path",
+      "name": "position",
+      "required": true,
+      "schema": {
+       "title": "Position",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Binder Pocket Empty"
+   }
+  },
+  "/api/binder-imports/{import_id}/pages/{page}/pockets/{position}/photo": {
+   "get": {
+    "operationId": "binder_pocket_photo_api_binder_imports__import_id__pages__page__pockets__position__photo_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "import_id",
+      "required": true,
+      "schema": {
+       "title": "Import Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "page",
+      "required": true,
+      "schema": {
+       "title": "Page",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "path",
+      "name": "position",
+      "required": true,
+      "schema": {
+       "title": "Position",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Binder Pocket Photo"
+   }
+  },
+  "/api/binder-imports/{import_id}/uploads": {
+   "post": {
+    "operationId": "binder_upload_begin_api_binder_imports__import_id__uploads_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "import_id",
+      "required": true,
+      "schema": {
+       "title": "Import Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/BinderUpload"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Binder Upload Begin"
+   }
+  },
+  "/api/binder-uploads/{upload_id}": {
+   "put": {
+    "operationId": "binder_upload_chunk_api_binder_uploads__upload_id__put",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "upload_id",
+      "required": true,
+      "schema": {
+       "title": "Upload Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "offset",
+      "required": true,
+      "schema": {
+       "maximum": 16777216,
+       "minimum": 0,
+       "title": "Offset",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Binder Upload Chunk"
    }
   },
   "/api/capture-sessions": {
@@ -9754,6 +10234,56 @@
     "summary": "Session"
    }
   },
+  "/api/settings/agent-review-apply": {
+   "get": {
+    "operationId": "review_apply_settings_api_settings_agent_review_apply_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Review Apply Settings"
+   },
+   "put": {
+    "operationId": "review_apply_update_api_settings_agent_review_apply_put",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ReviewApplySettings"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Review Apply Update"
+   }
+  },
   "/api/settings/floor-margin": {
    "get": {
     "operationId": "floor_margin_settings_api_settings_floor_margin_get",
@@ -10152,6 +10682,7 @@
         "app-boot.js",
         "media.js",
         "workflows.js",
+        "binder-import.js",
         "gallery.js",
         "style.css",
         "storefront.js",

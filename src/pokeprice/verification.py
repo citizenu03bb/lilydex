@@ -14,6 +14,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, StrictStr
 
 from .condition_assessment import photo_snapshot
+from .gemini_usage import record as record_usage
 from .intake import MODEL
 from .inventory import Conflict, now
 from .library import normalized
@@ -108,6 +109,7 @@ class GeminiFinishReader:
                         ),
                     ),
                 )
+            record_usage(self.model, response)
             raw = response.text or ""
             result = FinishReading.model_validate_json(raw).model_dump()
         except Exception:  # noqa: BLE001 - Never leak provider errors or credentials.
@@ -654,6 +656,58 @@ def edition_score(card, row):
         else 1.0
     )
     return proposal, gap
+
+
+def imported(card):
+    """A copy created by the binder import (decision 0047)."""
+    return str(card.get("source_key") or "").startswith("binder:")
+
+
+def auto_identity_decision(card, reading, edition, margin, *, high_value):
+    """What the review agent does with the identity of an imported copy (0047).
+
+    Confirms only the edition the catalogue found alone, by its exact name and
+    full reference, that the image check designates beyond the margin (0006),
+    in the language read on the card, and under the value threshold.
+    """
+    if not reading or not reading.get("exact_catalogue_match") or (
+        reading.get("chosen_catalog_id") != card.get("catalog_id")
+    ):
+        return {
+            "action": "skip",
+            "reason": "Le catalogue n’a pas trouvé une seule édition exacte : identité à confirmer par une personne.",
+        }
+    if high_value:
+        return {"action": "skip", "reason": "Carte de valeur : son identité reste à une personne."}
+    read = (reading.get("observation") or {}).get("language")
+    if read and read != "unknown" and read != card.get("language"):
+        return {
+            "action": "skip",
+            "reason": "La langue lue diffère de celle de l’édition : identité à confirmer par une personne.",
+        }
+    if not edition:
+        return {
+            "action": "skip",
+            "reason": "Pas de contrôle de l’édition par l’image sur la photo actuelle.",
+        }
+    proposal, gap = edition
+    if proposal["status"] == "disagree":
+        return {
+            "action": "skip",
+            "reason": "L’image ressemble à une autre impression : la carte reste à vérifier.",
+        }
+    if proposal["status"] != "agree" or gap < margin:
+        return {
+            "action": "photo",
+            "view": "front",
+            "reason": "Deux impressions se ressemblent trop sur cette photo : reprenez le recto net, entier et bien droit.",
+        }
+    return {
+        "action": "confirm",
+        "values": {"identification_status": "confirmed"},
+        "score": {"edition_margin": gap},
+        "reason": "Édition unique et exacte au catalogue, confirmée par l’image.",
+    }
 
 
 def auto_variant_decision(card, check, proposal, edition, margin, *, high_value, back_usable):

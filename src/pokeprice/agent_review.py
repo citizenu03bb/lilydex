@@ -20,6 +20,7 @@ from .condition_assessment import assessment_rows, auto_condition_decision
 from .edition_check import MARGIN
 from .inventory import Conflict, now
 from .verification import (
+    auto_identity_decision,
     auto_variant_decision,
     check_inputs,
     check_rows,
@@ -85,6 +86,22 @@ def request_events(db, copy_id=None):
     ]
 
 
+def binder_reading(db, card):
+    """The latest reading of an imported copy: its retake's, else its creation's."""
+    if not str(card.get("source_key") or "").startswith("binder:"):
+        return None
+    for row in db.execute(
+        "SELECT after_json FROM events WHERE copy_id=? AND kind='identification' ORDER BY id DESC",
+        (card["id"],),
+    ):
+        data = json.loads(row[0])
+        if data.get("type") == "binder-import":
+            return data
+    row = db.execute("SELECT raw_json FROM sources WHERE copy_id=?", (card["id"],)).fetchone()
+    data = json.loads(row[0]) if row else {}
+    return data if data.get("type") == "binder-import" else None
+
+
 def is_open(request, undone):
     side = VIEW_SIDE[request["view"]]
     return (
@@ -122,8 +139,12 @@ class AgentReview:
         query = (
             "SELECT c.id FROM copies c JOIN albums a ON a.id=c.album_id "
             "WHERE c.deleted_at='' AND c.stock_state='available' "
-            "AND c.identification_status='confirmed' "
-            "AND NOT (c.variant_confirmed AND c.condition_confirmed)"
+            # An imported copy « à vérifier » with the catalogue's exact edition:
+            # the agent may confirm its identity too (decision 0047).
+            "AND (c.identification_status='confirmed' OR (c.identification_status='review' "
+            "AND c.catalog_id IS NOT NULL AND c.source_key LIKE 'binder:%')) "
+            "AND NOT (c.identification_status='confirmed' AND c.variant_confirmed "
+            "AND c.condition_confirmed)"
         )
         args = []
         if album:
@@ -146,8 +167,10 @@ class AgentReview:
                 assessments = assessment_rows(self.store, db, card)
             except ValueError:  # A referenced photo is missing.
                 assessments = []
+            reading = binder_reading(db, card)
         return {
             "card": card,
+            "reading": reading,
             "snapshot": snapshot,
             "valuation": valuation,
             "check": next((c for c in checks if not c["stale"]), None),
@@ -214,6 +237,18 @@ class AgentReview:
             and assessment["result"].get("back_usable")
         )
         decisions = {}
+        if card["identification_status"] == "review":
+            decisions["identity"] = auto_identity_decision(
+                card,
+                found.get("reading"),
+                edition_score(card, found["edition"]) if found["edition"] else None,
+                MARGIN,
+                high_value=high_value,
+            )
+            if decisions["identity"]["action"] == "confirm":
+                # The variant is judged on the identity about to be confirmed:
+                # all the confirmations are written together, or none.
+                card = {**card, "identification_status": "confirmed"}
         if not card["variant_confirmed"]:
             check = found["check"]
             proposal = (
@@ -263,12 +298,16 @@ class AgentReview:
     # -- Writing -----------------------------------------------------------
 
     def confirm(self, found, verdict, run_id):
-        """Apply both confirmations through the human path; returns the undo record."""
+        """Apply the confirmations through the human path; returns the undo record.
+
+        Identity (an imported copy), variant and condition are written in that
+        order, all or none: a failure takes back what was already written.
+        """
         card = found["card"]
-        version = card["version"]
         before = {
             k: card[k]
             for k in (
+                "identification_status",
                 "finish",
                 "stamp",
                 "stamp_state",
@@ -277,49 +316,44 @@ class AgentReview:
                 "condition_confirmed",
             )
         }
-        applied = []
-        variant = verdict["decisions"].get("variant")
-        if variant:
-            changed = self.variant_checks.confirm(
-                card["id"],
-                variant["check_id"],
-                version,
-                variant["values"],
-                self.actor,
-                "Variante confirmée par l’agent : " + variant["reason"],
-                variant["proposal"],
-                decision={
-                    "decided_by": "agent",
-                    "run_id": run_id,
-                    "score": variant["score"],
-                    "high_value": verdict["high_value"],
-                },
-            )
-            version = changed["version"]
-            applied.append("variant")
-        condition = verdict["decisions"].get("condition")
-        if condition:
+        decisions, high_value = verdict["decisions"], verdict["high_value"]
+
+        def decided(score):
+            return {"decided_by": "agent", "run_id": run_id, "score": score,
+                    "high_value": high_value}
+
+        steps = []
+        if "identity" in decisions:
+            identity = decisions["identity"]
+            steps.append(("identity", lambda version: self.store.patch(
+                card["id"], identity["values"], version, self.actor,
+                "Identité confirmée par l’agent : " + identity["reason"],
+                evidence={"type": "identity-validation", "catalog_id": card["catalog_id"],
+                          **decided(identity["score"])},
+            )))
+        if "variant" in decisions:
+            variant = decisions["variant"]
+            steps.append(("variant", lambda version: self.variant_checks.confirm(
+                card["id"], variant["check_id"], version, variant["values"], self.actor,
+                "Variante confirmée par l’agent : " + variant["reason"], variant["proposal"],
+                decision=decided(variant["score"]),
+            )))
+        if "condition" in decisions:
+            condition = decisions["condition"]
+            steps.append(("condition", lambda version: self.conditions.confirm(
+                card["id"], condition["assessment_id"], version, condition["grade"], self.actor,
+                f"État {condition['grade']} confirmé par l’agent sur photos",
+                decision=decided(condition["score"]),
+            )))
+        version, applied = card["version"], []
+        for name, write in steps:
             try:
-                changed = self.conditions.confirm(
-                    card["id"],
-                    condition["assessment_id"],
-                    version,
-                    condition["grade"],
-                    self.actor,
-                    f"État {condition['grade']} confirmé par l’agent sur photos",
-                    decision={
-                        "decided_by": "agent",
-                        "run_id": run_id,
-                        "score": condition["score"],
-                        "high_value": verdict["high_value"],
-                    },
-                )
-            except Exception as error:  # noqa: BLE001 - Both halves, or neither.
+                version = write(version)["version"]
+            except Exception as error:  # noqa: BLE001 - All halves, or none.
                 if not applied:
                     raise
                 raise self.take_back(card, before, version, applied, error) from error
-            version = changed["version"]
-            applied.append("condition")
+            applied.append(name)
         return {"copy_id": card["id"], "before": before, "version": version, "applied": applied}
 
     def take_back(self, card, before, version, applied, error):
@@ -332,7 +366,7 @@ class AgentReview:
                 before,
                 version,
                 self.actor,
-                "Variante remise en attente : l’état n’a pas pu être confirmé",
+                "Confirmations de l’agent remises en attente : la suivante n’a pas pu être écrite",
             )
         except Exception:  # noqa: BLE001 - Keep the record so the undo can still try.
             return Interrupted(
@@ -605,3 +639,53 @@ class AgentReview:
                     },
                 )
             return None
+
+
+# -- The write switch (decision 0047) --------------------------------------------
+# Until the blind check at the binder passes its gate (ROADMAP, M2), the agent
+# runs in simulation on imported pages. Writing is one setting of the base,
+# false without a row, changed only by an active administrator, and logged.
+
+APPLY_KEY = "agent_review_apply"
+APPLY_EVENT = "agent-review-apply"
+
+
+def review_apply(source):
+    """Whether the agent writes on imported pages, from a store or an open connection."""
+    if hasattr(source, "connect"):
+        with source.connect() as db:
+            return review_apply(db)
+    row = source.execute("SELECT value_json FROM settings WHERE key=?", (APPLY_KEY,)).fetchone()
+    return bool(row and json.loads(row[0]) is True)
+
+
+def set_review_apply(store, value, actor, reason):
+    """Switch the agent's writing on or off; the reason names the gate's evidence."""
+    if not isinstance(value, bool):
+        raise ValueError("Valeur vraie ou fausse attendue.")
+    reason = (reason or "").strip()
+    if value and not reason:
+        raise ValueError("Dites quelle mesure à l’aveugle autorise l’écriture.")
+    with store.connect(write=True) as db:
+        if not db.execute(
+            "SELECT 1 FROM users WHERE username=? AND role='admin' AND disabled=0 AND status='active'",
+            (actor,),
+        ).fetchone():
+            from .floor_requests import HumanOnly
+
+            raise HumanOnly("Seul un compte administrateur fait écrire l’agent de revue.")
+        before = review_apply(db)
+        stamp = now()
+        db.execute(
+            "INSERT INTO settings(key,value_json,updated_by,updated_at) VALUES(?,?,?,?) "
+            "ON CONFLICT(key) DO UPDATE SET value_json=excluded.value_json,"
+            "updated_by=excluded.updated_by,updated_at=excluded.updated_at",
+            (APPLY_KEY, json.dumps(value), actor, stamp),
+        )
+        db.execute(
+            "INSERT INTO events(copy_id,actor,kind,reason,before_json,after_json,created_at) "
+            "VALUES(NULL,?,?,?,?,?,?)",
+            (actor, APPLY_EVENT, reason or "Agent de revue remis en simulation.",
+             json.dumps({"apply": before}), json.dumps({"apply": value}), stamp),
+        )
+    return {"apply": value, "previous": before}

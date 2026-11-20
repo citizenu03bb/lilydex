@@ -1,0 +1,33 @@
+[Unit]
+Description=Import des classeurs en tache de fond, moins prioritaire que le site
+After=network-online.target pokeprice.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pokeprice
+Group=pokeprice
+WorkingDirectory=/opt/pokeprice
+Environment=HOME=/srv/pokeprice
+Environment=XDG_CONFIG_HOME=/srv/pokeprice/.config
+EnvironmentFile=/etc/pokeprice/pokeprice.env
+# Decision 0047: customers come first. The site keeps the default weights (100).
+ExecStart=/opt/pokeprice/.venv/bin/python -m pokeprice.manage --data /srv/pokeprice/inventory binder-worker
+Nice=10
+IOSchedulingClass=idle
+CPUWeight=20
+IOWeight=20
+MemoryHigh=1G
+Restart=always
+RestartSec=10
+TimeoutStopSec=90
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/pokeprice
+LimitNOFILE=4096
+
+[Install]
+WantedBy=multi-user.target

@@ -412,3 +412,23 @@ class SalePatch(Model):
     channel: str | None = Field(default=None, max_length=120)
     listing_url: str | None = Field(default=None, max_length=2000)
     notes: str | None = Field(default=None, max_length=8000)
+
+
+class BinderImportCreate(Model):
+    album_id: str | None = Field(default=None, min_length=1, max_length=120)
+    album_name: str | None = Field(default=None, min_length=1, max_length=120)
+    grid: Literal["3x3", "2x2", "3x4", "4x3", "single"] = "3x3"
+    budget_eur: float | None = Field(default=None, gt=0, le=100)
+
+
+class BinderUpload(Model):
+    page: int = Field(ge=1, le=1000, strict=True)
+    # 0 is the whole page; otherwise the pocket a card photo replaces.
+    position: int = Field(default=0, ge=0, le=100, strict=True)
+    size: int = Field(ge=1, le=15 * 1024 * 1024, strict=True)
+    sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+
+
+class ReviewApplySettings(Model):
+    apply: StrictBool
+    reason: str = Field(default="", max_length=1000)

@@ -386,3 +386,97 @@ def test_condition_rule(result, high_value, action, view):
     assessment = {"stale": False, "result": {**result, "explanation": "x"}}
     decision = auto_condition_decision({}, assessment, high_value=high_value)
     assert decision["action"] == action and decision.get("view") == view
+
+
+# -- Imported copies (decision 0047) ------------------------------------------------
+
+
+def imported(client, *, exact=True, language="en", position=1, color=(40, 90, 160)):
+    """A copy the binder import created « à vérifier », with its reading."""
+    store = client.app.state.store
+    data = values(client, catalog_id=CARD["id"], page=3, position=position)
+    data.pop("reason")
+    card = store.create_copy(
+        {**data, "identification_status": "review",
+         "source_key": f"binder:imp:3:{position}"},
+        "system:import",
+        "Import du classeur",
+        evidence={
+            "type": "binder-import",
+            "exact_catalogue_match": exact,
+            "chosen_catalog_id": CARD["id"] if exact else None,
+            "observation": {"name": "Gourgeist", "language": language},
+        },
+    )
+    return attach(client, card, color)
+
+
+def test_agent_confirms_the_identity_of_an_easy_imported_card(env):
+    client, review, _, _ = env
+    card = imported(client)
+    simulated = review.run(read=False)
+    assert simulated["run_id"] is None and simulated["confirmed"] == []
+    report = review.run(apply=True, read=True)
+    assert [c["copy_id"] for c in report["confirmed"]] == [card["id"]]
+    assert report["human_decisions_saved"] == 3
+    detail = card_of(client, card)
+    assert detail["identification_status"] == "confirmed"
+    assert detail["variant_confirmed"] and detail["condition_confirmed"]
+    identity = evidence(detail, "identification")[-1]
+    assert identity["type"] == "identity-validation" and identity["decided_by"] == "agent"
+    assert identity["score"]["edition_margin"] >= 0.05
+    labels = [e["reason"] for e in detail["history"] if e["kind"] == "identification"]
+    assert "confirmée par l’agent" in labels[-1]
+    # The whole run is undone, identity included.
+    undone = review.undo(report["run_id"], "pat")
+    assert undone["restored"] == [card["id"]]
+    assert card_of(client, card)["identification_status"] == "review"
+
+
+def test_simulation_says_what_it_would_confirm_on_imported_copies(env):
+    client, review, _, _ = env
+    card = imported(client)
+    # The import's checks, as the worker runs them; then the agent in simulation.
+    state = client.app.state
+    state.variant_checks.evaluate_new_copy(
+        card["id"], "pat", lambda copy_id: review.inputs(copy_id, 1000))
+    state.edition_checks.evaluate_new_copy(card["id"], "pat")
+    state.conditions.evaluate(card["id"], card_of(client, card)["version"], "pat")
+    report = review.run()
+    assert [c["copy_id"] for c in report["confirmed"]] == [card["id"]]
+    assert card_of(client, card)["identification_status"] == "review"
+
+
+@pytest.mark.parametrize(
+    "case, reason",
+    [
+        ({"exact": False}, "une seule édition exacte"),
+        ({"language": "fr"}, "langue lue"),
+    ],
+)
+def test_imported_identity_stays_with_a_person_without_concordant_evidence(env, case, reason):
+    client, review, _, _ = env
+    card = imported(client, **case)
+    report = review.run(apply=True, read=True)
+    assert report["confirmed"] == []
+    assert reason in report["skipped"][0]["reason"]
+    assert card_of(client, card)["identification_status"] == "review"
+
+
+def test_imported_card_of_value_keeps_its_identity_for_a_person(env):
+    client, review, _, stakes = env
+    stakes.risk = 2500
+    card = imported(client)
+    report = review.run(apply=True, read=True)
+    assert report["confirmed"] == []
+    assert card_of(client, card)["identification_status"] == "review"
+
+
+def test_an_unidentified_or_manual_copy_is_not_the_agents(env):
+    client, review, _, _ = env
+    store = client.app.state.store
+    data = values(client, catalog_id=CARD["id"])
+    data.pop("reason")
+    manual = store.create_copy({**data, "identification_status": "review"}, "pat", "Saisie")
+    with store.connect() as db:
+        assert manual["id"] not in review.candidates(db)
