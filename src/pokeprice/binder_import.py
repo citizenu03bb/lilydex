@@ -478,7 +478,7 @@ class BinderImports:
             grid = self.row(db, import_id)["grid"]
         if grid == "single" and position == 0:
             position = 1
-        if position and grid != "single":
+        if position:
             # One card: oriented and resized by the same cutting, as one pocket.
             try:
                 _, ((_, data),) = slice_page_photo(data, grid="single")
