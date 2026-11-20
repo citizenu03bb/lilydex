@@ -552,5 +552,6 @@
   "binder.reference": "Référentiel à compléter : {queued} éditions · éditions seulement comptées : {tally} (exemplaires : {copies})",
   "glint.help": "Une photo au reflet tranche la question : inclinez la carte sous une lampe, hors pochette, jusqu’à voir le reflet. Une reverse montre une bande arc-en-ciel sur toute la carte, autour de l’illustration.",
   "glint.take": "Photo au reflet",
-  "glint.sent": "Photo au reflet enregistrée : la finition est relue."
+  "glint.sent": "Photo au reflet enregistrée : la finition est relue.",
+  "binder.review": "Examiner les cartes à vérifier"
 }

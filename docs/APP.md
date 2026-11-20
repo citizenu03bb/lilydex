@@ -625,6 +625,8 @@ numérotées dans l'ordre choisi.
   **Continuer** ajoute le budget initial.
 - L'écran dit combien d'éditions de l'import entrent dans « Référentiel à
   compléter » et combien sont seulement comptées.
+- **Examiner les cartes à vérifier** ouvre la collection filtrée sur ce
+  classeur, « À vérifier », dans l'ordre du classeur.
 - Après chaque page, l'agent de revue passe sur ses cartes. Tant qu'il est en
   simulation, la page dit combien il en confirmerait, et toutes restent
   « À vérifier ».

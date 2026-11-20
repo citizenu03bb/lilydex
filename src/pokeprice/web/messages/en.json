@@ -552,5 +552,6 @@
   "binder.reference": "Print reference to complete: {queued} editions · editions only counted: {tally} (copies: {copies})",
   "glint.help": "A glint shot settles it: tilt the card under a lamp, out of its sleeve, until it shines. A reverse shows a rainbow band across the whole card, around the artwork.",
   "glint.take": "Glint shot",
-  "glint.sent": "Glint shot saved: the finish is read again."
+  "glint.sent": "Glint shot saved: the finish is read again.",
+  "binder.review": "Review the cards to check"
 }

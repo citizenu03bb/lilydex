@@ -257,6 +257,16 @@ const BinderImport = (() => {
       for (const file of files) await add(file, page++);
     };
     $("binder-continue").onclick = async () => render(await post(`/binder-imports/${current.id}/continue`));
+    // The person's part: this binder's cards still « à vérifier », in binder order.
+    $("binder-review").onclick = async () => {
+      if (!current) return;
+      const album = current.album_id;
+      $("binder-dialog").close();
+      await refreshSummary();
+      history.pushState({}, "", `/gestion?album=${encodeURIComponent(album)}&status=review&sort=binder`);
+      restoreLocation();
+      await loadCards();
+    };
     $("binder-close").onclick = async () => {
       if (!confirm(t("binder.close_confirm"))) return;
       render(null);
