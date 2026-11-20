@@ -209,11 +209,12 @@ premières ventes.
   sauvegarde ou de copie.
 - **Fait :** la CI lance les tests sous Python 3.11 à 3.13, avec `ruff`,
   `mypy` et la couverture, et une recette Playwright dans Firefox et WebKit
-  (vitrine, panier, gestion, reprise d'une photo en échec).
-- **Reste :** un script de contrôle unique pour le poste (tests Python et
-  JavaScript, lint des fichiers modifiés) ; des tests de bout en bout des
-  parcours de gestion sur une copie temporaire de la base : saisie, relevé,
-  estimation, série, lot ; un exercice de restauration complet sur le serveur.
+  (vitrine, panier, gestion, reprise d'une photo en échec) ; en local, un
+  script de contrôle unique, `scripts/check.py`, lance les mêmes contrôles et
+  le lint des fichiers modifiés ([Contribuer](../CONTRIBUTING.md)).
+- **Reste :** des tests de bout en bout des parcours de gestion sur une copie
+  temporaire de la base : saisie, relevé, estimation, série, lot ; un exercice
+  de restauration complet sur le serveur.
 
 **Critère :** les critères S6 sont tenus et l'application est accessible de
 façon stable.

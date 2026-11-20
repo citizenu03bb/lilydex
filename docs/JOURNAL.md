@@ -7,6 +7,14 @@
 Une page qui décrit le fonctionnement ne porte pas de date : quand un passage
 daté la quitte, il est versé ici dans le même commit.
 
+## 2026-11-20
+
+- Un script de contrôle unique, `scripts/check.py`, lance sur le portable les
+  contrôles de la CI (`ruff`, `mypy`, documentation, `pytest`, recette
+  Firefox) et le lint des fichiers modifiés, puis résume ;
+  `--rapide` ne lance que ce lint et le contrôle de la documentation
+  ([CONTRIBUTING](../CONTRIBUTING.md)).
+
 ## 2026-11-19
 
 - `app.js` (4 669 lignes) est découpé en onze parties chargées l'une après
