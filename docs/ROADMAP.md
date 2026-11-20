@@ -34,10 +34,10 @@ de **10 €** par défaut, réglable. Voir [valeur en jeu](VALUATION.md).
 | M0 — Données de référence fiables | fait | — |
 | M1 — Valeur en jeu et file « À examiner » | fait | — |
 | M1.1 — Référentiel des impressions | socle en mode audit | les preuves par langue et de marché, limitées à 2 jours |
-| M2 — Contrôles automatiques indépendants | tranches 1 à 4 faites | la double source pour la contrefaçon ; la tranche 5 (proposer l'édition par l'image) |
-| M3 — Saisie à l'échelle des classeurs | à faire | tout |
+| M2 — Contrôles automatiques indépendants | tranches 1 à 4 faites | l'agent de revue mesuré à l'aveugle ; la tranche 5 (proposer l'édition par l'image) ; la double source pour la contrefaçon |
+| M3 — Saisie à l'échelle des classeurs | à faire, prochain jalon | tout |
 | M4 — Prix de vente et lots | à faire | tout |
-| M5 — Exploitation | en partie | tests de bout en bout, exercice de restauration, procédure d'import sur le serveur |
+| M5 — Exploitation | en partie | tests de bout en bout des parcours de gestion, exercice de restauration, procédure d'import sur le serveur |
 
 Chaque jalon est utilisable seul. Les efforts sont en journées de travail
 effectif, des ordres de grandeur réévalués à la fin de chaque jalon. **Effort
@@ -129,6 +129,20 @@ et l'[état de la mise en œuvre](PRINT_REFERENCE_GUIDE.md#ce-qui-est-mis-en-œu
   dans la file ([fiche 0006](decisions/0006-dinov2-marge.md)).
 - **Fait, tranche 4 :** langue du texte contrôlée par cohérence, Tesseract
   écarté ([fiche 0005](decisions/0005-langue-sans-tesseract.md)).
+- **Reste, agent de revue :** l'agent `agent:revue` confirme la variante et
+  l'état quand toutes les preuves concordent, sinon il demande une photo
+  ([fiche 0022](decisions/0022-agent-confirme-ou-demande-photo.md)). Il tourne
+  en simulation : la plupart des cartes n'ont aucune lecture d'état ni de
+  finition sur leur photo, et sa justesse n'est pas mesurée. Une
+  personne vérifie au classeur, à l'aveugle, un échantillon de cartes qu'il
+  confirmerait ; ses réponses entrent au banc comme vérités à l'aveugle
+  ([fiche 0043](decisions/0043-banc-provenance-et-intervalles.md)). L'écriture
+  n'est activée que si l'échantillon ne compte aucune variante fausse (édition,
+  finition, langue, tampon) et si la borne haute à 95 % du taux d'erreur d'état
+  reste sous 10 %. Les cartes d'au moins 10 € restent à une personne. Ensuite :
+  l'agent tourne à intervalle régulier, avec un plafond par passage, et ses
+  cas « À examiner » alimentent la file « À toi ». C'est le levier principal
+  de S1, S2 et S5.
 - **Reste, tranche 5 :** quand le catalogue ne trouve rien, DINOv2 propose
   l'édition parmi les impressions du nom lu, filtrées par le numéro même mal
   lu ; une personne confirme. La règle est mesurée hors ligne (48 justes,
@@ -193,10 +207,13 @@ premières ventes.
 - **Reste :** faire remonter l'état de la copie Drive, suivie sur le
   portable, dans la gestion du serveur ; une notification en cas d'échec de
   sauvegarde ou de copie.
-- **Reste :** un script de contrôle unique (tests Python et JavaScript, lint
-  des fichiers modifiés) ; des tests de bout en bout (Playwright sur une copie
-  temporaire de la base) : saisie, relevé, estimation, série, lot ; un exercice
-  de restauration complet sur le serveur.
+- **Fait :** la CI lance les tests sous Python 3.11 à 3.13, avec `ruff`,
+  `mypy` et la couverture, et une recette Playwright dans Firefox et WebKit
+  (vitrine, panier, gestion, reprise d'une photo en échec).
+- **Reste :** un script de contrôle unique pour le poste (tests Python et
+  JavaScript, lint des fichiers modifiés) ; des tests de bout en bout des
+  parcours de gestion sur une copie temporaire de la base : saisie, relevé,
+  estimation, série, lot ; un exercice de restauration complet sur le serveur.
 
 **Critère :** les critères S6 sont tenus et l'application est accessible de
 façon stable.
@@ -222,7 +239,10 @@ délégué et ne prend jamais une décision humaine à sa place
   s'annule.
 - Des outils d'écriture dans les droits de la délégation : composer, publier,
   retirer et faire tourner des lots, changer un prix au-dessus du plancher,
-  déplacer une carte.
+  déplacer une carte. Pour les lots, les routes existent déjà sur l'API agent
+  (`lots:read`, `lots:compose`, `lots:publish`,
+  [fiche 0044](decisions/0044-outil-des-lots-par-l-api-agent.md)) ; le chat
+  les appelle sans nouveau chemin d'écriture.
 - Le plan s'affiche avant d'agir au-delà de quelques actions.
 - Toute décision réservée à une personne devient une carte de la file « À
   toi » : « vends tout à moitié prix » produit des demandes de dérogation, pas
@@ -271,8 +291,14 @@ avoir vu les réponses d'aucun modèle, réussis sans réponse dangereuse
   pour SPF et DKIM) quand le volume ou les mots de passe oubliés le
   justifient ; puis des intégrations autorisées aux plateformes de vente.
   Règles actuelles : [vitrine](VITRINE.md).
-- **Pilote agent :** extensions selon le besoin, après une mesure du temps
-  humain gagné ([plan](AGENT_CONTROL_PLAN.md)).
+- **Pilote agent :** l'agent des lots tourne sur le serveur sous un compte
+  restreint, fait tourner les lots chaque matin et ne renouvelle jamais
+  lui-même sa clé ([fiches 0044](decisions/0044-outil-des-lots-par-l-api-agent.md),
+  [0045](decisions/0045-cartes-sorties-d-un-lot-en-annonce-unitaire.md),
+  [AGENT_CONTROL](AGENT_CONTROL.md#agent-des-lots-sur-le-serveur)). Il ne fait
+  appel à aucun modèle ; un agent d'IA peut venir sous le même compte. Autres
+  extensions selon le besoin, après une mesure du temps humain gagné
+  ([plan](AGENT_CONTROL_PLAN.md)).
 - **Aide à l'état** calibrée sur les ventes réelles.
 
 ### À l'étude
