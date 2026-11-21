@@ -35,7 +35,7 @@ de **10 €** par défaut, réglable. Voir [valeur en jeu](VALUATION.md).
 | M1 — Valeur en jeu et file « À examiner » | fait | — |
 | M1.1 — Référentiel des impressions | socle en mode audit | les preuves par langue et de marché, limitées à 2 jours |
 | M2 — Contrôles automatiques indépendants | tranches 1 à 5 faites | l'agent de revue mesuré à l'aveugle ; la double source pour la contrefaçon |
-| M3 — Saisie à l'échelle des classeurs | import, agent sur les pages importées, référentiel par impact, prise au reflet et réception sur Android faits | la mesure de S5, après la porte de l'agent de revue ; les prises de près que l'agent demande sur les cartes découpées d'une page |
+| M3 — Saisie à l'échelle des classeurs | import, agent sur les pages importées, référentiel par impact, prise au reflet, prises de près en série et réception sur Android faits | la mesure de S5, après la porte de l'agent de revue ; le temps humain des prises de près, au téléphone |
 | M4 — Prix de vente et lots | à faire | tout |
 | M5 — Exploitation | en partie | tests de bout en bout des parcours de gestion, exercice de restauration, procédure d'import sur le serveur |
 
@@ -191,12 +191,13 @@ Le cadre est dans la [fiche 0047](decisions/0047-import-de-classeur-sur-le-serve
   27 cartes « à vérifier » dans l'ordre du classeur, un téléversement coupé à
   mi-chemin repris seul, environ 30 s de serveur et 0,8 € de Gemini pour
   100 cartes ; deux cartes saisies en série, environ 2 min chacune.
-- **Reste, prises de près :** sur une carte découpée d'une photo de page,
-  l'agent ne confirme rien. Il demande une prise au reflet pour chaque reverse
-  possible, ou un recto plus proche quand les coins ne se jugent pas à travers
-  la pochette. La photo de page suffit à identifier, pas à confirmer : S5
-  dépend de la façon de rendre ces prises rapides, par exemple une série de
-  prises de près guidée par la liste des demandes, dans l'ordre du classeur.
+- **Prises de près en série** ([fiche 0048](decisions/0048-serie-de-prises-de-pres.md)) :
+  sur une carte découpée d'une photo de page, l'agent ne confirme rien, il
+  demande une prise au reflet ou des coins de près. La série **Prises de
+  près** enchaîne ces photos dans l'ordre du classeur, une par vue, et l'agent
+  relit chaque carte. Au banc, le serveur prend 0,07 s par carte ; le temps
+  humain par carte se mesure au téléphone, avec la reprise des 60 cartes de la
+  vérification à l'aveugle.
 
 **Critère :** un classeur de 100 cartes est importé et examiné en moins d'une
 heure de travail humain (S5), sans passer par la ligne de commande, et

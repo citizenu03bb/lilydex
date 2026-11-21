@@ -92,6 +92,30 @@ serveur relance seul les lectures et la décision pour cette carte. Une vue déj
 reprise sans succès n'est pas redemandée : la carte revient à une personne.
 Un désaccord avec la fiche n'appelle pas de photo : la carte reste « À examiner ».
 
+### Les prises de près en série
+
+**Collection → Prises de près** (administrateur) enchaîne les photos que
+l'agent demande, carte après carte dans l'ordre du classeur, pour un import,
+un album ou la sélection en cours ; l'import d'un classeur offre le même
+bouton pour ses cartes
+([décision 0048](decisions/0048-serie-de-prises-de-pres.md)). La liste est le
+verdict de l'agent en simulation sur ces cartes, calculé à l'ouverture : elle
+existe donc aussi quand `agent_review_apply` est faux et que l'agent
+n'inscrit aucune demande.
+
+Chaque étape montre la page, la pochette sur la grille de l'import, la
+vignette actuelle et la vue à prendre : reflet (la carte inclinée sous une
+lampe rasante), coins de près (le recto hors pochette, les quatre coins nets),
+recto net, puis verso. Un geste ouvre l'appareil photo ; la carte suivante
+s'affiche aussitôt, et l'envoi part en fond. La photo remplace la face visée
+par le chemin de la fiche ; un reflet est enregistré comme tel. Après la
+réponse, le serveur relit la carte (finition, édition par l'image, état) et
+l'agent décide sur elle seule : il écrit si `agent_review_apply` est vrai,
+sinon son verdict reste dans le journal de la carte (`closeup-review`). Une
+vue déjà prise dans une série n'est pas redemandée : la carte passe dans « à
+examiner en main ». En fin de série, l'écran donne la médiane du temps par
+carte et les verdicts de l'agent.
+
 En lot : `pokeprice-manage --data <base> agent-review` simule, `--apply`
 écrit, `--read` lance les lectures manquantes. Le rapport compte les cartes
 confirmées, les demandes de photo, les cartes laissées de côté et les

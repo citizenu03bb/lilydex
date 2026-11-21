@@ -7,6 +7,20 @@
 Une page qui décrit le fonctionnement ne porte pas de date : quand un passage
 daté la quitte, il est versé ici dans le même commit.
 
+## 2026-11-21
+
+- M3, prises de près en série (fiche 0048) : **Collection → Prises de près**
+  enchaîne, dans l'ordre du classeur, les photos que l'agent de revue demande
+  sur un import, un album ou une sélection, même en simulation ; une photo par
+  vue, la carte suivante sans attendre l'envoi, puis nouvelle lecture et
+  verdict de l'agent sur la carte. Banc sur une base temporaire de 100 cartes
+  à la répartition de la vérification à l'aveugle (coins 58, reflet 17,
+  verso 14, recto 11) : un geste par carte, 0,07 s de serveur par carte hors
+  appel Gemini, 0,2 s pour la file ; 86 cartes confirmables en simulation,
+  14 de valeur laissées à une personne (`scripts/bench_closeups.py`,
+  `tests/test_closeups.py`). Le temps humain par carte reste à mesurer au
+  téléphone.
+
 ## 2026-11-20
 
 - M3, réception sur Android (Pixel 7, Chrome, base temporaire) : import de
