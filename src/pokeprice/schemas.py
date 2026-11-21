@@ -429,6 +429,14 @@ class BinderUpload(Model):
     sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
 
 
+class CloseupScope(Model):
+    """The cards of a close-up series (0048): an import, an album or copies."""
+
+    import_id: str = Field(default="", max_length=80)
+    album: str = Field(default="", max_length=120)
+    copy_ids: list[str] = Field(default_factory=list, max_length=500)
+
+
 class ReviewApplySettings(Model):
     apply: StrictBool
     reason: str = Field(default="", max_length=1000)

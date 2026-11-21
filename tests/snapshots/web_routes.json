@@ -1951,6 +1951,57 @@
  },
  {
   "dependencies": [
+   "admin",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "closeup_queue",
+  "only": {},
+  "path": "/api/closeups/queue",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "admin",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "closeup_results",
+  "only": {},
+  "path": "/api/closeups/results",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
+   "admin",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "PUT"
+  ],
+  "name": "closeup_shot",
+  "only": {},
+  "path": "/api/closeups/{copy_id}/shot",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
    "editor",
    "staff",
    "current_user"
