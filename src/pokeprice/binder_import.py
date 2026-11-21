@@ -349,6 +349,14 @@ class BinderImports:
         return {"threshold_cents": threshold_cents, "queued": queued,
                 "tally": {"editions": tally["editions"], "copies": tally["copies"]}}
 
+    def grids(self):
+        """Album id → grid of its latest import (the close-up series draws the pocket)."""
+        with self.connect() as db:
+            return {
+                row["album_id"]: row["grid"]
+                for row in db.execute("SELECT album_id,grid FROM imports ORDER BY created_at,id")
+            }
+
     def listing(self, limit=20):
         with self.connect() as db:
             ids = [r[0] for r in db.execute(

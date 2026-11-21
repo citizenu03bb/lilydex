@@ -18,6 +18,7 @@ from .routes.binder_imports import register_binder_imports
 from .routes.capture import register_capture
 from .routes.checks import register_checks, register_conditions
 from .routes.client_requests import register_client_requests
+from .routes.closeups import register_closeups
 from .routes.accounts import register_accounts
 from .routes.context import build_services
 from .routes.copies import register_copies, register_copy_images
@@ -178,6 +179,7 @@ def create_app(
     register_intake(app, ctx, hooks)
 
     register_copy_images(app, ctx, hooks)
+    register_closeups(app, ctx, hooks)
 
     register_conditions(app, ctx)
 

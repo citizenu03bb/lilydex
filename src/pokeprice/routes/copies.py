@@ -450,54 +450,70 @@ def register_copy_images(app, ctx: AppContext, hooks: Hooks):
         if view and side != "front":
             raise HTTPException(422, "La prise au reflet remplace la photo du recto.")
         review_after_photo(tasks, copy_id)
-        data = bytearray()
-        async for chunk in request.stream():
-            data.extend(chunk)
-            if len(data) > 8 * 1024 * 1024:
-                raise HTTPException(413, "Photo limitée à 8 Mo.")
-        try:
-            with warnings.catch_warnings():
-                warnings.simplefilter("error", Image.DecompressionBombWarning)
-                with Image.open(io.BytesIO(data)) as image:
-                    if (
-                        image.format not in ("JPEG", "PNG", "WEBP")
-                        or image.width * image.height > 24000000
-                    ):
-                        raise ValueError("Format ou dimensions non pris en charge.")
-                    image = ImageOps.exif_transpose(image).convert("RGB")
-                    image.thumbnail((1600, 1600))
-                    output = io.BytesIO()
-                    image.save(output, format="JPEG", quality=90)
-        except (
-            OSError,
-            ValueError,
-            Image.DecompressionBombWarning,
-            Image.DecompressionBombError,
-        ):
-            raise HTTPException(
-                422, "Photo JPEG, PNG ou WebP valide requise (24 mégapixels maximum)."
-            )
-        name = store.save_photo(output.getvalue())
-        result = store.patch(
-            copy_id,
-            {
-                "photo" if side == "front" else "back_photo": name,
-                "photo_original" if side == "front" else "back_photo_original": name,
-                "condition_confirmed": False,
-            },
-            version,
-            user["username"],
-            "Ajout ou remplacement de la photo du "
-            + ("recto" if side == "front" else "verso")
-            + (", prise au reflet" if view else ""),
-        )
+        data = await read_photo_body(request)
+        result = save_copy_photo(store, copy_id, data, version, side, bool(view), user["username"])
         if view:
-            from ..verification import GLINT_EVENT
-
-            with store.connect(write=True) as db:
-                store.event(db, copy_id, user["username"], GLINT_EVENT,
-                            "Photo du recto prise au reflet, sous une lumière rasante",
-                            {}, {"photo": name})
             # The finish is read on the new photo, after the response.
             read_after_intake(tasks, result, user)
         return result
+
+
+async def read_photo_body(request):
+    """The request's body, at most 8 Mo."""
+    data = bytearray()
+    async for chunk in request.stream():
+        data.extend(chunk)
+        if len(data) > 8 * 1024 * 1024:
+            raise HTTPException(413, "Photo limitée à 8 Mo.")
+    return bytes(data)
+
+
+def save_copy_photo(store, copy_id, data, version, side, glint, actor):
+    """Check, resize and store a photo of one face; a glint shot is logged as such (0047).
+
+    The copy's photo route and the close-up series (0048) share this path.
+    """
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", Image.DecompressionBombWarning)
+            with Image.open(io.BytesIO(data)) as image:
+                if (
+                    image.format not in ("JPEG", "PNG", "WEBP")
+                    or image.width * image.height > 24000000
+                ):
+                    raise ValueError("Format ou dimensions non pris en charge.")
+                image = ImageOps.exif_transpose(image).convert("RGB")
+                image.thumbnail((1600, 1600))
+                output = io.BytesIO()
+                image.save(output, format="JPEG", quality=90)
+    except (
+        OSError,
+        ValueError,
+        Image.DecompressionBombWarning,
+        Image.DecompressionBombError,
+    ):
+        raise HTTPException(
+            422, "Photo JPEG, PNG ou WebP valide requise (24 mégapixels maximum)."
+        )
+    name = store.save_photo(output.getvalue())
+    result = store.patch(
+        copy_id,
+        {
+            "photo" if side == "front" else "back_photo": name,
+            "photo_original" if side == "front" else "back_photo_original": name,
+            "condition_confirmed": False,
+        },
+        version,
+        actor,
+        "Ajout ou remplacement de la photo du "
+        + ("recto" if side == "front" else "verso")
+        + (", prise au reflet" if glint else ""),
+    )
+    if glint:
+        from ..verification import GLINT_EVENT
+
+        with store.connect(write=True) as db:
+            store.event(db, copy_id, actor, GLINT_EVENT,
+                        "Photo du recto prise au reflet, sous une lumière rasante",
+                        {}, {"photo": name})
+    return result

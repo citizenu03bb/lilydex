@@ -2237,6 +2237,34 @@
     "title": "ClientPatch",
     "type": "object"
    },
+   "CloseupScope": {
+    "additionalProperties": false,
+    "description": "The cards of a close-up series (0048): an import, an album or copies.",
+    "properties": {
+     "album": {
+      "default": "",
+      "maxLength": 120,
+      "title": "Album",
+      "type": "string"
+     },
+     "copy_ids": {
+      "items": {
+       "type": "string"
+      },
+      "maxItems": 500,
+      "title": "Copy Ids",
+      "type": "array"
+     },
+     "import_id": {
+      "default": "",
+      "maxLength": 80,
+      "title": "Import Id",
+      "type": "string"
+     }
+    },
+    "title": "CloseupScope",
+    "type": "object"
+   },
    "ComposeRequest": {
     "additionalProperties": false,
     "properties": {
@@ -6261,6 +6289,141 @@
      }
     },
     "summary": "Client Password Link"
+   }
+  },
+  "/api/closeups/queue": {
+   "post": {
+    "operationId": "closeup_queue_api_closeups_queue_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/CloseupScope"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Closeup Queue"
+   }
+  },
+  "/api/closeups/results": {
+   "post": {
+    "operationId": "closeup_results_api_closeups_results_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/CloseupScope"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Closeup Results"
+   }
+  },
+  "/api/closeups/{copy_id}/shot": {
+   "put": {
+    "operationId": "closeup_shot_api_closeups__copy_id__shot_put",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "copy_id",
+      "required": true,
+      "schema": {
+       "title": "Copy Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "version",
+      "required": true,
+      "schema": {
+       "minimum": 1,
+       "title": "Version",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "view",
+      "required": false,
+      "schema": {
+       "default": "front",
+       "enum": [
+        "front",
+        "back",
+        "holo",
+        "corner"
+       ],
+       "title": "View",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Closeup Shot"
    }
   },
   "/api/copies": {

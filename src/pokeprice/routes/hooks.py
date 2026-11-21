@@ -9,6 +9,8 @@ from .context import AppContext
 class Hooks(NamedTuple):
     read_after_intake: Callable[..., None]
     review_after_photo: Callable[..., None]
+    # Any other work after the response, only where the app runs its checks.
+    in_background: Callable[..., None]
 
 
 def build_hooks(ctx: AppContext, auto_checks) -> Hooks:
@@ -37,4 +39,8 @@ def build_hooks(ctx: AppContext, auto_checks) -> Hooks:
         if auto_checks:
             tasks.add_task(review.after_photo, copy_id)
 
-    return Hooks(read_after_intake, review_after_photo)
+    def in_background(tasks, work, *args):
+        if auto_checks:
+            tasks.add_task(work, *args)
+
+    return Hooks(read_after_intake, review_after_photo, in_background)
