@@ -182,6 +182,7 @@ async function showWorkspace(user) {
   if (typeof refreshTodo === "function") refreshTodo().catch((e) => toast(e.message));
   if (typeof Assistant !== "undefined") Assistant.attach(user);
   if (typeof BinderImport !== "undefined") BinderImport.attach();
+  if (typeof Closeups !== "undefined") Closeups.attach();
   restoreLocation();
   if (requestLink) changeView("sales", false);
   await loadCards();
