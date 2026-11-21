@@ -567,7 +567,7 @@
   "closeups.loading": "The agent is preparing the list…",
   "closeups.count": "{cards} cards to retake, {shots} photos; {handed} to examine by hand, {pending} being read.",
   "closeups.progress": "Card {index} of {count}",
-  "closeups.place": "Page {page}, pocket {position}",
+  "closeups.place": "{album} · page {page}, pocket {position}",
   "closeups.shot_of": "Photo {index} of {count} for this card",
   "closeups.view.holo": "Glint: tilt the front under a raking lamp until the card's body shines (or stays matte).",
   "closeups.view.corner": "Corners up close: the front out of the sleeve, all four corners sharp in the frame.",

@@ -73,7 +73,7 @@ const Closeups = (() => {
     box.hidden = false;
     box.replaceChildren();
     const head = el("p", t("closeups.progress", { index: index + 1, count: steps.length }), "help");
-    const place = el("h3", t("closeups.place", { page: step.page, position: step.position }));
+    const place = el("h3", t("closeups.place", { album: step.album, page: step.page, position: step.position }));
     const where = el("div", null, "closeup-where");
     where.append(pocketGrid(step));
     if (step.has_photo) {
@@ -160,7 +160,7 @@ const Closeups = (() => {
         list.append(
           el(
             "li",
-            `${card.name} ${card.number} · ${t("closeups.place", { page: card.page, position: card.position })} · ${card.reason}`,
+            `${card.name} ${card.number} · ${t("closeups.place", { album: card.album, page: card.page, position: card.position })} · ${card.reason}`,
           ),
         );
       box.append(list);
@@ -191,7 +191,7 @@ const Closeups = (() => {
       list.append(
         el(
           "li",
-          `${row.name} ${row.number} · ${t("closeups.place", { page: row.page, position: row.position })} · ` +
+          `${row.name} ${row.number} · ${t("closeups.place", { album: row.album, page: row.page, position: row.position })} · ` +
             t(`closeups.outcome.${outcome}`) +
             (row.verdict?.reason ? ` · ${row.verdict.reason}` : ""),
         ),

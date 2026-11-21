@@ -567,7 +567,7 @@
   "closeups.loading": "L’agent prépare la liste…",
   "closeups.count": "{cards} cartes à reprendre, {shots} photos ; {handed} à examiner en main, {pending} en cours de lecture.",
   "closeups.progress": "Carte {index} sur {count}",
-  "closeups.place": "Page {page}, pochette {position}",
+  "closeups.place": "{album} · page {page}, pochette {position}",
   "closeups.shot_of": "Photo {index} sur {count} de cette carte",
   "closeups.view.holo": "Reflet : inclinez le recto sous une lampe rasante, jusqu’à voir briller le corps de la carte (ou rester mat).",
   "closeups.view.corner": "Coins de près : le recto hors pochette, les quatre coins nets dans le cadre.",

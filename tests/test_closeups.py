@@ -83,7 +83,7 @@ def test_the_queue_follows_the_binder_and_writes_nothing_in_simulation(env, bind
     result = queue(client, album="Test")
     assert result["apply"] is False and result["cards"] == 2 and result["shots"] == 2
     steps = result["steps"]
-    assert [(s["page"], s["position"]) for s in steps] == [(3, 1), (3, 2)]
+    assert [(s["album"], s["page"], s["position"]) for s in steps] == [("Test", 3, 1), ("Test", 3, 2)]
     assert [[v["view"] for v in s["views"]] for s in steps] == [["corner"], ["holo"]]
     assert steps[1]["views"][0]["glint"] is True and steps[1]["views"][0]["side"] == "front"
     assert steps[0]["grid"] == "3x3" and "coins" in steps[0]["views"][0]["reason"]
@@ -138,8 +138,8 @@ def test_a_glint_shot_takes_the_glint_path_then_the_agent_reads_again(env, binde
     assert len(history(client, card, "closeup-review")) == 1
     assert queue(client, album="Test")["pending"] == []
     results = client.post("/api/closeups/results", json={"album": "Test"}).json()
-    assert [(r["copy_id"], r["shots"], r["verdict"]["outcome"]) for r in results] == [
-        (card["id"], ["holo"], "confirm")
+    assert [(r["copy_id"], r["album"], r["shots"], r["verdict"]["outcome"]) for r in results] == [
+        (card["id"], "Test", ["holo"], "confirm")
     ]
 
 
