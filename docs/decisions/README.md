@@ -55,6 +55,7 @@ l'ancienne passe au statut « remplacée ».
 | [0045](0045-cartes-sorties-d-un-lot-en-annonce-unitaire.md) | Une carte qui quitte un lot revient seule en vitrine à partir de 1 € | 2026-11-11 |
 | [0046](0046-decouper-webapp-par-groupe-de-routes.md) | `webapp.py` est découpé par groupe de routes, par déplacements à l'identique prouvés par des instantanés | 2026-11-19 |
 | [0047](0047-import-de-classeur-sur-le-serveur.md) | Un classeur s'importe page par page sur le serveur, en tâche de fond moins prioritaire que le site, et s'arrête au budget Gemini | 2026-11-20 |
+| [0048](0048-serie-de-prises-de-pres.md) | Les prises de près se font en série, dans l'ordre du classeur, sur la liste que l'agent tient même en simulation | 2026-11-21 |
 
 ## Écrire une fiche
 
