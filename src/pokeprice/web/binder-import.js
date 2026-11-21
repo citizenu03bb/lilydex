@@ -267,6 +267,13 @@ const BinderImport = (() => {
       restoreLocation();
       await loadCards();
     };
+    // The close-ups the agent asks for on this import's cards (decision 0048).
+    $("binder-closeups").onclick = () => {
+      if (!current) return;
+      const scope = { import_id: current.id };
+      $("binder-dialog").close();
+      Closeups.open(scope).catch((e) => toast(e.message));
+    };
     $("binder-close").onclick = async () => {
       if (!confirm(t("binder.close_confirm"))) return;
       render(null);

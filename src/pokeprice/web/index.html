@@ -30,6 +30,7 @@
     <script src="/assets/app-boot.js" defer></script>
     <script src="/assets/workflows.js" defer></script>
     <script src="/assets/binder-import.js" defer></script>
+    <script src="/assets/closeups.js" defer></script>
     <script src="/assets/gallery.js" defer></script>
     <script src="/assets/pwa.js" defer></script>
     <script src="/assets/assistant.js" defer></script>
@@ -138,6 +139,7 @@
               <button id="capture-series" hidden>Saisie en série</button>
               <button id="capture-page" hidden>{{t:page_batch.open}}</button>
               <button id="capture-binder" hidden>{{t:binder.open}}</button>
+              <button id="capture-closeups" hidden>{{t:closeups.open}}</button>
             </div>
           </div>
           <div class="stats" id="stats"></div>
@@ -1004,10 +1006,29 @@
           <label class="button">{{t:binder.files}}<input id="binder-files" type="file" multiple accept="image/jpeg,image/png,image/webp" /></label>
           <button type="button" id="binder-continue" hidden>{{t:binder.continue}}</button>
           <button type="button" id="binder-review">{{t:binder.review}}</button>
+          <button type="button" id="binder-closeups">{{t:closeups.open}}</button>
         </div>
         <p id="binder-status" class="help" role="status" aria-live="polite"></p>
         <ol id="binder-pages" class="binder-pages"></ol>
         <button type="button" id="binder-close">{{t:binder.close_import}}</button>
+      </section>
+    </dialog>
+    <dialog id="closeups-dialog" aria-labelledby="closeups-dialog-title">
+      <div class="dialog-header">
+        <h2 id="closeups-dialog-title">{{t:closeups.title}}</h2>
+        <button data-close="closeups-dialog" class="close" aria-label="{{t:closeups.close}}">×</button>
+      </div>
+      <form id="closeups-form" class="dialog-form">
+        <p class="help">{{t:closeups.help}}</p>
+        <label>{{t:closeups.scope}}<select id="closeups-scope"></select></label>
+        <button class="primary">{{t:closeups.start}}</button>
+        <p id="closeups-error" class="error" role="alert"></p>
+      </form>
+      <section class="dialog-form">
+        <p id="closeups-count" class="help"></p>
+        <div id="closeups-step" class="closeup-step" hidden></div>
+        <div id="closeups-summary" hidden></div>
+        <p id="closeups-status" class="help" role="status" aria-live="polite"></p>
       </section>
     </dialog>
     <dialog id="batch-dialog" aria-labelledby="batch-title">

@@ -2529,3 +2529,39 @@ button.chat-flag-button.chat-flagged {
 .binder-pocket p {
   margin: 0;
 }
+
+/* Close-up shots in series (decision 0048): where the card is, what to shoot. */
+.closeup-step h3 {
+  margin: 4px 0;
+}
+.closeup-where {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.closeup-where img {
+  width: 96px;
+  border-radius: 4px;
+}
+.closeup-grid {
+  display: grid;
+  gap: 3px;
+  width: 96px;
+}
+.closeup-grid span {
+  aspect-ratio: 63 / 88;
+  border: 1px solid var(--border-strong);
+  border-radius: 2px;
+}
+.closeup-grid span.here {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.closeup-what {
+  font-weight: 600;
+  font-size: 1.1em;
+}
+.closeup-step .intake-actions button.primary {
+  min-height: 56px;
+  flex: 1 1 100%;
+}
