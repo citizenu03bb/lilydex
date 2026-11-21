@@ -1,6 +1,6 @@
 # 0022 — L'agent confirme sur preuves concordantes, sinon il demande une photo
 
-> **Statut :** en vigueur, complète la [décision 0021](0021-autonomie-maximale.md) · **Date :** 2026-11-03
+> **Statut :** en vigueur, complète la [décision 0021](0021-autonomie-maximale.md), modifiée par la [décision 0049](0049-etat-sans-manipulation.md) (verso et examen en main) · **Date :** 2026-11-03
 
 **Contexte.** Un prix automatique exige une variante et un état confirmés.
 Jusqu'ici, une personne confirmait les deux, fiche par fiche, même pour une

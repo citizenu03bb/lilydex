@@ -800,10 +800,10 @@ def auto_variant_decision(card, check, proposal, edition, margin, *, high_value,
             "reason": "Deux impressions se ressemblent trop sur cette photo : reprenez le recto net, entier et bien droit.",
         }
     if high_value and not back_usable:
+        # Decision 0049: no card leaves the binder only for its back.
         return {
-            "action": "photo",
-            "view": "back",
-            "reason": "Carte de valeur : ajoutez une photo nette du verso, en plus du recto.",
+            "action": "keep",
+            "reason": "Carte de valeur : variante provisoire ; le verso se photographie à la mise en vente.",
         }
     stamp = proposal["stamp"]
     return {

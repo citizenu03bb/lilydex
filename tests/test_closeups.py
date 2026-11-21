@@ -153,7 +153,7 @@ def test_a_view_shot_once_is_not_asked_again(env, binder):
     result = queue(client, album="Test")
     assert card["id"] not in [s["copy_id"] for s in result["steps"]]
     assert [h["copy_id"] for h in result["handed"]] == [card["id"]]
-    assert "examen en main" in result["handed"][0]["reason"]
+    assert "reste en l’état" in result["handed"][0]["reason"]
 
 
 def test_a_back_shot_completes_the_back_only(env, binder):
@@ -231,3 +231,30 @@ def test_a_lost_reading_is_started_again_when_the_queue_opens(tmp_path):
         assert len(history(client, card, "closeup-review")) == 1
         closeups.clock = real_clock
         assert queue(client, copy_ids=[card["id"]])["pending"] == []
+
+
+def test_two_readings_of_one_card_wait_for_each_other(env, binder, monkeypatch):
+    import threading
+    import time
+
+    _, closeups, _, _ = env
+    card = binder["corners"]
+    inside, most = [0], [0]
+    lock = threading.Lock()
+
+    def slow(copy_id, threshold_cents):
+        with lock:
+            inside[0] += 1
+            most[0] = max(most[0], inside[0])
+        time.sleep(0.05)
+        with lock:
+            inside[0] -= 1
+        return []
+
+    monkeypatch.setattr(closeups.review, "read_missing", slow)
+    threads = [threading.Thread(target=closeups.after_shot, args=(card["id"],)) for _ in range(3)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    assert most[0] == 1

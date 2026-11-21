@@ -844,8 +844,8 @@ n'envoie rien : l'évaluation ne part que si vous la demandez.
 
 La proposition décrit les défauts du recto et du verso, la qualité des photos
 et les limites de l'examen ; elle peut être **indéterminable**. Un état NM
-exige deux faces exploitables et les versions avant correction ; un verso
-absent laisse une évaluation partielle. La proposition ne remplace pas l'état
+exige un recto exploitable, sa version avant correction et des photos de
+qualité suffisante ; un verso absent est noté « Verso non vu ». La proposition ne remplace pas l'état
 enregistré et ne modifie aucun prix.
 
 Pour retenir un état, choisissez **État retenu après examen**, confirmez

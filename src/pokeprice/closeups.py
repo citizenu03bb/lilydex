@@ -13,6 +13,8 @@ setting allows. Its verdict is logged on the copy (``closeup-review``).
 """
 
 import json
+import threading
+from collections import defaultdict
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 
@@ -58,6 +60,10 @@ class Closeups:
         self.store, self.review = store, review
         self.grids: Callable[[], dict[str, str]] = grids or dict
         self.clock: Callable[[], datetime] = clock or (lambda: datetime.now(UTC))
+        # Two shots of one card land a few seconds apart: its second reading
+        # waits for the first instead of failing on "already running".
+        self.guard = threading.Lock()
+        self.locks: defaultdict[str, threading.Lock] = defaultdict(threading.Lock)
 
     def scope(self, db, *, import_id=None, album=None, copy_ids=None):
         """Available copies in scope, in binder order."""
@@ -160,7 +166,7 @@ class Closeups:
                 if again:
                     handed.append({
                         **place,
-                        "reason": "La photo déjà reprise ne suffit pas : examen en main. "
+                        "reason": "La photo déjà reprise ne suffit pas : la carte reste en l’état. "
                         + " ".join(again),
                     })
                     continue
@@ -197,6 +203,12 @@ class Closeups:
         It writes only when ``agent_review_apply`` is on; its verdict is logged
         either way. A failure is logged too, never raised.
         """
+        with self.guard:
+            lock = self.locks[copy_id]
+        with lock:
+            return self._after_shot(copy_id, threshold_cents)
+
+    def _after_shot(self, copy_id, threshold_cents):
         apply = review_apply(self.store)
         try:
             errors = self.review.read_missing(copy_id, threshold_cents)
@@ -216,9 +228,10 @@ class Closeups:
                 verdict["views"] = [v["view"] for v in report["photo_requests"][0]["views"]]
                 verdict["reason"] = " ".join(
                     v["reason"] for v in report["photo_requests"][0]["views"])
-            elif report["skipped"]:
-                verdict["outcome"] = "hand"
-                verdict["reason"] = report["skipped"][0]["reason"]
+            elif report["kept"] or report["skipped"]:
+                # Decision 0049: what the photos do not settle stays as recorded.
+                verdict["outcome"] = "keep"
+                verdict["reason"] = (report["kept"] or report["skipped"])[0]["reason"]
             else:
                 verdict["outcome"] = "none"
         with self.store.connect(write=True) as db:

@@ -1,6 +1,6 @@
 # 0048 — Les prises de près se font en série, dans l'ordre du classeur, sur la liste que l'agent tient même en simulation
 
-> **Statut :** en vigueur, complète les décisions [0022](0022-agent-confirme-ou-demande-photo.md) et [0047](0047-import-de-classeur-sur-le-serveur.md) · **Date :** 2026-11-21
+> **Statut :** en vigueur, complète les décisions [0022](0022-agent-confirme-ou-demande-photo.md) et [0047](0047-import-de-classeur-sur-le-serveur.md), modifiée par la [décision 0049](0049-etat-sans-manipulation.md) (« à examiner en main » devient « restent en l'état ») · **Date :** 2026-11-21
 
 **Contexte.** Une photo de page suffit à identifier une carte, pas à la
 confirmer. Sur les 105 cartes de la vérification à l'aveugle, l'agent de revue

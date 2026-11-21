@@ -680,7 +680,7 @@ def main():
                     item.pop("undo", None)
                 result["counts"] = {
                     key: len(result[key])
-                    for key in ("confirmed", "photo_requests", "skipped")
+                    for key in ("confirmed", "photo_requests", "skipped", "kept")
                 }
         elif args.action == "repair-pages":
             from .page_shift import apply, candidates
