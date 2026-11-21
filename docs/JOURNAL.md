@@ -9,6 +9,13 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-21
 
+- Prises de près, suite de la relecture : une relecture perdue (service
+  redémarré entre la photo et le verdict) laissait la carte « en cours de
+  lecture » et hors de la file pour toujours ; après dix minutes sans verdict,
+  l'ouverture de la série la relance. Un lien `/gestion?prises=…` ouvre la
+  série sur une liste d'exemplaires, pour reprendre les 60 cartes de la
+  vérification à l'aveugle (`tests/test_closeups.py`,
+  `tests/web_closeups_link_runtime.cjs`).
 - M3, prises de près en série (fiche 0048) : **Collection → Prises de près**
   enchaîne, dans l'ordre du classeur, les photos que l'agent de revue demande
   sur un import, un album ou une sélection, même en simulation ; une photo par

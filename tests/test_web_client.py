@@ -315,3 +315,20 @@ def test_basket_revalidates_prices_requires_acknowledgment_and_preserves_network
         str(root / "src/pokeprice/web/storefront.js"),
     ], capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
+
+
+def test_a_series_link_opens_the_close_up_series_on_its_copies(tmp_path):
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("Node.js is required")
+    root = Path(__file__).resolve().parents[1]
+    subprocess.run(
+        [
+            node,
+            str(root / "tests/web_closeups_link_runtime.cjs"),
+            app_source(tmp_path),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )

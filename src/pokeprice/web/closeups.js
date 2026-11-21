@@ -231,6 +231,9 @@ const Closeups = (() => {
     };
     if (state.selected.size)
       add({ copy_ids: [...state.selected.keys()] }, t("closeups.scope.selection", { count: state.selected.size }));
+    // A series link (/gestion?prises=…) brings its own list of copies.
+    if (chosen?.copy_ids && !state.selected.size)
+      add(chosen, t("closeups.scope.link", { count: chosen.copy_ids.length }));
     try {
       for (const item of (await api("/binder-imports")).filter((i) => i.status !== "closed"))
         add({ import_id: item.id }, t("closeups.scope.import", { album: item.album, date: item.created_at.slice(0, 10) }));

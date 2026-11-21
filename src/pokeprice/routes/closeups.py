@@ -32,11 +32,15 @@ def register_closeups(app, ctx: AppContext, hooks: Hooks):
         }
 
     @app.post("/api/closeups/queue")
-    def closeup_queue(values: CloseupScope, user=Depends(admin)):
+    def closeup_queue(values: CloseupScope, tasks: BackgroundTasks, user=Depends(admin)):
         try:
-            return closeups.queue(**scope(values))
+            result = closeups.queue(**scope(values))
         except ValueError as error:
             raise HTTPException(422, str(error)) from error
+        # A shot whose reading was lost (a restart) is read again now.
+        for copy_id in result["resumed"]:
+            hooks.in_background(tasks, closeups.after_shot, copy_id)
+        return result
 
     @app.post("/api/closeups/results")
     def closeup_results(values: CloseupScope, user=Depends(admin)):

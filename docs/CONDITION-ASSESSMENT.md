@@ -96,8 +96,9 @@ Un désaccord avec la fiche n'appelle pas de photo : la carte reste « À examin
 
 **Collection → Prises de près** (administrateur) enchaîne les photos que
 l'agent demande, carte après carte dans l'ordre du classeur, pour un import,
-un album ou la sélection en cours ; l'import d'un classeur offre le même
-bouton pour ses cartes
+un album, la sélection en cours ou une liste d'exemplaires portée par un lien
+(`/gestion?prises=<id>,<id>,…`, 500 au plus) ; l'import d'un classeur offre le
+même bouton pour ses cartes
 ([décision 0048](decisions/0048-serie-de-prises-de-pres.md)). La liste est le
 verdict de l'agent en simulation sur ces cartes, calculé à l'ouverture : elle
 existe donc aussi quand `agent_review_apply` est faux et que l'agent
@@ -111,7 +112,10 @@ s'affiche aussitôt, et l'envoi part en fond. La photo remplace la face visée
 par le chemin de la fiche ; un reflet est enregistré comme tel. Après la
 réponse, le serveur relit la carte (finition, édition par l'image, état) et
 l'agent décide sur elle seule : il écrit si `agent_review_apply` est vrai,
-sinon son verdict reste dans le journal de la carte (`closeup-review`). Une
+sinon son verdict reste dans le journal de la carte (`closeup-review`). Si
+cette relecture n'a pas rendu de verdict au bout de dix minutes (un
+redémarrage du service l'a interrompue), l'ouverture suivante de la série la
+relance. Une
 vue déjà prise dans une série n'est pas redemandée : la carte passe dans « à
 examiner en main ». En fin de série, l'écran donne la médiane du temps par
 carte et les verdicts de l'agent.

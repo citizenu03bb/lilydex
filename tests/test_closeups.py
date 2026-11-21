@@ -1,5 +1,7 @@
 """Close-up shots in series (decision 0048): the queue, the shot, the new reading."""
 
+from datetime import timedelta
+
 import pytest
 from fastapi.testclient import TestClient
 from test_agent_review import (
@@ -12,6 +14,8 @@ from test_agent_review import (
 )
 from test_condition_assessment import picture
 from test_verification import reading
+
+from pokeprice.closeups import STALE_AFTER
 
 
 PASSWORD = "Collection-test-2026!"
@@ -199,3 +203,31 @@ def test_the_server_reads_again_after_the_response(tmp_path):
         response = shoot(client, card, "corner")
         assert response.status_code == 200, response.text
         assert len(history(client, card, "closeup-review")) == 1
+
+
+def test_a_lost_reading_is_started_again_when_the_queue_opens(tmp_path):
+    app, readers = make_app(tmp_path, auto_checks=True)
+    with TestClient(app) as client:
+        client.post("/api/setup", json={"username": "pat", "password": PASSWORD})
+        client.post("/api/albums", json={"name": "Test"})
+        app.state.agent_review.inputs = Stakes()
+        closeups = app.state.closeups
+        card = imported(client)
+        after_shot = closeups.after_shot
+        closeups.after_shot = lambda *a: None  # the service restarts: the work is lost
+        assert shoot(client, card, "corner").status_code == 200
+        closeups.after_shot = after_shot
+        assert history(client, card, "closeup-review") == []
+
+        fresh = queue(client, copy_ids=[card["id"]])
+        assert [p["copy_id"] for p in fresh["pending"]] == [card["id"]]
+        assert fresh["pending"][0]["stale"] is False and fresh["resumed"] == []
+        assert history(client, card, "closeup-review") == []
+
+        real_clock = closeups.clock
+        closeups.clock = lambda: real_clock() + STALE_AFTER + timedelta(minutes=1)
+        late = queue(client, copy_ids=[card["id"]])
+        assert late["resumed"] == [card["id"]]
+        assert len(history(client, card, "closeup-review")) == 1
+        closeups.clock = real_clock
+        assert queue(client, copy_ids=[card["id"]])["pending"] == []

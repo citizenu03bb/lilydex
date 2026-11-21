@@ -14,6 +14,7 @@ setting allows. Its verdict is logged on the copy (``closeup-review``).
 
 import json
 from collections.abc import Callable
+from datetime import UTC, datetime, timedelta
 
 from .agent_review import VIEW_SIDE, is_open, request_events, review_apply, run_events
 
@@ -23,6 +24,9 @@ REVIEW_EVENT = "closeup-review"
 # view the agent asked), then turned over for the back.
 STEP_ORDER = {"holo": 0, "corner": 1, "front": 2, "back": 3}
 DEFAULT_GRID = "3x3"
+# A new reading normally comes back within a minute. Past this delay without a
+# verdict, the work after the response was lost (a restart): it is started again.
+STALE_AFTER = timedelta(minutes=10)
 
 
 def side_of(view):
@@ -50,9 +54,10 @@ class Closeups:
     """``review`` is the app's AgentReview; ``grids()`` maps an album id to the
     grid of its latest binder import."""
 
-    def __init__(self, store, review, grids=None):
+    def __init__(self, store, review, grids=None, clock=None):
         self.store, self.review = store, review
         self.grids: Callable[[], dict[str, str]] = grids or dict
+        self.clock: Callable[[], datetime] = clock or (lambda: datetime.now(UTC))
 
     def scope(self, db, *, import_id=None, album=None, copy_ids=None):
         """Available copies in scope, in binder order."""
@@ -85,13 +90,25 @@ class Closeups:
 
     @staticmethod
     def pending(card, shots):
-        """A shot whose new reading has not come back yet."""
+        """The last shot whose new reading has not come back yet, else None."""
         last_shot = max(
             (i for i, s in enumerate(shots) if s["kind"] == SHOT_EVENT), default=None
         )
         if last_shot is None:
-            return False
-        return not any(s["kind"] == REVIEW_EVENT for s in shots[last_shot + 1:])
+            return None
+        if any(s["kind"] == REVIEW_EVENT for s in shots[last_shot + 1:]):
+            return None
+        return shots[last_shot]
+
+    def stale(self, shot):
+        """A shot left without a verdict past STALE_AFTER: its reading was lost."""
+        try:
+            taken = datetime.fromisoformat(shot["at"])
+        except (KeyError, TypeError, ValueError):
+            return True
+        if taken.tzinfo is None:
+            taken = taken.replace(tzinfo=UTC)
+        return self.clock() - taken > STALE_AFTER
 
     def queue(self, *, import_id=None, album=None, copy_ids=None, threshold_cents=1000):
         """The steps of a series: one card each, its views in the order of the hand."""
@@ -122,8 +139,9 @@ class Closeups:
                     "number": card["number"],
                     "set_name": card["set_name"],
                 }
-                if self.pending(card, shots[copy_id]):
-                    pending.append(place)
+                waiting = self.pending(card, shots[copy_id])
+                if waiting is not None:
+                    pending.append({**place, "stale": self.stale(waiting)})
                     continue
                 if copy_id not in asked:
                     continue
@@ -160,6 +178,8 @@ class Closeups:
             "steps": steps,
             "handed": handed,
             "pending": pending,
+            # Lost readings, started again after the response (see the route).
+            "resumed": [p["copy_id"] for p in pending if p["stale"]],
             "shots": sum(len(s["views"]) for s in steps),
         }
 
