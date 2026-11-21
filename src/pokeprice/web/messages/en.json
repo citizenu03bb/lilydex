@@ -560,6 +560,7 @@
   "closeups.help": "The photos the review agent asks for, card after card in binder order. Take the card out of the pocket shown, take the photo, and the next card shows; uploads go meanwhile.",
   "closeups.scope": "Cards",
   "closeups.scope.selection": "Selection ({count} copies)",
+  "closeups.scope.link": "Cards from the link ({count})",
   "closeups.scope.import": "Import {album} · {date}",
   "closeups.scope.album": "Album {album}",
   "closeups.start": "Start the series",

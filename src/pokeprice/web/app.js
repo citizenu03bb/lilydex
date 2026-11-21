@@ -162,6 +162,18 @@ function focusedRequest() {
   if (requestToFocus === undefined) requestToFocus = new URLSearchParams(location.search).get("demande");
   return requestToFocus;
 }
+// A close-up series link (/gestion?prises=id,id,…, decision 0048) opens the
+// series on those copies; read once, like the request link above.
+let closeupsToOpen;
+function closeupLink() {
+  if (closeupsToOpen === undefined) {
+    const ids = (new URLSearchParams(location.search).get("prises") || "")
+      .split(",")
+      .filter((id) => /^[0-9a-f-]{36}$/.test(id));
+    closeupsToOpen = ids.length && ids.length <= 500 ? ids : null;
+  }
+  return closeupsToOpen;
+}
 async function showWorkspace(user) {
   state.user = user;
   $("access").hidden = true;
@@ -176,13 +188,18 @@ async function showWorkspace(user) {
   $("trash-filter").hidden = user.role !== "admin";
   $("select-page").hidden = !editAllowed();
   const requestLink = focusedRequest();
+  const closeupIds = closeupLink();
   await refreshSummary();
   refreshPhotoRequests().catch((e) => toast(e.message));
   refreshFloorRequests().catch((e) => toast(e.message));
   if (typeof refreshTodo === "function") refreshTodo().catch((e) => toast(e.message));
   if (typeof Assistant !== "undefined") Assistant.attach(user);
   if (typeof BinderImport !== "undefined") BinderImport.attach();
-  if (typeof Closeups !== "undefined") Closeups.attach();
+  if (typeof Closeups !== "undefined") {
+    Closeups.attach();
+    if (closeupIds && user.role === "admin")
+      Closeups.open({ copy_ids: closeupIds }).catch((e) => toast(e.message));
+  }
   restoreLocation();
   if (requestLink) changeView("sales", false);
   await loadCards();

@@ -560,6 +560,7 @@
   "closeups.help": "Les photos que l’agent de revue demande, carte après carte dans l’ordre du classeur. Sortez la carte de la pochette indiquée, prenez la photo, la carte suivante s’affiche ; les envois partent pendant ce temps.",
   "closeups.scope": "Cartes",
   "closeups.scope.selection": "Sélection ({count} exemplaires)",
+  "closeups.scope.link": "Liste du lien ({count} cartes)",
   "closeups.scope.import": "Import {album} · {date}",
   "closeups.scope.album": "Album {album}",
   "closeups.start": "Commencer la série",
