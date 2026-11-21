@@ -9,6 +9,13 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-21
 
+- État sans manipulation ([décision 0049](decisions/0049-etat-sans-manipulation.md)) :
+  après la série de prises sur les 60 cartes de la vérification à l'aveugle,
+  l'agent redemandait les coins sur 52 cartes, faute de verso, et en envoyait
+  6 en main. Le protocole d'état `card-condition-v2` note sur le recto seul,
+  NM compris. Au-dessus de 10 €, le verso attend la mise en vente. Ce que les
+  photos ne tranchent pas reste en l'état. Sur les photos de près, l'état
+  proposé concordait avec la note du propriétaire sur 13 cartes sur 19.
 - Prises de près, suite de la relecture : une relecture perdue (service
   redémarré entre la photo et le verdict) laissait la carte « en cours de
   lecture » et hors de la file pour toujours ; après dix minutes sans verdict,

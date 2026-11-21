@@ -34,9 +34,13 @@ estimation de prix ne sont demandées.
 ## Les garde-fous
 
 - Le serveur applique ses propres règles, sans les déléguer au prompt : une
-  proposition NM exige deux faces exploitables, les originaux et une qualité
-  suffisante, sinon elle est retirée ; une face absente est inscrite dans les
-  limites.
+  proposition NM exige un recto exploitable et original, des photos de
+  qualité suffisante et, s'il y a un verso, sa version originale ; sinon elle
+  est retirée. Un verso absent ne la retire pas : « Verso non vu » est inscrit
+  dans les limites ([décision 0049](decisions/0049-etat-sans-manipulation.md)).
+- La qualité des photos ne juge que les faces fournies (protocole
+  `card-condition-v2`) ; une évaluation faite sous un protocole plus ancien est
+  relue par l'agent.
 - La proposition et sa provenance sont immuables : modèle, version du
   protocole, photos réellement envoyées, réponse brute, auteur et date.
 - Elle n'écrase jamais l'état courant, même non confirmé. Vous choisissez
@@ -64,6 +68,12 @@ Il confirme les deux ensemble, ou rien, si :
 - au seuil de valeur (10 € par défaut) ou sans valeur prudente connue, le
   verso est aussi exploitable ([décision 0008](decisions/0008-reverses-examen-physique.md)).
 
+Aucune carte ne sort du classeur pour juger son état
+([décision 0049](decisions/0049-etat-sans-manipulation.md)). Sous le seuil,
+le recto suffit. Au-dessus, sans verso exploitable, l'agent ne demande pas le
+verso : la variante et l'état restent provisoires jusqu'à la photo du verso
+prise pour l'annonce, et le passage suivant tranche.
+
 Une **prise au reflet** (la carte inclinée sous une lampe, hors pochette)
 tranche la question des reverses quand elle est de qualité suffisante : une
 bande arc-en-ciel sur le corps de la carte propose la reverse, un corps
@@ -89,7 +99,9 @@ en une phrase. Une seule vue par face, la plus précise. La gestion les liste
 sous « Photos à reprendre », dans l'ordre du classeur. Le bouton ouvre
 l'appareil photo du téléphone ; la nouvelle photo ferme la demande et le
 serveur relance seul les lectures et la décision pour cette carte. Une vue déjà
-reprise sans succès n'est pas redemandée : la carte revient à une personne.
+reprise sans succès n'est pas redemandée : la carte reste en l'état, avec son
+état enregistré. Le rapport la range dans `kept`, avec ce que les photos ne
+tranchent pas, et personne ne l'examine en main.
 Un désaccord avec la fiche n'appelle pas de photo : la carte reste « À examiner ».
 
 ### Les prises de près en série
@@ -115,9 +127,9 @@ l'agent décide sur elle seule : il écrit si `agent_review_apply` est vrai,
 sinon son verdict reste dans le journal de la carte (`closeup-review`). Si
 cette relecture n'a pas rendu de verdict au bout de dix minutes (un
 redémarrage du service l'a interrompue), l'ouverture suivante de la série la
-relance. Une
-vue déjà prise dans une série n'est pas redemandée : la carte passe dans « à
-examiner en main ». En fin de série, l'écran donne la médiane du temps par
+relance. Deux photos de la même carte prises coup sur coup lancent leurs
+relectures l'une après l'autre. Une vue déjà prise dans une série n'est pas
+redemandée : la carte passe dans « Restent en l'état ». En fin de série, l'écran donne la médiane du temps par
 carte et les verdicts de l'agent.
 
 En lot : `pokeprice-manage --data <base> agent-review` simule, `--apply`

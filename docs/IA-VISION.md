@@ -176,8 +176,9 @@ La qualité de lecture de Gemma n'a pas été mesurée.
 Sur demande seulement, Gemini reçoit les photos originales du recto et du
 verso, avant toute correction, et rend la liste des défauts visibles et un
 état proposé, ou « indéterminable ». Le serveur applique ses propres
-garde-fous : un état NM exige deux faces exploitables, les originaux et une
-qualité suffisante. L'état final est choisi par une personne, avec un motif.
+garde-fous : un état NM exige un recto exploitable et original et une qualité
+suffisante ; un verso absent est noté « Verso non vu »
+([décision 0049](decisions/0049-etat-sans-manipulation.md)). L'état final est choisi par une personne, avec un motif.
 Voir [l'aide à l'état](CONDITION-ASSESSMENT.md).
 
 Ce n'est pas une notation : ni note PSA ou BGS, ni confiance inventée, et

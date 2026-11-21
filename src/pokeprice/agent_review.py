@@ -16,6 +16,7 @@ See docs/CONDITION-ASSESSMENT.md and docs/decisions/0022.
 import json
 import uuid
 
+from .condition_assessment import PROTOCOL as CONDITION_PROTOCOL
 from .condition_assessment import assessment_rows, auto_condition_decision
 from .edition_check import MARGIN
 from .inventory import Conflict, now
@@ -175,7 +176,12 @@ class AgentReview:
             "valuation": valuation,
             "check": next((c for c in checks if not c["stale"]), None),
             "edition": next((e for e in editions if not e["stale"]), None),
-            "assessment": next((a for a in assessments if not a["stale"]), None),
+            # An assessment made under an older protocol is read again (0049).
+            "assessment": next(
+                (a for a in assessments
+                 if not a["stale"] and a.get("protocol") == CONDITION_PROTOCOL),
+                None,
+            ),
         }
 
     def read_missing(self, copy_id, threshold_cents):
@@ -286,11 +292,13 @@ class AgentReview:
                 wanted[side] = (d["view"], d["reason"])
         photos = sorted(wanted.values(), key=lambda item: VIEW_PRIORITY[item[0]])
         skipped = [d["reason"] for d in decisions.values() if d["action"] == "skip"]
+        kept = [d["reason"] for d in decisions.values() if d["action"] == "keep"]
         return {
             "high_value": high_value,
             "decisions": decisions,
             "photos": photos,
             "skipped": skipped,
+            "kept": kept,
             "confirm": bool(decisions)
             and all(d["action"] == "confirm" for d in decisions.values()),
         }
@@ -425,6 +433,7 @@ class AgentReview:
             "interrupted": [],
             "photo_requests": [],
             "skipped": [],
+            "kept": [],
             "human_decisions_saved": 0,
         }
         with self.store.connect() as db:
@@ -442,6 +451,7 @@ class AgentReview:
                     "confirm": False,
                     "photos": [("front", "Aucune photo du recto : photographiez la carte.")],
                     "skipped": [],
+                    "kept": [],
                 }
             else:
                 verdict = self.decide(found)
@@ -485,10 +495,12 @@ class AgentReview:
                             _, undone = run_events(db)
                             status = self.request(db, card, view, reason, run_id, undone)
                         if status == "answered":
-                            report["skipped"].append(
+                            # Decision 0049: no card leaves the binder for this;
+                            # it stays as recorded.
+                            report["kept"].append(
                                 {
                                     **item,
-                                    "reason": "La photo déjà reprise ne suffit pas : examen en main. "
+                                    "reason": "La photo déjà reprise ne suffit pas : la carte reste en l’état. "
                                     + reason,
                                 }
                             )
@@ -500,6 +512,10 @@ class AgentReview:
                     report["photo_requests"].append({**item, "views": asked})
                 continue
             reasons = errors + verdict["skipped"]
+            if verdict["kept"] and not reasons:
+                report["kept"].append({**item, "reason": " ".join(dict.fromkeys(verdict["kept"]))})
+                continue
+            reasons += verdict["kept"]
             report["skipped"].append(
                 {**item, "reason": " ".join(dict.fromkeys(reasons)) or "Rien à décider."}
             )
@@ -526,6 +542,7 @@ class AgentReview:
                         ],
                         "photo_requests": len(report["photo_requests"]),
                         "skipped": len(report["skipped"]),
+                        "kept": len(report["kept"]),
                         "human_decisions_saved": report["human_decisions_saved"],
                     },
                 )
@@ -579,6 +596,7 @@ class AgentReview:
                 "confirmed": len(run["confirmed"]),
                 "photo_requests": run["photo_requests"],
                 "skipped": run["skipped"],
+                "kept": run.get("kept", 0),
                 "human_decisions_saved": run["human_decisions_saved"],
                 "undone": run_id in undone,
             }

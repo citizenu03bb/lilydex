@@ -197,10 +197,11 @@ def test_partial_unclear_and_provider_errors_do_not_invent_states(collection):
     client, app, card, _ = collection
     assert evaluate(client, card).status_code == 422
     card, _ = attach(client, card, "front", "gray")
+    # Decision 0049: the front alone may carry an NM, and says the back was not seen.
     app.state.conditions.reader = lambda photos: (observed(photos, "NM"), "raw NM")
     result = evaluate(client, card).json()["result"]
-    assert result["suggested_condition"] == "" and not result["back_usable"]
-    assert any("verso" in text for text in result["limits"])
+    assert result["suggested_condition"] == "NM" and not result["back_usable"]
+    assert "Verso non vu : état jugé sur le recto." in result["limits"]
     app.state.conditions.reader = lambda photos: (
         {**observed(photos), "quality": "unusable"},
         "raw",
@@ -381,17 +382,25 @@ def test_legacy_original_is_recovered_only_for_the_matching_current_photo(collec
     assert any("avant correction" in text for text in new["result"]["limits"])
 
 
-def test_near_mint_proposal_requires_both_usable_original_faces(collection):
+def test_near_mint_proposal_requires_an_adequate_usable_front(collection):
     client, app, card, _ = collection
     app.state.conditions.reader = lambda photos: (observed(photos, "NM"), "raw NM")
     card, _ = attach(client, card, "front", "gray")
     card, _ = attach(client, card, "back", "blue")
     assert evaluate(client, card).json()["result"]["suggested_condition"] == "NM"
+    # A back the model cannot use no longer withdraws it (decision 0049)...
     app.state.conditions.reader = lambda photos: (
         {**observed(photos, "NM"), "back_usable": False},
         "raw",
     )
-    assert evaluate(client, card).json()["result"]["suggested_condition"] == ""
+    assert evaluate(client, card).json()["result"]["suggested_condition"] == "NM"
+    # ... but limited photos or an unusable front do.
+    for change in ({"quality": "limited"}, {"front_usable": False}):
+        app.state.conditions.reader = lambda photos, change=change: (
+            {**observed(photos, "NM"), **change},
+            "raw",
+        )
+        assert evaluate(client, card).json()["result"]["suggested_condition"] == ""
 
 
 @pytest.mark.parametrize("extra", [False, True])

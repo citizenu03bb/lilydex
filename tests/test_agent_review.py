@@ -236,25 +236,21 @@ def test_simulation_reads_and_writes_nothing(env):
     assert review.runs() == []
 
 
-def test_valuable_copy_needs_a_back_then_the_new_photo_is_read_again(env):
+def test_valuable_copy_waits_for_its_back_at_the_sale_then_is_read_again(env):
     client, review, readers, stakes = env
     stakes.risk = 5000
     card = photographed(client)
     report = review.run(apply=True, read=True)
-    assert report["confirmed"] == []
-    assert report["photo_requests"][0]["views"][0]["view"] == "back"
-    listed = client.get("/api/photo-requests").json()
-    assert [(r["copy_id"], r["view"], r["side"]) for r in listed] == [
-        (card["id"], "back", "back")
-    ]
-    assert "verso" in listed[0]["reason"]
-    # The same request is not asked twice while it is open.
-    again = review.run(apply=True, read=True)
-    assert again["photo_requests"] == [] and len(client.get("/api/photo-requests").json()) == 1
-    attach(client, card_of(client, card), (200, 200, 200), side="back")
+    # Decision 0049: no request takes the card out of the binder for its back.
+    assert report["confirmed"] == [] and report["photo_requests"] == []
+    assert [k["copy_id"] for k in report["kept"]] == [card["id"]]
+    assert "mise en vente" in report["kept"][0]["reason"]
     assert client.get("/api/photo-requests").json() == []
-    report = review.after_photo(card["id"])
-    assert report["trigger"] == "photo" and len(report["confirmed"]) == 1
+    assert not card_of(client, card)["condition_confirmed"]
+    # The back photographed for the sale settles it on the next pass.
+    attach(client, card_of(client, card), (200, 200, 200), side="back")
+    report = review.run(apply=True, read=True)
+    assert len(report["confirmed"]) == 1
     detail = card_of(client, card)
     assert detail["variant_confirmed"] and detail["condition_confirmed"]
     assert evidence(detail, "variant-validation")[0]["high_value"] is True
@@ -285,10 +281,10 @@ def test_a_possible_reverse_asks_for_a_holo_glint_once(env):
     report = review.run(apply=True, read=True)
     assert report["photo_requests"][0]["views"][0]["view"] == "holo"
     attach(client, card_of(client, card), (90, 40, 160))
-    # Still matte under the lamp: decision 0008 keeps the reverse to a human.
+    # Still matte under the lamp: the card stays as recorded (decision 0049).
     report = review.run(apply=True, read=True)
     assert report["photo_requests"] == [] and report["confirmed"] == []
-    assert "examen en main" in report["skipped"][0]["reason"]
+    assert "reste en l’état" in report["kept"][0]["reason"]
     assert not card_of(client, card)["variant_confirmed"]
 
 
@@ -307,13 +303,13 @@ def test_disagreement_is_left_aside_and_a_close_edition_asks_a_front(env):
 
 
 def test_a_whole_run_is_undone_except_copies_changed_since(env):
-    client, review, _, stakes = env
+    client, review, readers, stakes = env
     kept = photographed(client, position=1)
     restored = photographed(client, position=2, color=(10, 160, 90))
     asked = photographed(client, position=3, color=(160, 10, 90))
     report = review.run(apply=True, read=True, copy_ids=[kept["id"], restored["id"]])
     assert len(report["confirmed"]) == 2
-    stakes.risk = 5000
+    readers["condition"].quality = "limited"  # Corners unreadable: a photo is asked.
     review.run(apply=True, read=True, copy_ids=[asked["id"]])
     runs = review.runs()
     assert [r["confirmed"] for r in runs] == [0, 2]
@@ -376,14 +372,19 @@ def test_photo_requests_are_for_staff_only(env):
     ("result", "high_value", "action", "view"),
     [
         ({"quality": "adequate", "front_usable": True, "back_usable": False, "suggested_condition": "EX"}, False, "confirm", None),
-        ({"quality": "adequate", "front_usable": True, "back_usable": False, "suggested_condition": "EX"}, True, "photo", "back"),
+        # Decision 0049: a copy of value is never taken out for its back.
+        ({"quality": "adequate", "front_usable": True, "back_usable": False, "suggested_condition": "EX"}, True, "keep", None),
+        ({"quality": "adequate", "front_usable": True, "back_usable": True, "suggested_condition": "EX"}, True, "confirm", None),
+        ({"quality": "adequate", "front_usable": True, "back_usable": False, "suggested_condition": "NM"}, False, "confirm", None),
+        ({"quality": "adequate", "front_usable": True, "back_usable": False, "suggested_condition": ""}, False, "keep", None),
         ({"quality": "limited", "front_usable": True, "back_usable": True, "suggested_condition": "EX"}, False, "photo", "corner"),
         ({"quality": "unusable", "front_usable": False, "back_usable": False, "suggested_condition": ""}, False, "photo", "front"),
-        ({"quality": "adequate", "front_usable": True, "back_usable": True, "suggested_condition": ""}, False, "skip", None),
+        ({"quality": "adequate", "front_usable": True, "back_usable": True, "suggested_condition": ""}, False, "keep", None),
+        (None, False, "skip", None),
     ],
 )
 def test_condition_rule(result, high_value, action, view):
-    assessment = {"stale": False, "result": {**result, "explanation": "x"}}
+    assessment = result and {"stale": False, "result": {**result, "explanation": "x"}}
     decision = auto_condition_decision({}, assessment, high_value=high_value)
     assert decision["action"] == action and decision.get("view") == view
 
@@ -566,3 +567,18 @@ def test_glint_is_for_the_front_only(env):
         headers={"Content-Type": "image/jpeg"},
     )
     assert response.status_code == 422
+
+
+def test_an_assessment_under_an_older_protocol_is_read_again(env):
+    client, review, readers, _ = env
+    card = photographed(client)
+    review.run(apply=False, read=False)
+    review.read_missing(card["id"], 1000)
+    assert readers["condition"].calls == 1
+    with review.store.connect(write=True) as db:
+        db.execute("UPDATE condition_assessments SET protocol='card-condition-v1'")
+    # Decision 0049: the front-only protocol replaces the old reading.
+    assert review.evidence(card["id"], 1000)["assessment"] is None
+    review.read_missing(card["id"], 1000)
+    assert readers["condition"].calls == 2
+    assert review.evidence(card["id"], 1000)["assessment"] is not None
