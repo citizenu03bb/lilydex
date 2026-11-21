@@ -244,6 +244,7 @@ class Closeups:
                 card = self.store.get(db, copy_id)
                 out.append({
                     "copy_id": copy_id,
+                    "album": card.get("album") or "",
                     "page": card["page"],
                     "position": card["position"],
                     "name": card["name"],
