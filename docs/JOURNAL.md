@@ -11,7 +11,7 @@ daté la quitte, il est versé ici dans le même commit.
 
 - Holo vue de face ([décision 0053](decisions/0053-holo-de-face-seulement-sans-version-mate.md)) :
   l'agent ne confirme plus une holo d'une photo à plat quand le catalogue
-  connaît une version mate ; il demande une prise au reflet. Magirêve, au
+  n'exclut pas une version mate ; il demande une prise au reflet. Magirêve, au
   dégradé imprimé, avait été lue holo (`tests/test_verification.py`,
   `tests/test_agent_review.py`).
 - État sur le barème de Cardmarket et pli en main ([décision 0052](decisions/0052-pli-en-main-et-bareme-cardmarket.md)) :

@@ -22,15 +22,18 @@ cas difficiles.
 **Décision.** Option 3. Une illustration lue holo sur une photo à plat n'est
 proposée que si le catalogue dit que l'édition n'a pas d'impression mate. Si
 le catalogue connaît une version mate, ou ne dit rien, la lecture reste à
-examiner et l'agent demande une prise au reflet. Une prise au reflet de qualité
-suffisante tranche : l'illustration qui brille propose la holo, un corps mat
-propose la Standard.
+examiner et l'agent demande une prise au reflet. Sur une prise au reflet de
+qualité suffisante, un corps mat propose la Standard ; une illustration qui
+brille propose la holo quand le catalogue désigne l'impression (holo parallèle,
+tampon d'extension), et laisse sinon la carte à examiner.
 
 **Conséquences.**
 - Les holos d'origine (sans impression mate au catalogue) se confirment
   toujours d'une seule photo.
 - Les holos parallèles, les tampons d'extension et les éditions mal décrites
   par le catalogue demandent une prise au reflet.
+- Une prise au reflet de qualité limitée ne tranche rien : l'agent demande un
+  recto net, puis ne redemande pas le reflet, et la carte reste à une personne.
 - La règle se mesure sur une fiche à l'aveugle ciblée : holos, reverses et
   cartes au fond trompeur, sans limite de prix.
 

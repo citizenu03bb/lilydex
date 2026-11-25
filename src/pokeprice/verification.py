@@ -215,7 +215,7 @@ def propose_variant(card, reading, snapshot=None, valuation=None):
                 **proposal,
                 "finish": finish,
                 "glint_needed": True,
-                "reason": "Illustration lue holo, mais cette carte existe aussi en version mate et un dessin peut imiter le holo : confirmez sous un éclairage rasant.",
+                "reason": "Illustration lue holo, mais le catalogue n’exclut pas une version mate et un dessin peut imiter le holo : confirmez sous un éclairage rasant.",
             }
         decision = category(
             {
