@@ -133,8 +133,11 @@ existe donc aussi quand `agent_review_apply` est faux et que l'agent
 n'inscrit aucune demande.
 
 À chaque carte, la série demande aussi : « Pli, cassure ou marque enfoncée ? »
-(non, pli, enfoncement ou doute). Un pli ou un enfoncement plafonne l'état que
-l'agent confirme à LP ; un doute le laisse tel qu'enregistré. Sans réponse en
+(non, pli, enfoncement ou doute). Un pli ou un enfoncement plafonne à LP
+l'état que l'agent confirme ; une carte qu'il ne confirme pas (photo à
+reprendre, carte de valeur, recto insuffisant) garde son état enregistré. Un
+doute le laisse tel qu'enregistré. La réponse ne relance aucune lecture :
+l'agent décide de nouveau sur les lectures qu'il a. Sans réponse en
 main, un pli vu par la lecture plafonne aussi la note ; une réponse en main
 l'emporte ([décision 0052](decisions/0052-pli-en-main-et-bareme-cardmarket.md)).
 

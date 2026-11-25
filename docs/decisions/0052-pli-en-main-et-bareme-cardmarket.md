@@ -34,10 +34,12 @@ aucune fausse alerte sur 44 cartes. Le barème est sans appel : aucune pliure
 - La série **Prises de près** pose, à chaque carte, la question « Pli, cassure
   ou marque enfoncée ? » : non, pli, enfoncement ou doute. La réponse est un
   événement de la carte (`crease-observation`) ; la dernière fait foi.
-- L'agent de revue plafonne l'état à LP si la réponse en main est « pli » ou
-  « enfoncement », ou, sans réponse en main, si la lecture voit un pli. Une
-  note pire que LP n'est pas relevée. « Doute » laisse l'état tel
-  qu'enregistré. Une réponse en main l'emporte sur la lecture.
+- L'agent de revue plafonne à LP l'état qu'il confirme si la réponse en
+  main est « pli » ou « enfoncement », ou, sans réponse en main, si la
+  lecture voit un pli. Une note pire que LP n'est pas relevée. Une carte
+  qu'il ne confirme pas garde son état enregistré. « Doute » laisse l'état tel
+  qu'enregistré. Une réponse en main l'emporte sur la lecture ; elle ne
+  relance aucune lecture et ne ferme pas une photo de la série en attente.
 
 **Conséquences.**
 - Une évaluation `card-condition-v2` est relue au passage suivant de

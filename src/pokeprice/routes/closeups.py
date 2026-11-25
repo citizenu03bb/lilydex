@@ -77,5 +77,5 @@ def register_closeups(app, ctx: AppContext, hooks: Hooks):
         except KeyError as error:
             raise HTTPException(404, "Exemplaire introuvable.") from error
         # The agent decides again on the card with the answer.
-        hooks.in_background(tasks, closeups.after_shot, copy_id)
+        hooks.in_background(tasks, closeups.after_crease, copy_id)
         return {"copy_id": copy_id, "answer": values.answer}

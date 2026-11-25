@@ -210,6 +210,25 @@ class Closeups:
                 "Pli observé en main : " + answer, {}, {"answer": answer},
             )
 
+    def after_crease(self, copy_id, threshold_cents=1000):
+        """Let the agent decide again with a crease answer, on the readings it has.
+
+        Nothing is read and no verdict is logged: a shot still waiting for its
+        reading keeps its place, and its own verdict will use the answer.
+        """
+        with self.guard:
+            lock = self.locks[copy_id]
+        with lock:
+            with self.store.connect() as db:
+                card = self.store.get(db, copy_id)
+                if self.pending(card, shot_events(db, [copy_id])[copy_id]) is not None:
+                    return None
+            apply = review_apply(self.store)
+            return self.review.run(
+                apply=apply, read=False, copy_ids=[copy_id],
+                threshold_cents=threshold_cents, trigger="crease",
+            )
+
     def after_shot(self, copy_id, threshold_cents=1000):
         """Read the card on its new photos, then let the agent decide on it alone.
 

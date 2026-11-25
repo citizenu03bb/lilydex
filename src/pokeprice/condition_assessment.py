@@ -76,6 +76,8 @@ def read_condition(photos):
     # Gemini's response_schema dialect rejects additionalProperties; validate
     # unexpected fields locally with the strict model after reading the response.
     schema.pop("additionalProperties", None)
+    # The default only serves readers that predate the field; Gemini must answer.
+    schema["required"] = [*schema.get("required", []), "crease"]
     for side, data in photos.items():
         contents.extend(
             [
