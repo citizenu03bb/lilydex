@@ -550,6 +550,31 @@ def test_a_good_glint_shot_settles_a_valuable_reverse(env, shine, finish, foil):
     assert any(e["kind"] == "glint-photo" for e in detail["history"])
 
 
+# A matte print and a parallel holo, both priced: Magirêve's catalogue entry.
+HOLO_OR_MATTE = {
+    "catalog_id": "swsh7-077",
+    "variants": {"holo": True, "normal": True, "reverse": False},
+    "raw": {"tcgplayer": {"normal": {"market": 0.2}, "holofoil": {"market": 1.5}}},
+}
+
+
+@pytest.mark.parametrize("artwork, finish", [("holo", "holo"), ("matte", "non_holo")])
+def test_a_holo_reading_on_a_card_with_a_matte_print_asks_a_glint(env, artwork, finish):
+    # Decision 0053: Magirêve's printed gradient passed for a holo on a flat photo.
+    client, review, readers, stakes = env
+    stakes.snapshot = HOLO_OR_MATTE
+    card = photographed(client)
+    report = review.run(apply=True, read=True)
+    assert report["photo_requests"][0]["views"][0]["view"] == "holo"
+    assert not card_of(client, card)["variant_confirmed"]
+    glint(client, card)
+    readers["finish"].result = reading(artwork=artwork)
+    report = review.run(apply=True, read=True)
+    assert [c["copy_id"] for c in report["confirmed"]] == [card["id"]]
+    detail = card_of(client, card)
+    assert detail["finish"] == finish and detail["variant_confirmed"]
+
+
 def test_a_poor_glint_shot_or_a_flat_photo_settles_nothing(env):
     client, review, readers, stakes = env
     stakes.snapshot, stakes.foil = MATTE_WITH_REVERSE, 4300

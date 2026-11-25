@@ -96,6 +96,11 @@ carte dont la finition demande un examen offre le bouton **Photo au reflet** ;
 la photo qui répond à une demande « reflet holo » de l'agent compte aussi comme
 prise au reflet. Une photo ordinaire ne prouve toujours pas la Standard
 ([décision 0047](decisions/0047-import-de-classeur-sur-le-serveur.md)).
+Elle ne prouve pas non plus une holo quand le catalogue n'exclut pas une
+version mate de l'édition (il en connaît une, ou ne dit rien) : un dégradé
+imprimé peut imiter le holo. L'agent demande alors une prise au reflet, où
+l'illustration qui brille propose la holo si le catalogue désigne l'impression
+([décision 0053](decisions/0053-holo-de-face-seulement-sans-version-mate.md)).
 
 Pour une carte créée par l'import d'un classeur et encore « à vérifier », il
 confirme aussi l'identité, en premier, avec la variante et l'état, ou rien
