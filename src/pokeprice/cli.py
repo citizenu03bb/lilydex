@@ -493,7 +493,7 @@ def main():
     scan_p.add_argument(
         "--model",
         default=None,
-        help="Nom du modèle (défaut: gemini-3.8-flash pour gemini, gemma4:e4b-it-q4_K_M pour ollama)",
+        help="Nom du modèle (défaut: POKEPRICE_GEMINI_MODEL, sinon gemini-3.8-flash, pour gemini ; gemma4:e4b-it-q4_K_M pour ollama)",
     )
     scan_p.add_argument(
         "--output",

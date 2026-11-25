@@ -15,7 +15,7 @@ from pydantic import BaseModel, ConfigDict, Field, StrictStr
 
 from .condition_assessment import photo_snapshot
 from .gemini_usage import record as record_usage
-from .intake import MODEL
+from .gemini_model import gemini_model
 from .inventory import Conflict, now
 from .library import normalized
 from .variant_pricing import category
@@ -76,7 +76,11 @@ class FinishReading(BaseModel):
 
 
 class GeminiFinishReader:
-    source, model, protocol = "gemini", MODEL, FINISH_PROTOCOL
+    source, protocol = "gemini", FINISH_PROTOCOL
+
+    @property
+    def model(self):
+        return gemini_model()
 
     def __call__(self, photo):
         from dotenv import load_dotenv

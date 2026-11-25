@@ -418,7 +418,8 @@ def run_gemini():
     from pydantic import BaseModel
 
     sys.path.insert(0, str(ROOT / "src"))
-    from pokeprice.intake import MODEL, catalogue_candidates, read_photo
+    from pokeprice.gemini_model import gemini_model
+    from pokeprice.intake import catalogue_candidates, read_photo
 
     class Transcription(BaseModel):
         name: str
@@ -452,7 +453,7 @@ def run_gemini():
                 }
             )["candidates"] if observation["name"] else []
             response = client.models.generate_content(
-                model=MODEL,
+                model=gemini_model(),
                 contents=[types.Part.from_bytes(data=data, mime_type="image/jpeg"), TRANSCRIBE],
                 config=types.GenerateContentConfig(
                     response_mime_type="application/json",
@@ -695,12 +696,12 @@ def run_app(index=1):
 
         with ThreadPoolExecutor(4) as pool:
             results = dict(pool.map(one, entries))
-    from pokeprice.intake import MODEL
+    from pokeprice.gemini_model import gemini_model
     from pokeprice.verification import FINISH_PROTOCOL
 
     run = {
         "date": time.strftime("%Y-%m-%d %H:%M"),
-        "model": MODEL,
+        "model": gemini_model(),
         "protocol": FINISH_PROTOCOL,
         "cards": results,
     }

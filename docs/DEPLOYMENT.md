@@ -28,11 +28,14 @@ Autres hébergeurs possibles, sur un petit serveur privé payant : Scaleway
 - **Sur le serveur**, dans `/etc/pokeprice/pokeprice.env` (propriétaire
   `root:pokeprice`, mode `0640`), et nulle part ailleurs :
   - `GEMINI_API_KEY` (ou `GOOGLE_API_KEY`), pour la lecture des photos ;
+  - `POKEPRICE_GEMINI_MODEL` (facultatif, `gemini-3.8-flash` par défaut), le
+    modèle Gemini de toutes les lectures, du chat et des prompts de lots,
+    sauf variable propre ([fiche 0053](decisions/0053-modele-gemini-unique.md)) ;
   - le [chat de gestion](APP.md#lassistant), éteint tant que sa clé manque :
     - `POKEPRICE_ASSISTANT_GEMINI_KEY`, une clé Gemini à lui, d'un projet
       Google où la facturation est activée ([fiche 0031](decisions/0031-modele-du-chat.md)) ;
       le chat ne lit jamais `GEMINI_API_KEY` à sa place ;
-    - `POKEPRICE_ASSISTANT_MODEL` (facultatif, `gemini-3.8-flash` par défaut ;
+    - `POKEPRICE_ASSISTANT_MODEL` (facultatif, `POKEPRICE_GEMINI_MODEL` par défaut ;
       `gemini-3.5-flash-lite` est le repli) ;
     - `POKEPRICE_ASSISTANT_DAILY_LIMIT` (facultatif, 100 questions par jour
       pour toute la gestion) et `POKEPRICE_ASSISTANT_PER_MINUTE` (facultatif,

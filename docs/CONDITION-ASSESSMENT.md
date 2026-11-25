@@ -17,7 +17,7 @@ préparation et agrandissement. Le verso ne crée pas un exemplaire de plus et n
 sert pas à reconnaître l'édition. Après l'enregistrement d'une nouvelle carte,
 la fiche propose d'ajouter le verso.
 
-**Évaluer l'état** transmet à Gemini (`gemini-3.8-flash`) les photos entières
+**Évaluer l'état** transmet à Gemini (`gemini-3.8-flash` par défaut, [fiche 0053](decisions/0053-modele-gemini-unique.md)) les photos entières
 normalisées, avant les corrections locales. L'action annonce cet envoi.
 Téléverser une photo n'envoie rien : l'évaluation ne part que si vous la
 demandez. Une photo ancienne dont la version avant correction n'est pas

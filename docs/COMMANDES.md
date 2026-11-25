@@ -28,7 +28,7 @@ Scanne une photo de page ou un dossier de photos
 | `--grid` `GRID` | Disposition des pochettes (défaut: auto - détection visuelle IA) Valeurs : `auto`, `3x3`, `2x2`, `4x3`, `3x4`, `single`. Par défaut : `auto`. |
 | `--rotate` `ROTATE` | Correction d'orientation (défaut: auto) Valeurs : `auto`, `0`, `90`, `180`, `270`. Par défaut : `auto`. |
 | `--backend` `BACKEND` | Moteur de vision (défaut: ollama local ; gemini envoie les images au cloud) Valeurs : `ollama`, `gemini`. Par défaut : `ollama`. |
-| `--model` `MODEL` | Nom du modèle (défaut: gemini-3.8-flash pour gemini, gemma4:e4b-it-q4_K_M pour ollama) |
+| `--model` `MODEL` | Nom du modèle (défaut: POKEPRICE_GEMINI_MODEL, sinon gemini-3.8-flash, pour gemini ; gemma4:e4b-it-q4_K_M pour ollama) |
 | `--output`, `-o` `OUTPUT` | Fichier de sortie (.csv ou .xlsx) Par défaut : `pokeprice_report.csv`. |
 | `--save-crops` `SAVE_CROPS` | Dossier optionnel où sauvegarder les découpes individuelles de cartes |
 | `--inset` `INSET` | Marge intérieure de découpe (0.02 = 2%) pour éviter les coutures plastiques Par défaut : `0.02`. |

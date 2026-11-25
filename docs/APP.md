@@ -210,7 +210,7 @@ dans la [fiche 0033](decisions/0033-notifications-web-push.md).
 ### Clé Gemini (facultative)
 
 La lecture des photos passe par Gemini, un modèle vision-langage de Google
-(`gemini-3.8-flash`). Elle demande une clé `GEMINI_API_KEY` (ou
+(`gemini-3.8-flash`, ou le modèle que nomme `POKEPRICE_GEMINI_MODEL`). Elle demande une clé `GEMINI_API_KEY` (ou
 `GOOGLE_API_KEY`), lue dans le fichier `.env` de votre dossier personnel ou du
 dossier de lancement ; Git ignore ces fichiers. La clé reste sur le serveur,
 jamais dans le navigateur, et les appels utilisent le compte API configuré.
