@@ -679,9 +679,14 @@ class AgentReview:
             with self.store.connect() as db:
                 if not request_events(db, copy_id):
                     return None
+            # Decision 0051: no automatic write before the gate opened the setting;
+            # the new photo is read all the same, as in the close-up series.
+            apply = review_apply(self.store)
+            if not apply:
+                self.read_missing(copy_id, threshold_cents)
             return self.run(
-                apply=True,
-                read=True,
+                apply=apply,
+                read=apply,
                 copy_ids=[copy_id],
                 threshold_cents=threshold_cents,
                 trigger="photo",

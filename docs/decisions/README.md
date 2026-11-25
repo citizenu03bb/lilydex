@@ -58,6 +58,7 @@ l'ancienne passe au statut « remplacée ».
 | [0048](0048-serie-de-prises-de-pres.md) | Les prises de près se font en série, dans l'ordre du classeur, sur la liste que l'agent tient même en simulation | 2026-11-21 |
 | [0049](0049-etat-sans-manipulation.md) | Aucune carte ne sort du classeur pour juger son état : le recto suffit sous 10 €, le verso attend la vente | 2026-11-21 |
 | [0050](0050-confirmer-par-facette.md) | L'agent de revue enregistre chaque facette établie, sauf si une photo demandée l'effacerait | 2026-11-25 |
+| [0051](0051-porte-sur-les-erreurs-graves.md) | La porte de l'agent de revue compte les erreurs d'état graves, et le réglage gouverne toute écriture automatique | 2026-11-25 |
 
 ## Écrire une fiche
 

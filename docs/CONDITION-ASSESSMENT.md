@@ -106,7 +106,9 @@ la carte, la vue (recto net, verso, reflet holo, coins de près) et une raison
 en une phrase. Une seule vue par face, la plus précise. La gestion les liste
 sous « Photos à reprendre », dans l'ordre du classeur. Le bouton ouvre
 l'appareil photo du téléphone ; la nouvelle photo ferme la demande et le
-serveur relance seul les lectures et la décision pour cette carte. Une vue déjà
+serveur relance seul les lectures et la décision pour cette carte. Tant que
+`agent_review_apply` est faux, la photo est lue et rien n'est écrit
+([décision 0051](decisions/0051-porte-sur-les-erreurs-graves.md)). Une vue déjà
 reprise sans succès n'est pas redemandée : la carte reste en l'état, avec son
 état enregistré. Le rapport la range dans `kept`, avec ce que les photos ne
 tranchent pas, et personne ne l'examine en main.

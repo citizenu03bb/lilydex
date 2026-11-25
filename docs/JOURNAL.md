@@ -9,6 +9,13 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-25
 
+- Porte de l'agent de revue ([décision 0051](decisions/0051-porte-sur-les-erreurs-graves.md)) :
+  elle ne compte plus que les erreurs d'état de deux crans ou plus.
+  Relecture des 60 cartes de l'échantillon au protocole v2 : 37 états sur 57
+  au cran exact, 5 erreurs graves sur les 50 que l'agent confirmerait, toutes
+  optimistes (borne haute 21,8 %), et Magirêve lue holo à tort. La porte
+  échoue, `agent_review_apply` reste faux. Une photo qui répond à une demande
+  n'écrit plus hors du réglage.
 - Agent de revue, une facette à la fois ([décision 0050](decisions/0050-confirmer-par-facette.md)) :
   l'identité d'une carte importée est écrite même si les coins sont demandés,
   et la variante l'est quand l'état reste en l'état. Une facette qu'une photo

@@ -346,6 +346,7 @@ def test_a_new_photo_answering_a_request_starts_the_analysis_on_the_server(tmp_p
         app.state.agent_review.inputs = stakes
         readers["finish"].result = reading(photo_quality="limited")
         card = photographed(client)
+        open_gate(client)
         app.state.agent_review.run(apply=True, read=True)
         listed = client.get("/api/photo-requests").json()
         assert [r["view"] for r in listed] == ["front"]
@@ -631,3 +632,29 @@ def test_a_lone_identity_waits_for_the_gate_and_the_photo_is_still_asked(env):
     assert card_of(client, card)["identification_status"] == "review"
     # The simulation still says what it would write.
     assert review.run()["confirmed"][0]["partial"]
+
+
+def test_a_new_photo_is_read_but_not_written_before_the_gate(tmp_path):
+    app, readers = make_app(tmp_path, auto_checks=True)
+    with TestClient(app) as client:
+        client.post(
+            "/api/setup", json={"username": "pat", "password": "Collection-test-2026!"}
+        )
+        client.post("/api/albums", json={"name": "Test"})
+        app.state.agent_review.inputs = Stakes()
+        readers["finish"].result = reading(photo_quality="limited")
+        card = photographed(client)
+        # A request left by an earlier run with --apply, setting off.
+        app.state.agent_review.run(apply=True, read=True)
+        readers["finish"].result = reading()
+        calls = readers["condition"].calls
+        current = card_of(client, card)
+        response = client.put(
+            f"/api/copies/{card['id']}/photo?version={current['version']}&side=front",
+            content=picture((70, 70, 200)),
+        )
+        assert response.status_code == 200, response.text
+        detail = card_of(client, card)
+        assert not detail["variant_confirmed"] and not detail["condition_confirmed"]
+        assert readers["condition"].calls > calls  # The new photo was read.
+        assert [r["trigger"] for r in app.state.agent_review.runs()] == ["batch"]
