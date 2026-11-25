@@ -104,7 +104,26 @@ const Closeups = (() => {
     const actions = el("div", null, "intake-actions");
     actions.append(take, skip);
     box.append(head, place, where, card, what, ...(more ? [more] : []), reason, actions);
+    // Decision 0052: the card is in hand, a crease or a dent is told in one tap.
+    if (viewIndex === 0) box.append(creaseQuestion(step));
     take.focus();
+  }
+
+  function creaseQuestion(step) {
+    const box = el("fieldset", null, "closeup-crease");
+    box.append(el("legend", t("closeups.crease")));
+    for (const answer of ["non", "pli", "enfoncement", "doute"]) {
+      const b = el("button", t(`closeups.crease.${answer}`));
+      b.type = "button";
+      b.setAttribute("aria-pressed", String(step.crease === answer));
+      b.onclick = () => {
+        step.crease = answer;
+        box.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+        post(`/closeups/${step.copy_id}/crease`, { answer }).catch((e) => toast(e.message));
+      };
+      box.append(b);
+    }
+    return box;
   }
 
   function next(shot) {

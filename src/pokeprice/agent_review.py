@@ -17,7 +17,7 @@ import json
 import uuid
 
 from .condition_assessment import PROTOCOL as CONDITION_PROTOCOL
-from .condition_assessment import assessment_rows, auto_condition_decision
+from .condition_assessment import assessment_rows, auto_condition_decision, latest_crease
 from .edition_check import MARGIN
 from .inventory import Conflict, now
 from .verification import (
@@ -169,7 +169,9 @@ class AgentReview:
             except ValueError:  # A referenced photo is missing.
                 assessments = []
             reading = binder_reading(db, card)
+            crease = latest_crease(db, copy_id)
         return {
+            "crease": crease,
             "card": card,
             "reading": reading,
             "snapshot": snapshot,
@@ -283,7 +285,7 @@ class AgentReview:
                 decisions["variant"]["proposal"] = proposal
         if not card["condition_confirmed"]:
             decisions["condition"] = auto_condition_decision(
-                card, assessment, high_value=high_value
+                card, assessment, high_value=high_value, crease=found.get("crease")
             )
             if decisions["condition"]["action"] == "confirm":
                 decisions["condition"]["assessment_id"] = assessment["id"]

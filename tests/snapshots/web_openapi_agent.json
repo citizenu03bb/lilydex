@@ -2376,6 +2376,26 @@
     "title": "CopyRemoval",
     "type": "object"
    },
+   "CreaseAnswer": {
+    "additionalProperties": false,
+    "properties": {
+     "answer": {
+      "enum": [
+       "non",
+       "pli",
+       "enfoncement",
+       "doute"
+      ],
+      "title": "Answer",
+      "type": "string"
+     }
+    },
+    "required": [
+     "answer"
+    ],
+    "title": "CreaseAnswer",
+    "type": "object"
+   },
    "Credentials": {
     "additionalProperties": false,
     "properties": {
@@ -6361,6 +6381,53 @@
      }
     },
     "summary": "Closeup Results"
+   }
+  },
+  "/api/closeups/{copy_id}/crease": {
+   "post": {
+    "operationId": "closeup_crease_api_closeups__copy_id__crease_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "copy_id",
+      "required": true,
+      "schema": {
+       "title": "Copy Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/CreaseAnswer"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Closeup Crease"
    }
   },
   "/api/closeups/{copy_id}/shot": {

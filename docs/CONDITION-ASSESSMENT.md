@@ -39,8 +39,14 @@ estimation de prix ne sont demandées.
   est retirée. Un verso absent ne la retire pas : « Verso non vu » est inscrit
   dans les limites ([décision 0049](decisions/0049-etat-sans-manipulation.md)).
 - La qualité des photos ne juge que les faces fournies (protocole
-  `card-condition-v2`) ; une évaluation faite sous un protocole plus ancien est
+  `card-condition-v3`) ; une évaluation faite sous un protocole plus ancien est
   relue par l'agent.
+- La note suit le barème écrit de Cardmarket : NM, très peu de points blancs
+  minuscules et aucune rayure ; EX, quelques points blancs et des rayures
+  fines, aucun pli visible au premier coup d'œil ; GD, usure forte et
+  rayures, aucune pliure ; LP, pliure admise. Le défaut le plus pénalisant
+  décide, et le doute donne la note inférieure. La lecture dit aussi si elle
+  voit un pli ([décision 0052](decisions/0052-pli-en-main-et-bareme-cardmarket.md)).
 - La proposition et sa provenance sont immuables : modèle, version du
   protocole, photos réellement envoyées, réponse brute, auteur et date.
 - Elle n'écrase jamais l'état courant, même non confirmé. Vous choisissez
@@ -125,6 +131,12 @@ même bouton pour ses cartes
 verdict de l'agent en simulation sur ces cartes, calculé à l'ouverture : elle
 existe donc aussi quand `agent_review_apply` est faux et que l'agent
 n'inscrit aucune demande.
+
+À chaque carte, la série demande aussi : « Pli, cassure ou marque enfoncée ? »
+(non, pli, enfoncement ou doute). Un pli ou un enfoncement plafonne l'état que
+l'agent confirme à LP ; un doute le laisse tel qu'enregistré. Sans réponse en
+main, un pli vu par la lecture plafonne aussi la note ; une réponse en main
+l'emporte ([décision 0052](decisions/0052-pli-en-main-et-bareme-cardmarket.md)).
 
 Chaque étape montre la page, la pochette sur la grille de l'import, la
 vignette actuelle et la vue à prendre : reflet (la carte inclinée sous une

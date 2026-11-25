@@ -682,3 +682,33 @@ def test_a_view_already_retaken_no_longer_holds_the_variant_back(env):
     detail = card_of(client, card)
     assert detail["variant_confirmed"] and not detail["condition_confirmed"]
     assert review.runs()[0]["confirmed"] == 1
+
+
+# -- Crease in hand, Cardmarket scale (decision 0052) ------------------------------
+
+
+@pytest.mark.parametrize(
+    ("crease", "read", "action", "grade"),
+    [
+        (None, "no", "confirm", "EX"),
+        (None, "yes", "confirm", "LP"),  # The reading points to a crease.
+        ("pli", "no", "confirm", "LP"),  # The answer in hand caps it.
+        ("enfoncement", "unsure", "confirm", "LP"),
+        ("non", "yes", "confirm", "EX"),  # The hand outranks the reading.
+        ("doute", "no", "keep", None),
+    ],
+)
+def test_a_crease_caps_the_grade_at_lp(crease, read, action, grade):
+    result = {"quality": "adequate", "front_usable": True, "back_usable": False,
+              "suggested_condition": "EX", "crease": read, "explanation": "x"}
+    decision = auto_condition_decision(
+        {}, {"stale": False, "result": result}, high_value=False, crease=crease)
+    assert decision["action"] == action and decision.get("grade") == grade
+
+
+def test_a_worse_reading_is_not_raised_by_the_cap():
+    result = {"quality": "adequate", "front_usable": True, "back_usable": False,
+              "suggested_condition": "PL", "crease": "yes", "explanation": "x"}
+    decision = auto_condition_decision({}, {"stale": False, "result": result},
+                                       high_value=False, crease="pli")
+    assert decision["grade"] == "PL"

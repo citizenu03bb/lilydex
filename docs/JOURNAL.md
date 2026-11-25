@@ -9,6 +9,13 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-25
 
+- État sur le barème de Cardmarket et pli en main ([décision 0052](decisions/0052-pli-en-main-et-bareme-cardmarket.md)) :
+  renotées d'après le barème écrit, les 60 cartes de l'échantillon montrent
+  une note en main qui respecte le barème (3 dépassements d'un cran) et un
+  modèle qui le dépasse sur 11 cartes, surtout faute de voir les plis. La
+  consigne `card-condition-v3` reprend le barème, la série pose la question
+  du pli, et un pli plafonne l'état à LP (`tests/test_agent_review.py`,
+  `tests/test_closeups.py`).
 - Porte de l'agent de revue ([décision 0051](decisions/0051-porte-sur-les-erreurs-graves.md)) :
   elle ne compte plus que les erreurs d'état de deux crans ou plus.
   Relecture des 60 cartes de l'échantillon au protocole v2 : 37 états sur 57
