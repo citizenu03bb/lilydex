@@ -210,6 +210,17 @@ def propose_variant(card, reading, snapshot=None, valuation=None):
         }
     if reading["artwork"] == "holo":
         finish = card.get("finish") if card.get("finish") == "holo_border" else "holo"
+        listed = (snapshot or {}).get("variants")
+        # Decision 0053: a printed gradient can pass for a holo on a flat photo
+        # (Magirêve). Holo is taken from the face alone only when the catalogue
+        # knows no matte print; otherwise a glint shot settles it.
+        if not glint and not (isinstance(listed, dict) and listed.get("normal") is False):
+            return {
+                **proposal,
+                "finish": finish,
+                "glint_needed": True,
+                "reason": "Illustration lue holo, mais le catalogue n’exclut pas une version mate et un dessin peut imiter le holo : confirmez sous un éclairage rasant.",
+            }
         decision = category(
             {
                 **card,
@@ -778,6 +789,12 @@ def auto_variant_decision(card, check, proposal, edition, margin, *, high_value,
                 "action": "photo",
                 "view": "holo",
                 "reason": "Une reverse ne se voit pas de face : reprenez le recto incliné sous une lampe, pour faire apparaître le reflet holo.",
+            }
+        if proposal.get("glint_needed"):
+            return {
+                "action": "photo",
+                "view": "holo",
+                "reason": "Un dessin peut imiter le holo : reprenez le recto incliné sous une lampe, pour voir si l’illustration brille.",
             }
         return {"action": "skip", "reason": proposal["reason"]}
     recorded = card.get("finish") or ""

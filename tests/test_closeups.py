@@ -5,7 +5,6 @@ from datetime import timedelta
 import pytest
 from fastapi.testclient import TestClient
 from test_agent_review import (
-    MATTE_WITH_REVERSE,
     Stakes,
     card_of,
     imported,
@@ -16,6 +15,14 @@ from test_condition_assessment import picture
 from test_verification import reading
 
 from pokeprice.closeups import STALE_AFTER
+
+# An original holo with a reverse print and no matte one: a holo artwork is
+# settled from the face (decision 0053), a matte one may still be the reverse.
+HOLO_WITH_REVERSE = {
+    "catalog_id": "swsh7-077",
+    "variants": {"holo": True, "normal": False, "reverse": True},
+    "raw": {"tcgplayer": {"holofoil": {"market": 1.5}, "reverse-holofoil": {"market": 2.0}}},
+}
 
 
 PASSWORD = "Collection-test-2026!"
@@ -62,7 +69,7 @@ def binder(env):
     """Two imported cards: pocket 2 a possible reverse, pocket 1 corners unreadable."""
     client, closeups, readers, stakes = env
     reverse = imported(client, position=2)
-    stakes.snapshot = MATTE_WITH_REVERSE
+    stakes.snapshot = HOLO_WITH_REVERSE
     readers["finish"].result = reading(artwork="matte")
     checked(client, reverse)
     corners = imported(client, position=1, color=(10, 200, 30))

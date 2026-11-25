@@ -1,4 +1,4 @@
-"""The Gemini model name, in one place (decision 0053).
+"""The Gemini model name, in one place (decision 0054).
 
 Card reading (identity, finish, language, stamp, condition), the album OCR, the
 lots prompt and the chat all default to the same model. One variable changes it

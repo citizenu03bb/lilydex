@@ -76,12 +76,26 @@ def test_holo_artwork_with_holon_stamp_proposes_stamped_foil():
     # Pikachu 78/110: the set-stamped holo is the parallel foil, not Standard.
     proposal = propose_variant(
         card(catalog_id="ex13-78"),
-        reading(stamp_text="EX Fantômes Holon"),
+        reading(stamp_text="EX Fantômes Holon", glint=True),
         {"catalog_id": "ex13-78", "variants": {}},
     )
     assert proposal["status"] == "proposed" and proposal["foil"] is True
     assert proposal["stamp"] == "EX Fantômes Holon"
     assert "tampon" in proposal["reason"]
+
+
+@pytest.mark.parametrize(
+    "variants",
+    [{"holo": True, "normal": True, "reverse": False}, {}, None],
+)
+def test_holo_artwork_needs_a_glint_unless_the_catalogue_excludes_a_matte_print(variants):
+    # Decision 0053: a printed gradient can pass for a holo on a flat photo.
+    snapshot = {"catalog_id": "base1-4", "variants": variants}
+    flat = propose_variant(card(), reading(), snapshot)
+    assert flat["status"] == "examine" and flat["glint_needed"]
+    assert "éclairage rasant" in flat["reason"]
+    lit = propose_variant(card(), reading(glint=True), snapshot)
+    assert lit["finish"] == "holo" and not lit.get("glint_needed")
 
 
 def test_human_stamp_observation_wins_over_the_reading():

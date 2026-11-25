@@ -12,7 +12,7 @@ from .gemini_model import DEFAULT_MODEL
 from .gemini_model import gemini_model as common_model
 from .lots.recipe import LotCompositionRecipe
 
-# Modèle Gemini d'interprétation des prompts : sa variable, sinon le modèle commun (fiche 0053).
+# Modèle Gemini d'interprétation des prompts : sa variable, sinon le modèle commun (fiche 0054).
 DEFAULT_GEMINI_MODEL = DEFAULT_MODEL
 GEMINI_MODEL_ENV = "POKEPRICE_LOTS_GEMINI_MODEL"
 

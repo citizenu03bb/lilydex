@@ -1,4 +1,4 @@
-"""One Gemini model name, changeable by one variable (decision 0053)."""
+"""One Gemini model name, changeable by one variable (decision 0054)."""
 
 from pokeprice import assistant_model, lots_prompt
 from pokeprice.gemini_model import DEFAULT_MODEL, MODEL_VARIABLE, gemini_model

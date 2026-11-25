@@ -9,13 +9,18 @@ daté la quitte, il est versé ici dans le même commit.
 
 ## 2026-11-25
 
-- Modèle Gemini unique et réglable ([décision 0053](decisions/0053-modele-gemini-unique.md)) :
+- Modèle Gemini unique et réglable ([décision 0054](decisions/0054-modele-gemini-unique.md)) :
   3.8 Flash n'a pas de date d'arrêt sur l'API (Antigravity seul le retire
   le 30 novembre). Banc d'état sur 59 cartes à l'aveugle : aucun modèle
   moins cher ne le vaut (16 à 24 notes exactes contre 36 à 37), Hydrogen
   fait moins d'erreurs optimistes mais 12 notes exactes de moins, pour
   2,8 fois le prix. `POKEPRICE_GEMINI_MODEL` change le modèle partout
   (`tests/test_gemini_model.py`).
+- Holo vue de face ([décision 0053](decisions/0053-holo-de-face-seulement-sans-version-mate.md)) :
+  l'agent ne confirme plus une holo d'une photo à plat quand le catalogue
+  n'exclut pas une version mate ; il demande une prise au reflet. Magirêve, au
+  dégradé imprimé, avait été lue holo (`tests/test_verification.py`,
+  `tests/test_agent_review.py`).
 - État sur le barème de Cardmarket et pli en main ([décision 0052](decisions/0052-pli-en-main-et-bareme-cardmarket.md)) :
   renotées d'après le barème écrit, les 60 cartes de l'échantillon montrent
   une note en main qui respecte le barème (3 dépassements d'un cran) et un

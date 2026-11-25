@@ -1,4 +1,4 @@
-# 0053 — La lecture des cartes reste sur Gemini 3.8 Flash, sous un nom de modèle unique et réglable
+# 0054 — La lecture des cartes reste sur Gemini 3.8 Flash, sous un nom de modèle unique et réglable
 
 > **Statut :** en vigueur, complète la [décision 0031](0031-modele-du-chat.md) · **Date :** 2026-11-25
 

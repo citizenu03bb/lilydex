@@ -17,7 +17,7 @@ préparation et agrandissement. Le verso ne crée pas un exemplaire de plus et n
 sert pas à reconnaître l'édition. Après l'enregistrement d'une nouvelle carte,
 la fiche propose d'ajouter le verso.
 
-**Évaluer l'état** transmet à Gemini (`gemini-3.8-flash` par défaut, [fiche 0053](decisions/0053-modele-gemini-unique.md)) les photos entières
+**Évaluer l'état** transmet à Gemini (`gemini-3.8-flash` par défaut, [fiche 0054](decisions/0054-modele-gemini-unique.md)) les photos entières
 normalisées, avant les corrections locales. L'action annonce cet envoi.
 Téléverser une photo n'envoie rien : l'évaluation ne part que si vous la
 demandez. Une photo ancienne dont la version avant correction n'est pas
@@ -96,6 +96,11 @@ carte dont la finition demande un examen offre le bouton **Photo au reflet** ;
 la photo qui répond à une demande « reflet holo » de l'agent compte aussi comme
 prise au reflet. Une photo ordinaire ne prouve toujours pas la Standard
 ([décision 0047](decisions/0047-import-de-classeur-sur-le-serveur.md)).
+Elle ne prouve pas non plus une holo quand le catalogue n'exclut pas une
+version mate de l'édition (il en connaît une, ou ne dit rien) : un dégradé
+imprimé peut imiter le holo. L'agent demande alors une prise au reflet, où
+l'illustration qui brille propose la holo si le catalogue désigne l'impression
+([décision 0053](decisions/0053-holo-de-face-seulement-sans-version-mate.md)).
 
 Pour une carte créée par l'import d'un classeur et encore « à vérifier », il
 confirme aussi l'identité, en premier, avec la variante et l'état, ou rien
