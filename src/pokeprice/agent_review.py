@@ -228,13 +228,15 @@ class AgentReview:
 
     # -- Deciding ----------------------------------------------------------
 
-    def decide(self, found):
+    def decide(self, found, answered=frozenset()):
         """One decision per facet, and the facets that can be written now.
 
         Decision 0050: what is established is written even when another facet
         waits, unless a photo asked in the same pass would reset it. A new
         front resets the variant and the condition, a new back the condition;
-        the identity stays. ``confirm`` still says that every facet is settled.
+        the identity stays. A view in ``answered`` was already retaken: it will
+        not be asked again, so it holds nothing back. ``confirm`` still says
+        that every facet is settled.
         """
         card, valuation = found["card"], found["valuation"]
         high_value = high_stakes(valuation)
@@ -293,14 +295,15 @@ class AgentReview:
             if side not in wanted or SPECIFIC[d["view"]] < SPECIFIC[wanted[side][0]]:
                 wanted[side] = (d["view"], d["reason"])
         photos = sorted(wanted.values(), key=lambda item: VIEW_PRIORITY[item[0]])
+        coming = {side for side, (view, _) in wanted.items() if view not in answered}
         write = [
             name
             for name, d in decisions.items()
             if d["action"] == "confirm"
             and (
                 name == "identity"
-                or (name == "variant" and "photo" not in wanted)
-                or (name == "condition" and not wanted)
+                or (name == "variant" and "photo" not in coming)
+                or (name == "condition" and not coming)
             )
         ]
         if "identity" in decisions and "identity" not in write:
@@ -408,12 +411,9 @@ class AgentReview:
         A view asked once and answered is not asked again: the copy is left
         to a human instead of looping on photos. Returns None or the reason.
         """
-        for previous in request_events(db, card["id"]):
-            if previous["view"] != view or previous["run_id"] in undone:
-                continue
-            if is_open(previous, undone):
-                return "open"
-            return "answered"
+        status = asked_before(db, card["id"], view, undone)
+        if status:
+            return status
         self.store.event(
             db,
             card["id"],
@@ -473,6 +473,15 @@ class AgentReview:
                 }
             else:
                 verdict = self.decide(found)
+                if verdict["photos"]:
+                    with self.store.connect() as db:
+                        _, undone = run_events(db)
+                        answered = frozenset(
+                            view for view, _ in verdict["photos"]
+                            if asked_before(db, copy_id, view, undone) == "answered"
+                        )
+                    if answered:
+                        verdict = self.decide(found, answered)
             if (
                 apply
                 and "identity" in verdict.get("write", ())
@@ -564,7 +573,8 @@ class AgentReview:
                         "trigger": trigger,
                         "threshold_cents": threshold_cents,
                         "confirmed": [
-                            {k: c[k] for k in ("copy_id", "decisions", "undo")}
+                            {k: c[k] for k in ("copy_id", "decisions", "undo", "partial")
+                             if k in c}
                             for c in report["confirmed"]
                         ],
                         "interrupted": [
@@ -717,6 +727,15 @@ class AgentReview:
 
 APPLY_KEY = "agent_review_apply"
 APPLY_EVENT = "agent-review-apply"
+
+
+def asked_before(db, copy_id, view, undone):
+    """``open`` or ``answered`` if the agent already asked this view, else None."""
+    for previous in request_events(db, copy_id):
+        if previous["view"] != view or previous["run_id"] in undone:
+            continue
+        return "open" if is_open(previous, undone) else "answered"
+    return None
 
 
 def review_apply(source):

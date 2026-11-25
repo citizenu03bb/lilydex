@@ -35,9 +35,12 @@ effacée par une photo.
   importée ([0047](0047-import-de-classeur-sur-le-serveur.md)). Tant qu'il est
   faux, rien n'est écrit sur la carte, et les photos sont tout de même
   demandées.
-- Le rapport marque `partial` une carte confirmée en partie. Elle figure
-  aussi dans les photos demandées ou dans `kept`. L'annulation d'un passage
-  reprend les confirmations partielles comme les autres.
+- Une vue déjà reprise ne sera pas redemandée : elle ne retient aucune
+  facette, et la carte reste en l'état pour le reste.
+- Le rapport et l'événement du passage marquent `partial` une carte
+  confirmée en partie. Le rapport dit aussi ce qui reste : photo demandée,
+  `kept` ou `skipped`. L'annulation d'un passage reprend les confirmations
+  partielles comme les autres.
 
 **Conséquences.**
 - Une carte importée lisible sort de « À vérifier » dès le premier passage,
@@ -48,4 +51,4 @@ effacée par une photo.
 
 **Preuve.** `tests/test_agent_review.py` (identité écrite pendant la demande
 des coins, variante écrite quand l'état reste en l'état, identité seule
-retenue par le réglage), `tests/test_closeups.py`.
+retenue par le réglage, vue déjà reprise), `tests/test_closeups.py`.

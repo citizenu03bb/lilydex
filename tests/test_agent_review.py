@@ -281,11 +281,13 @@ def test_a_possible_reverse_asks_for_a_holo_glint_once(env):
     report = review.run(apply=True, read=True)
     assert report["photo_requests"][0]["views"][0]["view"] == "holo"
     attach(client, card_of(client, card), (90, 40, 160))
-    # Still matte under the lamp: the card stays as recorded (decision 0049).
+    # Still matte under the lamp: the variant stays as recorded (decision 0049),
+    # and the condition, no longer waiting for a photo, is written (0050).
     report = review.run(apply=True, read=True)
-    assert report["photo_requests"] == [] and report["confirmed"] == []
+    assert report["photo_requests"] == [] and report["confirmed"][0]["partial"]
     assert "reste en l’état" in report["kept"][0]["reason"]
-    assert not card_of(client, card)["variant_confirmed"]
+    detail = card_of(client, card)
+    assert not detail["variant_confirmed"] and detail["condition_confirmed"]
 
 
 def test_disagreement_is_left_aside_and_a_close_edition_asks_a_front(env):
@@ -658,3 +660,25 @@ def test_a_new_photo_is_read_but_not_written_before_the_gate(tmp_path):
         assert not detail["variant_confirmed"] and not detail["condition_confirmed"]
         assert readers["condition"].calls > calls  # The new photo was read.
         assert [r["trigger"] for r in app.state.agent_review.runs()] == ["batch"]
+
+
+def test_a_view_already_retaken_no_longer_holds_the_variant_back(env):
+    client, review, readers, _ = env
+    card = photographed(client)
+    readers["condition"].quality = "limited"  # Corners unreadable.
+    first = review.run(apply=True, read=True)
+    assert first["confirmed"] == [] and first["photo_requests"]
+    current = card_of(client, card)
+    response = client.put(
+        f"/api/copies/{card['id']}/photo?version={current['version']}&side=front",
+        content=picture((70, 70, 200)),
+    )
+    assert response.status_code == 200, response.text
+    # The close-up does not settle the corners either: the card stays as recorded,
+    # and its variant, no longer waiting for a photo, is written.
+    again = review.run(apply=True, read=True)
+    assert again["photo_requests"] == [] and again["confirmed"][0]["partial"]
+    assert [k["copy_id"] for k in again["kept"]] == [card["id"]]
+    detail = card_of(client, card)
+    assert detail["variant_confirmed"] and not detail["condition_confirmed"]
+    assert review.runs()[0]["confirmed"] == 1
