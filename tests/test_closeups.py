@@ -258,3 +258,38 @@ def test_two_readings_of_one_card_wait_for_each_other(env, binder, monkeypatch):
     for thread in threads:
         thread.join()
     assert most[0] == 1
+
+
+def test_a_crease_told_in_hand_caps_the_condition_the_agent_writes(env):
+    client, closeups, readers, _ = env
+    open_gate(client)
+    card = imported(client)
+    response = client.post(f"/api/closeups/{card['id']}/crease", json={"answer": "pli"})
+    assert response.status_code == 200, response.text
+    # The route starts this after the response; the readings are already there.
+    checked(client, card)
+    closeups.after_crease(card["id"])
+    detail = card_of(client, card)
+    assert detail["condition_confirmed"] and detail["condition"] == "LP"
+    events = [e for e in detail["history"] if e["kind"] == "crease-observation"]
+    assert events and "pli" in events[-1]["reason"]
+    bad = client.post(f"/api/closeups/{card['id']}/crease", json={"answer": "peut-être"})
+    assert bad.status_code == 422
+    assert client.post("/api/closeups/nope/crease", json={"answer": "non"}).status_code == 404
+
+
+def test_the_crease_question_is_for_admins_only(env):
+    client, *_ = env
+    card = imported(client)
+    client.post("/api/logout")
+    assert client.post(f"/api/closeups/{card['id']}/crease", json={"answer": "non"}).status_code == 401
+
+
+def test_a_crease_answer_leaves_a_pending_shot_alone(env):
+    client, closeups, readers, _ = env
+    card = imported(client)
+    assert shoot(client, card, "corner").status_code == 200  # Its reading has not run.
+    calls = readers["condition"].calls
+    assert closeups.after_crease(card["id"]) is None
+    assert readers["condition"].calls == calls
+    assert [p["copy_id"] for p in queue(client, copy_ids=[card["id"]])["pending"]] == [card["id"]]

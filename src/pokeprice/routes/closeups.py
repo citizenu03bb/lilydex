@@ -8,12 +8,18 @@ agent decides on it after the response.
 from typing import Literal
 
 from fastapi import BackgroundTasks, Depends, HTTPException, Query, Request
+from pydantic import BaseModel, ConfigDict
 
 from ..closeups import Closeups, side_of
 from ..schemas import CloseupScope
 from .context import AppContext
 from .copies import read_photo_body, save_copy_photo
 from .hooks import Hooks
+
+
+class CreaseAnswer(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    answer: Literal["non", "pli", "enfoncement", "doute"]
 
 
 def register_closeups(app, ctx: AppContext, hooks: Hooks):
@@ -63,3 +69,13 @@ def register_closeups(app, ctx: AppContext, hooks: Hooks):
         closeups.record_shot(copy_id, view, result[side], user["username"])
         hooks.in_background(tasks, closeups.after_shot, copy_id)
         return {"copy_id": copy_id, "version": result["version"], "view": view}
+
+    @app.post("/api/closeups/{copy_id}/crease")
+    def closeup_crease(copy_id: str, values: CreaseAnswer, tasks: BackgroundTasks, user=Depends(admin)):
+        try:
+            closeups.record_crease(copy_id, values.answer, user["username"])
+        except KeyError as error:
+            raise HTTPException(404, "Exemplaire introuvable.") from error
+        # The agent decides again on the card with the answer.
+        hooks.in_background(tasks, closeups.after_crease, copy_id)
+        return {"copy_id": copy_id, "answer": values.answer}

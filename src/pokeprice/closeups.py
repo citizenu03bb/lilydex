@@ -19,6 +19,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 
 from .agent_review import VIEW_SIDE, is_open, request_events, review_apply, run_events
+from .condition_assessment import CREASE_ANSWERS, CREASE_EVENT, latest_crease
 
 SHOT_EVENT = "closeup-shot"
 REVIEW_EVENT = "closeup-review"
@@ -173,6 +174,7 @@ class Closeups:
                 views.sort(key=lambda v: STEP_ORDER[v["view"]])
                 steps.append({
                     **place,
+                    "crease": latest_crease(db, copy_id),
                     "grid": grids.get(card["album_id"], DEFAULT_GRID),
                     "has_photo": bool(card["photo"]),
                     "has_back": bool(card["back_photo"]),
@@ -195,6 +197,36 @@ class Closeups:
                 db, copy_id, actor, SHOT_EVENT,
                 "Prise de près en série : " + view,
                 {}, {"view": view, "side": side_of(view), "photo": photo},
+            )
+
+    def record_crease(self, copy_id, answer, actor):
+        """The crease answer given in hand during the series (decision 0052)."""
+        if answer not in CREASE_ANSWERS:
+            raise ValueError("Réponse attendue : non, pli, enfoncement ou doute.")
+        with self.store.connect(write=True) as db:
+            self.store.get(db, copy_id)  # KeyError if unknown.
+            self.store.event(
+                db, copy_id, actor, CREASE_EVENT,
+                "Pli observé en main : " + answer, {}, {"answer": answer},
+            )
+
+    def after_crease(self, copy_id, threshold_cents=1000):
+        """Let the agent decide again with a crease answer, on the readings it has.
+
+        Nothing is read and no verdict is logged: a shot still waiting for its
+        reading keeps its place, and its own verdict will use the answer.
+        """
+        with self.guard:
+            lock = self.locks[copy_id]
+        with lock:
+            with self.store.connect() as db:
+                card = self.store.get(db, copy_id)
+                if self.pending(card, shot_events(db, [copy_id])[copy_id]) is not None:
+                    return None
+            apply = review_apply(self.store)
+            return self.review.run(
+                apply=apply, read=False, copy_ids=[copy_id],
+                threshold_cents=threshold_cents, trigger="crease",
             )
 
     def after_shot(self, copy_id, threshold_cents=1000):

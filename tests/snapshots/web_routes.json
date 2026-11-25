@@ -2002,6 +2002,23 @@
  },
  {
   "dependencies": [
+   "admin",
+   "staff",
+   "current_user"
+  ],
+  "include_in_schema": true,
+  "methods": [
+   "POST"
+  ],
+  "name": "closeup_crease",
+  "only": {},
+  "path": "/api/closeups/{copy_id}/crease",
+  "response_class": "JSONResponse",
+  "response_model": null,
+  "status_code": null
+ },
+ {
+  "dependencies": [
    "editor",
    "staff",
    "current_user"

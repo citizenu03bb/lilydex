@@ -2557,6 +2557,26 @@ button.chat-flag-button.chat-flagged {
   background: var(--accent);
   border-color: var(--accent);
 }
+.closeup-crease {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  border: 0;
+  margin: 12px 0 0;
+  padding: 0;
+}
+.closeup-crease legend {
+  width: 100%;
+  margin-bottom: 4px;
+}
+.closeup-crease button {
+  min-height: 44px;
+}
+.closeup-crease button[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
 .closeup-what {
   font-weight: 600;
   font-size: 1.1em;

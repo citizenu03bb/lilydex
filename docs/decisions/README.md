@@ -59,6 +59,7 @@ l'ancienne passe au statut « remplacée ».
 | [0049](0049-etat-sans-manipulation.md) | Aucune carte ne sort du classeur pour juger son état : le recto suffit sous 10 €, le verso attend la vente | 2026-11-21 |
 | [0050](0050-confirmer-par-facette.md) | L'agent de revue enregistre chaque facette établie, sauf si une photo demandée l'effacerait | 2026-11-25 |
 | [0051](0051-porte-sur-les-erreurs-graves.md) | La porte de l'agent de revue compte les erreurs d'état graves, et le réglage gouverne toute écriture automatique | 2026-11-25 |
+| [0052](0052-pli-en-main-et-bareme-cardmarket.md) | L'état se note sur le barème écrit de Cardmarket, et un pli signalé en main plafonne la note à LP | 2026-11-25 |
 
 ## Écrire une fiche
 
