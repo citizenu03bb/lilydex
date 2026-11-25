@@ -229,10 +229,12 @@ class AgentReview:
     # -- Deciding ----------------------------------------------------------
 
     def decide(self, found):
-        """One decision per copy: confirm both halves together, or say what is missing.
+        """One decision per facet, and the facets that can be written now.
 
-        Both halves are confirmed together, or neither: a new photo resets them
-        anyway, and the price needs the two.
+        Decision 0050: what is established is written even when another facet
+        waits, unless a photo asked in the same pass would reset it. A new
+        front resets the variant and the condition, a new back the condition;
+        the identity stays. ``confirm`` still says that every facet is settled.
         """
         card, valuation = found["card"], found["valuation"]
         high_value = high_stakes(valuation)
@@ -291,6 +293,20 @@ class AgentReview:
             if side not in wanted or SPECIFIC[d["view"]] < SPECIFIC[wanted[side][0]]:
                 wanted[side] = (d["view"], d["reason"])
         photos = sorted(wanted.values(), key=lambda item: VIEW_PRIORITY[item[0]])
+        write = [
+            name
+            for name, d in decisions.items()
+            if d["action"] == "confirm"
+            and (
+                name == "identity"
+                or (name == "variant" and "photo" not in wanted)
+                or (name == "condition" and not wanted)
+            )
+        ]
+        if "identity" in decisions and "identity" not in write:
+            # A copy still « à vérifier » gets nothing written: its variant was
+            # judged on an identity nobody confirmed (decision 0047).
+            write = []
         skipped = [d["reason"] for d in decisions.values() if d["action"] == "skip"]
         kept = [d["reason"] for d in decisions.values() if d["action"] == "keep"]
         return {
@@ -299,6 +315,7 @@ class AgentReview:
             "photos": photos,
             "skipped": skipped,
             "kept": kept,
+            "write": write,
             "confirm": bool(decisions)
             and all(d["action"] == "confirm" for d in decisions.values()),
         }
@@ -306,7 +323,7 @@ class AgentReview:
     # -- Writing -----------------------------------------------------------
 
     def confirm(self, found, verdict, run_id):
-        """Apply the confirmations through the human path; returns the undo record.
+        """Apply the writable confirmations through the human path; returns the undo record.
 
         Identity (an imported copy), variant and condition are written in that
         order, all or none: a failure takes back what was already written.
@@ -324,7 +341,8 @@ class AgentReview:
                 "condition_confirmed",
             )
         }
-        decisions, high_value = verdict["decisions"], verdict["high_value"]
+        decisions = {k: v for k, v in verdict["decisions"].items() if k in verdict["write"]}
+        high_value = verdict["high_value"]
 
         def decided(score):
             return {"decided_by": "agent", "run_id": run_id, "score": score,
@@ -457,6 +475,15 @@ class AgentReview:
                 verdict = self.decide(found)
             if (
                 apply
+                and "identity" in verdict.get("write", ())
+                and not review_apply(self.store)
+                and not verdict["confirm"]
+            ):
+                # Decision 0047 holds for a lone identity too: nothing written,
+                # the photos are still asked.
+                verdict = {**verdict, "write": []}
+            if (
+                apply
                 and verdict["confirm"]
                 and "identity" in verdict["decisions"]
                 and not review_apply(self.store)
@@ -470,8 +497,9 @@ class AgentReview:
                     "importées tant que agent_review_apply est faux.",
                 })
                 continue
-            if verdict["confirm"]:
-                saved = len(verdict["decisions"])
+            if verdict.get("write"):
+                partial = not verdict["confirm"]
+                saved = len(verdict["write"])
                 if apply:
                     try:
                         record = self.confirm(found, verdict, run_id)
@@ -482,11 +510,14 @@ class AgentReview:
                             report["interrupted"].append({**item, "undo": record})
                         report["skipped"].append({**item, "reason": str(error)})
                         continue
-                    item["undo"] = record
                     saved = len(record["applied"])
-                report["confirmed"].append({**item, "decisions": saved})
+                done = {**item, "decisions": saved, **({"partial": True} if partial else {})}
+                if apply:
+                    done["undo"] = record
+                report["confirmed"].append(done)
                 report["human_decisions_saved"] += saved
-                continue
+                if not partial:
+                    continue
             if verdict["photos"]:
                 asked = []
                 for view, reason in verdict["photos"]:

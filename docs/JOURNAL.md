@@ -7,6 +7,14 @@
 Une page qui décrit le fonctionnement ne porte pas de date : quand un passage
 daté la quitte, il est versé ici dans le même commit.
 
+## 2026-11-25
+
+- Agent de revue, une facette à la fois ([décision 0050](decisions/0050-confirmer-par-facette.md)) :
+  l'identité d'une carte importée est écrite même si les coins sont demandés,
+  et la variante l'est quand l'état reste en l'état. Une facette qu'une photo
+  demandée effacerait attend. Le guide `pokeprice-autonome` dit qui lance
+  l'agent, ce qu'il écrit et sous quel réglage (`tests/test_agent_review.py`).
+
 ## 2026-11-21
 
 - État sans manipulation ([décision 0049](decisions/0049-etat-sans-manipulation.md)) :

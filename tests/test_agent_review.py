@@ -582,3 +582,52 @@ def test_an_assessment_under_an_older_protocol_is_read_again(env):
     review.read_missing(card["id"], 1000)
     assert readers["condition"].calls == 2
     assert review.evidence(card["id"], 1000)["assessment"] is not None
+
+
+# -- One facet at a time (decision 0050) --------------------------------------------
+
+
+def test_identity_is_written_while_the_corners_are_asked(env):
+    client, review, readers, _ = env
+    open_gate(client)
+    card = imported(client)
+    readers["condition"].quality = "limited"  # Corners unreadable: a photo is asked.
+    report = review.run(apply=True, read=True)
+    assert [c["copy_id"] for c in report["confirmed"]] == [card["id"]]
+    assert report["confirmed"][0]["partial"] and report["human_decisions_saved"] == 1
+    assert [v["view"] for v in report["photo_requests"][0]["views"]] == ["corner"]
+    detail = card_of(client, card)
+    # The identity survives a new front; the variant and the condition would not.
+    assert detail["identification_status"] == "confirmed"
+    assert not detail["variant_confirmed"] and not detail["condition_confirmed"]
+    assert [r["view"] for r in client.get("/api/photo-requests").json()] == ["corner"]
+    # The run is undone as a whole: identity and request.
+    review.undo(report["run_id"], "pat")
+    assert card_of(client, card)["identification_status"] == "review"
+    assert client.get("/api/photo-requests").json() == []
+
+
+def test_variant_is_written_when_the_condition_stays_as_recorded(env):
+    client, review, readers, _ = env
+    card = photographed(client)
+    readers["condition"].grade = None  # The front does not settle the grade.
+    report = review.run(apply=True, read=True)
+    assert report["confirmed"][0]["partial"] and report["photo_requests"] == []
+    assert [k["copy_id"] for k in report["kept"]] == [card["id"]]
+    assert "undo" not in report["kept"][0]
+    detail = card_of(client, card)
+    assert detail["variant_confirmed"] and detail["finish"] == "holo"
+    assert detail["condition"] == "EX" and not detail["condition_confirmed"]
+
+
+def test_a_lone_identity_waits_for_the_gate_and_the_photo_is_still_asked(env):
+    client, review, readers, _ = env
+    card = imported(client)
+    readers["condition"].quality = "limited"
+    assert review.run(read=False)["confirmed"] == []  # No readings yet.
+    report = review.run(apply=True, read=True)
+    assert report["confirmed"] == []
+    assert [p["copy_id"] for p in report["photo_requests"]] == [card["id"]]
+    assert card_of(client, card)["identification_status"] == "review"
+    # The simulation still says what it would write.
+    assert review.run()["confirmed"][0]["partial"]
