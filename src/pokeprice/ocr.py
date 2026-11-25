@@ -335,8 +335,7 @@ def get_ocr_provider(backend: str = "ollama", model: Optional[str] = None):
         target_model = model or "gemma4:e4b-it-q4_K_M"
         return OllamaVisionProvider(model=target_model)
     elif backend == "gemini":
-        target_model = model
-        return GeminiVisionProvider(model=target_model)
+        return GeminiVisionProvider(model=model)
     else:
         raise ValueError(
             f"Unknown OCR backend: {backend}. Choose 'ollama' or 'gemini'."
