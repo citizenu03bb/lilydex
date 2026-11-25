@@ -134,17 +134,21 @@ et l'[état de la mise en œuvre](PRINT_REFERENCE_GUIDE.md#ce-qui-est-mis-en-œu
   lu ; une personne confirme. Banc : 6/6 puis 7/8 justes sur les cartes sans
   résultat du catalogue, aucune fausse
   ([banc d'essai](BANC-RECONNAISSANCE.md#lédition-proposée-par-limage-à-la-saisie)).
-- **Reste, agent de revue :** l'agent `agent:revue` confirme la variante et
-  l'état quand toutes les preuves concordent, sinon il demande une photo
-  ([fiche 0022](decisions/0022-agent-confirme-ou-demande-photo.md)). Il tourne
-  en simulation : la plupart des cartes n'ont aucune lecture d'état ni de
-  finition sur leur photo, et sa justesse n'est pas mesurée. Une
+- **Reste, agent de revue :** l'agent `agent:revue` écrit chaque facette
+  établie (identité importée, variante, état), sinon il demande une photo
+  ([fiches 0022](decisions/0022-agent-confirme-ou-demande-photo.md) et
+  [0050](decisions/0050-confirmer-par-facette.md)). Il tourne en simulation :
+  le réglage `agent_review_apply` gouverne toute écriture automatique. Une
   personne vérifie au classeur, à l'aveugle, un échantillon de cartes qu'il
   confirmerait ; ses réponses entrent au banc comme vérités à l'aveugle
   ([fiche 0043](decisions/0043-banc-provenance-et-intervalles.md)). L'écriture
   n'est activée que si l'échantillon ne compte aucune variante fausse (édition,
   finition, langue, tampon) et si la borne haute à 95 % du taux d'erreur d'état
-  reste sous 10 %. Les cartes d'au moins 10 € restent à une personne. Ensuite :
+  grave (deux crans ou plus) reste sous 10 %
+  ([fiche 0051](decisions/0051-porte-sur-les-erreurs-graves.md)). Sur 60
+  cartes relues au protocole v2, la porte échoue : une finition holo fausse
+  (un dégradé imprimé), et 5 erreurs d'état graves sur 50, toutes optimistes.
+  Les cartes d'au moins 10 € restent à une personne. Ensuite :
   l'agent tourne à intervalle régulier, avec un plafond par passage, et ses
   cas « À examiner » alimentent la file « À toi ». C'est le levier principal
   de S1, S2 et S5.

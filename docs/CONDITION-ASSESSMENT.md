@@ -58,15 +58,23 @@ variante et l'état **par le même chemin d'écriture qu'une personne** : la
 fiche change de version, l'événement de validation garde les lectures, et
 porte en plus `decided_by: agent`, le score et l'identifiant du passage.
 
-Il confirme les deux ensemble, ou rien, si :
+Il confirme la variante si :
 
 - la lecture de finition est « proposée », sur une photo de qualité
   suffisante, sans désaccord de finition, de tampon ou de langue ;
 - le contrôle d'édition par l'image désigne l'édition de la fiche, avec au
   moins la marge de 0,05 de la [décision 0006](decisions/0006-dinov2-marge.md) ;
-- l'évaluation de l'état est exploitable sur le recto et de qualité suffisante ;
 - au seuil de valeur (10 € par défaut) ou sans valeur prudente connue, le
   verso est aussi exploitable ([décision 0008](decisions/0008-reverses-examen-physique.md)).
+
+Il confirme l'état si l'évaluation est exploitable sur le recto et de qualité
+suffisante, avec la même règle de verso au seuil.
+
+Chaque facette établie est écrite, sauf si une photo demandée dans le même
+passage l'effacerait : une photo du recto efface la variante et l'état, une
+photo du verso efface l'état. Sur une carte importée, l'identité confirmée est
+toujours écrite. Si elle ne se confirme pas, rien n'est écrit
+([décision 0050](decisions/0050-confirmer-par-facette.md)).
 
 Aucune carte ne sort du classeur pour juger son état
 ([décision 0049](decisions/0049-etat-sans-manipulation.md)). Sous le seuil,
@@ -98,7 +106,9 @@ la carte, la vue (recto net, verso, reflet holo, coins de près) et une raison
 en une phrase. Une seule vue par face, la plus précise. La gestion les liste
 sous « Photos à reprendre », dans l'ordre du classeur. Le bouton ouvre
 l'appareil photo du téléphone ; la nouvelle photo ferme la demande et le
-serveur relance seul les lectures et la décision pour cette carte. Une vue déjà
+serveur relance seul les lectures et la décision pour cette carte. Tant que
+`agent_review_apply` est faux, la photo est lue et rien n'est écrit
+([décision 0051](decisions/0051-porte-sur-les-erreurs-graves.md)). Une vue déjà
 reprise sans succès n'est pas redemandée : la carte reste en l'état, avec son
 état enregistré. Le rapport la range dans `kept`, avec ce que les photos ne
 tranchent pas, et personne ne l'examine en main.

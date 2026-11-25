@@ -221,7 +221,9 @@ class Closeups:
         verdict = {"applied": apply, "errors": errors, "outcome": "error", "views": [],
                    "reason": ""}
         if report is not None:
-            if report["confirmed"]:
+            # Decision 0050: a partial confirmation still leaves the photo or
+            # the « en l'état » to say.
+            if report["confirmed"] and not report["confirmed"][0].get("partial"):
                 verdict["outcome"] = "confirm"
             elif report["photo_requests"]:
                 verdict["outcome"] = "photo"
