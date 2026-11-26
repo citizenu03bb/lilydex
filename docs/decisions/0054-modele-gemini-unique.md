@@ -76,6 +76,28 @@ par OpenRouter pour les autres ; 25 novembre 2026. Coût total du banc :
 - La lecture de carte et la finition n'ont pas été mesurées. Aucun candidat
   n'ayant tenu l'état, le banc s'est arrêté là.
 
+**Relecture avec la consigne v3.** Les trois modèles reçoivent les mêmes
+photos des 59 cartes, la consigne de production et le schéma qui exige le
+champ `crease`. OpenRouter ne route les appels que vers des fournisseurs
+sans conservation des données. La note en main reste cachée au modèle.
+Les erreurs graves sont séparées selon que la note proposée est trop haute
+ou trop basse.
+
+| Modèle | Notes exactes / proposées | Sans note | Graves trop hautes | Graves trop basses | $ pour 100 cartes |
+|---|---|---|---|---|---|
+| Gemini 3.8 Flash | 31/59 | 0 | 7 | 4 | 0,50 |
+| DeepSeek V4.1 Flash 1017 | 21/58 | 1 | 15 | 3 | 0,27 |
+| Gemini 3.1 Flash-Lite | 17/53 | 6 | 1 | 7 | 0,09 |
+
+Les coûts reposent sur les montants renvoyés par OpenRouter. Un premier
+appel à 3.8 Flash échoue sans montant communiqué ; sa reprise aboutit.
+Sans réponse en main sur le pli, la règle de confirmation de l’état
+retient respectivement 50, 31 et 47 cartes, avec 9, 11 et 6 erreurs graves.
+Les bornes hautes à 95 % sont de 31,4 %, 54,6 % et 25,7 %, au-dessus des
+10 % de la fiche 0051. En simulant la réponse en main à partir des défauts
+relevés à l’aveugle, les bornes restent à 24,3 %, 33,7 % et 25,7 %.
+Ces résultats portent sur l’état et sur une seule collection.
+
 **Décision.** Option 3.
 - La lecture des cartes, le pipeline d'albums, l'interprétation des prompts
   de lots et le chat gardent `gemini-3.8-flash`.
@@ -101,9 +123,9 @@ par OpenRouter pour les autres ; 25 novembre 2026. Coût total du banc :
 - Le jour où Google annonce une date d'arrêt pour 3.8 Flash, le changement se
   fait par la variable, après un nouveau passage au banc. Hydrogen est le
   premier candidat.
-- Le banc de la consigne `card-condition-v3`
-  ([fiche 0052](0052-pli-en-main-et-bareme-cardmarket.md)) reste à refaire
-  pour chaque candidat : les chiffres ci-dessus portent sur la v2.
+- Le premier banc précède la consigne `card-condition-v3`
+  ([fiche 0052](0052-pli-en-main-et-bareme-cardmarket.md)). Seuls 3.8 Flash,
+  DeepSeek V4.1 Flash 1017 et 3.1 Flash-Lite ont été comparés sur la v3.
 - Garder la note la plus sévère entre 3.8 Flash et Haiku 5.5 laisse une seule
   erreur grave optimiste sur ces 59 cartes, pour 0,08 $ de plus par 100
   cartes, mais 21 notes exactes seulement. Cette règle a été trouvée sur ces

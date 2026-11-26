@@ -7,6 +7,15 @@
 Une page qui décrit le fonctionnement ne porte pas de date : quand un passage
 daté la quitte, il est versé ici dans le même commit.
 
+## 2026-11-26
+
+- Sur le banc d’état v3, 3.8 Flash donne 31 notes exactes sur 59 cartes,
+  DeepSeek Flash 21 et Gemini Flash-Lite 17. Aucun ne franchit le seuil de
+  confirmation automatique ([décision 0054](decisions/0054-modele-gemini-unique.md)).
+- Une saisie reprise conserve le modèle qui a lu la photo ; un ancien
+  brouillon sans cette information garde une provenance inconnue
+  (`tests/test_intake.py`).
+
 ## 2026-11-25
 
 - Modèle Gemini unique et réglable ([décision 0054](decisions/0054-modele-gemini-unique.md)) :

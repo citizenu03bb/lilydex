@@ -20,7 +20,7 @@ from ..catalogue_image import CatalogueImages
 from ..condition_assessment import ConditionService, read_condition
 from ..edition_check import EditionCheckService, EditionSuggester
 from ..floor_requests import FloorRequests
-from ..intake import IntakeService, catalogue_candidates, read_photo
+from ..intake import IntakeService, catalogue_candidates, read_photo_with_model
 from ..inventory import Store
 from ..listings import Listings, Storefront
 from ..market_product import MarketProducts, fetch_tcgdex
@@ -144,7 +144,7 @@ def build_services(
     )
     intake = IntakeService(
         store,
-        intake_reader or read_photo,
+        intake_reader or read_photo_with_model,
         intake_lookup or catalogue_candidates,
         suggest,
     )
