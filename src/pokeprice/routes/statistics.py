@@ -17,16 +17,20 @@ def register_statistics(app, ctx: AppContext):
         days: int = Query(default=30, ge=7, le=365), user=Depends(admin)
     ):
         report = audience.report(days)
-        for row in report["listings"]:
-            try:
-                listing = storefront.get(row["id"])
-                row["title"] = listing["title"] or " · ".join(
-                    i["name"] for i in listing["items"]
-                )
-            except KeyError:
-                row["title"] = ""  # Sold or withdrawn since.
         start = report["from"]
         with store.connect() as db:
+            for row in report["listings"]:
+                try:
+                    listing = storefront.get(row["id"])
+                except KeyError:
+                    # Historical views outlive the publication's time in the storefront.
+                    try:
+                        listing = ctx.listings.get(db, row["id"])
+                    except KeyError:
+                        row["title"] = ""
+                        continue
+                    row["status"] = "withdrawn" if listing["state"] == "offline" else "unavailable"
+                row["title"] = listing["title"] or " · ".join(i["name"] for i in listing["items"])
             report["signups"] = db.execute(
                 "SELECT COUNT(*) FROM users WHERE role='client' AND created_at>=?", (start,)
             ).fetchone()[0]

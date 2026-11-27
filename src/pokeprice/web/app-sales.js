@@ -247,7 +247,7 @@ async function loadAudience() {
     ...[
       [data.visitors, "visiteurs (cumul des jours)"],
       [data.page_views, "pages vues"],
-      [data.listing_views, "cartes consultées"],
+      [data.listing_views, "ouvertures de fiche"],
       [data.requests, `demandes · ${data.signups} inscription(s)`],
     ].map(([value, label]) => {
       const tile = el("div", undefined, "stat");
@@ -303,8 +303,12 @@ async function loadAudience() {
     );
   list(
     "audience-listings",
-    data.listings.map((l) => [l.title || "Carte retirée de la vitrine", l.count]),
-    "Aucune carte ouverte sur la période.",
+    data.listings.map(({ title, status, count }) => {
+      const label = title || "Annonce introuvable";
+      const suffix = { withdrawn: " · retirée", unavailable: " · indisponible" };
+      return [label + (suffix[status] || ""), count];
+    }),
+    "Aucune fiche ouverte sur la période.",
   );
   list(
     "audience-referrers",

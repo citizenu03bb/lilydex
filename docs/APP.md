@@ -1263,9 +1263,11 @@ effacement ne fait pas revenir le client. Voir aussi
 
 L'onglet **Statistiques**, réservé aux administrateurs, montre la fréquentation
 de la vitrine sur 7 jours, 30 jours, 90 jours ou 12 mois : visiteurs, pages
-vues, cartes ouvertes, demandes et inscriptions, visiteurs par jour (par
-semaine sur 12 mois), cartes les plus consultées, sites d'origine et part des
-téléphones. Une carte compte comme consultée quand un visiteur ouvre sa fiche.
+vues, ouvertures de fiche, demandes et inscriptions, visiteurs par jour (par
+semaine sur 12 mois), annonces les plus consultées, sites d'origine et part des
+téléphones. Ouvrir la fiche d’un lot compte pour une consultation du lot.
+Une annonce retirée conserve son titre et ses vues dans le classement de la période.
+La mention « retirée » indique son état actuel.
 Chaque barre du graphique se touche, se clique ou se rejoint au clavier pour
 afficher le détail du jour sous le graphique.
 

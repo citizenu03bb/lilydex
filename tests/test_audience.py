@@ -112,3 +112,22 @@ def test_only_explicit_fiche_openings_count_not_media_or_previews(shop):  # noqa
     report = admin.get("/api/audience").json()
     assert report["listing_views"] == 1
     assert report["listings"] == [{"id": single["id"], "count": 1, "title": single["items"][0]["name"]}]
+
+
+def test_withdrawn_lot_keeps_its_title_views_and_rank(shop):  # noqa: F811
+    admin, visitor, _, _, single, lot = shop
+    for listing in (single, lot, lot):
+        response = visitor.get(f"/api/public/listings/{listing['id']}?view=1", headers={"user-agent": BROWSER})
+        assert response.status_code == 200
+    before = admin.get("/api/audience").json()["listings"]
+    assert before[0] == {"id": lot["id"], "title": "Deux cartes", "count": 2}
+
+    removed = admin.post(
+        f"/api/listings/{lot['id']}/unpublish",
+        json={"expected_version": lot["version"], "reason": "Rotation du lot"},
+    )
+    assert removed.status_code == 200
+    assert visitor.get(f"/api/public/listings/{lot['id']}?view=1", headers={"user-agent": BROWSER}).status_code == 404
+    after = admin.get("/api/audience").json()
+    assert after["listing_views"] == 3
+    assert after["listings"] == [dict(before[0], status="withdrawn"), before[1]]
