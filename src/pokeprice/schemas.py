@@ -440,3 +440,7 @@ class CloseupScope(Model):
 class ReviewApplySettings(Model):
     apply: StrictBool
     reason: str = Field(default="", max_length=1000)
+    # Without facets: on means identity and variant, off means all (decision 0055).
+    facets: list[Literal["identity", "variant", "condition"]] | None = Field(
+        default=None, min_length=1, max_length=3
+    )

@@ -102,15 +102,18 @@ def register_binder_imports(app, ctx: AppContext):
             headers={"Cache-Control": "private, max-age=3600"},
         )
 
-    # The review agent writes on imported pages only once the blind check passed.
+    # The review agent writes a facet only once the blind check passed for it.
     @app.get("/api/settings/agent-review-apply")
     def review_apply_settings(user=Depends(admin)):
-        from ..agent_review import review_apply
+        from ..agent_review import review_facets
 
-        return {"apply": review_apply(store)}
+        facets = review_facets(store)
+        return {"apply": any(facets.values()), "facets": facets}
 
     @app.put("/api/settings/agent-review-apply")
     def review_apply_update(values: ReviewApplySettings, user=Depends(admin)):
         from ..agent_review import set_review_apply
 
-        return set_review_apply(store, values.apply, user["username"], values.reason)
+        return set_review_apply(
+            store, values.apply, user["username"], values.reason, values.facets
+        )

@@ -34,8 +34,8 @@ de **10 €** par défaut, réglable. Voir [valeur en jeu](VALUATION.md).
 | M0 — Données de référence fiables | fait | — |
 | M1 — Valeur en jeu et file « À examiner » | fait | — |
 | M1.1 — Référentiel des impressions | socle en mode audit | les preuves par langue et de marché, limitées à 2 jours |
-| M2 — Contrôles automatiques indépendants | tranches 1 à 5 faites | l'agent de revue mesuré à l'aveugle ; la double source pour la contrefaçon |
-| M3 — Saisie à l'échelle des classeurs | import, agent sur les pages importées, référentiel par impact, prise au reflet, prises de près en série et réception sur Android faits | la mesure de S5, après la porte de l'agent de revue ; le temps humain des prises de près, au téléphone |
+| M2 — Contrôles automatiques indépendants | tranches 1 à 5 faites | la variante de l'agent de revue mesurée à l'aveugle sur des holos ; la série de notation de l'état ; la double source pour la contrefaçon |
+| M3 — Saisie à l'échelle des classeurs | import, agent sur les pages importées, référentiel par impact, prise au reflet, prises de près en série et réception sur Android faits | la mesure de S5, après la porte de la variante, notation de l'état comprise ; le temps humain des prises de près, au téléphone |
 | M4 — Prix de vente et lots | à faire | tout |
 | M5 — Exploitation | en partie | tests de bout en bout des parcours de gestion, exercice de restauration, procédure d'import sur le serveur |
 
@@ -135,23 +135,25 @@ et l'[état de la mise en œuvre](PRINT_REFERENCE_GUIDE.md#ce-qui-est-mis-en-œu
   résultat du catalogue, aucune fausse
   ([banc d'essai](BANC-RECONNAISSANCE.md#lédition-proposée-par-limage-à-la-saisie)).
 - **Reste, agent de revue :** l'agent `agent:revue` écrit chaque facette
-  établie (identité importée, variante, état), sinon il demande une photo
+  établie (identité importée, variante), sinon il demande une photo
   ([fiches 0022](decisions/0022-agent-confirme-ou-demande-photo.md) et
-  [0050](decisions/0050-confirmer-par-facette.md)). Il tourne en simulation :
-  le réglage `agent_review_apply` gouverne toute écriture automatique. Une
-  personne vérifie au classeur, à l'aveugle, un échantillon de cartes qu'il
+  [0050](decisions/0050-confirmer-par-facette.md)). Le réglage
+  `agent_review_apply` a un interrupteur par facette, tout fermé, et gouverne
+  toute écriture de l'agent, commande de l'opérateur comprise. Une personne
+  vérifie au classeur, à l'aveugle, un échantillon de cartes qu'il
   confirmerait ; ses réponses entrent au banc comme vérités à l'aveugle
-  ([fiche 0043](decisions/0043-banc-provenance-et-intervalles.md)). L'écriture
-  n'est activée que si l'échantillon ne compte aucune variante fausse (édition,
-  finition, langue, tampon) et si la borne haute à 95 % du taux d'erreur d'état
-  grave (deux crans ou plus) reste sous 10 %
-  ([fiche 0051](decisions/0051-porte-sur-les-erreurs-graves.md)). Sur 60
-  cartes relues au protocole v2, la porte échoue : une finition holo fausse
-  (un dégradé imprimé), et 5 erreurs d'état graves sur 50, toutes optimistes.
-  Les cartes d'au moins 10 € restent à une personne. Ensuite :
-  l'agent tourne à intervalle régulier, avec un plafond par passage, et ses
-  cas « À examiner » alimentent la file « À toi ». C'est le levier principal
-  de S1, S2 et S5.
+  ([fiche 0043](decisions/0043-banc-provenance-et-intervalles.md)). La
+  variante s'ouvre si l'échantillon n'en compte aucune fausse (édition,
+  finition, langue, tampon) : 26 justes sur 26 au second échantillon, sans
+  holo ; reste un échantillon de holos, de reverses et de holos parallèles.
+- **Écarté, l'état lu par l'agent :** trois mesures à l'aveugle échouent,
+  toutes les erreurs graves sont optimistes, et la photo prise dans la
+  pochette cache l'usure des coins et des tranches. Une personne note l'état,
+  dans une série rapide, les cartes de plus forte valeur d'abord, sans la
+  lecture du modèle ([fiche 0055](decisions/0055-etat-note-par-une-personne.md)).
+  Ensuite : l'agent tourne à intervalle régulier, avec un plafond par passage,
+  et ses cas « À examiner » alimentent la file « À toi ». C'est le levier
+  principal de S1, S2 et S5.
 - **Reste :** une alerte de contrefaçon seulement si deux sources indépendantes
   concordent ; aujourd'hui, Gemini est le seul lecteur de texte
   ([fiche 0004](decisions/0004-gemini-seul-lecteur.md)), donc aucune alerte.
@@ -180,9 +182,10 @@ Le cadre est dans la [fiche 0047](decisions/0047-import-de-classeur-sur-le-serve
   par classeur et par page ; au budget, l'import s'arrête et l'administrateur
   décide de continuer.
 - **L'agent de revue après chaque page** : il confirme les cartes simples
-  (identité, variante, état) et la personne ne voit que le reste. Il reste en
+  (identité, variante) et la personne ne voit que le reste ; elle note l'état
+  ([fiche 0055](decisions/0055-etat-note-par-une-personne.md)). Il reste en
   simulation tant que la vérification à l'aveugle de M2 n'a pas passé sa
-  porte ; le passage à l'écriture est un seul réglage, `agent_review_apply`.
+  porte ; l'écriture s'ouvre facette par facette, dans `agent_review_apply`.
 - **Référentiel par impact** : une édition apportée par un classeur entre dans
   « Référentiel à compléter » si l'un de ses exemplaires a une valeur en jeu
   d'au moins le seuil, ou si elle compte au moins 20 exemplaires ; sinon elle

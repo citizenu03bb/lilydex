@@ -138,16 +138,16 @@ déléguée :
 - **Qui le lance** : l'import du classeur après chaque page, la série
   **Prises de près** après chaque photo, une photo qui répond à une demande,
   et l'opérateur par `pokeprice-manage agent-review` (simulation par défaut).
-- **Ce qu'il écrit** : l'identité d'une carte importée, sa variante et son
-  état, facette par facette, sur preuves concordantes
+- **Ce qu'il écrit** : l'identité d'une carte importée et sa variante,
+  facette par facette, sur preuves concordantes ; jamais l'état, qu'une
+  personne note ([fiche 0055](../../docs/decisions/0055-etat-note-par-une-personne.md))
   ([fiche 0050](../../docs/decisions/0050-confirmer-par-facette.md)) ; une
   demande de photo sinon. Chaque passage s'annule par `agent-review-undo`.
-- **Sous quelle condition** : lancé automatiquement, il n'écrit que si le
-  réglage `agent_review_apply` est vrai. Ce réglage est réservé à
-  l'administrateur et attend la mesure à l'aveugle. Faux, l'agent dit ce
+- **Sous quelle condition** : il n'écrit une facette que si le réglage
+  `agent_review_apply` l'ouvre, quel que soit l'appelant, `agent-review
+  --apply` compris. Ce réglage a un interrupteur par facette, réservé à
+  l'administrateur, et attend la mesure à l'aveugle. Fermé, l'agent dit ce
   qu'il confirmerait, et la série Prises de près fonctionne quand même.
-  L'opérateur peut écrire hors du réglage par `agent-review --apply`, jamais
-  une identité importée.
 - **Les demandes de photo** : l'écran Prises de près les enchaîne dans
   l'ordre du classeur, et `GET /api/photo-requests` les liste pour le
   personnel. Aucune clé déléguée ne les écrit.

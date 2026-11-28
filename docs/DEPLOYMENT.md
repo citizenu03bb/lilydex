@@ -289,7 +289,8 @@ le travail : `binder-status` suit l'avancement et le coût, `binder-continue`
 relance un import arrêté au budget Gemini (3 € par défaut,
 `POKEPRICE_IMPORT_BUDGET_EUR`). L'agent de revue reste en simulation tant que
 `agent-review-apply on` n'a pas été lancé, après la porte de la vérification à
-l'aveugle. Le journal se lit avec `journalctl -u pokeprice-import.service`.
+l'aveugle ; il ouvre l'identité et la variante, jamais l'état, qu'une personne
+note. Le journal se lit avec `journalctl -u pokeprice-import.service`.
 
 ## Envoyer le brief du jour
 
