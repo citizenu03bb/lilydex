@@ -9,8 +9,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr
 
+from .gemini_model import gemini_model
 from .gemini_usage import record as record_usage
-from .intake import MODEL
 from .inventory import Conflict, now
 
 PROTOCOL = "card-condition-v3"
@@ -71,6 +71,7 @@ def read_condition(photos):
 
     load_dotenv(Path.home() / ".env")
     load_dotenv(Path.cwd() / ".env")
+    model = gemini_model()
     contents = [PROMPT]
     schema = ConditionObservation.model_json_schema()
     # Gemini's response_schema dialect rejects additionalProperties; validate
@@ -92,7 +93,7 @@ def read_condition(photos):
             )
         ) as client:
             response = client.models.generate_content(
-                model=MODEL,
+                model=model,
                 contents=contents,
                 config=types.GenerateContentConfig(
                     response_mime_type="application/json",
@@ -102,7 +103,7 @@ def read_condition(photos):
                     ),
                 ),
             )
-        record_usage(MODEL, response)
+        record_usage(model, response)
         raw = response.text or ""
         return ConditionObservation.model_validate_json(raw).model_dump(), raw
     except Exception:  # noqa: BLE001 - Never leak provider errors or credentials.
@@ -241,7 +242,7 @@ class ConditionService:
                     "Les photos ne permettent pas de retenir cette proposition d’état."
                 )
             result["limits"] = list(dict.fromkeys(result["limits"]))
-            assessment_id = str(uuid.uuid4())
+            assessment_id, model = str(uuid.uuid4()), gemini_model()
             with self.store.connect(write=True) as db:
                 current = self.store.get(db, copy_id)
                 if (
@@ -258,7 +259,7 @@ class ConditionService:
                         copy_id,
                         actor,
                         now(),
-                        MODEL,
+                        model,
                         PROTOCOL,
                         json.dumps(snapshot, ensure_ascii=False),
                         json.dumps(result, ensure_ascii=False),
@@ -274,7 +275,7 @@ class ConditionService:
                     {},
                     {
                         "assessment_id": assessment_id,
-                        "model": MODEL,
+                        "model": model,
                         "protocol": PROTOCOL,
                         "photos": snapshot,
                         "result": result,

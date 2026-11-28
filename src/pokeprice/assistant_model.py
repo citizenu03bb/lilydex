@@ -29,7 +29,8 @@ quota and bill, and can be revoked without stopping the OCR (decision 0031).
 import os
 from dataclasses import dataclass, field
 
-DEFAULT_MODEL = "gemini-3.8-flash"
+from .gemini_model import DEFAULT_MODEL, gemini_model
+
 # Short: the operator waits on a phone. A stuck call ends the question, not the app.
 TIMEOUT_SECONDS = 30
 KEY_VARIABLE = "POKEPRICE_ASSISTANT_GEMINI_KEY"
@@ -215,4 +216,4 @@ def from_env(environ=None):
     key = environ.get(KEY_VARIABLE, "").strip()
     if not key:
         return None
-    return GeminiModel(key, environ.get(MODEL_VARIABLE, "").strip() or DEFAULT_MODEL)
+    return GeminiModel(key, environ.get(MODEL_VARIABLE, "").strip() or gemini_model(environ))

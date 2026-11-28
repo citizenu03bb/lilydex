@@ -8,15 +8,17 @@ import os
 from pathlib import Path
 from typing import Optional
 
+from .gemini_model import DEFAULT_MODEL
+from .gemini_model import gemini_model as common_model
 from .lots.recipe import LotCompositionRecipe
 
-# Modèle Gemini d'interprétation des prompts, remplaçable par variable d'environnement.
-DEFAULT_GEMINI_MODEL = "gemini-3.8-flash"
+# Modèle Gemini d'interprétation des prompts : sa variable, sinon le modèle commun (fiche 0054).
+DEFAULT_GEMINI_MODEL = DEFAULT_MODEL
 GEMINI_MODEL_ENV = "POKEPRICE_LOTS_GEMINI_MODEL"
 
 
 def gemini_model() -> str:
-    return os.environ.get(GEMINI_MODEL_ENV) or DEFAULT_GEMINI_MODEL
+    return (os.environ.get(GEMINI_MODEL_ENV) or "").strip() or common_model()
 
 
 def prompt_to_recipe(prompt: str, model_name: Optional[str] = None) -> LotCompositionRecipe:

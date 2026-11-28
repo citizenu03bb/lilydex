@@ -119,6 +119,23 @@ def test_photo_intake_is_not_stock_and_confirmation_keeps_evidence(client):
     assert client.get("/api/summary").json()["copies"] == 1
 
 
+@pytest.mark.parametrize("legacy", [False, True])
+def test_restored_draft_keeps_original_reading_model(client, monkeypatch, legacy):
+    service = client.app.state.intake
+    service.reader = lambda photo: (OBSERVATION.copy(), json.dumps(OBSERVATION), "model-a")
+    token = draft(client)
+    assert client.post(f"/api/intake/{token}/analyze").status_code == 200
+    if legacy:
+        service.drafts[token].pop("observation_model")
+    service.persist(token, service.drafts[token]["owner"], durable=True)
+    service.drafts.clear()
+    monkeypatch.setenv("POKEPRICE_GEMINI_MODEL", "model-b")
+    response = client.post(f"/api/intake/{token}/save", json=values(client))
+    assert response.status_code == 201
+    detail = client.get(f"/api/copies/{response.json()['id']}").json()
+    assert detail["source"]["data"]["model"] == (None if legacy else "model-a")
+
+
 def test_manual_intake_without_photo_or_catalogue_remains_review(client):
     token = client.post("/api/intake/drafts").json()["token"]
     response = client.post(

@@ -7,8 +7,24 @@
 Une page qui décrit le fonctionnement ne porte pas de date : quand un passage
 daté la quitte, il est versé ici dans le même commit.
 
+## 2026-11-26
+
+- Sur le banc d’état v3, 3.8 Flash donne 31 notes exactes sur 59 cartes,
+  DeepSeek Flash 21 et Gemini Flash-Lite 17. Aucun ne franchit le seuil de
+  confirmation automatique ([décision 0054](decisions/0054-modele-gemini-unique.md)).
+- Une saisie reprise conserve le modèle qui a lu la photo ; un ancien
+  brouillon sans cette information garde une provenance inconnue
+  (`tests/test_intake.py`).
+
 ## 2026-11-25
 
+- Modèle Gemini unique et réglable ([décision 0054](decisions/0054-modele-gemini-unique.md)) :
+  3.8 Flash n'a pas de date d'arrêt sur l'API (Antigravity seul le retire
+  le 30 novembre). Banc d'état sur 59 cartes à l'aveugle : aucun modèle
+  moins cher ne le vaut (16 à 24 notes exactes contre 36 à 37), Hydrogen
+  fait moins d'erreurs optimistes mais 12 notes exactes de moins, pour
+  2,8 fois le prix. `POKEPRICE_GEMINI_MODEL` change le modèle partout
+  (`tests/test_gemini_model.py`).
 - Holo vue de face ([décision 0053](decisions/0053-holo-de-face-seulement-sans-version-mate.md)) :
   l'agent ne confirme plus une holo d'une photo à plat quand le catalogue
   n'exclut pas une version mate ; il demande une prise au reflet. Magirêve, au

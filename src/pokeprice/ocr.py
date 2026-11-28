@@ -242,10 +242,9 @@ class OllamaVisionProvider:
 
 
 class GeminiVisionProvider:
-    """Cloud provider using google-genai SDK with Gemini 3.8 Flash by default."""
+    """Cloud provider using the google-genai SDK; model from ``gemini_model()`` by default."""
 
-    def __init__(self, model: str = "gemini-3.8-flash"):
-        self.model = model
+    def __init__(self, model: Optional[str] = None):
         # Automatically load environment variables from ~/.env and local .env
         from pathlib import Path
 
@@ -258,6 +257,9 @@ class GeminiVisionProvider:
             load_dotenv()
         except ImportError:
             pass
+        from .gemini_model import gemini_model
+
+        self.model = model or gemini_model()
 
         try:
             import logging
@@ -333,8 +335,7 @@ def get_ocr_provider(backend: str = "ollama", model: Optional[str] = None):
         target_model = model or "gemma4:e4b-it-q4_K_M"
         return OllamaVisionProvider(model=target_model)
     elif backend == "gemini":
-        target_model = model or "gemini-3.8-flash"
-        return GeminiVisionProvider(model=target_model)
+        return GeminiVisionProvider(model=model)
     else:
         raise ValueError(
             f"Unknown OCR backend: {backend}. Choose 'ollama' or 'gemini'."

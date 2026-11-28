@@ -61,6 +61,7 @@ l'ancienne passe au statut « remplacée ».
 | [0051](0051-porte-sur-les-erreurs-graves.md) | La porte de l'agent de revue compte les erreurs d'état graves, et le réglage gouverne toute écriture automatique | 2026-11-25 |
 | [0052](0052-pli-en-main-et-bareme-cardmarket.md) | L'état se note sur le barème écrit de Cardmarket, et un pli signalé en main plafonne la note à LP | 2026-11-25 |
 | [0053](0053-holo-de-face-seulement-sans-version-mate.md) | Une illustration holo vue de face ne se confirme que si le catalogue exclut la version mate | 2026-11-25 |
+| [0054](0054-modele-gemini-unique.md) | La lecture des cartes reste sur Gemini 3.8 Flash, sous un nom de modèle unique et réglable | 2026-11-25 |
 
 ## Écrire une fiche
 
