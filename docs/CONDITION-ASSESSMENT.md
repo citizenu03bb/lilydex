@@ -59,8 +59,9 @@ estimation de prix ne sont demandées.
 
 ## L'agent de revue
 
-L'agent de revue (`agent:revue`, module `agent_review.py`) confirme la
-variante et l'état **par le même chemin d'écriture qu'une personne** : la
+L'agent de revue (`agent:revue`, module `agent_review.py`) confirme
+l'identité d'une carte importée et la variante **par le même chemin
+d'écriture qu'une personne** : la
 fiche change de version, l'événement de validation garde les lectures, et
 porte en plus `decided_by: agent`, le score et l'identifiant du passage.
 

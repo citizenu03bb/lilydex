@@ -1,4 +1,4 @@
-"""The review agent confirms variant and condition when the evidence suffices.
+"""The review agent confirms identity and variant when the evidence suffices.
 
 Otherwise it asks for one more photo. It writes through the very path a human
 uses (``VariantCheckService.confirm`` and ``ConditionService.confirm``), as
@@ -502,7 +502,10 @@ class AgentReview:
                         verdict = self.decide(found, answered, condition=facets["condition"])
             held = []
             if apply:
-                allowed = [name for name in verdict.get("write", ()) if facets[name]]
+                # Read again for each copy: an administrator may close a facet
+                # while a long run goes on.
+                open_now = review_facets(self.store)
+                allowed = [name for name in verdict.get("write", ()) if open_now[name]]
                 if "identity" in verdict.get("decisions", {}) and "identity" not in allowed:
                     # Decision 0047: a copy still « à vérifier » gets nothing
                     # written while its identity is not.
@@ -529,7 +532,11 @@ class AgentReview:
                     done["undo"] = record
                 report["confirmed"].append(done)
                 report["human_decisions_saved"] += saved
-                if not partial:
+                if held:
+                    # The held facets travel with the confirmation, not as a skip.
+                    done["held"] = held_reason(held)
+                    held_reasons = []
+                if verdict["confirm"]:
                     continue
             if verdict["photos"]:
                 asked = []
@@ -576,6 +583,7 @@ class AgentReview:
                         "run_id": run_id,
                         "trigger": trigger,
                         "threshold_cents": threshold_cents,
+                        "facets": review_facets(self.store),
                         "confirmed": [
                             {k: c[k] for k in ("copy_id", "decisions", "undo", "partial")
                              if k in c}
@@ -740,10 +748,16 @@ DEFAULT_ON = ("identity", "variant")
 
 def held_reason(held):
     """Why a confirmable facet is not written: its switch is off."""
-    labels = " et ".join(FACET_LABELS[name] for name in held)
+    labels = [FACET_LABELS[name] for name in held]
+    if len(labels) == 1:
+        return (
+            f"{labels[0]} confirmable, mais l’agent ne l’écrit pas tant que "
+            "agent_review_apply n’ouvre pas cette facette."
+        )
+    named = " et ".join([labels[0]] + [label.lower() for label in labels[1:]])
     return (
-        f"{labels} confirmable, mais l’agent ne l’écrit pas tant que agent_review_apply "
-        "ne l’autorise pas pour cette facette."
+        f"{named} confirmables, mais l’agent ne les écrit pas tant que "
+        "agent_review_apply n’ouvre pas ces facettes."
     )
 
 
@@ -812,7 +826,9 @@ def set_review_apply(store, value, actor, reason, facets=None):
         db.execute(
             "INSERT INTO events(copy_id,actor,kind,reason,before_json,after_json,created_at) "
             "VALUES(NULL,?,?,?,?,?,?)",
-            (actor, APPLY_EVENT, reason or "Agent de revue remis en simulation.",
+            (actor, APPLY_EVENT, reason or (
+                "Agent de revue remis en simulation." if not any(after.values())
+                else "Facette fermée : " + ", ".join(facets) + "."),
              json.dumps({"apply": any(before.values()), "facets": before}),
              json.dumps({"apply": any(after.values()), "facets": after}), stamp),
         )

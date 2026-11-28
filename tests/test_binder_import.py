@@ -397,6 +397,9 @@ def test_review_apply_setting_is_admin_only_and_logged(store):
         set_review_apply(store, True, "admin", "essai", ["price"])
     set_review_apply(store, False, "admin", "", ["identity"])
     assert review_facets(store) == {"identity": False, "variant": True, "condition": False}
+    with store.connect() as db:
+        assert db.execute("SELECT reason FROM events WHERE kind='agent-review-apply' "
+                          "ORDER BY id DESC").fetchone()[0] == "Facette fermée : identity."
     set_review_apply(store, False, "admin", "")
     assert review_apply(store) is False
     with store.connect() as db:

@@ -802,6 +802,24 @@ def test_a_held_facet_does_not_stop_an_open_one(env):
     card = photographed(client)
     report = review.run(apply=True, read=True)
     assert report["confirmed"][0]["partial"] and report["human_decisions_saved"] == 1
-    assert "Variante confirmable" in report["skipped"][0]["reason"]
+    assert "Variante confirmable" in report["confirmed"][0]["held"]
+    assert report["skipped"] == []
     detail = card_of(client, card)
     assert detail["condition_confirmed"] and not detail["variant_confirmed"]
+    # A facet closed while a run goes on is honoured from the next copy.
+    second = photographed(client, position=2, color=(200, 30, 30))
+    store = client.app.state.store
+    original = review.confirm
+
+    def close_then_confirm(found, verdict, run_id):
+        set_review_apply(store, False, "pat", "", ["variant", "condition"])
+        return original(found, verdict, run_id)
+
+    review.confirm = close_then_confirm
+    set_review_apply(store, True, "pat", "Essai.", ["variant", "condition"])
+    third = photographed(client, position=3, color=(30, 200, 200))
+    report = review.run(apply=True, read=True, copy_ids=[second["id"], third["id"]])
+    assert [c["copy_id"] for c in report["confirmed"]] == [second["id"]]
+    assert card_of(client, second)["variant_confirmed"]
+    held = card_of(client, third)
+    assert not held["variant_confirmed"] and not held["condition_confirmed"]
