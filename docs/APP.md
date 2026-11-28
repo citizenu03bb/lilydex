@@ -468,7 +468,9 @@ enregistrement.
 Le navigateur n'autorise l'aperçu de la caméra qu'en HTTPS ou sur
 `localhost` : depuis une adresse Wi-Fi en HTTP, utilisez le téléversement. Un
 refus de permission ou l'absence de caméra laisse le téléversement accessible.
-Les mêmes choix servent, sur la fiche, à remplacer une photo.
+Les mêmes choix servent, sur la fiche, à remplacer une photo. L'agent de
+revue ne relit une photo remplacée que si elle répond à l'une de ses demandes
+de photo ; sinon, seule une prise au reflet relance la lecture de la finition.
 
 Sur ordinateur, l'aperçu affiche une **mire de cadrage** au format carte. Un
 téléphone peut servir de webcam sous Linux, avec `scrcpy` et le module
@@ -1492,6 +1494,9 @@ initial](RECOVERY.md) garde en plus les pages originales des classeurs.
 - Elle ne rapproche pas automatiquement des sources modifiées.
 - Elle ne suit pas les paiements bancaires : le paiement se déclare à la main.
 - Elle ne publie aucune annonce sur une plateforme de vente.
+- Elle ne détecte pas les contrefaçons : Gemini est le seul lecteur de texte,
+  et une alerte demande deux sources qui concordent
+  ([décision 0004](decisions/0004-gemini-seul-lecteur.md)).
 - Elle ne confirme rien à votre place : identité, variante et état restent des
   décisions humaines.
 

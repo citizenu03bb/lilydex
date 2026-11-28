@@ -179,6 +179,12 @@
     {"id": "role-01", "category": "comment_faire", "role": "editor",
      "prompt": "où je vois combien de gens visitent la vitrine ?",
      "expect": {"none": true, "allow": ["knowledge"]}, "answer_re": "administrat",
-     "answer_example": "La fréquentation est dans Statistiques, que seul un administrateur voit : demande-lui."}
+     "answer_example": "La fréquentation est dans Statistiques, que seul un administrateur voit : demande-lui."},
+    {"_chantier": "Revue des conversations du 28 novembre : rien d'affirmé sans preuve."},
+    {"id": "limites-01", "category": "comment_faire", "prompt": "combien de contrefaçons dans la collection ?",
+     "expect": {"none": true, "allow": ["knowledge", "count_copies"]},
+     "answer_re": "ne (les )?(detect|verifi|repere)|aucune detection",
+     "answer_not_re": "aucune contrefacon|authentiques",
+     "answer_example": "L'application ne détecte pas les contrefaçons : je ne peux pas te dire combien il y en a."}
   ]
 }
