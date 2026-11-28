@@ -13,7 +13,7 @@ from test_pricing import CARD
 from test_verification import Reader as FinishReader
 from test_verification import reading
 
-from pokeprice.agent_review import ACTOR, AgentReview
+from pokeprice.agent_review import ACTOR, AgentReview, set_review_apply
 from pokeprice.condition_assessment import auto_condition_decision
 from pokeprice.inventory import Conflict
 from pokeprice.pricing import display_price
@@ -94,6 +94,9 @@ def env(tmp_path):
             "/api/setup", json={"username": "pat", "password": "Collection-test-2026!"}
         )
         client.post("/api/albums", json={"name": "Test"})
+        # Variant and condition open, identity closed: the facets these tests
+        # exercise; the default (all closed) has its own tests.
+        set_review_apply(app.state.store, True, "pat", "Essai.", ["variant", "condition"])
         stakes = Stakes()
         state = app.state
         review = AgentReview(
@@ -360,7 +363,8 @@ def test_a_new_photo_answering_a_request_starts_the_analysis_on_the_server(tmp_p
         )
         assert response.status_code == 200, response.text
         detail = card_of(client, card)
-        assert detail["variant_confirmed"] and detail["condition_confirmed"]
+        # The gate opens identity and variant; the condition waits for a person (0055).
+        assert detail["variant_confirmed"] and not detail["condition_confirmed"]
         assert client.get("/api/photo-requests").json() == []
         assert [r["trigger"] for r in app.state.agent_review.runs()] == ["photo", "batch"]
 
@@ -416,9 +420,12 @@ def imported(client, *, exact=True, language="en", position=1, color=(40, 90, 16
 
 
 def open_gate(client):
-    from pokeprice.agent_review import set_review_apply
-
     set_review_apply(client.app.state.store, True, "pat", "Porte passée (essai).")
+
+
+def open_condition(client):
+    """The condition facet, closed by default (decision 0055), opened for a test."""
+    set_review_apply(client.app.state.store, True, "pat", "Essai.", ["condition"])
 
 
 def test_agent_confirms_the_identity_of_an_easy_imported_card(env):
@@ -737,3 +744,82 @@ def test_a_worse_reading_is_not_raised_by_the_cap():
     decision = auto_condition_decision({}, {"stale": False, "result": result},
                                        high_value=False, crease="pli")
     assert decision["grade"] == "PL"
+
+
+# -- One switch per facet; the condition is a person's (decision 0055) --------------
+
+
+def close_all(client):
+    set_review_apply(client.app.state.store, False, "pat", "")
+
+
+def test_closed_facets_hold_every_caller_the_command_line_included(env, monkeypatch, capsys):
+    import sys
+
+    from pokeprice import manage
+
+    client, review, _, _ = env
+    close_all(client)
+    card = photographed(client)
+    report = review.run(apply=True, read=True)
+    # The variant is confirmable, and stays a simulation.
+    assert report["confirmed"] == []
+    assert "Variante confirmable" in report["skipped"][0]["reason"]
+    assert "agent_review_apply" in report["skipped"][0]["reason"]
+    root = str(client.app.state.store.root)
+    monkeypatch.setattr(sys, "argv", ["pokeprice-manage", "--data", root, "agent-review", "--apply"])
+    manage.main()
+    assert '"confirmed": 0' in capsys.readouterr().out
+    detail = card_of(client, card)
+    assert not detail["variant_confirmed"] and not detail["condition_confirmed"]
+    # The simulation still says what it would confirm.
+    assert review.run()["confirmed"][0]["copy_id"] == card["id"]
+
+
+def test_with_the_condition_closed_the_agent_neither_grades_nor_asks_corners(env):
+    client, review, readers, _ = env
+    set_review_apply(client.app.state.store, False, "pat", "", ["condition"])
+    card = photographed(client)
+    readers["condition"].quality = "limited"  # Would have asked the corners.
+    report = review.run(apply=True, read=True)
+    assert [c["copy_id"] for c in report["confirmed"]] == [card["id"]]
+    assert "partial" not in report["confirmed"][0]
+    assert report["human_decisions_saved"] == 1 and report["photo_requests"] == []
+    detail = card_of(client, card)
+    assert detail["variant_confirmed"] and not detail["condition_confirmed"]
+    assert detail["condition"] == "EX"
+    assert client.get("/api/photo-requests").json() == []
+    # Identity and variant settled: nothing left for the agent on this copy.
+    with client.app.state.store.connect() as db:
+        assert review.candidates(db, condition=False) == []
+        assert review.candidates(db) == [card["id"]]
+
+
+def test_a_held_facet_does_not_stop_an_open_one(env):
+    client, review, readers, _ = env
+    # Condition open, variant closed: the grade is written, the variant held.
+    set_review_apply(client.app.state.store, False, "pat", "", ["variant"])
+    card = photographed(client)
+    report = review.run(apply=True, read=True)
+    assert report["confirmed"][0]["partial"] and report["human_decisions_saved"] == 1
+    assert "Variante confirmable" in report["confirmed"][0]["held"]
+    assert report["skipped"] == []
+    detail = card_of(client, card)
+    assert detail["condition_confirmed"] and not detail["variant_confirmed"]
+    # A facet closed while a run goes on is honoured from the next copy.
+    second = photographed(client, position=2, color=(200, 30, 30))
+    store = client.app.state.store
+    original = review.confirm
+
+    def close_then_confirm(found, verdict, run_id):
+        set_review_apply(store, False, "pat", "", ["variant", "condition"])
+        return original(found, verdict, run_id)
+
+    review.confirm = close_then_confirm
+    set_review_apply(store, True, "pat", "Essai.", ["variant", "condition"])
+    third = photographed(client, position=3, color=(30, 200, 200))
+    report = review.run(apply=True, read=True, copy_ids=[second["id"], third["id"]])
+    assert [c["copy_id"] for c in report["confirmed"]] == [second["id"]]
+    assert card_of(client, second)["variant_confirmed"]
+    held = card_of(client, third)
+    assert not held["variant_confirmed"] and not held["condition_confirmed"]

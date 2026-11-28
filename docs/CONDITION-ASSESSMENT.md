@@ -59,8 +59,9 @@ estimation de prix ne sont demandées.
 
 ## L'agent de revue
 
-L'agent de revue (`agent:revue`, module `agent_review.py`) confirme la
-variante et l'état **par le même chemin d'écriture qu'une personne** : la
+L'agent de revue (`agent:revue`, module `agent_review.py`) confirme
+l'identité d'une carte importée et la variante **par le même chemin
+d'écriture qu'une personne** : la
 fiche change de version, l'événement de validation garde les lectures, et
 porte en plus `decided_by: agent`, le score et l'identifiant du passage.
 
@@ -73,8 +74,14 @@ Il confirme la variante si :
 - au seuil de valeur (10 € par défaut) ou sans valeur prudente connue, le
   verso est aussi exploitable ([décision 0008](decisions/0008-reverses-examen-physique.md)).
 
-Il confirme l'état si l'évaluation est exploitable sur le recto et de qualité
-suffisante, avec la même règle de verso au seuil.
+Il ne juge pas l'état : une personne le note
+([décision 0055](decisions/0055-etat-note-par-une-personne.md)). Il ne le
+confirme pas et ne demande aucune photo pour lui ; il lit encore l'état, parce
+que cette lecture dit si le verso est exploitable. L'interrupteur `condition`
+de `agent_review_apply`, fermé, le garde ainsi ; ouvert après une nouvelle
+mesure à l'aveugle, l'agent confirmerait l'état si l'évaluation est
+exploitable sur le recto et de qualité suffisante, avec la même règle de
+verso au seuil.
 
 Chaque facette établie est écrite, sauf si une photo demandée dans le même
 passage l'effacerait : une photo du recto efface la variante et l'état, une
@@ -82,11 +89,11 @@ photo du verso efface l'état. Sur une carte importée, l'identité confirmée e
 toujours écrite. Si elle ne se confirme pas, rien n'est écrit
 ([décision 0050](decisions/0050-confirmer-par-facette.md)).
 
-Aucune carte ne sort du classeur pour juger son état
-([décision 0049](decisions/0049-etat-sans-manipulation.md)). Sous le seuil,
-le recto suffit. Au-dessus, sans verso exploitable, l'agent ne demande pas le
-verso : la variante et l'état restent provisoires jusqu'à la photo du verso
-prise pour l'annonce, et le passage suivant tranche.
+Aucune carte ne sort du classeur pour l'agent
+([décision 0049](decisions/0049-etat-sans-manipulation.md)). Au-dessus du
+seuil, sans verso exploitable, l'agent ne demande pas le verso : la variante
+reste provisoire jusqu'à la photo du verso prise pour l'annonce, et le passage
+suivant tranche.
 
 Une **prise au reflet** (la carte inclinée sous une lampe, hors pochette)
 tranche la question des reverses quand elle est de qualité suffisante : une
@@ -103,22 +110,25 @@ l'illustration qui brille propose la holo si le catalogue désigne l'impression
 ([décision 0053](decisions/0053-holo-de-face-seulement-sans-version-mate.md)).
 
 Pour une carte créée par l'import d'un classeur et encore « à vérifier », il
-confirme aussi l'identité, en premier, avec la variante et l'état, ou rien
+confirme aussi l'identité, en premier, avec la variante, ou rien
 ([décision 0047](decisions/0047-import-de-classeur-sur-le-serveur.md)) :
 le catalogue a trouvé cette seule édition, au nom exact et à la référence
 complète ; le contrôle d'édition par l'image la désigne avec la marge ; la
 langue lue est celle de l'édition ; la carte est sous le seuil de valeur.
-Tant que le réglage `agent_review_apply` est faux, il n'écrit aucune
-identité, quel que soit l'appelant (processus d'import ou `agent-review
---apply`) : le rapport dit seulement qu'il la confirmerait.
+Le réglage `agent_review_apply` a un interrupteur par facette (`identity`,
+`variant`, `condition`), tous fermés sans réglage ; `on` sans facette ouvre
+l'identité et la variante, jamais l'état. Une facette fermée n'est écrite par
+aucun appelant (processus d'import, série, photo qui répond à une demande ou
+`agent-review --apply`) : le rapport dit seulement qu'il la confirmerait.
 
 Sinon, il inscrit une **demande de photo** dans le journal (`photo-request`) :
-la carte, la vue (recto net, verso, reflet holo, coins de près) et une raison
+la carte, la vue (recto net, verso, reflet holo ; coins de près seulement si
+l'état est ouvert à l'agent) et une raison
 en une phrase. Une seule vue par face, la plus précise. La gestion les liste
 sous « Photos à reprendre », dans l'ordre du classeur. Le bouton ouvre
 l'appareil photo du téléphone ; la nouvelle photo ferme la demande et le
 serveur relance seul les lectures et la décision pour cette carte. Tant que
-`agent_review_apply` est faux, la photo est lue et rien n'est écrit
+`agent_review_apply` n'ouvre aucune facette, la photo est lue et rien n'est écrit
 ([décision 0051](decisions/0051-porte-sur-les-erreurs-graves.md)). Une vue déjà
 reprise sans succès n'est pas redemandée : la carte reste en l'état, avec son
 état enregistré. Le rapport la range dans `kept`, avec ce que les photos ne
@@ -134,12 +144,13 @@ un album, la sélection en cours ou une liste d'exemplaires portée par un lien
 même bouton pour ses cartes
 ([décision 0048](decisions/0048-serie-de-prises-de-pres.md)). La liste est le
 verdict de l'agent en simulation sur ces cartes, calculé à l'ouverture : elle
-existe donc aussi quand `agent_review_apply` est faux et que l'agent
-n'inscrit aucune demande.
+existe donc aussi quand `agent_review_apply` n'ouvre aucune facette et que
+l'agent n'inscrit aucune demande.
 
 À chaque carte, la série demande aussi : « Pli, cassure ou marque enfoncée ? »
-(non, pli, enfoncement ou doute). Un pli ou un enfoncement plafonne à LP
-l'état que l'agent confirme ; une carte qu'il ne confirme pas (photo à
+(non, pli, enfoncement ou doute). La réponse reste au journal de la carte
+pour la personne qui note l'état. Si l'état est ouvert à l'agent, un pli ou un
+enfoncement plafonne à LP l'état qu'il confirme ; une carte qu'il ne confirme pas (photo à
 reprendre, carte de valeur, recto insuffisant) garde son état enregistré. Un
 doute le laisse tel qu'enregistré. La réponse ne relance aucune lecture :
 l'agent décide de nouveau sur les lectures qu'il a. Sans réponse en
@@ -153,8 +164,8 @@ recto net, puis verso. Un geste ouvre l'appareil photo ; la carte suivante
 s'affiche aussitôt, et l'envoi part en fond. La photo remplace la face visée
 par le chemin de la fiche ; un reflet est enregistré comme tel. Après la
 réponse, le serveur relit la carte (finition, édition par l'image, état) et
-l'agent décide sur elle seule : il écrit si `agent_review_apply` est vrai,
-sinon son verdict reste dans le journal de la carte (`closeup-review`). Si
+l'agent décide sur elle seule : il écrit les facettes que `agent_review_apply`
+ouvre, et son verdict reste dans le journal de la carte (`closeup-review`). Si
 cette relecture n'a pas rendu de verdict au bout de dix minutes (un
 redémarrage du service l'a interrompue), l'ouverture suivante de la série la
 relance. Deux photos de la même carte prises coup sur coup lancent leurs
@@ -163,7 +174,9 @@ redemandée : la carte passe dans « Restent en l'état ». En fin de série, l'
 carte et les verdicts de l'agent.
 
 En lot : `pokeprice-manage --data <base> agent-review` simule, `--apply`
-écrit, `--read` lance les lectures manquantes. Le rapport compte les cartes
+écrit les facettes que le réglage ouvre et les demandes de photo, `--read`
+lance les lectures manquantes. `agent-review-apply on|off --facet <facette>`
+ouvre ou ferme une facette, avec sa raison. Le rapport compte les cartes
 confirmées, les demandes de photo, les cartes laissées de côté et les
 décisions humaines évitées. `agent-review-runs` liste les passages ;
 `agent-review-undo <passage> --actor <compte>` les annule, sauf les fiches

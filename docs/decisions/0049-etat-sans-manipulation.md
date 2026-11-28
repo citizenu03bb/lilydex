@@ -1,6 +1,6 @@
 # 0049 — Aucune carte ne sort du classeur pour juger son état : le recto suffit sous 10 €, le verso attend la vente
 
-> **Statut :** en vigueur, modifie les décisions [0022](0022-agent-confirme-ou-demande-photo.md) et [0048](0048-serie-de-prises-de-pres.md) · **Date :** 2026-11-21
+> **Statut :** en vigueur, modifie les décisions [0022](0022-agent-confirme-ou-demande-photo.md) et [0048](0048-serie-de-prises-de-pres.md), modifiée par la [décision 0055](0055-etat-note-par-une-personne.md) (l'état n'est plus confirmé par l'agent) · **Date :** 2026-11-21
 
 **Contexte.** Après la série de prises de près sur les 60 cartes de la
 vérification à l'aveugle, l'agent de revue confirmait 1 carte, redemandait une

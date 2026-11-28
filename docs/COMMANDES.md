@@ -461,11 +461,12 @@ Continuer un import arrêté au budget (ajoute le budget initial)
 
 ### `pokeprice-manage agent-review-apply`
 
-Faire écrire l'agent de revue sur les pages importées, ou le remettre en simulation
+Faire écrire l'agent de revue, facette par facette, ou le remettre en simulation
 
 | Argument | Effet |
 |---|---|
 | `state` | Valeurs : `on`, `off`. |
+| `--facet` `FACET` | Facette visée, répétable ; sans elle, on vise identité et variante, off toutes Valeurs : `identity`, `variant`, `condition`. |
 | `--actor` `ACTOR` | Compte administrateur |
 | `--reason` `REASON` | La mesure à l'aveugle qui l'autorise |
 

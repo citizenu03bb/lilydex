@@ -3250,6 +3250,27 @@
       "title": "Apply",
       "type": "boolean"
      },
+     "facets": {
+      "anyOf": [
+       {
+        "items": {
+         "enum": [
+          "identity",
+          "variant",
+          "condition"
+         ],
+         "type": "string"
+        },
+        "maxItems": 3,
+        "minItems": 1,
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Facets"
+     },
      "reason": {
       "default": "",
       "maxLength": 1000,

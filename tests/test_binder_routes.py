@@ -89,14 +89,23 @@ def test_only_admins_reach_the_import(client):
 
 
 def test_review_apply_switch(client):
-    assert client.get("/api/settings/agent-review-apply").json() == {"apply": False}
+    closed = {"identity": False, "variant": False, "condition": False}
+    assert client.get("/api/settings/agent-review-apply").json() == {
+        "apply": False, "facets": closed}
     refused = client.put("/api/settings/agent-review-apply", json={"apply": True})
     assert refused.status_code in (400, 422)
     switched = client.put(
         "/api/settings/agent-review-apply",
         json={"apply": True, "reason": "Échantillon de 60 : aucune variante fausse."},
     )
-    assert switched.json() == {"apply": True, "previous": False}
+    assert switched.json() == {
+        "apply": True, "previous": False,
+        "facets": {"identity": True, "variant": True, "condition": False}}
+    bad = client.put("/api/settings/agent-review-apply", json={"apply": False, "facets": ["prix"]})
+    assert bad.status_code == 422
+    variant_off = client.put(
+        "/api/settings/agent-review-apply", json={"apply": False, "facets": ["variant"]})
+    assert variant_off.json()["facets"] == {**closed, "identity": True}
 
 
 def test_bad_uploads_are_refused(client):

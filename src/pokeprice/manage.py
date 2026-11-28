@@ -344,9 +344,15 @@ def main():
     binder_continue.add_argument("--actor", required=True)
     review_apply = actions.add_parser(
         "agent-review-apply",
-        help="Faire écrire l'agent de revue sur les pages importées, ou le remettre en simulation",
+        help="Faire écrire l'agent de revue, facette par facette, ou le remettre en simulation",
     )
     review_apply.add_argument("state", choices=["on", "off"])
+    review_apply.add_argument(
+        "--facet",
+        action="append",
+        choices=["identity", "variant", "condition"],
+        help="Facette visée, répétable ; sans elle, on vise identité et variante, off toutes",
+    )
     review_apply.add_argument("--actor", required=True, help="Compte administrateur")
     review_apply.add_argument("--reason", default="", help="La mesure à l'aveugle qui l'autorise")
     exporter = actions.add_parser("export", help="Export de la collection gérée")
@@ -754,7 +760,9 @@ def main():
         elif args.action == "agent-review-apply":
             from .agent_review import set_review_apply
 
-            result = set_review_apply(store, args.state == "on", args.actor, args.reason)
+            result = set_review_apply(
+                store, args.state == "on", args.actor, args.reason, args.facet
+            )
         elif args.action == "export":
             from .inventory_backup import export_csv, export_data, export_html
 

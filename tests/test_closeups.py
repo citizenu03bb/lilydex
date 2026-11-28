@@ -9,6 +9,7 @@ from test_agent_review import (
     card_of,
     imported,
     make_app,
+    open_condition,
     open_gate,
 )
 from test_condition_assessment import picture
@@ -87,8 +88,13 @@ def history(client, card, kind):
 def test_the_queue_follows_the_binder_and_writes_nothing_in_simulation(env, binder):
     client, *_ = env
     before = {k: card_of(client, c)["version"] for k, c in binder.items()}
+    # Every facet closed: the condition is a person's, no corner is asked (0055).
+    default = queue(client, album="Test")
+    assert default["apply"] is False and default["cards"] == 2 and default["shots"] == 1
+    assert [[v["view"] for v in s["views"]] for s in default["steps"]] == [["holo"]]
+    open_condition(client)
     result = queue(client, album="Test")
-    assert result["apply"] is False and result["cards"] == 2 and result["shots"] == 2
+    assert result["apply"] is True and result["cards"] == 2 and result["shots"] == 2
     steps = result["steps"]
     assert [(s["album"], s["page"], s["position"]) for s in steps] == [("Test", 3, 1), ("Test", 3, 2)]
     assert [[v["view"] for v in s["views"]] for s in steps] == [["corner"], ["holo"]]
@@ -182,6 +188,7 @@ def test_a_stale_version_is_refused(env, binder):
 def test_with_the_gate_open_the_new_reading_writes(env, binder):
     client, closeups, readers, _ = env
     open_gate(client)
+    open_condition(client)
     card = binder["corners"]
     shoot(client, card, "corner", (12, 190, 40))
     verdict = closeups.after_shot(card["id"])
@@ -270,6 +277,7 @@ def test_two_readings_of_one_card_wait_for_each_other(env, binder, monkeypatch):
 def test_a_crease_told_in_hand_caps_the_condition_the_agent_writes(env):
     client, closeups, readers, _ = env
     open_gate(client)
+    open_condition(client)
     card = imported(client)
     response = client.post(f"/api/closeups/{card['id']}/crease", json={"answer": "pli"})
     assert response.status_code == 200, response.text

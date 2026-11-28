@@ -1,4 +1,4 @@
-"""The review agent confirms variant and condition when the evidence suffices.
+"""The review agent confirms identity and variant when the evidence suffices.
 
 Otherwise it asks for one more photo. It writes through the very path a human
 uses (``VariantCheckService.confirm`` and ``ConditionService.confirm``), as
@@ -9,6 +9,10 @@ Photo requests live in the events table (``photo-request``): a request stays
 open while the photo of its face is unchanged, its run is not undone and the
 copy is still available. A new photo closes it and, on the server, starts a
 fresh analysis of that copy (``after_photo``).
+
+Each facet (identity, variant, condition) is written only when its own
+setting allows it, whoever runs the agent; the condition is not even judged
+while its setting is off: a person grades it (decision 0055).
 
 See docs/CONDITION-ASSESSMENT.md and docs/decisions/0022.
 """
@@ -135,8 +139,15 @@ class AgentReview:
 
     # -- Reading -----------------------------------------------------------
 
-    def candidates(self, db, album=None, copy_ids=None):
-        """Identified, available copies still waiting for a confirmation, in binder order."""
+    def candidates(self, db, album=None, copy_ids=None, condition=True):
+        """Identified, available copies still waiting for a confirmation, in binder order.
+
+        Without ``condition``, a copy whose identity and variant are confirmed
+        has nothing left for the agent: its condition waits for a person.
+        """
+        settled = "c.identification_status='confirmed' AND c.variant_confirmed"
+        if condition:
+            settled += " AND c.condition_confirmed"
         query = (
             "SELECT c.id FROM copies c JOIN albums a ON a.id=c.album_id "
             "WHERE c.deleted_at='' AND c.stock_state='available' "
@@ -144,8 +155,7 @@ class AgentReview:
             # the agent may confirm its identity too (decision 0047).
             "AND (c.identification_status='confirmed' OR (c.identification_status='review' "
             "AND c.catalog_id IS NOT NULL AND c.source_key LIKE 'binder:%')) "
-            "AND NOT (c.identification_status='confirmed' AND c.variant_confirmed "
-            "AND c.condition_confirmed)"
+            f"AND NOT ({settled})"
         )
         args = []
         if album:
@@ -230,7 +240,7 @@ class AgentReview:
 
     # -- Deciding ----------------------------------------------------------
 
-    def decide(self, found, answered=frozenset()):
+    def decide(self, found, answered=frozenset(), condition=True):
         """One decision per facet, and the facets that can be written now.
 
         Decision 0050: what is established is written even when another facet
@@ -238,7 +248,8 @@ class AgentReview:
         front resets the variant and the condition, a new back the condition;
         the identity stays. A view in ``answered`` was already retaken: it will
         not be asked again, so it holds nothing back. ``confirm`` still says
-        that every facet is settled.
+        that every facet is settled. Without ``condition``, the condition is
+        not a facet of the agent: no decision, no photo asked for it (0055).
         """
         card, valuation = found["card"], found["valuation"]
         high_value = high_stakes(valuation)
@@ -283,7 +294,7 @@ class AgentReview:
             if decisions["variant"]["action"] == "confirm":
                 decisions["variant"]["check_id"] = check["id"]
                 decisions["variant"]["proposal"] = proposal
-        if not card["condition_confirmed"]:
+        if condition and not card["condition_confirmed"]:
             decisions["condition"] = auto_condition_decision(
                 card, assessment, high_value=high_value, crease=found.get("crease")
             )
@@ -443,7 +454,12 @@ class AgentReview:
         threshold_cents=1000,
         trigger="batch",
     ):
-        """Review every waiting copy; without ``apply``, nothing is written."""
+        """Review every waiting copy; without ``apply``, nothing is written.
+
+        With ``apply``, a facet is written only if its setting allows it
+        (``review_facets``); the simulation says what the agent would confirm.
+        """
+        facets = review_facets(self.store)
         run_id = str(uuid.uuid4()) if apply else None
         report = {
             "run_id": run_id,
@@ -457,7 +473,7 @@ class AgentReview:
             "human_decisions_saved": 0,
         }
         with self.store.connect() as db:
-            ids = self.candidates(db, album, copy_ids)
+            ids = self.candidates(db, album, copy_ids, condition=facets["condition"])
         if limit is not None:
             ids = ids[:limit]
         for copy_id in ids:
@@ -474,7 +490,7 @@ class AgentReview:
                     "kept": [],
                 }
             else:
-                verdict = self.decide(found)
+                verdict = self.decide(found, condition=facets["condition"])
                 if verdict["photos"]:
                     with self.store.connect() as db:
                         _, undone = run_events(db)
@@ -483,33 +499,22 @@ class AgentReview:
                             if asked_before(db, copy_id, view, undone) == "answered"
                         )
                     if answered:
-                        verdict = self.decide(found, answered)
-            if (
-                apply
-                and "identity" in verdict.get("write", ())
-                and not review_apply(self.store)
-                and not verdict["confirm"]
-            ):
-                # Decision 0047 holds for a lone identity too: nothing written,
-                # the photos are still asked.
-                verdict = {**verdict, "write": []}
-            if (
-                apply
-                and verdict["confirm"]
-                and "identity" in verdict["decisions"]
-                and not review_apply(self.store)
-            ):
-                # Decision 0047: whoever runs the agent (worker, command line),
-                # an imported identity is written only once the blind check's gate
-                # opened the setting. The simulation still says it would confirm.
-                report["skipped"].append({
-                    **item,
-                    "reason": "Identité confirmable, mais l’agent n’écrit pas sur les cartes "
-                    "importées tant que agent_review_apply est faux.",
-                })
-                continue
+                        verdict = self.decide(found, answered, condition=facets["condition"])
+            held = []
+            if apply:
+                # Read again for each copy: an administrator may close a facet
+                # while a long run goes on.
+                open_now = review_facets(self.store)
+                allowed = [name for name in verdict.get("write", ()) if open_now[name]]
+                if "identity" in verdict.get("decisions", {}) and "identity" not in allowed:
+                    # Decision 0047: a copy still « à vérifier » gets nothing
+                    # written while its identity is not.
+                    allowed = []
+                held = [name for name in verdict.get("write", ()) if name not in allowed]
+                verdict = {**verdict, "write": allowed}
+            held_reasons = [held_reason(held)] if held else []
             if verdict.get("write"):
-                partial = not verdict["confirm"]
+                partial = not verdict["confirm"] or bool(held)
                 saved = len(verdict["write"])
                 if apply:
                     try:
@@ -527,7 +532,11 @@ class AgentReview:
                     done["undo"] = record
                 report["confirmed"].append(done)
                 report["human_decisions_saved"] += saved
-                if not partial:
+                if held:
+                    # The held facets travel with the confirmation, not as a skip.
+                    done["held"] = held_reason(held)
+                    held_reasons = []
+                if verdict["confirm"]:
                     continue
             if verdict["photos"]:
                 asked = []
@@ -553,7 +562,7 @@ class AgentReview:
                 if asked:
                     report["photo_requests"].append({**item, "views": asked})
                 continue
-            reasons = errors + verdict["skipped"]
+            reasons = errors + held_reasons + verdict["skipped"]
             if verdict["kept"] and not reasons:
                 report["kept"].append({**item, "reason": " ".join(dict.fromkeys(verdict["kept"]))})
                 continue
@@ -574,6 +583,7 @@ class AgentReview:
                         "run_id": run_id,
                         "trigger": trigger,
                         "threshold_cents": threshold_cents,
+                        "facets": review_facets(self.store),
                         "confirmed": [
                             {k: c[k] for k in ("copy_id", "decisions", "undo", "partial")
                              if k in c}
@@ -722,13 +732,33 @@ class AgentReview:
             return None
 
 
-# -- The write switch (decision 0047) --------------------------------------------
+# -- The write switch (decisions 0047 and 0055) -------------------------------
 # Until the blind check at the binder passes its gate (ROADMAP, M2), the agent
-# runs in simulation on imported pages. Writing is one setting of the base,
-# false without a row, changed only by an active administrator, and logged.
+# runs in simulation. Writing is one setting of the base, one switch per facet,
+# all off without a row, changed only by an active administrator, and logged.
+# The condition switch also says whether the agent judges the condition at all.
 
 APPLY_KEY = "agent_review_apply"
 APPLY_EVENT = "agent-review-apply"
+FACETS = ("identity", "variant", "condition")
+FACET_LABELS = {"identity": "Identité", "variant": "Variante", "condition": "État"}
+# Switched on without naming facets: the condition stays with a person (0055).
+DEFAULT_ON = ("identity", "variant")
+
+
+def held_reason(held):
+    """Why a confirmable facet is not written: its switch is off."""
+    labels = [FACET_LABELS[name] for name in held]
+    if len(labels) == 1:
+        return (
+            f"{labels[0]} confirmable, mais l’agent ne l’écrit pas tant que "
+            "agent_review_apply n’ouvre pas cette facette."
+        )
+    named = " et ".join([labels[0]] + [label.lower() for label in labels[1:]])
+    return (
+        f"{named} confirmables, mais l’agent ne les écrit pas tant que "
+        "agent_review_apply n’ouvre pas ces facettes."
+    )
 
 
 def asked_before(db, copy_id, view, undone):
@@ -740,19 +770,39 @@ def asked_before(db, copy_id, view, undone):
     return None
 
 
-def review_apply(source):
-    """Whether the agent writes on imported pages, from a store or an open connection."""
+def review_facets(source):
+    """Which facets the agent writes, from a store or an open connection.
+
+    The setting is a dict of facets. The older single switch (``true``) meant
+    every facet; it now means identity and variant, never the condition (0055).
+    """
     if hasattr(source, "connect"):
         with source.connect() as db:
-            return review_apply(db)
+            return review_facets(db)
     row = source.execute("SELECT value_json FROM settings WHERE key=?", (APPLY_KEY,)).fetchone()
-    return bool(row and json.loads(row[0]) is True)
+    value = json.loads(row[0]) if row else False
+    if isinstance(value, dict):
+        return {name: value.get(name) is True for name in FACETS}
+    return {name: value is True and name in DEFAULT_ON for name in FACETS}
 
 
-def set_review_apply(store, value, actor, reason):
-    """Switch the agent's writing on or off; the reason names the gate's evidence."""
+def review_apply(source):
+    """Whether the agent writes any facet, from a store or an open connection."""
+    return any(review_facets(source).values())
+
+
+def set_review_apply(store, value, actor, reason, facets=None):
+    """Switch facets of the agent's writing on or off; the reason names the gate's evidence.
+
+    Without ``facets``, on means identity and variant, off means every facet.
+    """
     if not isinstance(value, bool):
         raise ValueError("Valeur vraie ou fausse attendue.")
+    if facets is None:
+        facets = DEFAULT_ON if value else FACETS
+    facets = tuple(dict.fromkeys(facets))
+    if not facets or any(name not in FACETS for name in facets):
+        raise ValueError("Facettes attendues : " + ", ".join(FACETS) + ".")
     reason = (reason or "").strip()
     if value and not reason:
         raise ValueError("Dites quelle mesure à l’aveugle autorise l’écriture.")
@@ -764,18 +814,22 @@ def set_review_apply(store, value, actor, reason):
             from .floor_requests import HumanOnly
 
             raise HumanOnly("Seul un compte administrateur fait écrire l’agent de revue.")
-        before = review_apply(db)
+        before = review_facets(db)
+        after = {**before, **{name: value for name in facets}}
         stamp = now()
         db.execute(
             "INSERT INTO settings(key,value_json,updated_by,updated_at) VALUES(?,?,?,?) "
             "ON CONFLICT(key) DO UPDATE SET value_json=excluded.value_json,"
             "updated_by=excluded.updated_by,updated_at=excluded.updated_at",
-            (APPLY_KEY, json.dumps(value), actor, stamp),
+            (APPLY_KEY, json.dumps(after), actor, stamp),
         )
         db.execute(
             "INSERT INTO events(copy_id,actor,kind,reason,before_json,after_json,created_at) "
             "VALUES(NULL,?,?,?,?,?,?)",
-            (actor, APPLY_EVENT, reason or "Agent de revue remis en simulation.",
-             json.dumps({"apply": before}), json.dumps({"apply": value}), stamp),
+            (actor, APPLY_EVENT, reason or (
+                "Agent de revue remis en simulation." if not any(after.values())
+                else "Facette fermée : " + ", ".join(facets) + "."),
+             json.dumps({"apply": any(before.values()), "facets": before}),
+             json.dumps({"apply": any(after.values()), "facets": after}), stamp),
         )
-    return {"apply": value, "previous": before}
+    return {"apply": any(after.values()), "previous": any(before.values()), "facets": after}

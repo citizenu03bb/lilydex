@@ -1,6 +1,6 @@
 # 0051 — La porte de l'agent de revue compte les erreurs d'état graves, et le réglage gouverne toute écriture automatique
 
-> **Statut :** en vigueur, précise la porte de la [décision 0049](0049-etat-sans-manipulation.md) et de la feuille de route · **Date :** 2026-11-25
+> **Statut :** en vigueur, précise la porte de la [décision 0049](0049-etat-sans-manipulation.md) et de la feuille de route, modifiée par la [décision 0055](0055-etat-note-par-une-personne.md) (un réglage par facette, sans écriture hors du réglage) · **Date :** 2026-11-25
 
 **Contexte.** Avant d'écrire, l'agent de revue doit passer une vérification à
 l'aveugle : aucune variante fausse, et une borne haute à 95 % du taux

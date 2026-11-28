@@ -7,6 +7,16 @@
 Une page qui décrit le fonctionnement ne porte pas de date : quand un passage
 daté la quitte, il est versé ici dans le même commit.
 
+## 2026-11-28
+
+- Une personne note l'état ([décision 0055](decisions/0055-etat-note-par-une-personne.md)) :
+  au second échantillon à l'aveugle, 6 erreurs d'état graves sur 38
+  confirmations, toutes optimistes, la pochette cachant l'usure. L'agent ne
+  juge plus l'état et ne demande plus les coins ; `agent_review_apply` a un
+  interrupteur par facette (identité, variante, état), que suivent tous les
+  appelants, `agent-review --apply` compris (`tests/test_agent_review.py`,
+  `tests/test_binder_routes.py`).
+
 ## 2026-11-26
 
 - Sur le banc d’état v3, 3.8 Flash donne 31 notes exactes sur 59 cartes,

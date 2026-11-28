@@ -369,7 +369,7 @@ def test_retaking_a_page_rereads_it_onto_the_same_copies(store):
 
 
 def test_review_apply_setting_is_admin_only_and_logged(store):
-    from pokeprice.agent_review import review_apply, set_review_apply
+    from pokeprice.agent_review import review_apply, review_facets, set_review_apply
     from pokeprice.floor_requests import HumanOnly
     from pokeprice.passwords import password_hash
 
@@ -387,14 +387,27 @@ def test_review_apply_setting_is_admin_only_and_logged(store):
         set_review_apply(store, True, "lily", "porte passée")
     with pytest.raises(ValueError, match="aveugle"):
         set_review_apply(store, True, "admin", "")
+    # On without facets: identity and variant; the condition stays a person's (0055).
     assert set_review_apply(store, True, "admin", "60 cartes, 0 variante fausse") == {
-        "apply": True, "previous": False}
+        "apply": True, "previous": False,
+        "facets": {"identity": True, "variant": True, "condition": False}}
     assert review_apply(store) is True
+    assert review_facets(store)["condition"] is False
+    with pytest.raises(ValueError, match="Facettes"):
+        set_review_apply(store, True, "admin", "essai", ["price"])
+    set_review_apply(store, False, "admin", "", ["identity"])
+    assert review_facets(store) == {"identity": False, "variant": True, "condition": False}
+    with store.connect() as db:
+        assert db.execute("SELECT reason FROM events WHERE kind='agent-review-apply' "
+                          "ORDER BY id DESC").fetchone()[0] == "Facette fermée : identity."
     set_review_apply(store, False, "admin", "")
     assert review_apply(store) is False
     with store.connect() as db:
         assert db.execute(
-            "SELECT COUNT(*) FROM events WHERE kind='agent-review-apply'").fetchone()[0] == 2
+            "SELECT COUNT(*) FROM events WHERE kind='agent-review-apply'").fetchone()[0] == 3
+        # The older single switch meant every facet; now never the condition.
+        db.execute("UPDATE settings SET value_json='true' WHERE key='agent_review_apply'")
+    assert review_facets(store) == {"identity": True, "variant": True, "condition": False}
 
 
 def test_command_line_import_uses_the_same_service(store, tmp_path):
