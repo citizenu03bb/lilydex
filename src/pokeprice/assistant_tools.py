@@ -620,6 +620,13 @@ def count_copies(ctx, values):
             "unpriced_copies": len(counted) - len(priced) - bulk,
             "bulk_copies": bulk,
         },
+        # What a person (or the agent) has confirmed, facet by facet: a confirmed
+        # identity says nothing of the variant or the condition.
+        "checks": {
+            "identity_confirmed": sum(c["identification_status"] == "confirmed" for c in counted),
+            "variant_confirmed": sum(bool(c["variant_confirmed"]) for c in counted),
+            "condition_confirmed": sum(bool(c["condition_confirmed"]) for c in counted),
+        },
         "groups_total": len(rows),
         "duplicate_groups": len(duplicates),
         "duplicate_extra_copies": sum(r["count"] - 1 for r in duplicates),

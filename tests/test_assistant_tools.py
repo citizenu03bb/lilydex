@@ -339,6 +339,12 @@ def test_count_copies_filters(assistant):
     status = run(assistant, "count_copies", {"group_by": "status"})
     assert {g["identification_status"]: g["count"] for g in status["top"]} == {
         "confirmed": 3, "review": 1}
+    # A confirmed identity is not a checked variant or condition: counted apart.
+    with assistant["store"].connect(write=True) as db:
+        db.execute("UPDATE copies SET variant_confirmed=0, condition_confirmed=0")
+        db.execute("UPDATE copies SET variant_confirmed=1 WHERE id=(SELECT MIN(id) FROM copies)")
+    checks = run(assistant, "count_copies", {})["checks"]
+    assert checks == {"identity_confirmed": 3, "variant_confirmed": 1, "condition_confirmed": 0}
 
 
 def test_count_copies_sums_reference_prices(assistant):
